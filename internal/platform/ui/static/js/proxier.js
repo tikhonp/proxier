@@ -314,7 +314,8 @@
       var scope = currentRow() || document;
       var el = $('[data-key="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]', scope) ||
                (scope !== document ? $('[data-key="' + k + '"]') : null);
-      if (el && el.offsetParent !== null) { el.click(); e.preventDefault(); }
+      // data-row-only: a key that acts on the row under the cursor, never on the first
+      if (el && el.offsetParent !== null && !(el.hasAttribute('data-row-only') && scope === document)) { el.click(); e.preventDefault(); }
     }
   });
 

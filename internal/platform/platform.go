@@ -25,6 +25,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/migrations"
 	"github.com/tikhonp/proxier/internal/platform/module"
+	"github.com/tikhonp/proxier/internal/platform/notify"
+	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/pages"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -48,6 +50,9 @@ type App struct {
 	Jobs     *jobs.System
 	// Dispatcher delivers committed events to subscribers.
 	Dispatcher *events.Dispatcher
+	// Notify renders and queues notifications; Telegram is its channel.
+	Notify   *notify.Service
+	Telegram *telegram.Channel
 	// closing is closed when Serve starts shutting down, so live streams end
 	// before the HTTP server's grace period runs out.
 	closing chan struct{}
@@ -82,6 +87,8 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.Auth.Log = log
 	a.Jobs = jobs.New(d, v, a.Events, a.Settings, log)
 	a.Dispatcher = events.NewDispatcher(d, log)
+	a.Notify = notify.New(d, a.Events, a.I18n, a.Jobs, a.Auth, a.Settings, cfg.BaseURL, log)
+	a.Telegram = telegram.NewChannel(a.Settings, nil, "")
 	a.closing = make(chan struct{})
 
 	var errs []error
@@ -103,7 +110,15 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 				errs = append(errs, a.Dispatcher.Subscribe(sub))
 			}
 		}
+		if nr, ok := m.(module.NotificationRenderer); ok {
+			errs = append(errs, a.Notify.AddRenderer(m.Name(), nr))
+		}
+		if n, ok := m.(module.SubjectNamer); ok {
+			errs = append(errs, a.Notify.AddNamer(n))
+		}
 	}
+	errs = append(errs, a.Notify.AddChannel(a.Telegram), a.Jobs.Register(Name, a.Notify.JobType()),
+		a.Dispatcher.Subscribe(a.Notify.Subscriber()))
 	types, schedules := a.Jobs.PlatformTypes()
 	errs = append(errs, a.Jobs.Register(Name, types...), a.Jobs.RegisterSchedules(Name, schedules...))
 	if err := errors.Join(errs...); err != nil {
@@ -111,7 +126,7 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		return nil, err
 	}
 	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth,
-		Jobs: a.Jobs, Dispatcher: a.Dispatcher}
+		Jobs: a.Jobs, Dispatcher: a.Dispatcher, Notify: a.Notify}
 	for _, m := range all {
 		if in, ok := m.(module.Initializer); ok {
 			if err := in.Init(deps); err != nil {
@@ -164,7 +179,7 @@ func (a *App) HTTP() *echo.Echo {
 		ui.StaticFS, ui.StaticHash)
 
 	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n,
-		Jobs: a.Jobs, Events: a.Events, Query: a.DB.R, Closing: a.closing}
+		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Query: a.DB.R, Closing: a.closing}
 	for _, m := range a.Modules {
 		if nd, ok := m.(module.NavDeclarer); ok {
 			pd.Nav = append(pd.Nav, nd.Nav()...)
@@ -227,11 +242,12 @@ func (core) EventTypes() []events.Type { return Events }
 var Events = append(append([]events.Type(nil), auth.Events...),
 	settings.ChangedEvent,
 	jobs.ScheduleEnabledChanged,
-	events.Type{Name: "ssh.host_key_changed", Module: Name, Notify: true, Description: "A pinned SSH host key changed; work with that host stops."},
+	notify.FailedEvent,
+	events.Type{Name: "ssh.host_key_changed", Module: Name, Notify: true, Emoji: "🔐", Description: "A pinned SSH host key changed; work with that host stops."},
 	events.Type{Name: "ssh.host_key_accepted", Module: Name, Description: "A new SSH host key was accepted."},
-	events.Type{Name: "job.failed", Module: Name, Notify: true, Description: "A job failed (job types without their own failure event)."},
+	events.Type{Name: "job.failed", Module: Name, Notify: true, Emoji: "🔴", Description: "A job failed (job types without their own failure event)."},
 	events.Type{Name: "backup.completed", Module: Name, Description: "A database backup was written."},
-	events.Type{Name: "backup.failed", Module: Name, Notify: true, Description: "A database backup failed."},
+	events.Type{Name: "backup.failed", Module: Name, Notify: true, Emoji: "🔴", Description: "A database backup failed."},
 )
 
 func (core) Messages() i18n.Messages { return messages }
@@ -249,11 +265,13 @@ func (core) SettingsPages() []ui.SettingsPage {
 	return []ui.SettingsPage{
 		{Slug: "general", Title: "settings.general", Order: 10},
 		{Slug: "security", Title: "settings.security", Order: 20},
+		{Slug: "integrations", Title: "settings.integrations", Order: 40},
+		{Slug: "notifications", Title: "settings.notifications", Order: 50},
 	}
 }
 
 func (c core) SettingsSections() []settings.Section {
-	return []settings.Section{auth.SecuritySection, {
+	return []settings.Section{auth.SecuritySection, telegram.Section, {
 		Name: "general", Module: Name,
 		Fields: []settings.Field{
 			{Key: "general.instance_name", Kind: settings.String, Default: "Proxier", MaxLen: 64},
@@ -263,6 +281,20 @@ func (c core) SettingsSections() []settings.Section {
 			{Key: "general.admin_contact", Kind: settings.String, MaxLen: 64},
 		},
 	}}
+}
+
+// RenderNotification writes the texts the default cannot: the browser behind a
+// sign-in comes from its user agent.
+func (core) RenderNotification(_ context.Context, e events.Event, loc *i18n.Localizer) (notify.Message, bool, error) {
+	if e.Type != auth.SignedInEvent {
+		return notify.Message{}, false, nil
+	}
+	ip, _ := e.Payload["ip"].(string)
+	ua, _ := e.Payload["user_agent"].(string)
+	return notify.Message{
+		Title: loc.T("notify.auth.signed_in", i18n.Args{"ip": ip}),
+		Body:  loc.T("notify.auth.signed_in.body", i18n.Args{"browser": auth.BrowserName(ua)}),
+	}, true, nil
 }
 
 func validTimeZone(s string) error {

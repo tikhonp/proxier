@@ -57,6 +57,13 @@
 .row .caret { position: absolute; left: 4px; top: 6px; color: var(--text); visibility: hidden; }
 .pc-cur .caret { visibility: visible; }
 .row.sess { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+.row.int { grid-template-columns: 160px minmax(0, 1fr); text-decoration: none; color: inherit; }
+.row.chat { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; margin-top: 8px; }
+.row.rule { grid-template-columns: 46px minmax(0, 1.1fr) minmax(0, 1.6fr) 140px; gap: 14px; }
+.row.rule .pc-sw { margin-left: 6px; }
+.row.failed-note { grid-template-columns: 110px minmax(0, 1fr) auto auto; }
+.rules { border-bottom: 1px solid var(--overlay); padding-bottom: 6px; }
+.rules-foot { padding: 12px 16px; }
 .row.attr { grid-template-columns: 160px minmax(0, 1fr); }
 
 /* Key line */
@@ -181,6 +188,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .dayhead { padding: 14px 16px 4px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
 .stat { display: inline-flex; align-items: center; gap: 7px; }
 @media (max-width: 760px) {
+  .row.rule, .row.chat, .row.failed-note, .row.int { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .jobhead { display: none; }
   .jobrow { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .jobcols { grid-template-columns: minmax(0, 1fr); }

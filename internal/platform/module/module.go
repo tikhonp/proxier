@@ -24,6 +24,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/vault"
@@ -85,6 +86,8 @@ type Deps struct {
 	// outside SubscriberDeclarer.
 	Jobs       *jobs.System
 	Dispatcher *events.Dispatcher
+	// Notify is for modules that read or change notification rules.
+	Notify *notify.Service
 }
 
 // Initializer is called by platform.Open after the platform services exist.
@@ -121,4 +124,12 @@ type SubscriberDeclarer interface{ Subscribers() []events.Subscriber }
 type SubjectNamer interface {
 	SubjectTypes() []string
 	NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error)
+}
+
+// NotificationRenderer writes the notification of the module's own event
+// types where the default text (notify.<type> with the payload's fields) is
+// not enough. ok=false leaves the event to the default. Title and Body are
+// enough: the emoji, the link and the button are added when left empty.
+type NotificationRenderer interface {
+	RenderNotification(ctx context.Context, e events.Event, loc *i18n.Localizer) (notify.Message, bool, error)
 }

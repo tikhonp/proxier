@@ -1,0 +1,70 @@
+package pages
+
+import (
+	"fmt"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ notificationsPage(s ui.Shell, pages []ui.SettingsPage, v notificationsView) {
+	@ui.SettingsLayout(s, pages, "notifications") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.notifications") }</h2>
+			<p>{ i18n.T(ctx, "settings.notifications.note") }</p>
+			<p>
+				if v.Status.Configured {
+					<a href="/settings/integrations/telegram">{ i18n.T(ctx, "notifications.status", i18n.Args{"chat": v.Status.chatLabel()}) }</a>
+				} else {
+					<a href="/settings/integrations/telegram">{ i18n.T(ctx, "notifications.not_configured") }</a>
+				}
+			</p>
+		</div>
+		for _, g := range v.Groups {
+			<section class="rules" aria-label={ moduleLabel(ctx, g.Module) }>
+				<div class="pc-title"><h2>{ moduleLabel(ctx, g.Module) }</h2></div>
+				for _, r := range g.Rules {
+					<form method="post" action={ "/settings/notifications/" + r.Type.Name } class="row rule" data-row={ r.Type.Name }>
+						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+						<input type="hidden" name="enabled" value={ onValue(!r.Enabled) }/>
+						if v.OnlyChange {
+							<input type="hidden" name="show" value="changed"/>
+						}
+						<span class="caret" aria-hidden="true">›</span>
+						<button type="submit" role="switch" class="pc-sw" aria-checked={ fmt.Sprint(r.Enabled) } aria-label={ r.Type.Name } data-key=" " data-row-only="1"></button>
+						<span class="bold">{ r.Type.Name }</span>
+						<span class="subtle">{ r.Type.Description }</span>
+						<span class={ "sm", templ.KV("changed", r.Enabled != r.Default), templ.KV("muted", r.Enabled == r.Default) }>
+							if r.Enabled == r.Default {
+								{ i18n.T(ctx, defaultKey(r.Default)) }
+							} else {
+								{ i18n.T(ctx, defaultKey(r.Default)) } · { i18n.T(ctx, "notifications.changed") }
+							}
+						</span>
+					</form>
+				}
+			</section>
+		}
+		<p class="rules-foot subtle">
+			if v.OnlyChange {
+				{ i18n.T(ctx, "notifications.showing_changed") } · <a href="/settings/notifications">{ i18n.T(ctx, "notifications.all") }</a>
+			} else {
+				{ i18n.N(ctx, "notifications.showing_all", int64(v.Total)) } · <a href="/settings/notifications?show=changed">{ i18n.T(ctx, "notifications.only_changed") }</a>
+			}
+		</p>
+	}
+}
+
+func onValue(on bool) string {
+	if on {
+		return "1"
+	}
+	return "0"
+}
+
+func defaultKey(on bool) string {
+	if on {
+		return "notifications.default_on"
+	}
+	return "notifications.default_off"
+}

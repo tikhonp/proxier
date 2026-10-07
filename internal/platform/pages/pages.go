@@ -14,6 +14,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/notify"
+	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -38,6 +40,8 @@ type Deps struct {
 	Jobs          *jobs.System
 	Query         sqlx.QueryerContext // the read pool, for Activity
 	Events        *events.Catalog
+	Notify        *notify.Service
+	Telegram      *telegram.Channel
 	Namers        []Namer
 	// Closing is closed when the server starts shutting down; live streams
 	// end then.
@@ -73,6 +77,16 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/activity", h.activityPage)
 	r.Admin.POST("/me/language", h.setLanguage)
 
+	r.Admin.GET("/settings/integrations", h.integrationsPage)
+	r.Admin.GET("/settings/integrations/telegram", h.telegramPage)
+	r.Admin.POST("/settings/integrations/telegram/token", h.telegramToken)
+	r.Admin.POST("/settings/integrations/telegram/detect", h.telegramDetect)
+	r.Admin.POST("/settings/integrations/telegram/chat", h.telegramChat)
+	r.Admin.POST("/settings/integrations/telegram/test", h.telegramTest)
+	r.Admin.GET("/settings/notifications", h.notificationsPage)
+	r.Admin.POST("/settings/notifications/:type", h.notificationsSet)
+	r.Admin.POST("/notifications/:id/retry", h.notificationRetry)
+
 	r.Admin.GET("/settings", func(c *echo.Context) error { return web.Redirect(c, "/settings/general") })
 	r.Admin.GET("/settings/general", h.generalPage)
 	r.Admin.POST("/settings/general", h.generalSave)
@@ -94,6 +108,11 @@ func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	}
 	if q.Session != nil {
 		s.CSRF = q.Session.CSRF
+	}
+	if bad, err := h.Notify.LatestFailed(c.Request().Context()); err != nil {
+		h.Log.Error("pages: notification health", "error", err)
+	} else if bad {
+		s.Warning = &ui.HeaderWarning{Text: i18n.T(c.Request().Context(), "ui.warn.telegram_failing"), Href: "/#failed-notifications"}
 	}
 	if q.Admin != nil {
 		s.Admin = q.Admin.Username

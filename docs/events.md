@@ -11,7 +11,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `admin.created` | admin | — | off | from `proxier manage create-admin` |
 | `auth.signed_in` | admin | ip, user agent, new_ip | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
 | `auth.sign_in_failed` | — | ip, username tried | off | |
-| `auth.locked` | — | ip, failures | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
+| `auth.locked` | — | ip, failures, minutes | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
 | `auth.password_changed` | admin | — | **on** | |
 | `auth.signed_out` | admin | session (id), by (`self` / `settings`) | off | |
 | `auth.signed_out_everywhere` | admin | sessions ended | off | |
@@ -20,6 +20,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `ssh.host_key_changed` | known host | address, old and new fingerprint | **on** | All work with that host stops until accepted. |
 | `ssh.host_key_accepted` | known host | new fingerprint | off | |
 | `job.failed` | job | type, error | **on** for job types without their own failure event | |
+| `notification.failed` | event (`event:<id>`) | channel, error | off, and never notifiable | A delivery gave up after its last retry. Shown on the dashboard. |
 | `backup.completed` | — | file, size | off | |
 | `backup.failed` | — | error | **on** | |
 
@@ -103,6 +104,21 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `routerscript.fetch_url_created` | generation | expires | off | |
 | `routerscript.fetched` | generation | IP, user agent | **on** | "fresh-router v4 for 'Parents' was fetched from 198.51.100.4" |
 | `routerscript.fetch_url_expired` | generation | — | off | It was never used. |
+
+## Platform notification texts
+
+Titles and sentences of the events the platform notifies about; each has a Russian twin in the catalog (`notify.<type>` and `notify.<type>.body`). `{subject}` is the subject's name when the message is queued; of `job.failed` it is the job's name, e.g. "Job #421 · Demo job".
+
+| Event | Emoji | Title | Sentence |
+|---|---|---|---|
+| `auth.signed_in` (`new_ip`) | 🔐 | Signed in from a new IP {ip} | {browser} |
+| `auth.locked` | 🔐 | {failures} failed sign-ins from {ip} | Locked for {minutes} min. |
+| `auth.password_changed` | 🔐 | The admin password was changed | Via {via}. |
+| `ssh.host_key_changed` | 🔐 | Host key of {subject} changed | Work with it is stopped until you accept the new key. |
+| `job.failed` | 🔴 | {subject} failed | {error} |
+| `backup.failed` | 🔴 | Backup failed | {error} |
+
+An event without a subject (a lockout) links to Activity; any other links to its subject's page.
 
 ## Notification behaviour
 

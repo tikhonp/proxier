@@ -121,3 +121,27 @@ func TestRetentionJobRuns(t *testing.T) {
 		t.Fatalf("state %s", st)
 	}
 }
+
+func TestRetentionKeepsNotificationsNinetyDays(t *testing.T) {
+	h := newH(t)
+	add := func(event int, state string, d time.Duration) {
+		t.Helper()
+		_, err := h.DB.W.Exec(`INSERT INTO notifications (event_id, channel, lang, message, state, created_at) VALUES (?, 'telegram', 'en', '{}', ?, ?)`,
+			event, state, ago(h, d))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	add(1, "sent", 91*day)
+	add(2, "failed", 91*day)
+	add(3, "queued", 91*day)
+	add(4, "sent", 89*day)
+	add(5, "failed", 2*day)
+	n, err := h.Sys.PruneNotifications(bg)
+	if err != nil || n != 3 {
+		t.Fatalf("removed %d: %v", n, err)
+	}
+	if c := count(t, h, `SELECT count(*) FROM notifications`); c != 2 {
+		t.Fatalf("%d left", c)
+	}
+}

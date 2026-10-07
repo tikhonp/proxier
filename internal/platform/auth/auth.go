@@ -62,14 +62,18 @@ const (
 	EndPasswordReset       = "password_reset"
 )
 
+// SignedInEvent is the type of a successful sign-in.
+const SignedInEvent = "auth.signed_in"
+
 // Events are the event types auth records.
 var Events = []events.Type{
 	{Name: "admin.created", Module: "platform", Description: "The admin was created from the command line."},
-	// Notifies only when the payload has new_ip: true (the notifier filters).
-	{Name: "auth.signed_in", Module: "platform", Notify: true, Description: "Signed in from a new IP."},
+	// Notifies only when the payload has new_ip: true (NotifyIf).
+	{Name: SignedInEvent, Module: "platform", Notify: true, Emoji: "🔐", Description: "Signed in from a new IP.",
+		NotifyIf: func(p map[string]any) bool { b, _ := p["new_ip"].(bool); return b }},
 	{Name: "auth.sign_in_failed", Module: "platform", Description: "A sign-in failed."},
-	{Name: "auth.locked", Module: "platform", Notify: true, Description: "An IP was locked out after failed sign-ins."},
-	{Name: "auth.password_changed", Module: "platform", Notify: true, Description: "The admin password was changed."},
+	{Name: "auth.locked", Module: "platform", Notify: true, Emoji: "🔐", Description: "An IP was locked out after failed sign-ins."},
+	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "The admin password was changed."},
 	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended."},
 	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended."},
 	{Name: "admin.language_changed", Module: "platform", Description: "The admin changed the interface language."},

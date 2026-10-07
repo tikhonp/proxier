@@ -1,0 +1,157 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ integrationsPage(s ui.Shell, pages []ui.SettingsPage, rows []integrationRow) {
+	@ui.SettingsLayout(s, pages, "integrations") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.integrations") }</h2>
+			<p>{ i18n.T(ctx, "settings.integrations.note") }</p>
+		</div>
+		for _, r := range rows {
+			<a class="row int" href={ templ.SafeURL(r.Href) } data-row={ r.Name } data-href={ r.Href }>
+				<span class="caret" aria-hidden="true">›</span>
+				<span class="bold">{ r.Name }</span>
+				<span class="muted">
+					@ui.Status(statusKind(r.On), r.State)
+				</span>
+			</a>
+		}
+	}
+}
+
+func statusKind(on bool) string {
+	if on {
+		return "ok"
+	}
+	return "unknown"
+}
+
+templ telegramPage(s ui.Shell, pages []ui.SettingsPage, t telegramState) {
+	@ui.SettingsLayout(s, pages, "integrations") {
+		<div class="set-head">
+			<h2>Telegram</h2>
+			<p>{ i18n.T(ctx, "telegram.note") }</p>
+		</div>
+		switch t.Saved {
+			case "token":
+				<div class="form">
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "telegram.saved.token") }
+					}
+				</div>
+			case "chat":
+				<div class="form">
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "telegram.saved.chat") }
+					}
+				</div>
+		}
+		<form method="post" action="/settings/integrations/telegram/token" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="tg-token" class="lbl">{ i18n.T(ctx, "telegram.token") }</label>
+				<input id="tg-token" name="token" type="password" class="pc-inp" autocomplete="off" aria-invalid?={ t.TokenErr != "" }/>
+				if t.TokenErr != "" {
+					<div class="err" role="alert">{ t.TokenErr }</div>
+				} else if t.TokenSet {
+					<div class="help">{ i18n.T(ctx, "telegram.token.set", i18n.Args{"bot": "@" + t.Username}) }</div>
+				} else {
+					<div class="help">{ i18n.T(ctx, "telegram.token.help") }</div>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "telegram.token.save") }</button>
+			</div>
+		</form>
+		<div class="form">
+			<div class="ro">
+				<span class="lbl">{ i18n.T(ctx, "telegram.chat") }</span>
+				if t.ChatID != "" {
+					<span class="v">{ t.chatLabel() }<span class="muted"> · { t.ChatID }</span></span>
+				} else {
+					<span class="v muted">{ i18n.T(ctx, "telegram.chat.none") }</span>
+				}
+			</div>
+			<div class="form-actions">
+				<button
+					type="button"
+					class="pc-btn"
+					data-action="telegram.detect"
+					hx-post="/settings/integrations/telegram/detect"
+					hx-target="#detected"
+					hx-swap="innerHTML"
+				>{ i18n.T(ctx, "telegram.detect") }</button>
+			</div>
+			<div id="detected" aria-live="polite"></div>
+		</div>
+		<form method="post" action="/settings/integrations/telegram/chat" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="tg-chat" class="lbl">{ i18n.T(ctx, "telegram.chat.type") }</label>
+				<input id="tg-chat" name="chat_id" class="pc-inp" autocomplete="off" value={ t.ChatID } aria-invalid?={ t.ChatErr != "" }/>
+				if t.ChatErr != "" {
+					<div class="err" role="alert">{ t.ChatErr }</div>
+				} else {
+					<div class="help">{ i18n.T(ctx, "telegram.chat.type.help") }</div>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn">{ i18n.T(ctx, "telegram.chat.save") }</button>
+			</div>
+		</form>
+		<div class="form">
+			<div class="form-actions">
+				<button
+					type="button"
+					class="pc-btn"
+					data-action="telegram.test"
+					hx-post="/settings/integrations/telegram/test"
+					hx-target="#test-result"
+					hx-swap="innerHTML"
+					disabled?={ !t.Configured }
+				>{ i18n.T(ctx, "telegram.test") }</button>
+			</div>
+			<div id="test-result" aria-live="polite"></div>
+		</div>
+	}
+}
+
+// detectFragment lists the chats the bot has heard from.
+templ detectFragment(v detectView) {
+	if v.Err != "" {
+		@ui.Alert("gold", "alert") {
+			{ v.Err }
+		}
+	} else if len(v.Chats) == 0 {
+		@ui.Alert("", "status") {
+			{ i18n.T(ctx, "telegram.detect.none", i18n.Args{"bot": "@" + v.Username}) }
+		}
+	} else {
+		for _, ch := range v.Chats {
+			<form method="post" action="/settings/integrations/telegram/chat" class="row chat">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<input type="hidden" name="chat_id" value={ chatIDString(ch.ID) }/>
+				<input type="hidden" name="chat_title" value={ ch.Title }/>
+				<span class="bold">{ ch.Title }</span>
+				<span class="muted">{ ch.Type } · { chatIDString(ch.ID) }</span>
+				<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "telegram.chat.use") }</button>
+			</form>
+		}
+	}
+}
+
+templ testFragment(v testView) {
+	if v.OK {
+		@ui.Alert("pine", "status") {
+			{ i18n.T(ctx, "telegram.test.sent") }
+		}
+	} else {
+		@ui.Alert("love", "alert") {
+			{ v.Err }
+		}
+	}
+}

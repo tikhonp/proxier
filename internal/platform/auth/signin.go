@@ -145,7 +145,7 @@ func (s *Service) recordFailure(ctx context.Context, rules lockoutRules, ip, use
 			return err
 		}
 		if !until.IsZero() {
-			return s.record(ctx, tx, "auth.locked", "system", events.Subject{}, map[string]any{"ip": ip, "failures": rules.failures})
+			return s.record(ctx, tx, "auth.locked", "system", events.Subject{}, map[string]any{"ip": ip, "failures": rules.failures, "minutes": int(rules.duration.Minutes())})
 		}
 		return nil
 	})

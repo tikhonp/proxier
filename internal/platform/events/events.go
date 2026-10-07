@@ -67,6 +67,11 @@ type Type struct {
 	Notify bool
 	// Description says what happened, for Settings → Notifications.
 	Description string
+	// NotifyIf narrows an enabled rule: nil means always. A rule that is on
+	// notifies only when it returns true (auth.signed_in: new_ip).
+	NotifyIf func(payload map[string]any) bool
+	// Emoji leads the notification ("🔐").
+	Emoji string
 }
 
 // ErrUnknownType is returned when recording a type nobody declared.

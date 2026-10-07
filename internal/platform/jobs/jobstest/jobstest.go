@@ -56,7 +56,7 @@ type Harness struct {
 
 // Types are the event types the platform declares for jobs.
 var Types = []events.Type{
-	{Name: "job.failed", Module: "platform", Notify: true, Description: "A job failed."},
+	{Name: "job.failed", Module: "platform", Notify: true, Emoji: "🔴", Description: "A job failed."},
 	jobs.ScheduleEnabledChanged,
 }
 
@@ -79,6 +79,7 @@ func New(t testing.TB) *Harness {
 	}
 	if err := st.Register(settings.Section{Name: "general", Module: "platform", Fields: []settings.Field{
 		{Key: "general.time_zone", Kind: settings.String, Default: "UTC", MaxLen: 64},
+		{Key: "general.language", Kind: settings.Enum, Default: "en", Options: []string{"en", "ru"}},
 	}}, settings.Section{Name: "test", Module: "platform", Fields: []settings.Field{
 		{Key: "test.every", Kind: settings.Duration, Default: "1h0m0s"},
 	}}); err != nil {

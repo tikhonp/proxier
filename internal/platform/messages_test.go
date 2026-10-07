@@ -7,11 +7,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/platform"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
 var (
-	keyLiteral = regexp.MustCompile(`"((?:ui|nav|dash|keys|err|settings|auth)\.[a-z0-9_.]*[a-z0-9_])"(\s*\+)?`)
+	keyLiteral = regexp.MustCompile(`"((?:ui|nav|dash|keys|err|settings|auth|notify|notifications|integrations|telegram)\.[a-z0-9_.]*[a-z0-9_])"(\s*\+)?`)
 	actionID   = regexp.MustCompile(`\bID:\s*"[^"]*"`)
 )
 
@@ -23,7 +24,7 @@ func TestEveryUsedKeyExists(t *testing.T) {
 	cat := s.App.I18n
 
 	var files []string
-	for _, dir := range []string{"ui", "pages", "web"} {
+	for _, dir := range []string{"ui", "pages", "web", "notify"} {
 		_ = filepath.WalkDir(dir, func(p string, d os.DirEntry, err error) error {
 			if err == nil && !d.IsDir() && (strings.HasSuffix(p, ".go") || strings.HasSuffix(p, ".templ")) &&
 				!strings.HasSuffix(p, "_templ.go") && !strings.HasSuffix(p, "_test.go") {
@@ -35,6 +36,12 @@ func TestEveryUsedKeyExists(t *testing.T) {
 	files = append(files, "platform.go")
 	if len(files) < 8 {
 		t.Fatalf("scanned only %v", files)
+	}
+	fields := map[string]bool{} // "telegram.chat_id" is a setting, not a text
+	for _, sec := range s.App.Settings.Sections() {
+		for _, f := range sec.Fields {
+			fields[f.Key] = true
+		}
 	}
 	used := 0
 	for _, f := range files {
@@ -51,7 +58,7 @@ func TestEveryUsedKeyExists(t *testing.T) {
 			}
 			line = actionID.ReplaceAllString(line, "")
 			for _, m := range keyLiteral.FindAllStringSubmatch(line, -1) {
-				if m[2] != "" { // "prefix." + variable
+				if m[2] != "" || fields[m[1]] { // "prefix." + variable
 					continue
 				}
 				used++
@@ -99,6 +106,21 @@ func TestEveryEventTypeHasASentence(t *testing.T) {
 	for _, e := range s.App.Events.Types() {
 		if !s.App.I18n.Has("event." + e.Name) {
 			t.Errorf("event type %q has no event.%s message", e.Name, e.Name)
+		}
+	}
+}
+
+func TestEveryNotifyingEventHasAText(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	for _, e := range s.App.Events.Types() {
+		if !e.Notify && e.NotifyIf == nil {
+			continue
+		}
+		if e.Module != platform.Name {
+			continue
+		}
+		if !s.App.I18n.Has("notify." + e.Name) {
+			t.Errorf("event type %q notifies but has no notify.%s message", e.Name, e.Name)
 		}
 	}
 }

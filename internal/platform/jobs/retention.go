@@ -12,6 +12,8 @@ const (
 	JobRetention       = 30 * 24 * time.Hour
 	FailedJobRetention = 90 * 24 * time.Hour
 	SignInRetention    = 30 * 24 * time.Hour
+	// NotificationRetention keeps a notification, sent or not, with its text.
+	NotificationRetention = 90 * 24 * time.Hour
 )
 
 // PlatformTypes are the job types and schedules the platform itself owns.
@@ -53,6 +55,20 @@ func (s *System) PruneJobs(ctx context.Context) (n int64, err error) {
 			  OR (state IN ('succeeded', 'cancelled') AND finished_at < ?)
 			  OR (quiet = 1 AND state = 'succeeded' AND attempt <= 1 AND finished_at < ?)`,
 			db.At(now.Add(-FailedJobRetention)), db.At(now.Add(-JobRetention)), db.At(now.Add(-QuietRetention)))
+		if err != nil {
+			return err
+		}
+		n, _ = res.RowsAffected()
+		return nil
+	})
+	return n, err
+}
+
+// PruneNotifications deletes notifications older than 90 days, whatever their
+// state.
+func (s *System) PruneNotifications(ctx context.Context) (n int64, err error) {
+	err = s.d.Write(ctx, func(tx *sqlx.Tx) error {
+		res, err := tx.ExecContext(ctx, `DELETE FROM notifications WHERE created_at < ?`, db.At(s.Now().Add(-NotificationRetention)))
 		if err != nil {
 			return err
 		}

@@ -8,8 +8,9 @@ Notifications tell the admin about events that need attention: a server down or 
 
 1. Settings → Integrations → Telegram: the admin pastes a bot token from BotFather. Proxier calls `getMe` and shows the bot's name. A wrong token is refused on the spot.
 2. **Detect chat**: the admin sends `/start` to the bot. Proxier reads the bot's recent updates, shows the chats found (name, type), and the admin picks one. The admin can also type a chat ID.
-3. **Send test**: a test message goes out. Its result (sent, or the error) is shown. → `settings.changed{keys: telegram}`
-4. Settings → Notifications: one toggle per event type, grouped by module, initially the defaults from [events](../../events.md).
+3. The chat is saved when it is picked or typed. → `settings.changed{keys: telegram}`
+4. **Send test** is a separate button: a test message goes out and its result (sent, or the error) is shown. The chat stays saved whatever the result.
+5. Settings → Notifications: one toggle per event type, grouped by module, initially the defaults from [events](../../events.md).
 
 ## Steps — delivery
 
@@ -27,7 +28,8 @@ Notifications tell the admin about events that need attention: a server down or 
 - Telegram being unreachable never blocks anything else. Notifications wait in their queue.
 - Messages never contain secrets: no tokens, no connection URIs, no IPs of link holders beyond what the event needs (the shared-link alert shows counts, not IPs).
 - Texts are rendered when queued, so they describe that moment even if a name changes before delivery.
-- If no Telegram chat is configured, events are still recorded. The dashboard shows "Notifications are not configured".
+- If no Telegram chat is configured, events are still recorded but nothing is queued. The dashboard shows "Notifications are not configured". Configuring it later does not send the events of the meantime: a backlog of stale alarms would be noise.
+- A failed notification is itself recorded (`notification.failed`) and never notified about, and it does not record a `job.failed`.
 
 ## Edge cases (each is a test)
 

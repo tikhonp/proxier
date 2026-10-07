@@ -16,8 +16,8 @@ This is the logical model: entities, their important fields and relations. The e
 | **Job log line** | job, sequence, time, level, step, text (already redacted) | |
 | **Event** | id, time, module, type, subject type + id, actor, payload | Append-only. |
 | **Subscriber cursor** | subscriber name, last delivered event id | At-least-once delivery. |
-| **Notification rule** | event type, enabled | Defaults come from [events.md](./events.md). |
-| **Notification** | event, channel, text, state (queued / sent / failed), attempts, last error, sent at | |
+| **Notification rule** | event type, enabled | Defaults come from [events.md](./events.md). A row exists only where the admin's choice differs from the default; setting it back deletes the row. |
+| **Notification** | event, channel, language, message (JSON: emoji, title, body, link, button), state (queued / sent / failed), attempts, last error, job, sent at | The message is rendered when queued, in the admin's language. The event id has no foreign key: events can be pruned, the notification keeps its own text. Kept 90 days. |
 | **Schedule** | name, enabled, next run, last run, last job, skips | Run-time state only. The interval or time of day is declared in code (a setting may override it), so it isn't stored. |
 
 ## Servers
