@@ -2,7 +2,7 @@
 
 Proxier is a self-hosted control panel for one person's proxy setup. It builds VPS proxy servers from templates and watches whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
 
-**Status (2026-10-07):** the documentation and the design are done, and the UI stack is chosen (templ + htmx, [ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)). Phase 0 ([roadmap.md](./roadmap.md)) is built in sub-phases, one per session; their specs and progress are in [`../CLAUDE.md`](../CLAUDE.md). **0a, the skeleton** (binary, SQLite with per-module migrations, vault, settings, event log, image, CI) is done. Next is **0b, sign-in and the UI shell**.
+**Status (2026-10-07):** the documentation and the design are done, and the UI stack is chosen (templ + htmx, [ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)). Phase 0 ([roadmap.md](./roadmap.md)) is built in sub-phases, one per session; each has a contract (files, tables, signatures, decisions, test checklist) in [build/](./build/README.md). **0a, the skeleton** (binary, SQLite with per-module migrations, vault, settings, event log, image, CI) is done. Next is **0b, sign-in and the UI shell**.
 
 **Design:** [ui/design/](./ui/design/README.md) holds the rules, `tokens.css` and every screen's source. The live canvas is at <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec> (Rosé Pine page; the Console page is an earlier look kept for reference).
 
@@ -23,6 +23,7 @@ Proxier is a self-hosted control panel for one person's proxy setup. It builds V
 | [integrations/](./integrations/) | Contracts with the outside world: VLESS/XHTTP, Cloudflare, check-host.net, Telegram, RouterOS, domain sources, Shadowrocket, subscription format. |
 | [ui/README.md](./ui/README.md) | Screen inventory, navigation and shared components: what each screen does. |
 | [ui/design/](./ui/design/README.md) | The final visual design: rules, `tokens.css`, and the source of every screen. |
+| [build/](./build/README.md) | Phase 0 build contracts, one per sub-phase, and what each one built. |
 | [adr/](./adr/) | Decisions that are hard to reverse, each with the reason it was taken. |
 
 ## Reading order

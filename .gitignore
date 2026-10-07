@@ -9,3 +9,6 @@ data/
 *.swp
 .idea/
 .vscode/
+
+CONTEXT.md
+CLAUDE.md
