@@ -1,0 +1,57 @@
+services:
+  nginx:
+    image: nginx:stable-alpine
+    container_name: "nginx-${CONTAINER_POSTFIX}"
+    restart: unless-stopped
+    depends_on:
+      - xray
+    environment:
+      - SERVER_DOMAIN=$SERVER_DOMAIN
+      - VLESS_XHTTP_PATH=$VLESS_XHTTP_PATH
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+    volumes:
+      - "./nginx/default.conf.template:/etc/nginx/templates/default.conf.template:ro"
+      - "./site:/usr/share/nginx/html:ro"
+      - "./certbot/conf:/etc/letsencrypt:ro"
+      - "./certbot/www:/var/www/certbot:ro"
+    # Reload every 6h to pick up renewed certificates. /docker-entrypoint.sh is called
+    # explicitly because it renders the templates only when its command is `nginx`.
+    command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & exec /docker-entrypoint.sh nginx -g "daemon off;"'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  certbot:
+    image: certbot/certbot:latest
+    container_name: "certbot-${CONTAINER_POSTFIX}"
+    restart: unless-stopped
+    volumes:
+      - "./certbot/conf:/etc/letsencrypt"
+      - "./certbot/www:/var/www/certbot"
+    # The first certificate is issued by setup.sh in standalone mode;
+    # --webroot here overrides that, because nginx holds port 80 afterwards.
+    entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h & wait $${!}; done'
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: "xray-${CONTAINER_POSTFIX}"
+    restart: unless-stopped
+    volumes:
+      - "./xray-config.json:/usr/local/etc/xray/config.json:ro"
+    # Reachable only by nginx over the compose network, never published to the host.
+    expose:
+      - "10001"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"

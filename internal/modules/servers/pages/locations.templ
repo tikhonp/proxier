@@ -1,0 +1,142 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ locationsPage(s ui.Shell, v locationsView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "locations.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "locations.note") }</p>
+			</div>
+		</div>
+		if v.Saved != "" {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "locations.saved."+v.Saved) }
+			}
+		}
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		if len(v.Locations) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "locations.empty"), i18n.T(ctx, "locations.empty_next"))
+		} else {
+			<div class="colhead loc" aria-hidden="true">
+				<span>{ i18n.T(ctx, "locations.col.code") }</span>
+				<span>{ i18n.T(ctx, "locations.col.flag") }</span>
+				<span>{ i18n.T(ctx, "locations.col.name") }</span>
+				<span>{ i18n.T(ctx, "locations.col.country") }</span>
+				<span>{ i18n.T(ctx, "locations.col.servers") }</span>
+				<span></span>
+			</div>
+		}
+		for _, l := range v.Locations {
+			if v.Edit == l.ID {
+				@locationEditRow(l.ID, l.Code, country.Flag(l.Country), l.Servers, editedForm(v, l.Name, l.Country), v.Errs, v.Countries)
+			} else {
+				<div class="row loc pc-row" data-row={ strconv.FormatInt(l.ID, 10) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="bold">{ l.Code }</span>
+					<span>{ country.Flag(l.Country) }</span>
+					<span>{ l.Name }</span>
+					<span class="subtle">{ country.Name(l.Country, string(i18n.From(ctx).Lang)) }</span>
+					<span class={ templ.KV("subtle", l.Servers == 0) }>
+						if l.Servers == 0 {
+							{ i18n.T(ctx, "locations.servers.none") }
+						} else {
+							{ strconv.Itoa(l.Servers) }
+						}
+					</span>
+					<span class="actions">
+						@ui.ActionButton(ui.Action{
+							ID: "locations.edit." + strconv.FormatInt(l.ID, 10), Label: "locations.edit", Method: "GET",
+							Href: "/locations?edit=" + strconv.FormatInt(l.ID, 10), Small: true,
+						})
+						if l.Servers == 0 {
+							@ui.ActionButton(ui.Action{
+								ID: "locations.delete." + strconv.FormatInt(l.ID, 10), Label: "locations.delete", Method: "POST",
+								Href: "/locations/" + strconv.FormatInt(l.ID, 10) + "/delete", Small: true, Kind: ui.Danger,
+								Confirm: &ui.Confirm{
+									Strength: 1,
+									Title:    i18n.T(ctx, "locations.delete.title", i18n.Args{"code": l.Code}),
+									Body:     i18n.T(ctx, "locations.delete.body"),
+								},
+							})
+						}
+					</span>
+				</div>
+			}
+		}
+		<form method="post" action="/locations" class="row loc locform" aria-label={ i18n.T(ctx, "locations.new") }>
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<span>
+				<input class="pc-inp" name="code" value={ v.New.Code } placeholder="nl" maxlength="5" autocomplete="off" spellcheck="false" aria-label={ i18n.T(ctx, "locations.col.code") } aria-invalid?={ v.Errs["code"] != "" }/>
+			</span>
+			<span aria-hidden="true" class="subtle">+</span>
+			<span>
+				<input class="pc-inp" name="name" value={ v.New.Name } placeholder="Netherlands" autocomplete="off" aria-label={ i18n.T(ctx, "locations.col.name") } aria-invalid?={ v.Errs["name"] != "" }/>
+			</span>
+			@countrySelect(v.Countries, v.New.Country, v.Errs["country"] != "")
+			<span class="subtle" aria-hidden="true">—</span>
+			<span class="actions"><button type="submit" class="pc-btn pc-sm pc-pri">{ i18n.T(ctx, "locations.add") }</button></span>
+			if v.Edit == 0 {
+				for _, f := range []string{"code", "name", "country"} {
+					if v.Errs[f] != "" {
+						<span class="err" role="alert">{ v.Errs[f] }</span>
+					}
+				}
+			}
+		</form>
+		<p class="subtle foot">{ i18n.T(ctx, "locations.foot") }</p>
+	}
+}
+
+// editedForm is what the edit row shows: what was typed after a refusal, else
+// the stored values.
+func editedForm(v locationsView, name, countryCode string) locForm {
+	if v.Typed != (locForm{}) {
+		return v.Typed
+	}
+	return locForm{Name: name, Country: countryCode}
+}
+
+templ locationEditRow(id int64, code, flag string, servers int, f locForm, errs map[string]string, countries []country.Entry) {
+	<form method="post" action={ "/locations/" + strconv.FormatInt(id, 10) } class="row loc locform" aria-label={ i18n.T(ctx, "locations.edit") + " " + code }>
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<span class="bold">{ code }</span>
+		<span>{ flag }</span>
+		<span>
+			<input class="pc-inp" name="name" value={ f.Name } autocomplete="off" autofocus aria-label={ i18n.T(ctx, "locations.col.name") } aria-invalid?={ errs["name"] != "" }/>
+		</span>
+		@countrySelect(countries, f.Country, errs["country"] != "")
+		<span class="subtle">{ strconv.Itoa(servers) }</span>
+		<span class="actions">
+			<button type="submit" class="pc-btn pc-sm pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+			<a href="/locations" class="pc-btn pc-sm pc-ghost">{ i18n.T(ctx, "locations.cancel") }</a>
+		</span>
+		for _, k := range []string{"name", "country"} {
+			if errs[k] != "" {
+				<span class="err" role="alert">{ errs[k] }</span>
+			}
+		}
+	</form>
+}
+
+templ countrySelect(countries []country.Entry, selected string, invalid bool) {
+	<span>
+		<select class="pc-inp" name="country" aria-label={ i18n.T(ctx, "locations.col.country") } aria-invalid?={ invalid }>
+			<option value="">{ i18n.T(ctx, "locations.country.pick") }</option>
+			for _, c := range countries {
+				<option value={ c.Code } selected?={ c.Code == selected }>{ c.Flag } { c.Name }</option>
+			}
+		</select>
+	</span>
+}

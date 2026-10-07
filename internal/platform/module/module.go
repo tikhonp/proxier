@@ -99,6 +99,13 @@ type Deps struct {
 // Initializer is called by platform.Open after the platform services exist.
 type Initializer interface{ Init(d Deps) error }
 
+// Migrated is a module with work that needs its tables: Init runs before they
+// exist. AfterMigrate runs in App.Migrate after every module's migrations, in
+// module order, on every start, so it must be safe to repeat.
+type Migrated interface {
+	AfterMigrate(ctx context.Context) error
+}
+
 // MessagesDeclarer is a module with translations. Keys belong to the module.
 type MessagesDeclarer interface{ Messages() i18n.Messages }
 

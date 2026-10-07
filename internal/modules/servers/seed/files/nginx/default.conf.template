@@ -1,0 +1,59 @@
+# Rendered by the nginx image at startup: ${SERVER_DOMAIN} and ${VLESS_XHTTP_PATH} come
+# from .env, nginx's own $variables are left untouched.
+
+server_tokens off;
+
+# Port 80 only answers ACME challenges (certificate renewal) and redirects to https.
+server {
+    listen 80 default_server;
+    server_name _;
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+# Anything that doesn't ask for our domain (IP scans, wrong or missing SNI) gets no
+# certificate at all, so the domain can't be learned from the server IP.
+server {
+    listen 443 ssl default_server;
+    ssl_reject_handshake on;
+}
+
+server {
+    listen 443 ssl;
+    http2 on;
+    server_name ${SERVER_DOMAIN};
+
+    ssl_certificate /etc/letsencrypt/live/${SERVER_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${SERVER_DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    # VLESS over XHTTP. Requests go to <path>/<session>/<seq>, hence the prefix match.
+    # grpc_pass talks h2c to xray and streams request bodies instead of buffering them.
+    location ${VLESS_XHTTP_PATH}/ {
+        grpc_pass grpc://xray:10001;
+        grpc_set_header Host $host;
+        grpc_set_header X-Real-IP $remote_addr;
+        grpc_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        client_max_body_size 0;
+        client_body_timeout 1h;
+        grpc_read_timeout 1h;
+        grpc_send_timeout 1h;
+    }
+
+    # Everything else is the decoy site.
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ =404;
+    }
+}

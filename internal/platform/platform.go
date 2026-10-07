@@ -163,8 +163,8 @@ func (a *App) Module(name string) (module.Module, bool) {
 }
 
 // Migrate applies every module's pending migrations, the platform's first,
-// then makes sure Proxier has its SSH key: it is generated on the first start
-// and kept.
+// then makes sure Proxier has its SSH key (generated on the first start and
+// kept) and runs the modules' AfterMigrate hooks in module order.
 func (a *App) Migrate(ctx context.Context) error {
 	if err := db.MigrateUp(ctx, a.DB, a.Log, a.migrationSources()...); err != nil {
 		return err
@@ -173,7 +173,17 @@ func (a *App) Migrate(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return a.SSH.EnsureIdentity(ctx, name)
+	if err := a.SSH.EnsureIdentity(ctx, name); err != nil {
+		return err
+	}
+	for _, m := range a.Modules {
+		if mg, ok := m.(module.Migrated); ok {
+			if err := mg.AfterMigrate(ctx); err != nil {
+				return fmt.Errorf("after migrate %s: %w", m.Name(), err)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *App) migrationSources() []db.MigrationSource {
@@ -218,7 +228,7 @@ func (a *App) HTTP() *echo.Echo {
 			pd.Namers = append(pd.Namers, n)
 		}
 	}
-	pages.Register(r, pd)
+	r.Shell = pages.Register(r, pd)
 	for _, m := range a.Modules {
 		if rd, ok := m.(module.RouteDeclarer); ok {
 			rd.Routes(r)

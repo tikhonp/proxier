@@ -41,6 +41,10 @@ type Routes struct {
 	Admin  *echo.Group // session required, CSRF on unsafe methods, admin headers
 	Public *echo.Group // never reads or sets cookies; no-store, noindex (rate limits: Phase 2)
 	Open   *echo.Group // no session needed, admin headers: /login
+	// Shell builds the layout's data (title already translated, current
+	// path) for a page of a module; the platform fills it in before the
+	// modules' routes are declared.
+	Shell func(c *echo.Context, title, path string) ui.Shell
 }
 
 // Request is what the middleware knows about the current request.

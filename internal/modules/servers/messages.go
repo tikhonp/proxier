@@ -1,0 +1,110 @@
+package servers
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// messages are the module's texts (prefixes servers. templates. locations.
+// health. stats. agent., plus event.<type>, notify.<type> and settings keys).
+var messages = i18n.Messages{
+	// Locations
+	"locations.nav":          {EN: "Locations", RU: "Локации"},
+	"locations.title":        {EN: "Locations", RU: "Локации"},
+	"locations.note":         {EN: "Where servers are. The code names the server (nl-1, nl-2…); the name is what apps show.", RU: "Где стоят серверы. Код даёт имя серверу (nl-1, nl-2…), название видят в приложениях."},
+	"locations.search":       {EN: "Location", RU: "Локация"},
+	"locations.new":          {EN: "New location", RU: "Новая локация"},
+	"locations.add":          {EN: "Add", RU: "Добавить"},
+	"locations.edit":         {EN: "Edit", RU: "Изменить"},
+	"locations.delete":       {EN: "Delete", RU: "Удалить"},
+	"locations.cancel":       {EN: "Cancel", RU: "Отмена"},
+	"locations.col.code":     {EN: "Code", RU: "Код"},
+	"locations.col.flag":     {EN: "Flag", RU: "Флаг"},
+	"locations.col.name":     {EN: "Name", RU: "Название"},
+	"locations.col.country":  {EN: "Country", RU: "Страна"},
+	"locations.col.servers":  {EN: "Servers", RU: "Серверы"},
+	"locations.servers.none": {EN: "none", RU: "нет"},
+	"locations.country.pick": {EN: "Choose a country", RU: "Выберите страну"},
+	"locations.empty":        {EN: "No locations yet.", RU: "Локаций пока нет."},
+	"locations.empty_next":   {EN: "Add one below to build servers in it.", RU: "Добавьте первую ниже, чтобы строить в ней серверы."},
+	"locations.foot": {
+		EN: "A location with servers can't be deleted. Renaming it changes the name in every app on its next refresh.",
+		RU: "Локацию с серверами удалить нельзя. Новое название появится в каждом приложении при следующем обновлении.",
+	},
+	"locations.err.code":       {EN: "Use 2–5 lower-case letters, like nl.", RU: "2–5 строчных латинских букв, например nl."},
+	"locations.err.code_taken": {EN: "This code is already used.", RU: "Этот код уже занят."},
+	"locations.err.name":       {EN: "Use 1–40 characters.", RU: "От 1 до 40 символов."},
+	"locations.err.country":    {EN: "Choose a country.", RU: "Выберите страну."},
+	"locations.err.in_use": {
+		EN: "This location has servers (retired ones count), so it can't be deleted.",
+		RU: "В этой локации есть серверы (выведенные из работы тоже), поэтому её нельзя удалить.",
+	},
+	"locations.saved.created": {EN: "Location added.", RU: "Локация добавлена."},
+	"locations.saved.updated": {EN: "Location saved.", RU: "Локация сохранена."},
+	"locations.saved.deleted": {EN: "Location deleted.", RU: "Локация удалена."},
+	"locations.delete.title":  {EN: "Delete location {code}?", RU: "Удалить локацию {code}?"},
+	"locations.delete.body":   {EN: "It has no servers. You can add the code again later.", RU: "В ней нет серверов. Код можно добавить снова позже."},
+
+	// Templates (the page arrives in 1b; the editor's validation texts are findings and stay English)
+	"templates.err.name":       {EN: "Use 1–80 characters.", RU: "От 1 до 80 символов."},
+	"templates.err.slug":       {EN: "Use a lower-case letter, then letters, digits and dashes (2–40 characters).", RU: "Строчная буква, затем буквы, цифры и дефисы (2–40 символов)."},
+	"templates.err.slug_taken": {EN: "This slug is already used.", RU: "Этот идентификатор уже занят."},
+
+	// Settings
+	"settings.servers":                        {EN: "Servers", RU: "Серверы"},
+	"settings.field.servers.hostname_pattern": {EN: "Hostname pattern", RU: "Шаблон имени хоста"},
+
+	// Subjects
+	"subject.home": {EN: "Home internet", RU: "Домашний интернет"},
+
+	// Events
+	"event.template.created":                 {EN: "Created template {subject}", RU: "Создан шаблон {subject}"},
+	"event.template.version_published":       {EN: "Published version {version} of {subject}", RU: "Опубликована версия {version} шаблона {subject}"},
+	"event.template.default_version_changed": {EN: "Made version {to} the default of {subject}", RU: "Версия {to} стала основной у шаблона {subject}"},
+	"event.template.archived":                {EN: "Archived template {subject}", RU: "Шаблон {subject} в архиве"},
+	"event.template.unarchived":              {EN: "Brought template {subject} back from the archive", RU: "Шаблон {subject} возвращён из архива"},
+	"event.template.deleted":                 {EN: "Deleted template {name}", RU: "Удалён шаблон {name}"},
+	"event.template.agent_session_opened":    {EN: "Handed the draft of {subject} to an agent", RU: "Черновик шаблона {subject} передан агенту"},
+	"event.template.draft_saved":             {EN: "Saved the draft of {subject}", RU: "Сохранён черновик шаблона {subject}"},
+	"event.template.draft_validated":         {EN: "Validated the draft of {subject}: {errors} errors, {warnings} warnings", RU: "Проверен черновик шаблона {subject}: ошибок {errors}, предупреждений {warnings}"},
+	"event.template.agent_session_closed":    {EN: "Ended the agent session on {subject} ({reason})", RU: "Сеанс агента на шаблоне {subject} завершён ({reason})"},
+	"event.location.created":                 {EN: "Added location {subject}", RU: "Добавлена локация {subject}"},
+	"event.location.changed":                 {EN: "Changed location {subject}", RU: "Изменена локация {subject}"},
+	"event.location.deleted":                 {EN: "Deleted location {code}", RU: "Удалена локация {code}"},
+	"event.server.created":                   {EN: "Added server {subject}", RU: "Добавлен сервер {subject}"},
+	"event.server.provisioning_failed":       {EN: "Setting up {subject} failed at {step}: {error}", RU: "Настройка {subject} остановилась на шаге {step}: {error}"},
+	"event.server.activated":                 {EN: "{subject} is active", RU: "Сервер {subject} работает"},
+	"event.server.redeployed":                {EN: "Redeployed {subject}", RU: "Сервер {subject} развёрнут заново"},
+	"event.server.redeploy_failed":           {EN: "Changing {subject} failed at {step}: {error}", RU: "Изменение {subject} остановилось на шаге {step}: {error}"},
+	"event.server.credentials_rotated":       {EN: "Rotated the credentials of {subject}", RU: "Ключи сервера {subject} заменены"},
+	"event.server.health_changed":            {EN: "{subject} went from {from} to {to}: {reason}", RU: "Сервер {subject}: {from} → {to}: {reason}"},
+	"event.server.still_unhealthy":           {EN: "{subject} is still {state}", RU: "Сервер {subject} всё ещё в состоянии {state}"},
+	"event.server.cert_expiring":             {EN: "The certificate of {subject} has {days_left} days left", RU: "У сертификата сервера {subject} осталось дней: {days_left}"},
+	"event.server.disk_low":                  {EN: "{subject} has {free_pct} % disk free", RU: "На сервере {subject} свободно {free_pct} % диска"},
+	"event.server.checks_paused":             {EN: "Paused the checks of {subject}", RU: "Проверки сервера {subject} приостановлены"},
+	"event.server.checks_resumed":            {EN: "Resumed the checks of {subject}", RU: "Проверки сервера {subject} возобновлены"},
+	"event.server.retired":                   {EN: "Retired {subject}", RU: "Сервер {subject} выведен из работы"},
+	"event.server.notes_changed":             {EN: "Changed the notes of {subject}", RU: "Изменены заметки сервера {subject}"},
+	"event.server.rollout_started":           {EN: "Started a rolling upgrade to version {to_version}", RU: "Начато поочерёдное обновление до версии {to_version}"},
+	"event.server.rollout_finished":          {EN: "A rolling upgrade ended: {state}", RU: "Поочерёдное обновление завершено: {state}"},
+	"event.health.home_offline":              {EN: "Home has no internet", RU: "У дома нет интернета"},
+	"event.health.foreign_unreachable":       {EN: "Foreign internet is unreachable from home", RU: "Зарубежный интернет недоступен из дома"},
+	"event.health.home_recovered":            {EN: "Home's internet is back", RU: "Домашний интернет восстановлен"},
+
+	// Notifications
+	"notify.template.agent_session_opened":      {EN: "An agent can edit the draft of {subject}", RU: "Агент может править черновик шаблона {subject}"},
+	"notify.template.agent_session_opened.body": {EN: "Anyone holding the copied prompt can, until the session ends.", RU: "Любой, у кого есть скопированная подсказка, — пока сеанс не закончится."},
+	"notify.server.provisioning_failed":         {EN: "{subject}: setup failed at {step}", RU: "{subject}: настройка остановилась на шаге {step}"},
+	"notify.server.provisioning_failed.body":    {EN: "{error}", RU: "{error}"},
+	"notify.server.activated":                   {EN: "{subject} is ready", RU: "{subject} готов"},
+	"notify.server.redeploy_failed":             {EN: "{subject}: the change failed at {step}", RU: "{subject}: изменение остановилось на шаге {step}"},
+	"notify.server.redeploy_failed.body":        {EN: "{error}", RU: "{error}"},
+	"notify.server.credentials_rotated":         {EN: "Credentials of {subject} were rotated", RU: "Ключи сервера {subject} заменены"},
+	"notify.server.credentials_rotated.body":    {EN: "Clients get the new ones when they refresh their subscription.", RU: "Клиенты получат новые при обновлении подписки."},
+	"notify.server.health_changed":              {EN: "{subject}: {from} → {to}", RU: "{subject}: {from} → {to}"},
+	"notify.server.health_changed.body":         {EN: "{reason}", RU: "{reason}"},
+	"notify.server.still_unhealthy":             {EN: "{subject} is still {state}", RU: "{subject} всё ещё в состоянии {state}"},
+	"notify.server.cert_expiring":               {EN: "The certificate of {subject} expires in {days_left} days", RU: "Сертификат сервера {subject} истекает через дни: {days_left}"},
+	"notify.server.disk_low":                    {EN: "Disk of {subject} is almost full", RU: "Диск сервера {subject} почти заполнен"},
+	"notify.server.disk_low.body":               {EN: "{free_pct} % free.", RU: "Свободно {free_pct} %."},
+	"notify.health.foreign_unreachable":         {EN: "Foreign internet is unreachable from home", RU: "Зарубежный интернет недоступен из дома"},
+	"notify.health.foreign_unreachable.body":    {EN: "Server verdicts are on hold.", RU: "Оценки серверов приостановлены."},
+	"notify.health.home_recovered":              {EN: "Home's internet is back", RU: "Домашний интернет восстановлен"},
+}

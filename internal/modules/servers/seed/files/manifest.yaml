@@ -1,0 +1,64 @@
+name: VLESS XHTTP behind nginx
+description: VLESS over XHTTP, hidden behind nginx with a Let's Encrypt certificate and a decoy site.
+
+requires:
+  os: [debian-12, debian-13, ubuntu-22.04, ubuntu-24.04]
+  arch: [amd64, arm64]
+dir: /opt/proxier/vless-xhttp        # where the stack lives on the server
+ports: [80/tcp, 443/tcp]             # opened in the firewall, besides SSH
+
+parameters:                          # asked when building a server
+  - key: letsencrypt_email
+    label: Let's Encrypt email
+    type: email
+    required: false
+    sample: admin@example.com        # used by validation
+
+generated:                           # created once per server, reused on every redeploy
+  - { key: client_uuid, kind: uuid, rotate: true }
+  - { key: xhttp_path, kind: hex, length: 16, prefix: /, rotate: true }
+  - { key: container_postfix, kind: hex, length: 4 }
+
+files:                               # rendered with Go templates, uploaded into dir
+  - { path: compose.yaml, validate: compose }
+  - { path: xray-config.json, validate: xray }
+  - { path: nginx/default.conf.template, validate: nginx }
+  - { path: site/index.html }
+  - { path: .env, mode: "0600" }
+  - { path: issue-cert.sh, mode: "0755", validate: shell }
+
+steps:
+  install:                           # provisioning
+    - base-bootstrap
+    - upload-files
+    - run: ./issue-cert.sh
+      timeout: 5m
+    - compose-up: { pull: true }
+    - wait-http: { url: "https://{{ .Server.ProxyHostname }}/", resolve: 127.0.0.1, status: 200 }
+  redeploy:                          # redeploy, upgrade, rotation
+    - upload-files
+    - compose-up
+  uninstall:                         # retirement with "remove the stack"
+    - compose-down: { volumes: true }
+
+endpoints:                           # what clients connect to
+  - key: main                        # stable across versions; subscriptions rely on it
+    type: vless-xhttp-tls
+    host: "{{ .Server.ProxyHostname }}"
+    port: 443
+    credential: "{{ .Gen.client_uuid }}"
+    params:
+      path: "{{ .Gen.xhttp_path }}"
+      sni: "{{ .Server.ProxyHostname }}"
+      mode: stream-up
+      fp: chrome
+      alpn: h2
+
+checks:                              # the self-check
+  - compose-running
+  - http-local: { url: "https://{{ .Server.ProxyHostname }}/", status: 200 }
+  - cert-expiry: { file: "certbot/conf/live/{{ .Server.ProxyHostname }}/fullchain.pem" }
+  - disk-free
+
+proxy_test:                          # optional; overrides Settings → Servers → proxy test URL
+  url: "https://speed.cloudflare.com/__down?bytes=262144"

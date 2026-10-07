@@ -89,12 +89,12 @@ Sample context: server `xx-1` in location `xx` ("Sample"), IP `192.0.2.10`, both
 | Endpoints | Rendered fields are invalid for the endpoint type (e.g. a `vless-xhttp-tls` path without a leading `/`, or a port outside 1–65535); endpoint keys are not unique. | An endpoint key used by the previous version has disappeared: servers upgrading will lose that endpoint from their subscriptions. |
 | `xray` | The rendered JSON isn't valid, or xray-core refuses to build an instance from it. | — |
 | `compose` | compose-go can't parse it with the rendered `.env`, or it has no services. | An image has no tag, or the tag `latest`. |
-| `nginx` | Bundled `nginx -t` fails on a sandboxed copy (see below). | — |
+| `nginx` | The pure-Go nginx parser refuses the rendered file: syntax, an unknown directive, a directive in the wrong context, a wrong argument count (see below). | — |
 | `json`, `yaml` | Syntax error. | — |
-| `shell` | `bash -n` fails. | — |
+| `shell` | The file is not valid bash syntax (checked with the pure-Go `mvdan.cc/sh` parser, like `bash -n`). | — |
 | Size | A file is over 1 MB, or the version over 10 MB. | — |
 
-The nginx sandbox copies the rendered nginx files into a temporary directory and adjusts only what can't exist outside a real server. `*.template` files are first expanded with the environment the compose file gives the nginx service, as the nginx image does at start. `ssl_certificate` and `ssl_certificate_key` point to a throwaway self-signed pair. Hostnames of other compose services in `*_pass` directives resolve to `127.0.0.1`. Everything else is tested as written.
+The nginx check parses the rendered file with a Go parser; nothing runs. `*.template` files are first expanded with the environment the compose service that mounts them is given (`${VAR}` and `$VAR` of defined variables, as the nginx image's start script does; undefined ones stay as written). Where the file ends up in the container decides its context: mounted as `/etc/nginx/nginx.conf` it is the main context, under `/etc/nginx/templates/` or `/etc/nginx/conf.d/` it sits inside `http { }`, and a file no service mounts is read inside `http { }` unless it is named `nginx.conf`. Certificate paths and upstream hostnames are not opened or resolved, so nothing needs replacing. What only a running nginx finds is left to the smoke test.
 
 ## Rules
 
@@ -119,5 +119,5 @@ The nginx sandbox copies the rendered nginx files into a temporary directory and
 - Delete a template whose version 1 built a retired server → refused. Archive offered instead.
 - Import a zip with `manifest.yaml` nested two folders deep → refused with "manifest.yaml not found at the root".
 - Import from git at a commit SHA → draft records that SHA. Re-importing the same ref later → a new draft with the new commit recorded.
-- A file of 1.2 MB → error. Ten files of 0.9 MB → error on the version total.
+- A file of 1.2 MB → error. Files that together exceed 10 MiB (e.g. eleven of 0.95 MiB) → error on the version total.
 - Two browser tabs editing the same draft → the second save is refused with "the draft changed since you opened it".

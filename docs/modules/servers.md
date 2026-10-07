@@ -93,9 +93,9 @@ proxy_test:                          # optional; overrides Settings → Servers 
 
 **Generated values** have a `key` and a `kind`: `uuid` (v4), `hex` (`length` characters), `base64` (`bytes`), or `password` (`length`, letters and digits). Each can have a `prefix`. `rotate: true` marks the values that rotation replaces. They are created on first use for a server and kept for the server's life. Upgrading to a version that declares a new one creates it. A value no longer declared is kept, unused, so a rollback still works.
 
-**Files** have a `path` (relative, no `..`), an optional `mode` (default `0644`) and an optional `validate` (`xray`, `compose`, `nginx`, `json`, `yaml`, `shell`). A file is at most 1 MB, and a version at most 10 MB.
+**Files** have a `path`, an optional `mode` (default `0644`) and an optional `validate` (`xray`, `compose`, `nginx`, `json`, `yaml`, `shell`). A path is relative and `/`-separated, with no `..`, no leading `/` and no `./`, at most 255 bytes, and only `A-Z a-z 0-9 . _ - /` (paths end up in shell commands and SFTP paths). A file in the template that `files` does not list is an error, except `manifest.yaml`. A file is at most 1 MiB, and a version at most 10 MiB, counted on the files as written (before rendering).
 
-**Steps** are lists for `install`, `redeploy` and `uninstall`. Built-in step kinds:
+**Steps** are lists for `install`, `redeploy` and `uninstall`. `install` must start with `base-bootstrap`, then `upload-files`, and `redeploy` must start with `upload-files`; neither kind may appear anywhere else, nor in `uninstall`. The provisioning and deploy jobs run those as steps of their own (with DNS and the generated values in between during provisioning), so their place is fixed. A `run` step whose command starts with `./` must name a file listed in `files` (`./issue-cert.sh` needs `issue-cert.sh`). Built-in step kinds:
 
 | Step | What it does |
 |---|---|
@@ -149,7 +149,7 @@ If per-link (or per-subscription) credentials ever arrive, Proxier only has to f
 
 - **Export** a version as a zip: `manifest.yaml` and its files, with the same layout as the editor.
 - **Import** a zip, or a git URL with a path and ref (e.g. `github.com/tikhonp/servers-templates`, `proxy-proxier/`, `master`). Either way the result is a new draft, and it goes through validation like any edit. This keeps `servers-templates` usable as the backup and review place for templates.
-- The **seed template** "VLESS XHTTP behind nginx" is created on first start.
+- The **seed template** "VLESS XHTTP behind nginx" is created on first start, once (deleting it later does not bring it back). Its images stay `:latest`, so it is published with the two warnings that causes; **Update images** pulls new versions.
 
 ## Lifecycle
 

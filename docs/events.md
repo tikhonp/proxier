@@ -32,14 +32,18 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
 | `template.created` | template | — | off | |
-| `template.version_published` | template | version, warnings | off | |
+| `template.version_published` | template | version, warnings (their number), messages | off | |
 | `template.default_version_changed` | template | from, to | off | |
 | `template.archived` | template | — | off | |
+| `template.unarchived` | template | — | off | |
+| `template.deleted` | template | name | off | A template that never built a server. |
 | `template.agent_session_opened` | template | expires_at, context | **on** | "An agent can edit the nginx-xhttp draft until 18:41". Anyone holding the copied prompt can do so. |
-| `template.draft_saved` | template | by (admin / agent), files | off | |
+| `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version) | off | A save that changes no file records nothing. |
 | `template.draft_validated` | template | by, errors, warnings | off | |
 | `template.agent_session_closed` | template | reason (expired / revoked / published / discarded), saves | off | |
-| `location.created` | location | — | off | |
+| `location.created` | location | code, name, country | off | |
+| `location.changed` | location | fields (`name`, `country`) | off | Only when something changed. |
+| `location.deleted` | location | code, name | off | Only a location without servers. |
 | `server.created` | server | IP, template version | off | |
 | `server.provisioning_failed` | server | step, error | **on** | "nl-2: setup failed at 'Issue certificate': …" |
 | `server.activated` | server | proxy test timings, forced | **on** | "nl-2 is ready (🇳🇱 Netherlands 2)"; when forced by **Activate anyway**: "nl-2 is active without a passing proxy test" |
@@ -48,11 +52,14 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `server.credentials_rotated` | server | keys rotated | **on** | |
 | `server.health_changed` | server | from, to, reason, check summary | **on** for changes to `blocked`, `down`, and back to `healthy`. **off** for `degraded` and `unknown` | "🔴 de-1 is down: unreachable over SSH and from 3/3 nodes abroad" |
 | `server.still_unhealthy` | server | state, since | **on** | Reminder every 24 h while blocked or down. |
-| `server.cert_expiring` | server | days left | **on** | Once a day while fewer than 14 days are left. |
-| `server.disk_low` | server | free % | **on** | Under 10 % free. |
+| `server.cert_expiring` | server | days_left | **on** | Once a day while fewer than 14 days are left. |
+| `server.disk_low` | server | free_pct | **on** | Under 10 % free. |
 | `server.checks_paused` | server | until | off | |
 | `server.checks_resumed` | server | — | off | |
 | `server.retired` | server | DNS removed, stack removed | off | |
+| `server.notes_changed` | server | — | off | Only when the notes changed. |
+| `server.rollout_started` | server | servers, to_version | off | A rolling upgrade began. |
+| `server.rollout_finished` | server | state, done, failed, not_started | off | |
 | `health.home_offline` | — | reference check results | off | Telegram is unreachable anyway. It's shown on the dashboard. |
 | `health.foreign_unreachable` | — | reference check results | **on** | "Foreign internet is unreachable from home; server verdicts are on hold" |
 | `health.home_recovered` | — | duration | **on** | |

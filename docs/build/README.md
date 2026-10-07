@@ -14,7 +14,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 
 | Sub-phase | Contract | State |
 |---|---|---|
-| 1a Servers module, tables, templates core | [1a.md](./1a.md) | planned |
+| 1a Servers module, tables, templates core | [1a.md](./1a.md) | done 2026-10-07 |
 | 1b Template UI, versions, import/export | [1b.md](./1b.md) | planned |
 | 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | planned |
 | 1d Provisioning and the server page | [1d.md](./1d.md) | planned |
@@ -148,6 +148,7 @@ One module, `servers` (`internal/modules/servers`), enabled in `modules()` in `c
 | Change | Sub-phase |
 |---|---|
 | `module.Migrated`: `AfterMigrate(ctx) error`, called by `App.Migrate` after every module's migrations | 1a |
+| `web.Routes.Shell`: the layout data builder, so a module's page can render `ui.Layout` | 1a |
 | `module.DashboardDeclarer`: `Dashboard(ctx) ([]ui.DashboardArea, error)`; areas sorted by `Order` | 1d |
 | `ui` components: `Diff` (unified, side by side), `Code` (read-only, highlighted, line anchors), `QR` (SVG), `SecretField` reuse | 1b, 1d |
 | `ui` charts: `Sparkline`, `TimeSeries`, `Bar` as server-rendered SVG (no JS library) | 1f |

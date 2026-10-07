@@ -60,8 +60,9 @@ type handler struct {
 	names  *subjectNames
 }
 
-// Register adds the platform's routes to r.
-func Register(r web.Routes, d Deps) {
+// Register adds the platform's routes to r and returns the builder of the
+// layout's data, which modules' pages use through web.Routes.Shell.
+func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui.Shell {
 	h := &handler{Deps: d, secure: d.Cfg.BaseURL != nil && d.Cfg.BaseURL.Scheme == "https",
 		names: newSubjectNames(d.Log, d.Settings, d.Namers)}
 
@@ -112,6 +113,7 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/settings/security/lockout", h.saveLockout)
 	r.Admin.POST("/settings/security/sessions/:id/sign-out", h.signOutSession)
 	r.Admin.POST("/settings/security/sessions/sign-out-everywhere", h.signOutEverywhere)
+	return h.shell
 }
 
 var groupOrder = []string{"overview", "servers", "subscriptions", "routing", "routerscripts", "system"}
