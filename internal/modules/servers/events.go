@@ -37,6 +37,8 @@ var Events = []events.Type{
 	{Name: "template.deleted", Description: "A template that never built a server was deleted."},
 	{Name: "template.agent_session_opened", Notify: true, Emoji: "🤖", Description: "A draft was handed to an agent: anyone holding the prompt can edit it until the session ends."},
 	{Name: "template.draft_saved", Description: "A template draft was saved."},
+	{Name: "template.draft_discarded", Description: "A template draft was discarded."},
+	{Name: "template.changed", Description: "A template's name, slug or description changed."},
 	{Name: "template.draft_validated", Description: "A template draft was validated."},
 	{Name: "template.agent_session_closed", Description: "An agent session ended (expired, revoked, published, discarded)."},
 	{Name: "location.created", Description: "A location was added."},

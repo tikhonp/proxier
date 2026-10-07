@@ -205,3 +205,132 @@ func sortedKeys(m map[string][]byte) []string {
 	sort.Strings(out)
 	return out
 }
+
+// UpdateTemplate changes a template's name and description, and its slug when
+// the caller says so (a template that never published).
+func UpdateTemplate(ctx context.Context, tx sqlx.ExtContext, id int64, name, description string, slug *string) error {
+	var err error
+	if slug != nil {
+		_, err = tx.ExecContext(ctx, `UPDATE servers_templates SET name = ?, description = ?, slug = ? WHERE id = ?`, name, description, *slug, id)
+	} else {
+		_, err = tx.ExecContext(ctx, `UPDATE servers_templates SET name = ?, description = ? WHERE id = ?`, name, description, id)
+	}
+	if unique(err, "servers_templates.slug") {
+		return ErrSlugTaken
+	}
+	return err
+}
+
+// SetArchived sets or clears archived_at.
+func SetArchived(ctx context.Context, tx sqlx.ExtContext, id int64, at *db.Time) error {
+	var v any
+	if at != nil {
+		v = *at
+	}
+	_, err := tx.ExecContext(ctx, `UPDATE servers_templates SET archived_at = ? WHERE id = ?`, v, id)
+	return err
+}
+
+// DeleteTemplate removes the template; its draft, versions and files go with
+// it (ON DELETE CASCADE).
+func DeleteTemplate(ctx context.Context, tx sqlx.ExtContext, id int64) error {
+	_, err := tx.ExecContext(ctx, `DELETE FROM servers_templates WHERE id = ?`, id)
+	return err
+}
+
+// TemplateUsed reports whether any server, in any state, was built from any
+// version of the template.
+func TemplateUsed(ctx context.Context, q sqlx.QueryerContext, id int64) (bool, error) {
+	var n int
+	err := sqlx.GetContext(ctx, q, &n, `SELECT count(*) FROM servers_servers WHERE template_id = ?`, id)
+	return n > 0, err
+}
+
+// VersionCounts is the number of versions per template.
+func VersionCounts(ctx context.Context, q sqlx.QueryerContext) (map[int64]int, error) {
+	var rows []struct {
+		ID int64 `db:"template_id"`
+		N  int   `db:"n"`
+	}
+	if err := sqlx.SelectContext(ctx, q, &rows, `SELECT template_id, count(*) AS n FROM servers_template_versions GROUP BY template_id`); err != nil {
+		return nil, err
+	}
+	out := make(map[int64]int, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.N
+	}
+	return out, nil
+}
+
+// DraftMetas returns every draft's metadata by template id.
+func DraftMetas(ctx context.Context, q sqlx.QueryerContext) (map[int64]DraftMeta, error) {
+	var rows []struct {
+		ID int64 `db:"template_id"`
+		DraftMeta
+	}
+	if err := sqlx.SelectContext(ctx, q, &rows,
+		`SELECT template_id, COALESCE(based_on, 0) AS based_on, revision, source, updated_at, updated_by FROM servers_template_drafts`); err != nil {
+		return nil, err
+	}
+	out := make(map[int64]DraftMeta, len(rows))
+	for _, r := range rows {
+		out[r.ID] = r.DraftMeta
+	}
+	return out, nil
+}
+
+// ServerCount is how many servers in one lifecycle state run a version.
+type ServerCount struct {
+	TemplateID int64  `db:"template_id"`
+	Version    int    `db:"template_version"`
+	State      string `db:"state"`
+	N          int    `db:"n"`
+}
+
+// ServerCounts counts servers by template, version and state. templateID 0
+// means every template.
+func ServerCounts(ctx context.Context, q sqlx.QueryerContext, templateID int64) ([]ServerCount, error) {
+	var out []ServerCount
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT template_id, template_version, state, count(*) AS n FROM servers_servers
+		WHERE (? = 0 OR template_id = ?) GROUP BY template_id, template_version, state`, templateID, templateID)
+	return out, err
+}
+
+// ServerRef names an active server, for the preview's server picker.
+type ServerRef struct {
+	ID   int64  `db:"id"`
+	Name string `db:"name"`
+}
+
+// ActiveServers lists the servers a template can be previewed for.
+func ActiveServers(ctx context.Context, q sqlx.QueryerContext) ([]ServerRef, error) {
+	var out []ServerRef
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT id, name FROM servers_servers WHERE state = 'active' ORDER BY name`)
+	return out, err
+}
+
+// ResetDraft makes these files, base and source the template's draft: a new
+// one at revision 1, or the existing one at its next revision (so another tab
+// sees that the draft changed).
+func ResetDraft(ctx context.Context, tx sqlx.ExtContext, id int64, basedOn int, source, by string, at db.Time, files map[string][]byte) (revision int, err error) {
+	meta, err := GetDraft(ctx, tx, id)
+	if errors.Is(err, ErrNotFound) {
+		return 1, InsertDraft(ctx, tx, id, basedOn, source, by, at, files)
+	}
+	if err != nil {
+		return 0, err
+	}
+	var based any
+	if basedOn > 0 {
+		based = basedOn
+	}
+	revision = meta.Revision + 1
+	if _, err := tx.ExecContext(ctx, `UPDATE servers_template_drafts SET based_on = ?, source = ?, revision = ?, updated_at = ?, updated_by = ? WHERE template_id = ?`,
+		based, source, revision, at, by, id); err != nil {
+		return 0, err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM servers_draft_files WHERE template_id = ?`, id); err != nil {
+		return 0, err
+	}
+	return revision, putDraftFiles(ctx, tx, id, files)
+}

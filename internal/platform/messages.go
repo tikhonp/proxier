@@ -160,6 +160,9 @@ var messages = i18n.Messages{
 	"ui.jobs_failed":   {EN: "{n} failed|{n} failed", RU: "{n} с ошибкой|{n} с ошибкой|{n} с ошибкой"},
 	"ui.clear_filters": {EN: "Clear filters", RU: "Сбросить фильтры"},
 	"ui.older":         {EN: "older", RU: "более ранние"},
+	"ui.diff.added":    {EN: "added", RU: "добавлен"},
+	"ui.diff.removed":  {EN: "removed", RU: "удалён"},
+	"ui.diff.changed":  {EN: "changed", RU: "изменён"},
 
 	"jobs.note":                 {EN: "All long or remote work. Kept 30 days, failed ones 90.", RU: "Вся долгая и удалённая работа. Хранится 30 дней, неудачные — 90."},
 	"jobs.demo":                 {EN: "Run demo job", RU: "Запустить демо-задачу"},

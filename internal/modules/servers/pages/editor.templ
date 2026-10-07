@@ -1,0 +1,301 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ editorPage(s ui.Shell, v editorView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name, i18n.T(ctx, "templates.draft"))
+				<div class="jobtitle">
+					<h1>{ v.T.Name }</h1>
+					@ui.Status("off", draftBasedOn(ctx, v.BasedOn))
+					<span class="sm subtle">
+						{ i18n.T(ctx, "templates.saved_at") + " " }
+						@ui.Time(v.UpdatedAt.Time)
+					</span>
+				</div>
+				if t := sourceText(ctx, v.Source); t != "" && v.Source.Kind != "version" {
+					<p class="sm subtle">{ t }</p>
+				}
+			</div>
+			<div class="actions">
+				<button type="submit" form="draft-form" class="pc-btn" data-action="tpl.save" disabled?={ v.Stale }>{ i18n.T(ctx, "templates.save") }</button>
+				<button
+					type="button"
+					class="pc-btn"
+					data-action="tpl.validate"
+					hx-post={ actionHref(v.T.ID, "/draft/validate") }
+					hx-include="#draft-form"
+					hx-target="#ed-side"
+					hx-swap="innerHTML"
+					disabled?={ v.Stale }
+				>{ i18n.T(ctx, "templates.validate") }</button>
+				<button
+					type="button"
+					class="pc-btn"
+					data-action="tpl.preview"
+					hx-post={ actionHref(v.T.ID, "/draft/preview") }
+					hx-include="#draft-form"
+					hx-target="#ed-side"
+					hx-swap="innerHTML"
+				>{ i18n.T(ctx, "templates.preview") }</button>
+				<button type="submit" form="draft-form" formaction={ actionHref(v.T.ID, "/draft") } name="next" value="publish" class="pc-btn pc-pri" data-action="tpl.publish" disabled?={ v.Stale }>{ i18n.T(ctx, "templates.publish_n", i18n.Args{"n": v.Next}) }</button>
+				@ui.ActionButton(ui.Action{
+					ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger,
+					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "templates.discard.title"), Body: i18n.T(ctx, "templates.discard.body"), Consequences: []string{i18n.T(ctx, "templates.discard.lose_all")}},
+				})
+			</div>
+		</div>
+		if v.Saved {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "templates.saved.draft") }
+			}
+		}
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		if v.Stale {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "templates.stale.title") }</span>
+				<span class="subtle">{ i18n.T(ctx, "templates.stale.body") }</span>
+				<span class="flex1"></span>
+				<button type="button" class="pc-btn pc-sm" data-copy-draft>{ i18n.T(ctx, "templates.stale.copy") }</button>
+				<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-sm" data-action="tpl.reload">{ i18n.T(ctx, "templates.stale.reload") }</a>
+			}
+		}
+		<div id="ed-msg" class="ed-msg" role="status"></div>
+		<form
+			id="draft-form"
+			class="ed"
+			method="post"
+			action={ templ.SafeURL(actionHref(v.T.ID, "/draft")) }
+			data-ed
+			data-dirty-msg={ i18n.T(ctx, "templates.unsaved") }
+			data-t-add={ i18n.T(ctx, "templates.file.add") }
+			data-t-rename={ i18n.T(ctx, "templates.file.rename") }
+			data-t-exists={ i18n.T(ctx, "templates.file.exists") }
+			data-t-invalid={ i18n.T(ctx, "templates.err.bad_path") }
+			data-t-copied={ i18n.T(ctx, "ui.copied") }
+			data-t-nofile={ i18n.T(ctx, "templates.file.none") }
+			data-t-line={ i18n.T(ctx, "templates.editor.line") }
+			data-t-issues={ i18n.T(ctx, "templates.editor.issues") }
+			data-t-binary={ i18n.T(ctx, "templates.file.binary_short") }
+			data-t-delete-confirm={ i18n.T(ctx, "templates.file.delete_confirm") }
+		>
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<input type="hidden" name="revision" id="ed-revision" value={ itoa(v.Revision) }/>
+			<input type="hidden" name="active" id="ed-active" value={ v.Active }/>
+			<input type="hidden" name="dir" id="ed-dir" value=""/>
+			<div class="ed-left">
+				<div class="ed-head">
+					<span class="pc-label">{ i18n.T(ctx, "templates.files") }</span>
+					<span class="flex1"></span>
+					<button type="button" class="pc-seg ed-add" data-ed-add aria-label={ i18n.T(ctx, "templates.file.add") }>+</button>
+				</div>
+				@editorFiles(v)
+				<div class="ed-tools">
+					<button type="button" class="pc-btn pc-sm" data-ed-rename>{ i18n.T(ctx, "templates.file.rename") }</button>
+					<button type="button" class="pc-btn pc-sm" data-ed-delete>{ i18n.T(ctx, "templates.file.delete") }</button>
+				</div>
+				<div class="ed-tools">
+					<label class="pc-btn pc-sm" for="ed-upload">{ i18n.T(ctx, "templates.file.upload") }</label>
+					<a href={ templ.SafeURL("/templates/import?into=" + i64(v.T.ID)) } class="pc-btn pc-sm" data-action="tpl.import_into">{ i18n.T(ctx, "templates.import") }</a>
+				</div>
+			</div>
+			<div class="ed-main">
+				<div class="ed-file">
+					<span class="bold" id="ed-name">{ v.Active }</span>
+					<span class="subtle sm" id="ed-lang"></span>
+				</div>
+				<div id="ed-host" class="ed-host"></div>
+				<div class="ed-status">
+					<span id="ed-pos"></span>
+					<span class="flex1"></span>
+					<span id="ed-issues"></span>
+				</div>
+			</div>
+			<aside class="ed-side" id="ed-side" aria-live="polite">
+				@sideEmpty()
+			</aside>
+		</form>
+		<input
+			type="file"
+			id="ed-upload"
+			name="upload"
+			class="sr"
+			form="draft-form"
+			hx-post={ actionHref(v.T.ID, "/draft/upload") }
+			hx-trigger="change"
+			hx-encoding="multipart/form-data"
+			hx-include="#draft-form"
+			hx-target="#ed-files"
+			hx-swap="outerHTML"
+		/>
+		<dialog id="ed-name-dlg" class="pc-dialog" aria-labelledby="ed-name-dlg-h">
+			<form method="dialog" id="ed-name-form">
+				<div class="dlg-title">
+					<h2 id="ed-name-dlg-h"></h2>
+					<button type="button" class="pc-seg pc-close" data-dialog-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+				</div>
+				<div class="dlg-body">
+					<input id="ed-name-input" class="pc-inp" autocomplete="off" spellcheck="false" aria-label={ i18n.T(ctx, "templates.file.path") }/>
+					<p class="err hidden" id="ed-name-err" role="alert"></p>
+					<p class="help">{ i18n.T(ctx, "templates.file.path_help") }</p>
+				</div>
+				<div class="dlg-foot">
+					<button type="submit" class="pc-btn pc-pri" value="ok">{ i18n.T(ctx, "ui.save") }</button>
+					<button type="button" class="pc-btn pc-ghost" data-dialog-close>{ i18n.T(ctx, "ui.cancel") }</button>
+				</div>
+			</form>
+		</dialog>
+	}
+}
+
+// editorFiles is the file tree and the form fields that hold the files: the
+// part an upload swaps.
+templ editorFiles(v editorView) {
+	<div id="ed-files" class="ed-files" data-active={ v.Active }>
+		<nav id="ed-tree" class="ed-tree" aria-label={ i18n.T(ctx, "templates.files") }>
+			for _, r := range v.Rows {
+				if r.Dir {
+					<div class={ "ed-row", "ed-dir", depthClass(r.Depth) } data-dir={ r.Path }>{ r.Name }</div>
+				} else {
+					<a
+						href={ templ.SafeURL(actionHref(v.T.ID, "/edit?file="+urlQuery(r.Path))) }
+						class={ "ed-row", "ed-file-row", "pc-row", depthClass(r.Depth) }
+						data-path={ r.Path }
+						aria-current?={ r.Path == v.Active }
+					><span class="ed-name">{ r.Name }</span><span class="ed-count sm"></span></a>
+				}
+			}
+		</nav>
+		<div id="ed-sources" class="ed-sources">
+			for _, f := range v.Files {
+				if f.Binary {
+					<input type="hidden" name={ "bin[" + f.Path + "]" } value={ f.B64 } data-ed-bin data-size={ itoa(f.Size) }/>
+				} else {
+					<textarea name={ "file[" + f.Path + "]" } class="ed-src" data-ed-src spellcheck="false" tabindex="-1" aria-label={ f.Path }>{ "\n" + f.Text }</textarea>
+				}
+			}
+		</div>
+	</div>
+}
+
+// editorFilesResponse is the answer to an upload: the tree, and a message
+// swapped into #ed-msg when something was refused.
+templ editorFilesResponse(v editorView) {
+	@editorFiles(v)
+	<div id="ed-msg" class="ed-msg" role="status" hx-swap-oob="true">
+		if v.Message != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Message }
+			}
+		}
+	</div>
+}
+
+templ sideEmpty() {
+	<div class="ed-side-head">
+		<h2 class="pc-label">{ i18n.T(ctx, "templates.side.title") }</h2>
+	</div>
+	<p class="ed-hint subtle">{ i18n.T(ctx, "templates.side.hint") }</p>
+}
+
+
+templ reportFragment(v reportView) {
+	<div class="ed-side-head">
+		<h2 class="pc-label">{ i18n.T(ctx, "templates.validation") }</h2>
+	</div>
+	<div class="ed-counts">
+		if v.Errors > 0 {
+			<span class="love">{ i18n.N(ctx, "templates.errors", int64(v.Errors)) }</span>
+		}
+		if v.Warnings > 0 {
+			<span class="gold">{ i18n.N(ctx, "templates.warnings", int64(v.Warnings)) }</span>
+		}
+		if v.Errors == 0 && v.Warnings == 0 {
+			<span class="subtle">@ui.Status("ok", i18n.T(ctx, "templates.validation.clean"))</span>
+		}
+	</div>
+	<div class="ed-report" id="ed-report">
+		for _, f := range v.Findings {
+			<div class="ed-find pc-row" data-finding data-path={ f.Path } data-line={ itoa(f.Line) } data-sev={ string(f.Severity) } data-msg={ f.Message }>
+				<span class={ "st", sevClass(string(f.Severity)) } aria-hidden="true"></span>
+				<div class="col">
+					<a href={ templ.SafeURL("#") } class="bold" data-ed-goto>
+						if f.Path == "" {
+							{ i18n.T(ctx, "templates.finding.global") }
+						} else {
+							{ findingWhere(f.Path, f.Line) }
+						}
+					</a>
+					<span class="sm subtle">{ f.Message }</span>
+				</div>
+			</div>
+		}
+	</div>
+	<div class="ed-foot sm subtle">
+		<p>{ i18n.T(ctx, "templates.validation.note") }</p>
+		if v.Errors > 0 {
+			<p class="k">{ i18n.T(ctx, "templates.validation.fix") }</p>
+		}
+	</div>
+	<input type="hidden" name="revision" id="ed-revision" value={ itoa(v.Revision) } hx-swap-oob="true"/>
+}
+
+templ messageFragment(text string) {
+	<div class="ed-side-head"><h2 class="pc-label">{ i18n.T(ctx, "templates.side.title") }</h2></div>
+	<p class="ed-hint love" role="alert">{ text }</p>
+}
+
+templ staleFragment() {
+	<div class="ed-side-head"><h2 class="pc-label">{ i18n.T(ctx, "templates.side.title") }</h2></div>
+	<div class="ed-hint">
+		<p class="gold bold">{ i18n.T(ctx, "templates.stale.title") }</p>
+		<p class="subtle">{ i18n.T(ctx, "templates.stale.body") }</p>
+		<div class="btns">
+			<button type="button" class="pc-btn pc-sm" data-copy-draft>{ i18n.T(ctx, "templates.stale.copy") }</button>
+			<a href="" class="pc-btn pc-sm" data-ed-reload>{ i18n.T(ctx, "templates.stale.reload") }</a>
+		</div>
+	</div>
+}
+
+templ previewFragment(v previewView) {
+	<div class="ed-side-head">
+		<h2 class="pc-label">{ i18n.T(ctx, "templates.preview.title") }</h2>
+	</div>
+	if v.Server == "" {
+		<p class="ed-hint sm subtle">{ i18n.T(ctx, "templates.preview.failed") }</p>
+	} else {
+		<p class="ed-hint sm subtle">{ i18n.T(ctx, "templates.preview.sample", i18n.Args{"name": v.Server, "ip": v.IP}) }</p>
+	}
+	if len(v.Findings) > 0 {
+		<div class="ed-report">
+			for _, f := range v.Findings {
+				<div class="ed-find pc-row">
+					<span class={ "st", sevClass(string(f.Severity)) } aria-hidden="true"></span>
+					<div class="col">
+						<span class="bold">{ findingWhere(f.Path, f.Line) }</span>
+						<span class="sm subtle">{ f.Message }</span>
+					</div>
+				</div>
+			}
+		</div>
+	}
+	for i, f := range v.Files {
+		<div class="pv-file">
+			<div class="pc-title"><h2>{ f.Path }</h2><span class="note">{ f.Mode }</span></div>
+			if f.Lines == nil {
+				<p class="ed-hint subtle">{ i18n.T(ctx, "templates.file.binary_short") }</p>
+			} else {
+				@ui.Code("pv-"+itoa(i), f.Lines)
+			}
+		</div>
+	}
+}

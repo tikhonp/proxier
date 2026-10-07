@@ -1,0 +1,93 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ importPage(s ui.Shell, v importView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/templates">{ i18n.T(ctx, "templates.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "templates.import.title") }</span></nav>
+				<h1>{ i18n.T(ctx, "templates.import.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "templates.import.note") }</p>
+			</div>
+		</div>
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		<form method="post" action="/templates/import" enctype="multipart/form-data" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<fieldset class="fs">
+				<legend>{ i18n.T(ctx, "templates.import.from") }</legend>
+				<label class="radio"><input type="radio" name="source" value="zip" checked?={ v.Source == "zip" }/> { i18n.T(ctx, "templates.import.zip") }</label>
+				<div class="field">
+					<label for="imp-zip">{ i18n.T(ctx, "templates.import.zip_file") }</label>
+					<input id="imp-zip" type="file" name="zip" accept=".zip,application/zip" class="pc-inp"/>
+					if v.Errs["zip"] != "" {
+						<p class="err" role="alert">{ v.Errs["zip"] }</p>
+					} else {
+						<p class="help">{ i18n.T(ctx, "templates.import.zip_help") }</p>
+					}
+				</div>
+				<label class="radio"><input type="radio" name="source" value="git" checked?={ v.Source == "git" }/> { i18n.T(ctx, "templates.import.git") }</label>
+				<div class="field">
+					<label for="imp-url">{ i18n.T(ctx, "templates.import.url") }</label>
+					<input id="imp-url" class="pc-inp" name="url" value={ v.URL } placeholder="https://github.com/you/templates" autocomplete="off" spellcheck="false" aria-invalid?={ v.Errs["url"] != "" }/>
+					if v.Errs["url"] != "" {
+						<p class="err" role="alert">{ v.Errs["url"] }</p>
+					} else {
+						<p class="help">{ i18n.T(ctx, "templates.import.url_help") }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="imp-ref">{ i18n.T(ctx, "templates.import.ref") }</label>
+					<input id="imp-ref" class="pc-inp" name="ref" value={ v.Ref } placeholder="main" autocomplete="off" spellcheck="false"/>
+					<p class="help">{ i18n.T(ctx, "templates.import.ref_help") }</p>
+				</div>
+				<div class="field">
+					<label for="imp-path">{ i18n.T(ctx, "templates.import.path") }</label>
+					<input id="imp-path" class="pc-inp" name="path" value={ v.Path } placeholder="stacks/nginx-xhttp" autocomplete="off" spellcheck="false"/>
+					<p class="help">{ i18n.T(ctx, "templates.import.path_help") }</p>
+				</div>
+			</fieldset>
+			<fieldset class="fs">
+				<legend>{ i18n.T(ctx, "templates.import.into") }</legend>
+				<label class="radio"><input type="radio" name="into" value="new" checked?={ v.Into == "new" }/> { i18n.T(ctx, "templates.import.into_new") }</label>
+				<div class="field">
+					<label for="imp-name">{ i18n.T(ctx, "templates.field.name") }</label>
+					<input id="imp-name" class="pc-inp" name="name" value={ v.Name } autocomplete="off" aria-invalid?={ v.Errs["name"] != "" }/>
+					if v.Errs["name"] != "" {
+						<p class="err" role="alert">{ v.Errs["name"] }</p>
+					} else {
+						<p class="help">{ i18n.T(ctx, "templates.import.name_help") }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="imp-slug">{ i18n.T(ctx, "templates.field.slug") }</label>
+					<input id="imp-slug" class="pc-inp" name="slug" value={ v.Slug } autocomplete="off" spellcheck="false" aria-invalid?={ v.Errs["slug"] != "" }/>
+					if v.Errs["slug"] != "" {
+						<p class="err" role="alert">{ v.Errs["slug"] }</p>
+					}
+				</div>
+				for _, t := range v.Targets {
+					<label class="radio">
+						<input type="radio" name="into" value={ i64(t.ID) } checked?={ v.Into == i64(t.ID) }/>
+						{ i18n.T(ctx, "templates.import.into_existing", i18n.Args{"name": t.Name}) }
+						if t.HasDraft {
+							<span class="gold sm">· { i18n.T(ctx, "templates.import.has_draft") }</span>
+						}
+					</label>
+				}
+				<label class="radio"><input type="checkbox" name="confirm" value="1" checked?={ v.Confirm }/> { i18n.T(ctx, "templates.import.confirm") }</label>
+			</fieldset>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "templates.import.go") }</button>
+				<a href="/templates" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

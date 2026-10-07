@@ -1,0 +1,115 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ templatesPage(s ui.Shell, v templatesView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "templates.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "templates.note") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "tpl.import", Label: "templates.import", Method: "GET", Href: "/templates/import"})
+				@ui.ActionButton(ui.Action{ID: "tpl.new", Label: "templates.new", Method: "GET", Href: "/templates/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if v.Saved != "" {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "templates.saved."+v.Saved) }
+			}
+		}
+		@ui.FilterBar([]ui.Chip{
+			{Label: i18n.T(ctx, "templates.filter.active"), Href: "/templates", On: !v.Archived},
+			{Label: i18n.T(ctx, "templates.filter.archived", i18n.Args{"n": v.ArchivedCount}), Href: "/templates?archived=1", On: v.Archived},
+		}, nil, "")
+		if len(v.Items) == 0 {
+			if v.Archived {
+				@ui.EmptyState(i18n.T(ctx, "templates.empty_archived"), "")
+			} else {
+				@ui.EmptyState(i18n.T(ctx, "templates.empty"), i18n.T(ctx, "templates.empty_next"))
+			}
+		} else {
+			<div class="colhead tpl" aria-hidden="true">
+				<span>{ i18n.T(ctx, "templates.col.template") }</span>
+				<span>{ i18n.T(ctx, "templates.col.default") }</span>
+				<span>{ i18n.T(ctx, "templates.col.versions") }</span>
+				<span>{ i18n.T(ctx, "templates.col.servers") }</span>
+				<span>{ i18n.T(ctx, "templates.col.draft") }</span>
+			</div>
+			for _, t := range v.Items {
+				<a href={ templ.SafeURL(tplHref(t.ID)) } class="row tpl pc-row" data-row={ i64(t.ID) } data-href={ tplHref(t.ID) } data-hint={ i18n.T(ctx, "templates.hints.row", i18n.Args{"name": t.Slug}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold">{ t.Name }</span>
+						<span class="sm subtle">
+							{ t.Slug }
+							if t.Description != "" {
+								· { t.Description }
+							}
+						</span>
+					</span>
+					<span>
+						if t.DefaultVersion > 0 {
+							{ vlabel(t.DefaultVersion) }
+						} else {
+							<span class="muted">—</span>
+						}
+					</span>
+					<span class="subtle">{ itoa(t.Versions) }</span>
+					<span class="subtle">{ serversByVersion(ctx, t.ServersByVersion) }</span>
+					<span class="col">
+						if t.HasDraft {
+							@ui.Status("unknown", i18n.T(ctx, "templates.draft.exists"))
+							<span class="sm subtle">{ draftBasedOn(ctx, t.DraftBasedOn) }</span>
+						} else {
+							<span class="muted">{ i18n.T(ctx, "templates.draft.none") }</span>
+						}
+					</span>
+				</a>
+			}
+		}
+	}
+}
+
+templ newTemplatePage(s ui.Shell, v newTemplateView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/templates">{ i18n.T(ctx, "templates.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "templates.new") }</span></nav>
+				<h1>{ i18n.T(ctx, "templates.new") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "templates.new.note") }</p>
+			</div>
+		</div>
+		<form method="post" action="/templates" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="tpl-name">{ i18n.T(ctx, "templates.field.name") }</label>
+				<input id="tpl-name" class="pc-inp" name="name" value={ v.Name } autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+				if v.Errs["name"] != "" {
+					<p class="err" role="alert">{ v.Errs["name"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="tpl-slug">{ i18n.T(ctx, "templates.field.slug") }</label>
+				<input id="tpl-slug" class="pc-inp" name="slug" value={ v.Slug } autocomplete="off" spellcheck="false" placeholder="nginx-xhttp" aria-invalid?={ v.Errs["slug"] != "" }/>
+				if v.Errs["slug"] != "" {
+					<p class="err" role="alert">{ v.Errs["slug"] }</p>
+				} else {
+					<p class="help">{ i18n.T(ctx, "templates.field.slug.help") }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="tpl-desc">{ i18n.T(ctx, "templates.field.description") }</label>
+				<input id="tpl-desc" class="pc-inp" name="description" value={ v.Description } autocomplete="off"/>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "templates.create") }</button>
+				<a href="/templates" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

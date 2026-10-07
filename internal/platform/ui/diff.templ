@@ -1,0 +1,65 @@
+package ui
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// Diff draws file diffs unified or side by side. Added lines carry "+" and
+// removed lines "−", so colour is never the only signal.
+templ Diff(v DiffView) {
+	<div class={ "diff", templ.KV("split", v.Split) }>
+		for i, f := range v.Files {
+			<section class="diff-file" id={ "diff-" + num(i+1) } aria-label={ f.Path }>
+				<div class="diff-head">
+					<span class={ "diff-chg", f.Change }>
+						switch f.Change {
+							case "added":
+								+
+							case "removed":
+								−
+							default:
+								~
+						}
+					</span>
+					<span class="bold">{ f.Path }</span>
+					<span class="subtle sm">{ i18n.T(ctx, "ui.diff."+f.Change) }</span>
+				</div>
+				if f.Note != "" {
+					<p class="diff-note subtle">{ f.Note }</p>
+				}
+				for _, h := range f.Hunks {
+					<div class="diff-hunk">{ h.Header }</div>
+					if v.Split {
+						for _, r := range h.Rows() {
+							<div class="drow">
+								@diffSide(r.Left)
+								@diffSide(r.Right)
+							</div>
+						}
+					} else {
+						for _, l := range h.Lines {
+							<div class={ "dl", kindClass(l.Kind) }>
+								<span class="ln">{ lineNo(l.Old) }</span>
+								<span class="ln">{ lineNo(l.New) }</span>
+								<span class="mk" aria-hidden="true">{ marker(l.Kind) }</span>
+								<span class="tx">{ l.Text }</span>
+							</div>
+						}
+					}
+				}
+			</section>
+		}
+	</div>
+}
+
+templ diffSide(l DiffLine) {
+	<div class={ "dl", "half", kindClass(l.Kind) }>
+		<span class="ln">
+			if l.Kind == '+' {
+				{ lineNo(l.New) }
+			} else {
+				{ lineNo(l.Old) }
+			}
+		</span>
+		<span class="mk" aria-hidden="true">{ marker(l.Kind) }</span>
+		<span class="tx">{ l.Text }</span>
+	</div>
+}

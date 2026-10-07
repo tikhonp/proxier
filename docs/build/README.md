@@ -15,7 +15,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 | Sub-phase | Contract | State |
 |---|---|---|
 | 1a Servers module, tables, templates core | [1a.md](./1a.md) | done 2026-10-07 |
-| 1b Template UI, versions, import/export | [1b.md](./1b.md) | planned |
+| 1b Template UI, versions, import/export | [1b.md](./1b.md) | done 2026-10-07 |
 | 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | planned |
 | 1d Provisioning and the server page | [1d.md](./1d.md) | planned |
 | 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | planned |

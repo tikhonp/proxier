@@ -8,6 +8,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -92,6 +93,8 @@ type Req struct {
 	Header       http.Header
 	Cookies      []*http.Cookie
 	Addr         string // socket address; DefaultAddr when empty
+	Body         []byte // a raw body (multipart); used instead of Form
+	ContentType  string
 }
 
 // Do serves r and returns the recorded response.
@@ -105,9 +108,15 @@ func (s *Site) Do(r Req) *httptest.ResponseRecorder {
 	if r.Form != nil {
 		body = strings.NewReader(r.Form.Encode())
 	}
+	if r.Body != nil {
+		body = bytes.NewReader(r.Body)
+	}
 	req := httptest.NewRequest(method, r.Path, body)
 	if r.Form != nil {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	}
+	if r.Body != nil {
+		req.Header.Set("Content-Type", r.ContentType)
 	}
 	for k, vs := range r.Header {
 		for _, v := range vs {
@@ -177,4 +186,34 @@ func (l *Login) Post(path string, form url.Values) *httptest.ResponseRecorder {
 		form.Set("_csrf", l.CSRF)
 	}
 	return l.Site.Do(Req{Method: http.MethodPost, Path: path, Form: form, Cookies: []*http.Cookie{l.Cookie}})
+}
+
+// File is an uploaded file of PostMultipart.
+type File struct {
+	Name string
+	Data []byte
+}
+
+// PostMultipart is a signed-in multipart POST (an upload) with the CSRF field
+// filled in.
+func (l *Login) PostMultipart(path string, fields url.Values, files map[string]File) *httptest.ResponseRecorder {
+	var buf bytes.Buffer
+	w := multipart.NewWriter(&buf)
+	if fields.Get("_csrf") == "" {
+		if fields == nil {
+			fields = url.Values{}
+		}
+		fields.Set("_csrf", l.CSRF)
+	}
+	for k, vs := range fields {
+		for _, v := range vs {
+			_ = w.WriteField(k, v)
+		}
+	}
+	for k, f := range files {
+		fw, _ := w.CreateFormFile(k, f.Name)
+		_, _ = fw.Write(f.Data)
+	}
+	_ = w.Close()
+	return l.Site.Do(Req{Method: http.MethodPost, Path: path, Body: buf.Bytes(), ContentType: w.FormDataContentType(), Cookies: []*http.Cookie{l.Cookie}})
 }

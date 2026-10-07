@@ -46,3 +46,71 @@ func TestActionButtonCarriesDataActionAndCSRF(t *testing.T) {
 		t.Errorf("strength 3 dialog:\n%s", out)
 	}
 }
+
+func TestHighlightEscapesAndNumbersLines(t *testing.T) {
+	lines := ui.Highlight("x.yaml", []byte("name: \"<b>&\"\nlist:\n  - 1\n"))
+	if len(lines) != 3 || lines[0].N != 1 || lines[2].N != 3 {
+		t.Fatalf("lines: %+v", lines)
+	}
+	if !strings.Contains(lines[0].HTML, "&lt;b&gt;&amp;") || strings.Contains(lines[0].HTML, "<b>") || !strings.Contains(lines[0].HTML, `<span class="`) {
+		t.Errorf("line 1: %s", lines[0].HTML)
+	}
+	// an unknown language and a file with markup stay plain and escaped
+	plain := ui.Highlight("notes.txt", []byte("<script>alert(1)</script>\r\nsecond"))
+	if len(plain) != 2 || plain[0].HTML != "&lt;script&gt;alert(1)&lt;/script&gt;" || plain[1].HTML != "second" {
+		t.Errorf("plain: %+v", plain)
+	}
+	if got := ui.Highlight("empty.json", nil); got != nil {
+		t.Errorf("an empty file: %+v", got)
+	}
+	for name, want := range map[string]string{
+		"compose.yaml": "yaml", "a.YML": "yaml", "x.json": "json", "issue-cert.sh": "bash", "nginx/default.conf.template": "nginx",
+		"nginx.conf": "nginx", ".env": "", "index.html": "", "manifest.yaml": "yaml",
+	} {
+		if got := ui.LangFor(name); got != want {
+			t.Errorf("LangFor(%q) = %q, want %q", name, got, want)
+		}
+	}
+}
+
+func TestParseUnifiedAndSplitRows(t *testing.T) {
+	diff := "--- a/f\n+++ b/f\n@@ -3,5 +3,6 @@\n keep\n-old one\n-old two\n+new one\n+new two\n+new three\n tail\n\\ No newline at end of file\n"
+	hunks := ui.ParseUnified(diff)
+	if len(hunks) != 1 || len(hunks[0].Lines) != 8 {
+		t.Fatalf("hunks: %+v", hunks)
+	}
+	l := hunks[0].Lines
+	if l[0].Kind != ' ' || l[0].Old != 3 || l[0].New != 3 ||
+		l[1].Kind != '-' || l[1].Old != 4 || l[1].Text != "old one" ||
+		l[3].Kind != '+' || l[3].New != 4 || l[5].New != 6 ||
+		l[6].Kind != ' ' || l[6].Old != 6 || l[6].New != 7 || l[7].Kind != '\\' {
+		t.Errorf("lines: %+v", l)
+	}
+	rows := hunks[0].Rows()
+	// context, then two removed against two of three added, one added alone, context, note
+	if len(rows) != 6 {
+		t.Fatalf("rows: %+v", rows)
+	}
+	if rows[1].Left.Text != "old one" || rows[1].Right.Text != "new one" || rows[3].Left.Kind != 0 || rows[3].Right.Text != "new three" {
+		t.Errorf("pairing: %+v", rows)
+	}
+	var buf bytes.Buffer
+	cat := i18n.NewCatalog()
+	_ = cat.Add("t", i18n.Messages{"ui.diff.changed": {EN: "changed", RU: "изменён"}})
+	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))
+	for _, split := range []bool{false, true} {
+		buf.Reset()
+		if err := ui.Diff(ui.DiffView{Split: split, Files: []ui.DiffFile{{Path: "f", Change: "changed", Hunks: hunks}}}).Render(ctx, &buf); err != nil {
+			t.Fatal(err)
+		}
+		out := buf.String()
+		for _, want := range []string{"old one", "new three", "−", "+", "@@ -3,5 +3,6 @@"} {
+			if !strings.Contains(out, want) {
+				t.Errorf("split=%v lacks %q:\n%s", split, want, out)
+			}
+		}
+		if split != strings.Contains(out, `class="drow"`) {
+			t.Errorf("split=%v drow mismatch", split)
+		}
+	}
+}

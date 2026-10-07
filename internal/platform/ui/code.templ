@@ -1,0 +1,28 @@
+package ui
+
+import "strconv"
+
+// Code is a read-only, highlighted file with a number and an anchor on every
+// line (#<id>-L<n>), and its findings under the lines they belong to.
+templ Code(id string, lines []CodeLine) {
+	<div class="code" id={ id }>
+		for _, l := range lines {
+			<div class={ "cl", templ.KV("has-err", hasMark(l, "error")), templ.KV("has-warn", hasMark(l, "warning")) } id={ id + "-L" + strconv.Itoa(l.N) }>
+				<a class="ln" href={ templ.SafeURL("#" + id + "-L" + strconv.Itoa(l.N)) }>{ strconv.Itoa(l.N) }</a>
+				<span class="tx hl">@templ.Raw(l.HTML)</span>
+			</div>
+			for _, m := range l.Marks {
+				<div class={ "cl-note", m.Severity }>{ m.Text }</div>
+			}
+		}
+	</div>
+}
+
+func hasMark(l CodeLine, sev string) bool {
+	for _, m := range l.Marks {
+		if m.Severity == sev {
+			return true
+		}
+	}
+	return false
+}

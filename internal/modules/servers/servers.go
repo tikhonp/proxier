@@ -69,28 +69,56 @@ func (*Module) EventTypes() []events.Type { return Events }
 
 func (*Module) SettingsSections() []settings.Section { return []settings.Section{Section} }
 
-func (*Module) Messages() i18n.Messages { return messages }
+// Messages merges the module's texts: the core table and the template pages'.
+func (*Module) Messages() i18n.Messages {
+	all := make(i18n.Messages, len(messages)+len(templateMessages))
+	for k, v := range messages {
+		all[k] = v
+	}
+	for k, v := range templateMessages {
+		all[k] = v
+	}
+	return all
+}
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Store: m.Store, Log: m.deps.Log})
+	pages.Register(r, pages.Deps{Store: m.Store, Templates: m.Templates, Log: m.deps.Log})
 }
 
 // Nav adds the module's entries; each sub-phase adds its own with its page.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
+		{Group: "servers", Label: "templates.nav", Href: "/templates", GoKey: "t", Order: 20},
 		{Group: "servers", Label: "locations.nav", Href: "/locations", Order: 30},
 	}
 }
 
-// Search finds locations by code or name.
+// Search finds templates by name or slug and locations by code or name.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+	lang := i18n.From(ctx).Lang
+	q = strings.ToLower(strings.TrimSpace(q))
+	var out []ui.SearchHit
+	tpls, err := m.Templates.List(ctx, true)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tpls {
+		if q != "" && !strings.Contains(strings.ToLower(t.Slug), q) && !strings.Contains(strings.ToLower(t.Name), q) {
+			continue
+		}
+		meta := i18n.T(ctx, "templates.search")
+		if t.Archived {
+			meta += " · " + i18n.T(ctx, "templates.archived")
+		}
+		out = append(out, ui.SearchHit{Label: t.Name + " · " + t.Slug, Meta: meta, Href: "/templates/" + strconv.FormatInt(t.ID, 10)})
+		if len(out) == limit {
+			return out, nil
+		}
+	}
 	locs, err := m.Store.Locations(ctx)
 	if err != nil {
 		return nil, err
 	}
-	lang := i18n.From(ctx).Lang
-	q = strings.ToLower(strings.TrimSpace(q))
-	var out []ui.SearchHit
 	for _, l := range locs {
 		if q != "" && !strings.Contains(l.Code, q) && !strings.Contains(strings.ToLower(l.Name), q) &&
 			!strings.Contains(strings.ToLower(country.Name(l.Country, string(lang))), q) {

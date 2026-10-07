@@ -1,0 +1,93 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ publishPage(s ui.Shell, v publishView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name, i18n.T(ctx, "templates.publish.crumb"))
+				<h1>{ i18n.T(ctx, "templates.publish.title", i18n.Args{"n": v.Number}) }</h1>
+				<p class="subtle">{ v.T.Name } · { i18n.T(ctx, "templates.publish.sub") }</p>
+			</div>
+		</div>
+		if v.Stale {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "templates.stale.title") }</span>
+				<span class="subtle">{ i18n.T(ctx, "templates.publish.stale") }</span>
+				<span class="flex1"></span>
+				<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-sm">{ i18n.T(ctx, "templates.open_editor") }</a>
+			}
+		} else {
+			<form method="post" action={ templ.SafeURL(actionHref(v.T.ID, "/publish")) } class="pub">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<input type="hidden" name="revision" value={ itoa(v.Revision) }/>
+				if len(v.Report.Warnings()) > 0 {
+					<input type="hidden" name="confirm_warnings" value="1"/>
+				}
+				if !v.Report.OK() {
+					<div class="alert love" role="alert">
+						<span class="bold">{ i18n.N(ctx, "templates.errors", int64(len(v.Report.Errors()))) }</span>
+						<span>{ i18n.T(ctx, "templates.publish.has_errors") }</span>
+					</div>
+				} else if len(v.Report.Warnings()) > 0 {
+					<div class="alert gold" role="status">
+						<span class="bold">{ i18n.T(ctx, "templates.publish.passed_with", i18n.Args{"n": len(v.Report.Warnings())}) }</span>
+						<span>{ i18n.T(ctx, "templates.publish.confirm_note") }</span>
+					</div>
+				} else {
+					<div class="alert pine" role="status">{ i18n.T(ctx, "templates.publish.passed") }</div>
+				}
+				if len(v.Report.Findings) > 0 {
+					<ul class="warnlist pub-list">
+						for _, f := range v.Report.Findings {
+							<li>
+								<span class={ "st", sevClass(string(f.Severity)) } aria-hidden="true"></span>
+								<span class="bold">{ findingWhere(f.Path, f.Line) }</span>
+								<span class="subtle">{ f.Message }</span>
+							</li>
+						}
+					</ul>
+				}
+				<div class="field">
+					<label for="pub-notes">{ i18n.T(ctx, "templates.publish.notes") }</label>
+					<textarea id="pub-notes" name="notes" class="pc-inp pc-ta" rows="3" placeholder={ i18n.T(ctx, "templates.publish.notes_ph") }>{ v.Notes }</textarea>
+				</div>
+				<div>
+					<div class="lbl">{ i18n.T(ctx, "templates.publish.happens") }</div>
+					<ul class="dlg-list pub-happens">
+						<li>{ i18n.T(ctx, "templates.publish.h1", i18n.Args{"n": v.Number}) }</li>
+						if v.T.DefaultVersion > 0 && v.T.DefaultVersion != v.Number {
+							<li>{ i18n.T(ctx, "templates.publish.h2", i18n.Args{"d": v.T.DefaultVersion, "n": v.Number}) }</li>
+						}
+						<li>
+							if v.Existing == 0 {
+								{ i18n.T(ctx, "templates.publish.h3_none") }
+							} else {
+								{ i18n.T(ctx, "templates.publish.h3", i18n.Args{"n": v.Existing}) }
+							}
+						</li>
+					</ul>
+				</div>
+				<div class="form-actions">
+					if v.Report.OK() {
+						<button type="submit" class="pc-btn pc-pri" autofocus>
+							if len(v.Report.Warnings()) > 0 {
+								{ i18n.T(ctx, "templates.publish.with_warnings", i18n.Args{"n": v.Number, "w": len(v.Report.Warnings())}) }
+							} else {
+								{ i18n.T(ctx, "templates.publish_go", i18n.Args{"n": v.Number}) }
+							}
+						</button>
+					} else {
+						<button type="submit" class="pc-btn pc-pri" disabled>{ i18n.T(ctx, "templates.publish_go", i18n.Args{"n": v.Number}) }</button>
+						<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn">{ i18n.T(ctx, "templates.open_editor") }</a>
+					}
+					<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				</div>
+			</form>
+		}
+	}
+}

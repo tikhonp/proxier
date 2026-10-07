@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -100,6 +101,9 @@ type Version struct {
 // Service is the template lifecycle.
 type Service struct {
 	Now func() time.Time
+	// Git fetches import sources; the zero value is production's. Tests point
+	// it at an httptest git server.
+	Git GitFetcher
 
 	d   *db.DB
 	ev  *events.Catalog
@@ -109,6 +113,11 @@ type Service struct {
 // New returns a service.
 func New(d *db.DB, ev *events.Catalog, log *slog.Logger) *Service {
 	return &Service{Now: time.Now, d: d, ev: ev, log: log}
+}
+
+// FetchGit imports a path of a public repository, with the service's fetcher.
+func (s *Service) FetchGit(ctx context.Context, src GitSource) (map[string][]byte, string, error) {
+	return s.Git.Fetch(ctx, src)
 }
 
 func (s *Service) now() db.Time { return db.At(s.Now()) }
@@ -181,7 +190,8 @@ func readDraft(ctx context.Context, q sqlx.QueryerContext, id int64) (Draft, err
 func (s *Service) EditDraft(ctx context.Context, templateID int64, actor string) (Draft, error) {
 	var out Draft
 	err := s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := store.GetTemplate(ctx, tx, templateID); err != nil {
+		t, err := store.GetTemplate(ctx, tx, templateID)
+		if err != nil {
 			return err
 		}
 		d, err := readDraft(ctx, tx, templateID)
@@ -196,15 +206,20 @@ func (s *Service) EditDraft(ctx context.Context, templateID int64, actor string)
 		if err != nil {
 			return err
 		}
-		v, err := store.GetVersion(ctx, tx, templateID, latest)
-		if err != nil {
-			return err
+		// A template that never published and lost its draft starts over
+		// from the skeleton.
+		files := Skeleton(t.Name, t.Slug, t.Description)
+		src := Source{}
+		if latest > 0 {
+			v, err := store.GetVersion(ctx, tx, templateID, latest)
+			if err != nil {
+				return err
+			}
+			if files, err = store.VersionFiles(ctx, tx, v.ID); err != nil {
+				return err
+			}
+			src = Source{Kind: "version", Version: latest}
 		}
-		files, err := store.VersionFiles(ctx, tx, v.ID)
-		if err != nil {
-			return err
-		}
-		src := Source{Kind: "version", Version: latest}
 		if err := store.InsertDraft(ctx, tx, templateID, latest, src.json(), actor, s.now(), files); err != nil {
 			return err
 		}
@@ -228,10 +243,14 @@ func (s *Service) Version(ctx context.Context, templateID int64, number int) (Ve
 	if err != nil {
 		return Version{}, err
 	}
-	v := Version{TemplateID: templateID, Number: number, Notes: row.Notes, Files: files, Source: parseSource(row.Source),
-		PublishedAt: row.PublishedAt, PublishedBy: row.PublishedBy}
-	_ = json.Unmarshal([]byte(row.Warnings), &v.Warnings)
-	return v, nil
+	return Version{TemplateID: templateID, Number: number, Notes: row.Notes, Files: files, Source: parseSource(row.Source),
+		Warnings: decodeWarnings(row.Warnings), PublishedAt: row.PublishedAt, PublishedBy: row.PublishedBy}, nil
+}
+
+func decodeWarnings(raw string) []finding.Finding {
+	var w []finding.Finding
+	_ = json.Unmarshal([]byte(raw), &w)
+	return w
 }
 
 // previous is the manifest of the template's latest version, nil for none, for
@@ -254,3 +273,32 @@ func previous(ctx context.Context, q sqlx.QueryerContext, id int64) (*manifest.M
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+// Slugify makes a slug from a name: lower-case letters, digits and single
+// dashes, starting with a letter, at most 40 characters. A name with nothing
+// usable gives "".
+func Slugify(name string) string {
+	var b strings.Builder
+	dash := false
+	for _, r := range strings.ToLower(name) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			dash = false
+		case !dash && b.Len() > 0:
+			b.WriteByte('-')
+			dash = true
+		}
+	}
+	s := strings.Trim(b.String(), "-")
+	if s != "" && (s[0] < 'a' || s[0] > 'z') {
+		s = "t-" + s
+	}
+	if len(s) > 40 {
+		s = strings.TrimRight(s[:40], "-")
+	}
+	if len(s) < 2 {
+		return ""
+	}
+	return s
+}

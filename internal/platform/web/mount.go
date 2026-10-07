@@ -20,10 +20,10 @@ func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 	e.GET("/static/:hash/*", Static(static, staticHash), SecureHeaders(https))
 
 	adminChain := []echo.MiddlewareFunc{
-		SecureHeaders(https), CrossOrigin(d.BaseURL), Session(d.Auth, https), CSRF(d.Auth), Localize(d.Auth, d.I18n, d.Settings),
+		SecureHeaders(https), LimitBody(MaxBody), CrossOrigin(d.BaseURL), Session(d.Auth, https), CSRF(d.Auth), Localize(d.Auth, d.I18n, d.Settings),
 	}
 	openChain := []echo.MiddlewareFunc{
-		SecureHeaders(https), CrossOrigin(d.BaseURL), OptionalSession(d.Auth, https), Localize(d.Auth, d.I18n, d.Settings),
+		SecureHeaders(https), LimitBody(MaxBody), CrossOrigin(d.BaseURL), OptionalSession(d.Auth, https), Localize(d.Auth, d.I18n, d.Settings),
 	}
 	publicChain := []echo.MiddlewareFunc{PublicHeaders()}
 

@@ -11,6 +11,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -18,8 +19,9 @@ import (
 
 // Deps is what the pages need.
 type Deps struct {
-	Store *store.Store
-	Log   *slog.Logger
+	Store     *store.Store
+	Templates *templates.Service
+	Log       *slog.Logger
 }
 
 type handler struct {
@@ -34,6 +36,7 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/locations", h.createLocation)
 	r.Admin.POST("/locations/:id", h.updateLocation)
 	r.Admin.POST("/locations/:id/delete", h.deleteLocation)
+	h.registerTemplates(r)
 }
 
 type locForm struct{ Code, Name, Country string }

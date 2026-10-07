@@ -2,6 +2,8 @@ package templates_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -55,4 +57,33 @@ func (e *env) publish(id int64, note string) int {
 		e.T.Fatal(err)
 	}
 	return v
+}
+
+// addServer inserts a server row built from version v of template id.
+func (e *env) addServer(id int64, v int, state string) {
+	e.T.Helper()
+	ctx := context.Background()
+	if _, err := e.Store.CreateLocation(ctx, "nl", "Netherlands", "NL", "admin"); err != nil && !strings.Contains(err.Error(), "invalid") {
+		e.T.Fatal(err)
+	}
+	var loc int64
+	if err := e.DB.R.GetContext(ctx, &loc, `SELECT id FROM servers_locations WHERE code = 'nl'`); err != nil {
+		e.T.Fatal(err)
+	}
+	var n int
+	_ = e.DB.R.GetContext(ctx, &n, `SELECT count(*) FROM servers_servers`)
+	n++
+	retired := any(nil)
+	var health any
+	switch state {
+	case "retired":
+		retired = "2026-10-07T00:00:00.000Z"
+	case "active":
+		health = "healthy"
+	}
+	if _, err := e.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state, health, template_id, template_version, created_at, retired_at)
+		VALUES (?, ?, ?, ?, 'h', 'h', ?, ?, ?, ?, '2026-10-07T00:00:00.000Z', ?)`,
+		loc, n, fmt.Sprintf("nl-%d", n), fmt.Sprintf("203.0.113.%d", n), state, health, id, v, retired); err != nil {
+		e.T.Fatal(err)
+	}
 }

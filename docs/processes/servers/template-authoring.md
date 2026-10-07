@@ -7,25 +7,25 @@ A template defines a server's stack ([servers module](../../modules/servers.md#t
 ## Steps — creating and editing
 
 1. Servers → Templates → **New template**: name, slug (from the name, editable until the first publish), description. An empty draft opens with a manifest skeleton. → `template.created`
-2. The editor shows a file tree (`manifest.yaml` plus files) and a code editor with syntax highlighting by file type. **Add file**, **Rename**, **Delete**, **Upload** (a single file or a zip into the tree).
-3. **Save draft** keeps the draft. There is at most one draft per template, and it records which version it was based on.
-4. **Validate** runs every check below and shows a report: per file ok / warning / error, with messages and line numbers. It changes nothing.
+2. The editor shows a file tree (`manifest.yaml` plus files) and a code editor with syntax highlighting by file type. The editor is a vendored CodeMirror 6 bundle (`make editor` rebuilds it); without JavaScript the same page is a plain form with a text area per file. **Add file**, **Rename**, **Delete** change the tree in the browser and are saved with the next save. **Upload** adds a single file or unpacks a zip into the tree and keeps the unsaved edits. A file that is not text (binary) is kept as it is and can be renamed, deleted or replaced, but not edited.
+3. **Save draft** keeps the draft: the whole tree, as one revision. There is at most one draft per template, and it records which version it was based on. Leaving the page with unsaved changes asks first.
+4. **Validate** runs every check below on the draft and shows a report: per file ok / warning / error, with messages and line numbers. A finding's line is a link that selects that line in the editor, and the same findings are marked in the file inline and in the tree. It saves the editor's text first (so the report is about a draft that exists) and changes nothing else.
 5. **Preview** renders the draft for the sample context, or for a chosen active server, and shows the rendered files with secrets masked.
 6. **Publish** asks for version notes, then validates again. With errors, it shows the report and publishes nothing. With only warnings, it shows them and asks to confirm. On success, the draft becomes version N+1 and is gone. → `template.version_published{version, warnings}`
-7. **Edit** on a template with no draft creates one from the latest version.
-8. **Discard draft** deletes the draft after a confirmation.
+7. **Edit** on a template with no draft creates one from the latest version (a template that never published starts again from the manifest skeleton).
+8. **Discard draft** deletes the draft after a confirmation. → `template.draft_discarded`
 
 ## Steps — versions
 
 1. The template page lists versions: number, published, notes, and the number of servers (by lifecycle state) built from each.
-2. **View** a version (read-only), **Diff** two versions (file by file), **Export** a version as a zip.
+2. **View** a version (read-only, highlighted, its publish warnings under the lines they name), **Diff** two versions (file by file, unified or side by side; a binary file shows its two sizes), **Export** a version as a zip (`manifest.yaml` and the files at the root, the modes from the manifest, the same bytes every time; importing it gives the same files).
 3. **Make default** sets the version used for new servers. Servers built from older versions show "update available". → `template.default_version_changed{from, to}`
 4. **New draft from this version** replaces the draft with an older version's content, for reverting. Publishing it creates a new number, so history only grows.
 
 ## Steps — import
 
-1. **Import zip**: the zip must contain `manifest.yaml` at its root or in exactly one top-level folder. Its files become a draft (of a new template, or of an existing one after a confirmation that replaces the draft).
-2. **Import from git**: an HTTPS repository URL, a ref (branch, tag or commit) and a path. Proxier downloads the ref's archive, takes the path's contents, and makes them a draft as above. The draft records where it came from (URL, ref, commit).
+1. **Import zip**: the zip must contain `manifest.yaml` at its root or in exactly one top-level folder (which is stripped). Its files become a draft (of a new template, or of an existing one after a confirmation that replaces the draft). Limits: 12 MiB uploaded, 500 entries, 10 MiB unpacked in total (counted while reading, so a zip bomb is stopped early); a path that leaves the folder, an absolute path or a symlink refuses the whole zip; `__MACOSX/`, `.DS_Store` and `.git/` are skipped.
+2. **Import from git**: a public HTTPS repository URL (no credentials), a ref (branch, tag or a full 40-character commit; empty is the default branch) and a folder inside it. Proxier fetches with git over HTTPS into memory (60 s, 100 MiB), takes the folder's contents, and makes them a draft as above, with the same limits and the same `manifest.yaml` rule applied to the folder. A branch or tag is fetched shallow; a commit is first fetched alone by its SHA, and when the host refuses that, every branch is cloned in full and the commit looked up in it. The draft records where it came from (URL, ref, the resolved commit, folder). Importing the same branch later makes a new draft with the new commit.
 3. Either way the draft is validated like any edit before it can be published.
 
 ## Steps — handing the draft to an agent
@@ -120,4 +120,4 @@ The nginx check parses the rendered file with a Go parser; nothing runs. `*.temp
 - Import a zip with `manifest.yaml` nested two folders deep → refused with "manifest.yaml not found at the root".
 - Import from git at a commit SHA → draft records that SHA. Re-importing the same ref later → a new draft with the new commit recorded.
 - A file of 1.2 MB → error. Files that together exceed 10 MiB (e.g. eleven of 0.95 MiB) → error on the version total.
-- Two browser tabs editing the same draft → the second save is refused with "the draft changed since you opened it".
+- Two browser tabs editing the same draft → the second save is refused with "the draft changed since you opened it". Nothing is overwritten, the second tab keeps its text, **Save** and **Publish** are off there, and **Copy my version** puts all its files on the clipboard before **Reload**.

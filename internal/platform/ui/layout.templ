@@ -44,6 +44,9 @@ templ Layout(s Shell) {
 			<link rel="stylesheet" href={ Asset("css/app.css") }/>
 			<script src={ Asset("js/htmx.min.js") } defer></script>
 			<script src={ Asset("js/proxier.js") } defer></script>
+			for _, m := range s.Scripts {
+				<script type="module" src={ Asset(m) }></script>
+			}
 		</head>
 		<body hx-headers={ csrfHeaders(s.CSRF) }>
 			<div class="app" id="app">

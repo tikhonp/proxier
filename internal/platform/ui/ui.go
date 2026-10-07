@@ -66,6 +66,9 @@ type Shell struct {
 	Warning  *HeaderWarning  // optional warning cell (0d: Telegram)
 	JobsCell templ.Component // the header cell, polled from /jobs/cell
 	PageKeys string          // key line hint when nothing is under the cursor (i18n key)
+	// Scripts are extra ES modules of this page, as static paths
+	// ("js/editor.bundle.js"); the layout loads them after proxier.js.
+	Scripts []string
 }
 
 // HeaderWarning is the optional cell next to the jobs cell.

@@ -1,0 +1,378 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ crumbs(t string, id int64, name string, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href="/templates">{ t }</a>
+		<span aria-hidden="true">/</span>
+		if last == "" {
+			<span>{ name }</span>
+		} else {
+			<a href={ templ.SafeURL(tplHref(id)) }>{ name }</a>
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ templatePage(s ui.Shell, v templateView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Slug, "")
+				<div class="jobtitle">
+					<h1>{ v.T.Name }</h1>
+					if v.T.Archived {
+						@ui.Status("off", i18n.T(ctx, "templates.archived"))
+					}
+				</div>
+				<p class="subtle">
+					if v.T.Description != "" {
+						{ v.T.Description } ·
+					}
+					if v.T.DefaultVersion > 0 {
+						{ i18n.T(ctx, "templates.default_is", i18n.Args{"v": v.T.DefaultVersion}) } ·
+					}
+					if v.T.Servers == 0 {
+						{ i18n.T(ctx, "templates.servers.never") }
+					} else {
+						{ i18n.N(ctx, "templates.servers.built", int64(v.T.Servers)) }
+					}
+				</p>
+			</div>
+			<div class="actions">
+				if v.T.HasDraft {
+					@ui.ActionButton(ui.Action{ID: "tpl.edit", Label: "templates.edit_draft", Method: "GET", Href: actionHref(v.T.ID, "/edit"), Key: "e", Kind: ui.Primary})
+				} else {
+					@ui.ActionButton(ui.Action{ID: "tpl.edit", Label: "templates.start_draft", Method: "GET", Href: actionHref(v.T.ID, "/edit"), Key: "e", Kind: ui.Primary})
+				}
+			</div>
+		</div>
+		if v.Saved != "" {
+			@ui.Alert("pine", "status") {
+				if v.Saved == "published" || v.Saved == "default" {
+					{ i18n.T(ctx, "templates.saved."+v.Saved, i18n.Args{"v": v.Version}) }
+				} else {
+					{ i18n.T(ctx, "templates.saved."+v.Saved) }
+				}
+			}
+		}
+		if v.Error != "" {
+			@ui.Band("love") {
+				<span class="love">{ v.Error }</span>
+				<span class="flex1"></span>
+				if v.InUse {
+					@ui.ActionButton(ui.Action{ID: "tpl.archive", Label: "templates.archive", Method: "POST", Href: actionHref(v.T.ID, "/archive"), Small: true})
+				}
+			}
+		}
+		<div class="tgrid">
+			<section class="area" aria-label={ i18n.T(ctx, "templates.versions") }>
+				<div class="pc-title">
+					<h2>{ i18n.T(ctx, "templates.versions") }</h2>
+					<span class="note">{ i18n.T(ctx, "templates.versions.note") }</span>
+				</div>
+				if len(v.Versions) == 0 {
+					@ui.EmptyState(i18n.T(ctx, "templates.versions.none"), i18n.T(ctx, "templates.versions.none_next"))
+				} else {
+					<div class="colhead ver" aria-hidden="true">
+						<span>{ i18n.T(ctx, "templates.col.ver") }</span>
+						<span>{ i18n.T(ctx, "templates.col.published") }</span>
+						<span>{ i18n.T(ctx, "templates.col.notes") }</span>
+						<span>{ i18n.T(ctx, "templates.col.servers") }</span>
+					</div>
+					for i, ver := range v.Versions {
+						<div class="row ver pc-row" data-row={ itoa(ver.Number) } data-hint={ i18n.T(ctx, "templates.hints.version", i18n.Args{"v": ver.Number}) }>
+							<span class="caret" aria-hidden="true">›</span>
+							<span class="bold">
+								<a href={ templ.SafeURL(actionHref(v.T.ID, "/versions/"+itoa(ver.Number))) } data-action={ "tpl.view." + itoa(ver.Number) }>{ vlabel(ver.Number) }</a>
+								if ver.Default {
+									<span class="sm subtle normal"> · { i18n.T(ctx, "templates.default") }</span>
+								}
+							</span>
+							<span class="subtle">@ui.Time(ver.PublishedAt.Time)</span>
+							<span class="subtle col">
+								<span>{ ver.Notes }</span>
+								if ver.Warnings > 0 {
+									<span class="sm gold">{ i18n.N(ctx, "templates.warnings", int64(ver.Warnings)) }</span>
+								}
+								if t := sourceText(ctx, ver.Source); t != "" && ver.Source.Kind != "version" {
+									<span class="sm muted">{ t }</span>
+								}
+							</span>
+							<span class="subtle">
+								if s := serverStates(ctx, ver.Servers); s != "" {
+									{ s }
+								} else {
+									—
+								}
+							</span>
+							<span class="actions">
+								if !ver.Default {
+									@ui.ActionButton(ui.Action{ID: "tpl.default." + itoa(ver.Number), Label: "templates.make_default", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/default"), Small: true})
+								}
+								if i+1 < len(v.Versions) {
+									@ui.ActionButton(ui.Action{ID: "tpl.diff." + itoa(ver.Number), Label: "templates.diff", Method: "GET", Href: actionHref(v.T.ID, "/diff?a="+itoa(v.Versions[i+1].Number)+"&b="+itoa(ver.Number)), Small: true})
+								}
+								@ui.ActionButton(ui.Action{ID: "tpl.export." + itoa(ver.Number), Label: "templates.export", Method: "GET", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/export"), Small: true})
+								if v.T.HasDraft {
+									@ui.ActionButton(ui.Action{
+										ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true,
+										Confirm: &ui.Confirm{
+											Strength: 2, Title: i18n.T(ctx, "templates.redraft.title", i18n.Args{"v": ver.Number}), Body: i18n.T(ctx, "templates.redraft.body"),
+											Consequences: []string{i18n.T(ctx, "templates.redraft.lose"), i18n.T(ctx, "templates.redraft.next", i18n.Args{"n": v.T.Latest + 1})},
+										},
+									})
+								} else {
+									@ui.ActionButton(ui.Action{ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true})
+								}
+							</span>
+						</div>
+					}
+				}
+			</section>
+			<section class="area" aria-label={ i18n.T(ctx, "templates.draft") }>
+				<div class="pc-title">
+					<h2>{ i18n.T(ctx, "templates.draft") }</h2>
+					if v.Draft != nil {
+						<span class="note">{ draftBasedOn(ctx, v.Draft.DraftBasedOn) }</span>
+					}
+				</div>
+				<div class="area-body">
+					if v.Draft == nil {
+						<p class="subtle">{ i18n.T(ctx, "templates.draft.none_note") }</p>
+					} else {
+						<dl class="kv">
+							<dt>{ i18n.T(ctx, "templates.draft.files") }</dt>
+							<dd>
+								{ i18n.N(ctx, "templates.files.count", int64(v.Draft.Files)) }
+								if v.Draft.DraftBasedOn > 0 {
+									· { i18n.T(ctx, "templates.draft.changed", i18n.Args{"n": v.Draft.Changed, "v": v.Draft.DraftBasedOn}) }
+								}
+							</dd>
+							<dt>{ i18n.T(ctx, "templates.draft.saved") }</dt>
+							<dd>@ui.Time(v.Draft.DraftUpdatedAt.Time)<span> · { v.Draft.DraftUpdatedBy }</span></dd>
+							if t := sourceText(ctx, v.Draft.DraftSource); t != "" && v.Draft.DraftSource.Kind != "version" {
+								<dt>{ i18n.T(ctx, "templates.draft.source") }</dt>
+								<dd>{ t }</dd>
+							}
+						</dl>
+						<div class="btns">
+							@ui.ActionButton(ui.Action{ID: "tpl.open_editor", Label: "templates.open_editor", Method: "GET", Href: actionHref(v.T.ID, "/edit"), Small: true})
+							@ui.ActionButton(ui.Action{
+								ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Small: true, Kind: ui.Danger,
+								Confirm: &ui.Confirm{
+									Strength: 2, Title: i18n.T(ctx, "templates.discard.title"), Body: i18n.T(ctx, "templates.discard.body"),
+									Consequences: []string{i18n.T(ctx, "templates.discard.lose", i18n.Args{"n": v.Draft.Changed})},
+								},
+							})
+						</div>
+					}
+				</div>
+			</section>
+		</div>
+		<section class="area" aria-label={ i18n.T(ctx, "templates.details") }>
+			<div class="pc-title">
+				<h2>{ i18n.T(ctx, "templates.details") }</h2>
+				<span class="note">
+					if v.T.Latest == 0 {
+						{ i18n.T(ctx, "templates.details.note_open") }
+					} else {
+						{ i18n.T(ctx, "templates.details.note_frozen") }
+					}
+				</span>
+			</div>
+			<form method="post" action={ templ.SafeURL(tplHref(v.T.ID)) } class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="field">
+					<label for="d-name">{ i18n.T(ctx, "templates.field.name") }</label>
+					<input id="d-name" class="pc-inp" name="name" value={ detailName(v) } autocomplete="off" aria-invalid?={ v.Errs["name"] != "" }/>
+					if v.Errs["name"] != "" {
+						<p class="err" role="alert">{ v.Errs["name"] }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="d-slug">{ i18n.T(ctx, "templates.field.slug") }</label>
+					<input id="d-slug" class="pc-inp" name="slug" value={ detailSlug(v) } autocomplete="off" spellcheck="false" readonly?={ v.T.Latest > 0 } aria-invalid?={ v.Errs["slug"] != "" }/>
+					if v.Errs["slug"] != "" {
+						<p class="err" role="alert">{ v.Errs["slug"] }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="d-desc">{ i18n.T(ctx, "templates.field.description") }</label>
+					<input id="d-desc" class="pc-inp" name="description" value={ detailDescription(v) } autocomplete="off"/>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn">{ i18n.T(ctx, "ui.save") }</button>
+				</div>
+			</form>
+			<div class="area-body btns">
+				if v.T.Archived {
+					@ui.ActionButton(ui.Action{ID: "tpl.unarchive", Label: "templates.unarchive", Method: "POST", Href: actionHref(v.T.ID, "/unarchive"), Small: true})
+				} else {
+					@ui.ActionButton(ui.Action{ID: "tpl.archive", Label: "templates.archive", Method: "POST", Href: actionHref(v.T.ID, "/archive"), Small: true})
+				}
+				@ui.ActionButton(ui.Action{
+					ID: "tpl.delete", Label: "templates.delete", Method: "POST", Href: actionHref(v.T.ID, "/delete"), Small: true, Kind: ui.Danger,
+					Confirm: &ui.Confirm{
+						Strength: 3, Title: i18n.T(ctx, "templates.delete.title", i18n.Args{"name": v.T.Name}), Body: i18n.T(ctx, "templates.delete.body"),
+						Consequences: []string{i18n.T(ctx, "templates.delete.lose")}, Name: v.T.Slug,
+					},
+				})
+			</div>
+		</section>
+	}
+}
+
+func detailName(v templateView) string {
+	if v.Typed != nil {
+		return v.Typed.Name
+	}
+	return v.T.Name
+}
+
+func detailSlug(v templateView) string {
+	if v.Typed != nil && v.T.Latest == 0 {
+		return v.Typed.Slug
+	}
+	return v.T.Slug
+}
+
+func detailDescription(v templateView) string {
+	if v.Typed != nil {
+		return v.Typed.Description
+	}
+	return v.T.Description
+}
+
+templ versionPage(s ui.Shell, v versionView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name, vlabel(v.V.Number))
+				<div class="jobtitle">
+					<h1>{ v.T.Name } { vlabel(v.V.Number) }</h1>
+					if v.T.DefaultVersion == v.V.Number {
+						@ui.Status("ok", i18n.T(ctx, "templates.default"))
+					}
+				</div>
+				<p class="subtle">
+					{ i18n.T(ctx, "templates.published_by", i18n.Args{"by": v.V.PublishedBy}) + " " }@ui.Time(v.V.PublishedAt.Time)
+					if t := sourceText(ctx, v.V.Source); t != "" && v.V.Source.Kind != "version" {
+						<span> · { t }</span>
+					}
+				</p>
+				if v.V.Notes != "" {
+					<p class="notes">{ v.V.Notes }</p>
+				}
+			</div>
+			<div class="actions">
+				if v.Previous > 0 {
+					@ui.ActionButton(ui.Action{ID: "tpl.diff", Label: "templates.diff", Method: "GET", Href: actionHref(v.T.ID, "/diff?a="+itoa(v.Previous)+"&b="+itoa(v.V.Number)), Key: "d"})
+				}
+				@ui.ActionButton(ui.Action{ID: "tpl.export", Label: "templates.export", Method: "GET", Href: actionHref(v.T.ID, "/versions/"+itoa(v.V.Number)+"/export")})
+				if v.T.DefaultVersion != v.V.Number {
+					@ui.ActionButton(ui.Action{ID: "tpl.make_default", Label: "templates.make_default", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(v.V.Number)+"/default")})
+				}
+				if v.T.HasDraft {
+					@ui.ActionButton(ui.Action{
+						ID: "tpl.redraft", Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(v.V.Number)+"/draft"), Kind: ui.Primary,
+						Confirm: &ui.Confirm{
+							Strength: 2, Title: i18n.T(ctx, "templates.redraft.title", i18n.Args{"v": v.V.Number}), Body: i18n.T(ctx, "templates.redraft.body"),
+							Consequences: []string{i18n.T(ctx, "templates.redraft.lose"), i18n.T(ctx, "templates.redraft.next", i18n.Args{"n": v.T.Latest + 1})},
+						},
+					})
+				} else {
+					@ui.ActionButton(ui.Action{ID: "tpl.redraft", Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(v.V.Number)+"/draft"), Kind: ui.Primary})
+				}
+			</div>
+		</div>
+		if len(v.V.Warnings) > 0 {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.N(ctx, "templates.warnings", int64(len(v.V.Warnings))) }</span>
+				<span class="subtle">{ i18n.T(ctx, "templates.warnings.at_publish") }</span>
+			}
+			<ul class="warnlist">
+				for _, w := range v.V.Warnings {
+					<li>
+						if w.Path != "" {
+							<a href={ templ.SafeURL(versionFileHref(v.T.ID, v.V.Number, w.Path, w.Line)) }>{ findingWhere(w.Path, w.Line) }</a>
+						}
+						<span class="subtle">{ w.Message }</span>
+					</li>
+				}
+			</ul>
+		}
+		<div class="vcols">
+			<nav class="vtree" aria-label={ i18n.T(ctx, "templates.files") }>
+				<div class="pc-title"><h2>{ i18n.T(ctx, "templates.files") }</h2></div>
+				for _, p := range v.Paths {
+					<a href={ templ.SafeURL(versionFileHref(v.T.ID, v.V.Number, p, 0)) } class="ed-row pc-row" aria-current?={ p == v.File }>{ p }</a>
+				}
+			</nav>
+			<div class="vfile">
+				<div class="pc-title">
+					<h2>{ v.File }</h2>
+					<span class="note">{ i18n.T(ctx, "templates.file.meta", i18n.Args{"size": v.Size}) }</span>
+				</div>
+				if v.Binary {
+					<p class="area-body subtle">{ i18n.T(ctx, "templates.file.binary", i18n.Args{"size": v.Size}) }</p>
+				} else {
+					@ui.Code("code", v.Lines)
+				}
+			</div>
+		</div>
+	}
+}
+
+templ diffTemplatePage(s ui.Shell, v diffPageView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name, i18n.T(ctx, "templates.diff"))
+				<h1>{ i18n.T(ctx, "templates.diff.title", i18n.Args{"name": v.T.Name}) }</h1>
+			</div>
+		</div>
+		<form method="get" action={ templ.SafeURL(actionHref(v.T.ID, "/diff")) } class="filters">
+			<select name="a" class="pc-inp sel" aria-label={ i18n.T(ctx, "templates.diff.from") }>
+				for _, ver := range v.Versions {
+					<option value={ itoa(ver.Number) } selected?={ ver.Number == v.A }>{ vlabel(ver.Number) }</option>
+				}
+			</select>
+			<span class="subtle" aria-hidden="true">→</span>
+			<select name="b" class="pc-inp sel" aria-label={ i18n.T(ctx, "templates.diff.to") }>
+				for _, ver := range v.Versions {
+					<option value={ itoa(ver.Number) } selected?={ ver.Number == v.B }>{ vlabel(ver.Number) }</option>
+				}
+			</select>
+			if v.Split {
+				<input type="hidden" name="view" value="split"/>
+			}
+			<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "templates.diff.compare") }</button>
+			<span class="flex1"></span>
+			<a href={ templ.SafeURL(diffHref(v, false)) } class="pc-chip" aria-pressed={ boolStr(!v.Split) }>{ i18n.T(ctx, "templates.diff.unified") }</a>
+			<a href={ templ.SafeURL(diffHref(v, true)) } class="pc-chip" aria-pressed={ boolStr(v.Split) }>{ i18n.T(ctx, "templates.diff.split") }</a>
+		</form>
+		if len(v.Versions) < 2 {
+			@ui.EmptyState(i18n.T(ctx, "templates.diff.need_two"), "")
+		} else if v.Same {
+			@ui.EmptyState(i18n.T(ctx, "templates.diff.same_version"), "")
+		} else {
+			<p class="pager">
+				{ i18n.N(ctx, "templates.diff.changed_files", int64(len(v.Diff.Files))) }
+				if v.Unchanged > 0 {
+					· { i18n.N(ctx, "templates.diff.unchanged_files", int64(v.Unchanged)) }
+				}
+			</p>
+			if len(v.Diff.Files) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "templates.diff.identical"), "")
+			} else {
+				@ui.Diff(v.Diff)
+			}
+		}
+	}
+}

@@ -59,3 +59,22 @@ func TestCreateTemplate(t *testing.T) {
 		t.Error("refused creates must record nothing")
 	}
 }
+
+func TestSlugify(t *testing.T) {
+	for in, want := range map[string]string{
+		"VLESS XHTTP behind nginx":    "vless-xhttp-behind-nginx",
+		"  Hysteria 2!  ":             "hysteria-2",
+		"2fast":                       "t-2fast",
+		"Привет":                      "",
+		"a":                           "",
+		"A--B":                        "a-b",
+		"x" + strings.Repeat("y", 60): "x" + strings.Repeat("y", 39),
+	} {
+		if got := templates.Slugify(in); got != want {
+			t.Errorf("Slugify(%q) = %q, want %q", in, got, want)
+		}
+		if got := templates.Slugify(in); got != "" && templates.ValidateNew("n", got) != nil {
+			t.Errorf("Slugify(%q) = %q is not a valid slug", in, got)
+		}
+	}
+}

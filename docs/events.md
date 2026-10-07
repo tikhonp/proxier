@@ -34,11 +34,13 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `template.created` | template | — | off | |
 | `template.version_published` | template | version, warnings (their number), messages | off | |
 | `template.default_version_changed` | template | from, to | off | |
-| `template.archived` | template | — | off | |
-| `template.unarchived` | template | — | off | |
-| `template.deleted` | template | name | off | A template that never built a server. |
+| `template.archived` | template | slug | off | |
+| `template.unarchived` | template | slug | off | |
+| `template.deleted` | template | slug, name | off | A template that never built a server. |
+| `template.changed` | template | fields (which of name, slug, description changed) | off | A rename or a new description. The slug changes only before the first version. |
+| `template.draft_discarded` | template | based_on, revision | off | **Discard draft**. |
 | `template.agent_session_opened` | template | expires_at, context | **on** | "An agent can edit the nginx-xhttp draft until 18:41". Anyone holding the copied prompt can do so. |
-| `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version) | off | A save that changes no file records nothing. |
+| `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version), source (zip / git, for an import) | off | A save that changes no file records nothing. Also recorded when a draft is created from a version, from the skeleton or by an import. |
 | `template.draft_validated` | template | by, errors, warnings | off | |
 | `template.agent_session_closed` | template | reason (expired / revoked / published / discarded), saves | off | |
 | `location.created` | location | code, name, country | off | |

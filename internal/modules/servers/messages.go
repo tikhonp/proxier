@@ -61,6 +61,8 @@ var messages = i18n.Messages{
 	"event.template.archived":                {EN: "Archived template {subject}", RU: "Шаблон {subject} в архиве"},
 	"event.template.unarchived":              {EN: "Brought template {subject} back from the archive", RU: "Шаблон {subject} возвращён из архива"},
 	"event.template.deleted":                 {EN: "Deleted template {name}", RU: "Удалён шаблон {name}"},
+	"event.template.draft_discarded":         {EN: "Discarded the draft of {subject}", RU: "Черновик шаблона {subject} отброшен"},
+	"event.template.changed":                 {EN: "Changed {fields} of template {subject}", RU: "Изменено у шаблона {subject}: {fields}"},
 	"event.template.agent_session_opened":    {EN: "Handed the draft of {subject} to an agent", RU: "Черновик шаблона {subject} передан агенту"},
 	"event.template.draft_saved":             {EN: "Saved the draft of {subject}", RU: "Сохранён черновик шаблона {subject}"},
 	"event.template.draft_validated":         {EN: "Validated the draft of {subject}: {errors} errors, {warnings} warnings", RU: "Проверен черновик шаблона {subject}: ошибок {errors}, предупреждений {warnings}"},

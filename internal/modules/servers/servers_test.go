@@ -162,6 +162,14 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 	if hits, _ := mod.Search(ctx, "zzz", 5); len(hits) != 0 {
 		t.Errorf("search for nothing: %+v", hits)
 	}
+	// templates are found by name or slug, and link to their page
+	hits, err = mod.Search(ctx, "my-stack", 5)
+	if err != nil || len(hits) != 1 || hits[0].Href != "/templates/"+idStr(tpl) || !strings.Contains(hits[0].Label, "My stack") || hits[0].Meta != "Template" {
+		t.Errorf("template search: %+v %v", hits, err)
+	}
+	if hits, _ = mod.Search(ctx, "stack", 5); len(hits) != 1 {
+		t.Errorf("template search by name: %+v", hits)
+	}
 }
 
 func itoa(n int64) string {
