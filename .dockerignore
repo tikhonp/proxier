@@ -1,0 +1,11 @@
+.git
+.github
+.env
+.env.*
+.air.toml
+compose.yaml
+data/
+tmp/
+bin/
+docs/
+*.md

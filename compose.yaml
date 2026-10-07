@@ -1,0 +1,16 @@
+# Development stack: air rebuilds and restarts proxier on every change.
+# Production runs ghcr.io/tikhonp/proxier from sh-blackberry/proxier.yaml.
+services:
+  proxier:
+    build:
+      context: .
+      target: dev
+    container_name: proxier
+    env_file: .env
+    environment:
+      PROXIER_DATA_DIR: /data
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/src
+      - ./data:/data

@@ -188,7 +188,6 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 ## Observability
 
 - Structured JSON logs (`log/slog`) to stdout. Dozzle on blackberry shows them.
-- Optional Sentry DSN for errors, as in your other services.
 - Job history, the event log and check results inside Proxier are the operational record.
 - `/healthz` for container health checks.
 
@@ -209,7 +208,6 @@ Environment variables hold what's needed before the database is readable, plus a
 | `PROXIER_CHROMIUM_URL` | CDP endpoint of the sidecar | empty: headless visit off |
 | `PROXIER_TZ` | Display time zone | `Europe/Moscow` |
 | `PROXIER_LOG_LEVEL` | Log level | `info` |
-| `SENTRY_DSN`, `SENTRY_ENVIRONMENT` | Optional error reporting | empty |
 
 ## Tech stack (intended)
 

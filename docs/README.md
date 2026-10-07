@@ -2,7 +2,7 @@
 
 Proxier is a self-hosted control panel for one person's proxy setup. It builds VPS proxy servers from templates and watches whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
 
-**Status (2026-10-07):** the documentation and the design are done, and the UI stack is chosen (templ + htmx, [ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)). Nothing is built yet. Next is **Phase 0, the platform skeleton** ([roadmap.md](./roadmap.md)).
+**Status (2026-10-07):** the documentation and the design are done, and the UI stack is chosen (templ + htmx, [ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)). Phase 0 ([roadmap.md](./roadmap.md)) is built in sub-phases, one per session; their specs and progress are in [`../CLAUDE.md`](../CLAUDE.md). **0a, the skeleton** (binary, SQLite with per-module migrations, vault, settings, event log, image, CI) is done. Next is **0b, sign-in and the UI shell**.
 
 **Design:** [ui/design/](./ui/design/README.md) holds the rules, `tokens.css` and every screen's source. The live canvas is at <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec> (Rosé Pine page; the Console page is an earlier look kept for reference).
 

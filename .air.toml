@@ -1,0 +1,12 @@
+root = "."
+tmp_dir = "/tmp"
+
+[build]
+pre_cmd = ["templ generate"]
+# /bin/proxier is what `make manage` runs inside the container.
+cmd = "go build -o /tmp/proxier ./cmd/proxier && cp /tmp/proxier /go/bin/proxier"
+entrypoint = "/tmp/proxier"
+args_bin = ["serve"]
+include_ext = ["go", "templ", "sql", "css", "js"]
+exclude_regex = ["_templ\\.go$", "_test\\.go$"]
+exclude_dir = ["data", "tmp", "bin", "docs", ".git"]

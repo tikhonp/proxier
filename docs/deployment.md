@@ -1,6 +1,6 @@
 # Deployment
 
-Proxier is deployed like the other self-hosted services: an image built by GitHub Actions, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. None of these files exist yet. This document describes what they will contain.
+Proxier is deployed like the other self-hosted services: an image built by GitHub Actions, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.github/workflows/ci.yaml`). The compose file and the gateway block don't exist yet; this document describes what they will contain.
 
 ## Topology
 
