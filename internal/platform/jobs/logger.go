@@ -43,6 +43,9 @@ type Logger struct {
 	jobID int64
 	now   func() db.Time
 
+	// flushMu keeps two flushes (the periodic one and a step's last) from
+	// taking neighbouring batches and committing them in the other order.
+	flushMu sync.Mutex
 	mu      sync.Mutex
 	buf     []pending
 	secrets []string // longest first, with their query-escaped forms
@@ -141,6 +144,8 @@ func (w *lineWriter) Close() error {
 
 // Flush writes the buffered lines.
 func (l *Logger) Flush(ctx context.Context) error {
+	l.flushMu.Lock()
+	defer l.flushMu.Unlock()
 	l.mu.Lock()
 	lines := l.buf
 	l.buf = nil
@@ -170,21 +175,18 @@ func appendLines(ctx context.Context, tx *sqlx.Tx, jobID int64, lines []pending)
 		return err
 	}
 	count := st.Count
+	rows := make([]pending, 0, len(lines)+1)
+	seqs := make([]int, 0, len(lines)+1)
 	for _, p := range lines {
 		count++
 		if count == HeadLines+1 {
 			// The marker sits between head and tail; its text is set below.
-			if _, err := tx.ExecContext(ctx, `
-				INSERT INTO job_log_lines (job_id, seq, time, level, step, attempt, text)
-				VALUES (?, 0, ?, 'marker', '', 0, '')`, jobID, p.time); err != nil {
-				return err
-			}
+			rows, seqs = append(rows, pending{time: p.time, level: "marker"}), append(seqs, 0)
 		}
-		if _, err := tx.ExecContext(ctx, `
-			INSERT INTO job_log_lines (job_id, seq, time, level, step, attempt, text)
-			VALUES (?, ?, ?, ?, ?, ?, ?)`, jobID, count, p.time, p.level, p.step, p.attempt, p.text); err != nil {
-			return err
-		}
+		rows, seqs = append(rows, p), append(seqs, count)
+	}
+	if err := insertLines(ctx, tx, jobID, rows, seqs); err != nil {
+		return err
 	}
 	dropped := st.Dropped
 	if keep := HeadLines + TailLines; count > keep {
@@ -201,6 +203,31 @@ func appendLines(ctx context.Context, tx *sqlx.Tx, jobID int64, lines []pending)
 	}
 	_, err := tx.ExecContext(ctx, `UPDATE jobs SET log_lines = ?, log_dropped = ? WHERE id = ?`, count, dropped, jobID)
 	return err
+}
+
+// insertLines writes rows with multi-row statements: one statement per line
+// costs more than the work itself, especially under the race detector.
+func insertLines(ctx context.Context, tx *sqlx.Tx, jobID int64, rows []pending, seqs []int) error {
+	const perStatement = 100 // 7 variables each, far under SQLite's limit
+	for len(rows) > 0 {
+		n := min(perStatement, len(rows))
+		var q strings.Builder
+		q.WriteString(`INSERT INTO job_log_lines (job_id, seq, time, level, step, attempt, text) VALUES `)
+		args := make([]any, 0, n*7)
+		for i := 0; i < n; i++ {
+			if i > 0 {
+				q.WriteByte(',')
+			}
+			q.WriteString("(?, ?, ?, ?, ?, ?, ?)")
+			p := rows[i]
+			args = append(args, jobID, seqs[i], p.time, p.level, p.step, p.attempt, p.text)
+		}
+		if _, err := tx.ExecContext(ctx, q.String(), args...); err != nil {
+			return err
+		}
+		rows, seqs = rows[n:], seqs[n:]
+	}
+	return nil
 }
 
 // logSystem stores one line written by the system itself, not by a step.
