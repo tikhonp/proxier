@@ -41,9 +41,14 @@ ARG VCS_REF=
 LABEL org.opencontainers.image.title="Proxier" \
       org.opencontainers.image.description="Self-hosted control panel for a personal proxy setup" \
       org.opencontainers.image.source="https://github.com/tikhonp/proxier" \
+      org.opencontainers.image.licenses="AGPL-3.0-only" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.revision="${VCS_REF}" \
       org.opencontainers.image.created="${BUILD_DATE}"
+
+# Dozzle shows this icon for anyone who runs the image: the app's logo mark
+# (a light square on the Rosé Pine base) as a base64 SVG.
+LABEL dev.dozzle.icon="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHJ4PSI0IiBmaWxsPSIjMTkxNzI0Ii8+PHJlY3QgeD0iMTgiIHk9IjE4IiB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIGZpbGw9IiNFMERFRjQiLz48L3N2Zz4="
 COPY --from=build /out/proxier /bin/proxier
 COPY --from=build --chown=65532:65532 /out/data /data
 USER nonroot:nonroot
