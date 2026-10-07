@@ -237,4 +237,4 @@ The canvas is the source of truth until the app exists. To change the design, ch
 2. Claude copies the `RP-*.dc.html` files into `screens/`.
 3. Claude updates `tokens.css` and this file wherever a rule changed.
 
-Once the app's own stylesheet exists, it takes over from `tokens.css`.
+Since Phase 0b the app's own stylesheets in `internal/platform/ui/static/css/` (`tokens.css`, `fonts.css`, `app.css`) are the stylesheet of record; this folder's `tokens.css` is the reference copy.

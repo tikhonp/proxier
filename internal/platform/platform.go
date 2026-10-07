@@ -15,14 +15,19 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/httpx"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/migrations"
 	"github.com/tikhonp/proxier/internal/platform/module"
+	"github.com/tikhonp/proxier/internal/platform/pages"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/vault"
+	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 // Name is the platform's module name.
@@ -36,6 +41,8 @@ type App struct {
 	Vault    *vault.Vault
 	Events   *events.Catalog
 	Settings *settings.Store
+	I18n     *i18n.Catalog
+	Auth     *auth.Service
 	// Modules are the platform followed by the registered modules, in the
 	// order their migrations run.
 	Modules []module.Module
@@ -62,6 +69,9 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	}
 	a := &App{Cfg: cfg, Log: log, DB: d, Vault: v, Events: events.NewCatalog(), Modules: all}
 	a.Settings = settings.New(d, v, a.Events)
+	a.I18n = i18n.NewCatalog()
+	a.Auth = auth.New(d, v, a.Events, a.Settings)
+	a.Auth.Log = log
 
 	var errs []error
 	for _, m := range all {
@@ -71,10 +81,22 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		if sd, ok := m.(module.SettingsDeclarer); ok {
 			errs = append(errs, a.Settings.Register(sd.SettingsSections()...))
 		}
+		if md, ok := m.(module.MessagesDeclarer); ok {
+			errs = append(errs, a.I18n.Add(m.Name(), md.Messages()))
+		}
 	}
 	if err := errors.Join(errs...); err != nil {
 		_ = d.Close()
 		return nil, err
+	}
+	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth}
+	for _, m := range all {
+		if in, ok := m.(module.Initializer); ok {
+			if err := in.Init(deps); err != nil {
+				_ = d.Close()
+				return nil, fmt.Errorf("init %s: %w", m.Name(), err)
+			}
+		}
 	}
 	return a, nil
 }
@@ -112,9 +134,31 @@ func (a *App) Health(ctx context.Context) error {
 	return a.DB.Ping(ctx)
 }
 
-// HTTP builds the HTTP app.
+// HTTP builds the HTTP app: the platform's pages, then every module's routes.
 func (a *App) HTTP() *echo.Echo {
-	return httpx.New(httpx.Options{Log: a.Log, TrustedProxies: a.Cfg.TrustedProxies, Health: a.Health})
+	e := httpx.New(httpx.Options{Log: a.Log, TrustedProxies: a.Cfg.TrustedProxies, Health: a.Health})
+	r := web.Mount(e, web.Deps{Log: a.Log, Auth: a.Auth, I18n: a.I18n, Settings: a.Settings, BaseURL: a.Cfg.BaseURL},
+		ui.StaticFS, ui.StaticHash)
+
+	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n}
+	for _, m := range a.Modules {
+		if nd, ok := m.(module.NavDeclarer); ok {
+			pd.Nav = append(pd.Nav, nd.Nav()...)
+		}
+		if sp, ok := m.(module.SettingsPageDeclarer); ok {
+			pd.SettingsPages = append(pd.SettingsPages, sp.SettingsPages()...)
+		}
+		if s, ok := m.(module.Searcher); ok {
+			pd.Searchers = append(pd.Searchers, s)
+		}
+	}
+	pages.Register(r, pd)
+	for _, m := range a.Modules {
+		if rd, ok := m.(module.RouteDeclarer); ok {
+			rd.Routes(r)
+		}
+	}
+	return e
 }
 
 // Close closes the database.
@@ -128,25 +172,35 @@ func (core) Migrations() fs.FS { return migrations.FS }
 
 func (core) EventTypes() []events.Type { return Events }
 
-// Events is the platform's event catalog (docs/events.md#platform).
-var Events = []events.Type{
-	{Name: "admin.created", Module: Name, Description: "The admin was created from the command line."},
-	// Notifies only when the payload has new_ip: true (the notifier filters).
-	{Name: "auth.signed_in", Module: Name, Notify: true, Description: "Signed in from a new IP."},
-	{Name: "auth.sign_in_failed", Module: Name, Description: "A sign-in failed."},
-	{Name: "auth.locked", Module: Name, Notify: true, Description: "An IP was locked out after failed sign-ins."},
-	{Name: "auth.password_changed", Module: Name, Notify: true, Description: "The admin password was changed."},
-	{Name: "auth.signed_out_everywhere", Module: Name, Description: "Every session was ended."},
+// Events is the platform's event catalog (docs/events.md#platform): the
+// sign-in events belong to auth, the rest to the platform's other parts.
+var Events = append(append([]events.Type(nil), auth.Events...),
 	settings.ChangedEvent,
-	{Name: "ssh.host_key_changed", Module: Name, Notify: true, Description: "A pinned SSH host key changed; work with that host stops."},
-	{Name: "ssh.host_key_accepted", Module: Name, Description: "A new SSH host key was accepted."},
-	{Name: "job.failed", Module: Name, Notify: true, Description: "A job failed (job types without their own failure event)."},
-	{Name: "backup.completed", Module: Name, Description: "A database backup was written."},
-	{Name: "backup.failed", Module: Name, Notify: true, Description: "A database backup failed."},
+	events.Type{Name: "ssh.host_key_changed", Module: Name, Notify: true, Description: "A pinned SSH host key changed; work with that host stops."},
+	events.Type{Name: "ssh.host_key_accepted", Module: Name, Description: "A new SSH host key was accepted."},
+	events.Type{Name: "job.failed", Module: Name, Notify: true, Description: "A job failed (job types without their own failure event)."},
+	events.Type{Name: "backup.completed", Module: Name, Description: "A database backup was written."},
+	events.Type{Name: "backup.failed", Module: Name, Notify: true, Description: "A database backup failed."},
+)
+
+func (core) Messages() i18n.Messages { return messages }
+
+func (core) Nav() []ui.NavItem {
+	return []ui.NavItem{
+		{Group: "overview", Label: "nav.dashboard", Href: "/", GoKey: "d", Order: 10},
+		{Group: "system", Label: "nav.settings", Href: "/settings", GoKey: ",", Order: 900},
+	}
+}
+
+func (core) SettingsPages() []ui.SettingsPage {
+	return []ui.SettingsPage{
+		{Slug: "general", Title: "settings.general", Order: 10},
+		{Slug: "security", Title: "settings.security", Order: 20},
+	}
 }
 
 func (c core) SettingsSections() []settings.Section {
-	return []settings.Section{{
+	return []settings.Section{auth.SecuritySection, {
 		Name: "general", Module: Name,
 		Fields: []settings.Field{
 			{Key: "general.instance_name", Kind: settings.String, Default: "Proxier", MaxLen: 64},

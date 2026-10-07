@@ -5,8 +5,8 @@ Phase 0 ([roadmap](../roadmap.md#phase-0-platform-skeleton)) is built in sub-pha
 | Sub-phase | Contract | State |
 |---|---|---|
 | 0a Skeleton | (this file, [Built in 0a](#built-in-0a)) | done 2026-10-07 |
-| 0b Sign-in + UI shell | [0b.md](./0b.md) | next |
-| 0c Jobs + events dispatch | [0c.md](./0c.md) | |
+| 0b Sign-in + UI shell | [0b.md](./0b.md) | done 2026-10-07 |
+| 0c Jobs + events dispatch | [0c.md](./0c.md) | next |
 | 0d Telegram notifications | [0d.md](./0d.md) | |
 | 0e SSH, tailnet, backups, deploy | [0e.md](./0e.md) | |
 

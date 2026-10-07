@@ -27,6 +27,9 @@ There is one admin. Sign-in is a password on a public host with no second factor
 
 ## Rules
 
+- An expired session redirects to `/login?ended=idle` (or `absolute`) and the page says "Signed out after 7 days idle. You'll go back to <page>."
+- A successful sign-in resets the failure count of that IP.
+
 - The admin can't be created, deleted or renamed from the UI.
 - Cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and scoped to the admin host. Public routes (`/s/`, `/r/`, `/f/`) never read or set them.
 - Every request that changes something carries a CSRF token tied to the session.

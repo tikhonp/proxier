@@ -1,0 +1,30 @@
+package ui
+
+import (
+	"fmt"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+)
+
+// ErrorPage is the page for 403, 404 and 500; no shell, so it works for
+// a signed-out visitor too.
+templ ErrorPage(code int) {
+	@page(i18n.T(ctx, errKey(code)), i18n.From(ctx).Lang) {
+		<div class="signin-bar">
+			<a href="/" class="hdr-logo pc-seg"><span class="logo-mark" aria-hidden="true"></span>proxier</a>
+		</div>
+		<main class="errpage">
+			<h1>{ i18n.T(ctx, errKey(code)) }</h1>
+			<p class="subtle">{ i18n.T(ctx, errKey(code) + ".text") }</p>
+			<p><a href="/">{ i18n.T(ctx, "err.back") }</a></p>
+		</main>
+	}
+}
+
+func errKey(code int) string {
+	switch code {
+	case 403, 404:
+		return fmt.Sprintf("err.%d", code)
+	}
+	return "err.500"
+}

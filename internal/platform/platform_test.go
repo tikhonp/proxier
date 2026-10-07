@@ -9,14 +9,21 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"testing"
 	"testing/fstest"
 	"time"
 
+	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 var (
@@ -125,5 +132,55 @@ func TestHealth(t *testing.T) {
 	e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("healthz after close = %d", rec.Code)
+	}
+}
+
+// everything implements every optional interface the platform looks for.
+type full struct{ fake }
+
+var inited, routed, searched bool
+
+func (full) Init(d module.Deps) error {
+	inited = d.Auth != nil && d.I18n != nil && d.Settings != nil
+	return nil
+}
+func (full) Messages() i18n.Messages {
+	return i18n.Messages{"fake.hello": {EN: "Hello", RU: "Привет"}}
+}
+func (full) Routes(r web.Routes) {
+	r.Admin.GET("/fake", func(c *echo.Context) error { routed = true; return c.String(200, "fake page") })
+}
+func (full) Nav() []ui.NavItem {
+	return []ui.NavItem{{Group: "servers", Label: "fake.hello", Href: "/fake", GoKey: "f", Order: 1}}
+}
+func (full) SettingsPages() []ui.SettingsPage {
+	return []ui.SettingsPage{{Slug: "fake", Title: "fake.hello", Order: 60}}
+}
+func (full) Search(_ context.Context, q string, _ int) ([]ui.SearchHit, error) {
+	searched = true
+	return []ui.SearchHit{{Label: "fake thing " + q, Href: "/fake"}}, nil
+}
+
+func TestOptionalModuleInterfacesArePickedUp(t *testing.T) {
+	inited, routed, searched = false, false, false
+	s := sitetest.New(t, sitetest.Options{Modules: []module.Module{full{}}})
+	if !inited {
+		t.Error("Init was not called with the platform services")
+	}
+	if !s.App.I18n.Has("fake.hello") {
+		t.Error("messages were not added")
+	}
+	l := s.SignIn("")
+	if rec := l.Get("/fake"); rec.Code != 200 || !routed {
+		t.Errorf("route: %d", rec.Code)
+	}
+	if body := l.Get("/").Body.String(); !strings.Contains(body, `href="/fake"`) || !strings.Contains(body, `data-go-key="f"`) {
+		t.Error("the module's nav entry is missing from the shell")
+	}
+	if body := l.Get("/search?q=zzz").Body.String(); !searched || !strings.Contains(body, "fake thing zzz") {
+		t.Errorf("searcher: %s", body)
+	}
+	if body := l.Get("/settings/general").Body.String(); !strings.Contains(body, `href="/settings/fake"`) {
+		t.Error("the module's settings page is not listed")
 	}
 }

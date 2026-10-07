@@ -1,0 +1,44 @@
+package ui
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// SignIn is the standalone sign-in page: no shell, nothing but the form.
+templ SignIn(v SignInView) {
+	@page(i18n.T(ctx, "auth.sign_in"), i18n.From(ctx).Lang) {
+		<div class="signin-bar">
+			<span class="hdr-logo"><span class="logo-mark" aria-hidden="true"></span>proxier</span>
+		</div>
+		<main class="signin">
+			<form method="post" action="/login" aria-labelledby="si-h">
+				<h1 id="si-h">{ i18n.T(ctx, "auth.sign_in") }</h1>
+				switch v.Error {
+					case "wrong":
+						<div role="alert" class="alert love"><span class="st st-broken" aria-hidden="true"></span>{ i18n.T(ctx, "auth.wrong") }</div>
+					case "locked":
+						<div role="status" class="alert gold"><span class="st st-look" aria-hidden="true"></span>{ i18n.N(ctx, "auth.locked", int64(v.LockedMin)) }</div>
+				}
+				if v.Ended != "" {
+					<div role="status" class="alert">
+						<span class="st st-unknown" aria-hidden="true"></span>
+						if v.Next != "" && v.Next != "/" {
+							{ i18n.T(ctx, "auth.ended."+v.Ended+".back", i18n.Args{"page": v.Next}) }
+						} else {
+							{ i18n.T(ctx, "auth.ended."+v.Ended) }
+						}
+					</div>
+				}
+				<input type="hidden" name="next" value={ v.Next }/>
+				<div>
+					<label for="u" class="lbl">{ i18n.T(ctx, "auth.username") }</label>
+					<input id="u" name="username" class="pc-inp" value={ v.Username } autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus?={ v.Username == "" }/>
+				</div>
+				<div>
+					<label for="p" class="lbl">{ i18n.T(ctx, "auth.password") }</label>
+					<input id="p" name="password" class="pc-inp" type="password" autocomplete="current-password" required autofocus?={ v.Username != "" }/>
+				</div>
+				<button type="submit" class="pc-btn pc-pri" disabled?={ v.Error == "locked" }>{ i18n.T(ctx, "auth.sign_in") }</button>
+				<p class="help">{ i18n.T(ctx, "auth.forgot") } <code>proxier manage reset-password</code></p>
+			</form>
+		</main>
+	}
+}

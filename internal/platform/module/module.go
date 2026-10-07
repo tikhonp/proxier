@@ -11,13 +11,22 @@
 package module
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"regexp"
 
+	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/config"
+	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+	"github.com/tikhonp/proxier/internal/platform/vault"
+	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 // Module is a registered part of Proxier.
@@ -58,4 +67,37 @@ type EventDeclarer interface {
 // SettingsDeclarer is a module with sections in Settings.
 type SettingsDeclarer interface {
 	SettingsSections() []settings.Section
+}
+
+// Deps is what a module may use of the platform. It grows with the
+// sub-phases (jobs, notifications, SSH, tailnet).
+type Deps struct {
+	Cfg      *config.Config
+	Log      *slog.Logger
+	DB       *db.DB
+	Vault    *vault.Vault
+	Events   *events.Catalog
+	Settings *settings.Store
+	I18n     *i18n.Catalog
+	Auth     *auth.Service
+}
+
+// Initializer is called by platform.Open after the platform services exist.
+type Initializer interface{ Init(d Deps) error }
+
+// MessagesDeclarer is a module with translations. Keys belong to the module.
+type MessagesDeclarer interface{ Messages() i18n.Messages }
+
+// RouteDeclarer is a module with pages or endpoints.
+type RouteDeclarer interface{ Routes(r web.Routes) }
+
+// NavDeclarer is a module with sidebar entries.
+type NavDeclarer interface{ Nav() []ui.NavItem }
+
+// SettingsPageDeclarer is a module with its own pages in Settings.
+type SettingsPageDeclarer interface{ SettingsPages() []ui.SettingsPage }
+
+// Searcher is a module whose things appear in the search pop-up's "Go to".
+type Searcher interface {
+	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)
 }

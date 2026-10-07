@@ -1,0 +1,101 @@
+package ui
+
+import (
+	"context"
+	"fmt"
+	"sort"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
+)
+
+// SettingsLayout is the two-column settings page: section list on the left,
+// the page's children on the right.
+templ SettingsLayout(s Shell, pages []SettingsPage, current string) {
+	@Layout(s) {
+		@TitleBlock(i18n.T(ctx, "nav.settings"))
+		<div class="settings">
+			<nav class="settings-nav" aria-label={ i18n.T(ctx, "ui.settings_sections") }>
+				for _, p := range sortedPages(pages) {
+					<a
+						href={ templ.SafeURL("/settings/" + p.Slug) }
+						if p.Slug == current {
+							aria-current="page"
+						}
+					>
+						<span class="mark" aria-hidden="true">
+							if p.Slug == current {
+								›
+							}
+						</span>{ i18n.T(ctx, p.Title) }
+					</a>
+				}
+			</nav>
+			<div class="settings-body">
+				{ children... }
+			</div>
+		</div>
+	}
+}
+
+func sortedPages(pages []SettingsPage) []SettingsPage {
+	out := append([]SettingsPage(nil), pages...)
+	sort.SliceStable(out, func(i, j int) bool { return out[i].Order < out[j].Order })
+	return out
+}
+
+// SettingsForm is the generic form of one settings section, drawn from its
+// fields. Labels come from settings.field.<key>, help from
+// settings.field.<key>.help.
+templ SettingsForm(sec settings.Section, vals []settings.Value, errs settings.FieldErrors, action string) {
+	<form method="post" action={ action } class="form">
+		<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+		for _, v := range vals {
+			@settingField(v, errs[v.Field.Key])
+		}
+		<div class="form-actions">
+			<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+		</div>
+	</form>
+}
+
+templ settingField(v settings.Value, errMsg string) {
+	<div class="field">
+		<label for={ "f-" + v.Field.Key } class="lbl">
+			<span class={ templ.KV("changed", !v.IsDefault) }>{ i18n.T(ctx, "settings.field."+v.Field.Key) }</span>
+			if !v.IsDefault {
+				<span class="changed" title={ i18n.T(ctx, "ui.changed_hint") }>●</span>
+			}
+		</label>
+		switch v.Field.Kind {
+			case settings.Enum:
+				<select id={ "f-" + v.Field.Key } name={ v.Field.Key } class="pc-inp" aria-invalid?={ errMsg != "" }>
+					for _, o := range v.Field.Options {
+						<option value={ o } selected?={ o == v.Value }>{ optionLabel(ctx, v.Field.Key, o) }</option>
+					}
+				</select>
+			case settings.Bool:
+				<input type="hidden" id={ "f-" + v.Field.Key } name={ v.Field.Key } value={ v.Value }/>
+				<button type="button" role="switch" class="pc-sw" data-switch={ "f-" + v.Field.Key } aria-checked={ fmt.Sprint(v.Value == "true") } aria-label={ i18n.T(ctx, "settings.field."+v.Field.Key) }></button>
+			case settings.Secret:
+				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } type="password" class="pc-inp" autocomplete="off" aria-invalid?={ errMsg != "" }/>
+			case settings.Int:
+				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } type="number" class="pc-inp" value={ v.Value } aria-invalid?={ errMsg != "" }/>
+			default:
+				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } class="pc-inp" value={ v.Value } autocomplete="off" aria-invalid?={ errMsg != "" }/>
+		}
+		if errMsg != "" {
+			<div class="err" role="alert">{ errMsg }</div>
+		} else if i18n.From(ctx).Has("settings.field." + v.Field.Key + ".help") {
+			<div class="help">{ i18n.T(ctx, "settings.field."+v.Field.Key+".help") }</div>
+		}
+	</div>
+}
+
+func optionLabel(ctx context.Context, key, option string) string {
+	k := "settings.option." + key + "." + option
+	if i18n.From(ctx).Has(k) {
+		return i18n.T(ctx, k)
+	}
+	return option
+}

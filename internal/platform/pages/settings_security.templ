@@ -1,0 +1,128 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+type securityPageView struct {
+	Current      int64
+	Sessions     []auth.Session
+	Ended        []auth.Session
+	PasswordErr  string
+	PasswordDone bool
+	Section      settings.Section
+	Values       []settings.Value
+	LockoutErrs  settings.FieldErrors
+	LockoutSaved bool
+}
+
+templ securityPage(s ui.Shell, pages []ui.SettingsPage, v securityPageView) {
+	@ui.SettingsLayout(s, pages, "security") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.security") }</h2>
+			<p>{ i18n.T(ctx, "settings.security.note") }</p>
+		</div>
+		<section class="set-section" aria-labelledby="pw-h">
+			<div class="pc-title"><h2 id="pw-h">{ i18n.T(ctx, "settings.password") }</h2></div>
+			<form method="post" action="/settings/security/password" class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				if v.PasswordDone {
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "settings.password.done") }
+					}
+				}
+				if v.PasswordErr != "" {
+					@ui.Alert("love", "alert") {
+						{ i18n.T(ctx, v.PasswordErr) }
+					}
+				}
+				<div class="field">
+					<label for="pw-old" class="lbl">{ i18n.T(ctx, "settings.password.current") }</label>
+					<input id="pw-old" name="old" type="password" class="pc-inp" autocomplete="current-password" required/>
+				</div>
+				<div class="field">
+					<label for="pw-new" class="lbl">{ i18n.T(ctx, "settings.password.new") }</label>
+					<input id="pw-new" name="new" type="password" class="pc-inp" autocomplete="new-password" minlength="12" required/>
+					<div class="help">{ i18n.T(ctx, "settings.password.help") }</div>
+				</div>
+				<div class="field">
+					<label for="pw-again" class="lbl">{ i18n.T(ctx, "settings.password.again") }</label>
+					<input id="pw-again" name="again" type="password" class="pc-inp" autocomplete="new-password" required/>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "settings.password.change") }</button>
+				</div>
+			</form>
+		</section>
+		<section class="set-section" aria-labelledby="ss-h">
+			<div class="pc-title">
+				<h2 id="ss-h">{ i18n.T(ctx, "settings.sessions") }</h2>
+				<span class="note">{ i18n.N(ctx, "settings.sessions.count", int64(len(v.Sessions))) }</span>
+				<span class="flex1"></span>
+				@ui.ActionButton(ui.Action{
+					ID: "auth.sign_out_everywhere", Label: "settings.sessions.sign_out_everywhere", Method: "POST",
+					Href: "/settings/security/sessions/sign-out-everywhere", Kind: ui.Danger, Small: true,
+					Confirm: &ui.Confirm{
+						Strength: 2,
+						Title:    i18n.T(ctx, "settings.sessions.sign_out_everywhere"),
+						Body:     i18n.N(ctx, "settings.sessions.everywhere_body", int64(len(v.Sessions))),
+					},
+				})
+			</div>
+			<div class="sess-list" id="sessions">
+				for _, ss := range v.Sessions {
+					<div class="row sess" data-row={ strconv.FormatInt(ss.ID, 10) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span>
+							<span class="bold">{ auth.BrowserName(ss.UserAgent) }</span>
+							if ss.ID == v.Current {
+								<span class="subtle"> · { i18n.T(ctx, "settings.sessions.this") }</span>
+							}
+						</span>
+						<span class="subtle">
+							{ ss.LastIP } · { i18n.T(ctx, "settings.sessions.last_seen") }
+							@ui.Time(ss.LastSeenAt.Time)
+						</span>
+						<span class="subtle">
+							{ i18n.T(ctx, "settings.sessions.created") }
+							@ui.Time(ss.CreatedAt.Time)
+						</span>
+						@ui.ActionButton(ui.Action{
+							ID: "auth.sign_out." + strconv.FormatInt(ss.ID, 10), Label: "auth.sign_out", Method: "POST",
+							Href: "/settings/security/sessions/" + strconv.FormatInt(ss.ID, 10) + "/sign-out", Small: true,
+						})
+					</div>
+				}
+			</div>
+			if len(v.Ended) > 0 {
+				<div class="pc-title"><h2>{ i18n.T(ctx, "settings.sessions.ended") }</h2></div>
+				for _, ss := range v.Ended {
+					<div class="row sess subtle">
+						<span>{ auth.BrowserName(ss.UserAgent) }</span>
+						<span>{ ss.LastIP }</span>
+						<span>
+							@ui.Time(ss.EndedAt.Time)
+						</span>
+						<span>{ i18n.T(ctx, "settings.end."+ss.EndReason) }</span>
+					</div>
+				}
+			}
+		</section>
+		<section class="set-section" aria-labelledby="lo-h">
+			<div class="pc-title"><h2 id="lo-h">{ i18n.T(ctx, "settings.lockout") }</h2></div>
+			if v.LockoutSaved {
+				<div class="form">
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "ui.saved") }
+					}
+				</div>
+			}
+			@ui.SettingsForm(v.Section, v.Values, v.LockoutErrs, "/settings/security/lockout")
+		</section>
+	}
+}

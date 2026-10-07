@@ -38,6 +38,8 @@ const usage = `Usage:
   proxier manage migrate up               apply pending migrations of every module
   proxier manage migrate down <module>    roll back the last migration of one module
   proxier manage migrate status           list every module's migrations
+  proxier manage create-admin             create the admin (asks for a username and a password)
+  proxier manage reset-password           set a new admin password and end every session
   proxier version
 `
 
@@ -133,6 +135,8 @@ func manage(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		err = db.MigrateDown(ctx, app.DB, log, m)
+	case len(args) == 1 && (args[0] == "create-admin" || args[0] == "reset-password"):
+		err = adminCommand(ctx, app, args[0], stdout)
 	case len(args) == 2 && args[0] == "migrate" && args[1] == "status":
 		var st []db.MigrationStatus
 		if st, err = app.MigrationStatus(ctx); err == nil {
@@ -150,6 +154,22 @@ func manage(args []string, stdout, stderr io.Writer) int {
 		return 1
 	}
 	return 0
+}
+
+// adminCommand runs create-admin or reset-password on the terminal. It
+// migrates first, so it works on a database that never served.
+func adminCommand(ctx context.Context, app *platform.App, name string, out io.Writer) error {
+	p, err := newTTYPrompter(os.Stdin, out)
+	if err != nil {
+		return err
+	}
+	if err := app.Migrate(ctx); err != nil {
+		return err
+	}
+	if name == "create-admin" {
+		return createAdmin(ctx, app.Auth, p, out)
+	}
+	return resetPassword(ctx, app.Auth, p, out)
 }
 
 var errUnknownManage = errors.New("unknown manage command")

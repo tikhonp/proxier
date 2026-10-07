@@ -1,0 +1,185 @@
+package ui
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+)
+
+// ActionButton draws a button or link that does something. Every one carries
+// data-action, so the search pop-up lists it under the same words.
+templ ActionButton(a Action) {
+	if a.Method == "POST" {
+		<form method="post" action={ a.Href } class={ templ.KV("hidden", a.Hidden), "inline" }>
+			<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+			for k, v := range a.Fields {
+				<input type="hidden" name={ k } value={ v }/>
+			}
+			if a.Confirm != nil {
+				<button
+					type="button"
+					class={ actionClass(a) }
+					data-action={ a.ID }
+					data-key={ a.Key }
+					data-dialog-open={ "dlg-" + a.ID }
+				>{ i18n.T(ctx, a.Label) }</button>
+				@confirmDialog(a)
+			} else {
+				<button type="submit" class={ actionClass(a) } data-action={ a.ID } data-key={ a.Key }>{ i18n.T(ctx, a.Label) }</button>
+			}
+		</form>
+	} else {
+		<a href={ templ.SafeURL(a.Href) } class={ actionClass(a), templ.KV("hidden", a.Hidden) } data-action={ a.ID } data-key={ a.Key }>{ i18n.T(ctx, a.Label) }</a>
+	}
+}
+
+func actionClass(a Action) string {
+	c := "pc-btn"
+	switch a.Kind {
+	case Primary:
+		c += " pc-pri"
+	case Danger:
+		c += " pc-dng"
+	case Ghost:
+		c += " pc-ghost"
+	}
+	if a.Small {
+		c += " pc-sm"
+	}
+	return c
+}
+
+// confirmDialog is drawn inside the action's form, so its button submits it.
+templ confirmDialog(a Action) {
+	<dialog id={ "dlg-" + a.ID } class="pc-dialog" aria-labelledby={ "dlg-" + a.ID + "-h" }>
+		<div class="dlg-title">
+			<h2 id={ "dlg-" + a.ID + "-h" }>{ a.Confirm.Title }</h2>
+			<button type="button" class="pc-seg pc-close" data-dialog-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+		</div>
+		<div class="dlg-body">
+			<p>{ a.Confirm.Body }</p>
+			if len(a.Confirm.Consequences) > 0 {
+				<ul class="dlg-list">
+					for _, c := range a.Confirm.Consequences {
+						<li>{ c }</li>
+					}
+				</ul>
+			}
+			if a.Confirm.Strength >= 3 {
+				<label class="lbl" for={ "dlg-" + a.ID + "-name" }>{ i18n.T(ctx, "ui.type_name", i18n.Args{"name": a.Confirm.Name}) }</label>
+				<input id={ "dlg-" + a.ID + "-name" } class="pc-inp" autocomplete="off" data-confirm-name={ a.Confirm.Name }/>
+			}
+		</div>
+		<div class="dlg-foot">
+			<button
+				type="submit"
+				class={ actionClass(Action{Kind: dialogKind(a)}) }
+				if a.Confirm.Strength < 3 {
+					autofocus
+				}
+				if a.Confirm.Strength >= 3 {
+					disabled
+					data-confirm-submit
+				}
+			>{ i18n.T(ctx, a.Label) }</button>
+			<button type="button" class="pc-btn pc-ghost" data-dialog-close>{ i18n.T(ctx, "ui.cancel") }</button>
+			<span class="hint"><span class="k">esc</span> { i18n.T(ctx, "ui.closes") }</span>
+		</div>
+	</dialog>
+}
+
+func dialogKind(a Action) ActionKind {
+	if a.Kind == Danger {
+		return Danger
+	}
+	return Primary
+}
+
+// Dialog is a <dialog> with a title row and a flush × in its corner. The
+// children are the body and the footer (.dlg-body, .dlg-foot).
+templ Dialog(id, title string) {
+	<dialog id={ id } class="pc-dialog" aria-labelledby={ id + "-h" }>
+		<div class="dlg-title">
+			<h2 id={ id + "-h" }>{ title }</h2>
+			<button type="button" class="pc-seg pc-close" data-dialog-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+		</div>
+		{ children... }
+	</dialog>
+}
+
+// Status is a marker with its word. kind: ok look blocked broken unknown off
+// paused running gone. For healthy states the word stays subtle.
+templ Status(kind, word string) {
+	<span class="stat">
+		<span class={ "st", "st-" + kind } aria-hidden="true"></span>
+		<span class={ statWord(kind) }>{ word }</span>
+	</span>
+}
+
+func statWord(kind string) string {
+	switch kind {
+	case "look":
+		return "gold"
+	case "broken":
+		return "love"
+	case "blocked":
+		return "iris"
+	case "paused":
+		return "foam"
+	}
+	return "subtle"
+}
+
+// Band is the full-width block for a serious state. kind: love | gold | iris | pine.
+templ Band(kind string) {
+	<div class={ "band", kind } role="status">
+		{ children... }
+	</div>
+}
+
+// Area is a block with a 36 px title band. Its children are the body; put
+// right-aligned links in a span.flex1 + a.
+templ Area(title, note string) {
+	<section class="area" aria-label={ title }>
+		<div class="pc-title">
+			<h2>{ title }</h2>
+			if note != "" {
+				<span class="note">{ note }</span>
+			}
+			<span class="flex1"></span>
+		</div>
+		{ children... }
+	</section>
+}
+
+// TitleBlock is the page's h1 with an optional status line.
+templ TitleBlock(title string) {
+	<div class="titleblock">
+		<h1>{ title }</h1>
+		{ children... }
+	</div>
+}
+
+templ EmptyState(what, next string) {
+	<div class="empty">
+		<span class="what">{ what }</span>
+		if next != "" {
+			<span>{ next }</span>
+		}
+	</div>
+}
+
+// Time shows a time relative to now, with the absolute time in its title.
+templ Time(t time.Time) {
+	<time datetime={ t.UTC().Format(time.RFC3339) } title={ i18n.From(ctx).Time(t) }>{ i18n.From(ctx).Ago(t) }</time>
+}
+
+// Alert is a one-line message. kind: love | gold | iris | pine | "" (quiet).
+templ Alert(kind, role string) {
+	<div class={ "alert", kind } role={ role }>
+		{ children... }
+	</div>
+}
+
+func num(n int) string { return fmt.Sprint(n) }

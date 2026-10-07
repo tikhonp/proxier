@@ -1,0 +1,26 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ dashboardPage(s ui.Shell) {
+	@ui.Layout(s) {
+		@ui.TitleBlock(i18n.T(ctx, "nav.dashboard")) {
+			<div class="status">
+				<span>{ i18n.T(ctx, "dash.quiet") }</span>
+			</div>
+		}
+		@ui.EmptyState(i18n.T(ctx, "dash.empty"), i18n.T(ctx, "dash.empty_next"))
+	}
+}
+
+// searchHits is the "Go to" fragment of the search pop-up: one link per hit.
+templ searchHits(hits []ui.SearchHit) {
+	<ul>
+		for _, h := range hits {
+			<li><a href={ templ.SafeURL(h.Href) } data-meta={ h.Meta }>{ h.Label }</a></li>
+		}
+	</ul>
+}

@@ -32,7 +32,9 @@ type Options struct {
 
 // New returns the Echo app with the shared middleware and /healthz.
 func New(o Options) *echo.Echo {
-	e := echo.New()
+	// Groups don't register their own 404 routes: web.Mount installs one
+	// catch-all that runs the admin chain.
+	e := echo.NewWithConfig(echo.Config{NoGroupAutoRegister404Routes: true})
 	e.Logger = o.Log
 	e.IPExtractor = IPExtractor(o.TrustedProxies)
 

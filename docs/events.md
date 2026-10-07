@@ -13,7 +13,9 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `auth.sign_in_failed` | — | ip, username tried | off | |
 | `auth.locked` | — | ip, failures | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
 | `auth.password_changed` | admin | — | **on** | |
+| `auth.signed_out` | admin | session (id), by (`self` / `settings`) | off | |
 | `auth.signed_out_everywhere` | admin | sessions ended | off | |
+| `admin.language_changed` | admin | from, to | off | |
 | `settings.changed` | setting group | keys changed (never values) | off | |
 | `ssh.host_key_changed` | known host | address, old and new fingerprint | **on** | All work with that host stops until accepted. |
 | `ssh.host_key_accepted` | known host | new fingerprint | off | |

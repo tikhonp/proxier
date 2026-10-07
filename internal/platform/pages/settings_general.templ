@@ -1,0 +1,31 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, vals []settings.Value, errs settings.FieldErrors, saved bool, baseURL string) {
+	@ui.SettingsLayout(s, pages, "general") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.general") }</h2>
+			<p>{ i18n.T(ctx, "settings.general.note") }</p>
+		</div>
+		if saved {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "ui.saved") }
+				}
+			</div>
+		}
+		<div class="form">
+			<div class="ro">
+				<span class="lbl">{ i18n.T(ctx, "settings.base_url") }</span>
+				<span class="v">{ baseURL }</span>
+				<span class="sm muted">{ i18n.T(ctx, "settings.base_url.help") }</span>
+			</div>
+		</div>
+		@ui.SettingsForm(sec, vals, errs, "/settings/general")
+	}
+}

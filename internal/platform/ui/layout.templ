@@ -1,0 +1,195 @@
+package ui
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// page is the document skeleton shared by every page.
+templ page(title string, lang i18n.Lang) {
+	<!DOCTYPE html>
+	<html lang={ string(lang) }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="robots" content="noindex, nofollow"/>
+			<meta name="htmx-config" content={ htmxConfig }/>
+			<title>{ title } · Proxier</title>
+			<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
+			<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
+			<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
+			<link rel="stylesheet" href={ Asset("css/app.css") }/>
+			<script src={ Asset("js/htmx.min.js") } defer></script>
+			<script src={ Asset("js/proxier.js") } defer></script>
+		</head>
+		<body>
+			<div class="app">
+				{ children... }
+			</div>
+		</body>
+	</html>
+}
+
+// Layout is the signed-in shell: header, sidebar, main, key line and the
+// pop-ups. Its children are the page.
+templ Layout(s Shell) {
+	<!DOCTYPE html>
+	<html lang={ string(s.Lang) }>
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<meta name="robots" content="noindex, nofollow"/>
+			<meta name="htmx-config" content={ htmxConfig }/>
+			<title>{ s.Title } · Proxier</title>
+			<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
+			<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
+			<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
+			<link rel="stylesheet" href={ Asset("css/app.css") }/>
+			<script src={ Asset("js/htmx.min.js") } defer></script>
+			<script src={ Asset("js/proxier.js") } defer></script>
+		</head>
+		<body hx-headers={ csrfHeaders(s.CSRF) }>
+			<div class="app" id="app">
+				@header(s)
+				<div class="body">
+					<nav class="side pc-side" aria-label={ i18n.T(ctx, "ui.main_nav") }>
+						for _, g := range s.Nav {
+							<div class="side-group">{ i18n.T(ctx, g.Label) }</div>
+							for _, it := range g.Items {
+								<a
+									href={ templ.SafeURL(it.Href) }
+									data-goto={ it.GoKey }
+									if isCurrent(s.Path, it.Href) {
+										aria-current="page"
+									}
+								>
+									<span class="mark" aria-hidden="true">
+										if isCurrent(s.Path, it.Href) {
+											›
+										}
+									</span>
+									<span class="flex1">{ i18n.T(ctx, it.Label) }</span>
+								</a>
+							}
+						}
+					</nav>
+					<main class="main" id="main">
+						{ children... }
+					</main>
+				</div>
+				@keyLine(s)
+				@popups(s)
+			</div>
+		</body>
+	</html>
+}
+
+func isCurrent(path, href string) bool {
+	if href == "/" {
+		return path == "/"
+	}
+	return path == href || (len(path) > len(href) && path[:len(href)] == href && path[len(href)] == '/')
+}
+
+templ header(s Shell) {
+	<header class="hdr">
+		<button class="hdr-menu pc-menu pc-seg" type="button" data-drawer-toggle aria-label={ i18n.T(ctx, "ui.menu") }>
+			<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg>
+		</button>
+		<a href="/" class="hdr-logo pc-seg"><span class="logo-mark" aria-hidden="true"></span>proxier</a>
+		<button type="button" class="hdr-search pc-field" data-open-palette="all" aria-label={ i18n.T(ctx, "ui.search_label") }>
+			<span class="slash" aria-hidden="true">/</span>{ i18n.T(ctx, "ui.search_placeholder") }
+		</button>
+		if s.JobsCell != nil {
+			@s.JobsCell
+		}
+		if s.Warning != nil {
+			<a href={ templ.SafeURL(s.Warning.Href) } class="hdr-cell hdr-warn pc-seg pc-hide-s"><span class="st st-look" aria-hidden="true"></span>{ s.Warning.Text }</a>
+		}
+		<div class="admin-menu">
+			<button type="button" class="pc-seg" data-menu-toggle aria-haspopup="true" aria-expanded="false">{ s.Admin }<span class="caret-down" aria-hidden="true">▾</span></button>
+			<div class="admin-pop hidden" id="admin-pop" role="menu">
+				<div class="grp">{ i18n.T(ctx, "ui.language") }</div>
+				for _, l := range i18n.Langs {
+					if l != s.Lang {
+						@ActionButton(Action{ID: "me.language." + string(l), Label: "ui.language." + string(l), Method: "POST", Href: "/me/language", Fields: map[string]string{"lang": string(l), "next": s.Path}, Kind: Ghost})
+					}
+				}
+				@ActionButton(Action{ID: "nav.settings", Label: "nav.settings", Method: "GET", Href: "/settings", Kind: Ghost})
+				@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Kind: Ghost})
+			</div>
+		</div>
+	</header>
+}
+
+// JobsCellIdle is 0b's jobs cell: no jobs yet. 0c replaces it.
+templ JobsCellIdle() {
+	<span class="hdr-cell quiet pc-hide-s"><span class="st st-unknown" aria-hidden="true"></span>{ i18n.T(ctx, "ui.no_jobs") }</span>
+}
+
+templ keyLine(s Shell) {
+	<footer class="pc-keys" id="keyline">
+		<div class="keyline-in">
+			<span class="msg hidden" id="keymsg" role="status"></span>
+			<span id="keyhints" data-default={ i18n.T(ctx, s.PageKeys) }>{ i18n.T(ctx, s.PageKeys) }</span>
+		</div>
+		<div class="keyline-global">
+			<span><span class="k">/</span> { i18n.T(ctx, "ui.key.search") }</span>
+			<span><span class="k">:</span> { i18n.T(ctx, "ui.key.actions") }</span>
+			<span><span class="k">g</span> { i18n.T(ctx, "ui.key.goto") }</span>
+			<span><span class="k">?</span> { i18n.T(ctx, "ui.key.keys") }</span>
+		</div>
+	</footer>
+}
+
+templ popups(s Shell) {
+	<div class="whichkey pc-keys hidden" id="whichkey" role="navigation" aria-label={ i18n.T(ctx, "ui.key.goto") }>
+		for _, g := range s.Nav {
+			for _, it := range g.Items {
+				if it.GoKey != "" {
+					<a href={ templ.SafeURL(it.Href) } data-go-key={ it.GoKey } class="pc-seg"><span class="k">{ it.GoKey }</span>{ i18n.T(ctx, it.Label) }</a>
+				}
+			}
+		}
+	</div>
+	<div
+		class="pal hidden"
+		id="palette"
+		data-t-goto={ i18n.T(ctx, "ui.go_to") }
+		data-t-actions={ i18n.T(ctx, "ui.actions") }
+		data-t-none={ i18n.T(ctx, "ui.nothing") }
+		data-t-copied={ i18n.T(ctx, "ui.copied") }
+	>
+		<div class="pal-box" role="dialog" aria-modal="true" aria-label={ i18n.T(ctx, "ui.search_label") }>
+			<label class="pal-in">
+				<span class="prompt" id="pal-prompt" aria-hidden="true">/</span>
+				<input type="search" id="pal-input" autocomplete="off" aria-label={ i18n.T(ctx, "ui.search_label") } placeholder={ i18n.T(ctx, "ui.search_placeholder") }/>
+			</label>
+			<div class="pal-list" id="pal-list"></div>
+			<div class="pal-foot">
+				<span><span class="k">↑ ↓</span> { i18n.T(ctx, "ui.key.move") }</span>
+				<span><span class="k">↵</span> { i18n.T(ctx, "ui.key.run") }</span>
+				<span><span class="k">:</span> { i18n.T(ctx, "ui.key.actions_only") }</span>
+				<span><span class="k">esc</span> { i18n.T(ctx, "ui.closes") }</span>
+			</div>
+		</div>
+	</div>
+	<template id="keys-template">
+		<div class="pal" id="keys-sheet">
+			<section class="keys-sheet" role="dialog" aria-modal="true" aria-labelledby="keys-h">
+				<div class="dlg-title">
+					<h2 id="keys-h">{ i18n.T(ctx, "ui.keys") } <span class="sm subtle">{ i18n.T(ctx, "ui.esc_closes") }</span></h2>
+					<button type="button" class="pc-seg pc-close" data-keys-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+				</div>
+				<div class="keys-grid">
+					for _, g := range s.Keys {
+						<div>
+							<h3>{ i18n.T(ctx, g.Where) }</h3>
+							for _, k := range g.Keys {
+								<div class="kk"><span class="bold nowrap">{ k.Keys }</span><span class="subtle">{ i18n.T(ctx, k.What) }</span></div>
+							}
+						</div>
+					}
+				</div>
+				<p class="keys-note">{ i18n.T(ctx, "ui.keys_note") }</p>
+			</section>
+		</div>
+	</template>
+}
