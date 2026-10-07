@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"net"
 	"os"
 	"time"
 
@@ -21,6 +22,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/httpx"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/migrations"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/pages"
@@ -43,6 +45,12 @@ type App struct {
 	Settings *settings.Store
 	I18n     *i18n.Catalog
 	Auth     *auth.Service
+	Jobs     *jobs.System
+	// Dispatcher delivers committed events to subscribers.
+	Dispatcher *events.Dispatcher
+	// closing is closed when Serve starts shutting down, so live streams end
+	// before the HTTP server's grace period runs out.
+	closing chan struct{}
 	// Modules are the platform followed by the registered modules, in the
 	// order their migrations run.
 	Modules []module.Module
@@ -72,6 +80,9 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.I18n = i18n.NewCatalog()
 	a.Auth = auth.New(d, v, a.Events, a.Settings)
 	a.Auth.Log = log
+	a.Jobs = jobs.New(d, v, a.Events, a.Settings, log)
+	a.Dispatcher = events.NewDispatcher(d, log)
+	a.closing = make(chan struct{})
 
 	var errs []error
 	for _, m := range all {
@@ -84,12 +95,23 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		if md, ok := m.(module.MessagesDeclarer); ok {
 			errs = append(errs, a.I18n.Add(m.Name(), md.Messages()))
 		}
+		if jd, ok := m.(module.JobDeclarer); ok {
+			errs = append(errs, a.Jobs.Register(m.Name(), jd.JobTypes()...), a.Jobs.RegisterSchedules(m.Name(), jd.Schedules()...))
+		}
+		if sd, ok := m.(module.SubscriberDeclarer); ok {
+			for _, sub := range sd.Subscribers() {
+				errs = append(errs, a.Dispatcher.Subscribe(sub))
+			}
+		}
 	}
+	types, schedules := a.Jobs.PlatformTypes()
+	errs = append(errs, a.Jobs.Register(Name, types...), a.Jobs.RegisterSchedules(Name, schedules...))
 	if err := errors.Join(errs...); err != nil {
 		_ = d.Close()
 		return nil, err
 	}
-	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth}
+	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth,
+		Jobs: a.Jobs, Dispatcher: a.Dispatcher}
 	for _, m := range all {
 		if in, ok := m.(module.Initializer); ok {
 			if err := in.Init(deps); err != nil {
@@ -129,9 +151,10 @@ func (a *App) MigrationStatus(ctx context.Context) ([]db.MigrationStatus, error)
 	return db.Status(ctx, a.DB, a.migrationSources()...)
 }
 
-// Health is /healthz: the database answers. The job workers join it later.
+// Health is /healthz: the database answers, every worker pool, the scheduler
+// and every event subscriber keep looping, and no job lease has expired.
 func (a *App) Health(ctx context.Context) error {
-	return a.DB.Ping(ctx)
+	return errors.Join(a.DB.Ping(ctx), a.Jobs.Health(), a.Dispatcher.Health())
 }
 
 // HTTP builds the HTTP app: the platform's pages, then every module's routes.
@@ -140,7 +163,8 @@ func (a *App) HTTP() *echo.Echo {
 	r := web.Mount(e, web.Deps{Log: a.Log, Auth: a.Auth, I18n: a.I18n, Settings: a.Settings, BaseURL: a.Cfg.BaseURL},
 		ui.StaticFS, ui.StaticHash)
 
-	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n}
+	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n,
+		Jobs: a.Jobs, Events: a.Events, Query: a.DB.R, Closing: a.closing}
 	for _, m := range a.Modules {
 		if nd, ok := m.(module.NavDeclarer); ok {
 			pd.Nav = append(pd.Nav, nd.Nav()...)
@@ -151,6 +175,9 @@ func (a *App) HTTP() *echo.Echo {
 		if s, ok := m.(module.Searcher); ok {
 			pd.Searchers = append(pd.Searchers, s)
 		}
+		if n, ok := m.(module.SubjectNamer); ok {
+			pd.Namers = append(pd.Namers, n)
+		}
 	}
 	pages.Register(r, pd)
 	for _, m := range a.Modules {
@@ -159,6 +186,29 @@ func (a *App) HTTP() *echo.Echo {
 		}
 	}
 	return e
+}
+
+// Serve runs the HTTP listener, the job workers, the scheduler and the event
+// dispatcher until ctx ends, then shuts down in order: stop HTTP intake, stop
+// the scheduler and claiming, give running steps their grace, mark what still
+// runs interrupted, stop the dispatcher. The caller closes the database.
+func (a *App) Serve(ctx context.Context, onListen func(net.Addr)) error {
+	jobsCtx, stopJobs := context.WithCancel(context.WithoutCancel(ctx))
+	dispCtx, stopDisp := context.WithCancel(context.WithoutCancel(ctx))
+	defer stopJobs()
+	defer stopDisp()
+	jobsDone, dispDone := make(chan error, 1), make(chan error, 1)
+	go func() { jobsDone <- a.Jobs.Start(jobsCtx) }()
+	go func() { dispDone <- a.Dispatcher.Start(dispCtx) }()
+
+	go func() { <-ctx.Done(); close(a.closing) }()
+	httpErr := httpx.Run(ctx, a.HTTP(), a.Cfg.Listen, onListen)
+
+	stopJobs()
+	jobsErr := <-jobsDone
+	stopDisp()
+	dispErr := <-dispDone
+	return errors.Join(httpErr, jobsErr, dispErr)
 }
 
 // Close closes the database.
@@ -176,6 +226,7 @@ func (core) EventTypes() []events.Type { return Events }
 // sign-in events belong to auth, the rest to the platform's other parts.
 var Events = append(append([]events.Type(nil), auth.Events...),
 	settings.ChangedEvent,
+	jobs.ScheduleEnabledChanged,
 	events.Type{Name: "ssh.host_key_changed", Module: Name, Notify: true, Description: "A pinned SSH host key changed; work with that host stops."},
 	events.Type{Name: "ssh.host_key_accepted", Module: Name, Description: "A new SSH host key was accepted."},
 	events.Type{Name: "job.failed", Module: Name, Notify: true, Description: "A job failed (job types without their own failure event)."},
@@ -188,6 +239,8 @@ func (core) Messages() i18n.Messages { return messages }
 func (core) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "overview", Label: "nav.dashboard", Href: "/", GoKey: "d", Order: 10},
+		{Group: "system", Label: "nav.jobs", Href: "/jobs", GoKey: "j", Order: 100},
+		{Group: "system", Label: "nav.activity", Href: "/activity", GoKey: "a", Order: 110},
 		{Group: "system", Label: "nav.settings", Href: "/settings", GoKey: ",", Order: 900},
 	}
 }

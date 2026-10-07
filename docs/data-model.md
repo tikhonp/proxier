@@ -11,7 +11,7 @@ This is the logical model: entities, their important fields and relations. The e
 | **Sign-in attempt** | IP, time, success | Feeds the lockout and the "new IP" notification. Kept 30 days. |
 | **Setting** | key, value (🔒 when secret), updated | Typed, grouped by module. |
 | **Known host** | address (`host:port`), key type, public key, fingerprint, first seen, accepted, subject (`server:12`, `router:3`, `jump:…`) | Pinned SSH host keys. |
-| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (admin / schedule / event), retry of, quiet, started, finished, error | Coalescing key is unique per type. A clean quiet job (check rounds) is deleted after 24 h. |
+| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (admin / schedule / event), retry of, quiet, merged (count of merged requests), boot id, subject, started, finished, error | Coalescing key is unique per type. A clean quiet job (check rounds) is deleted after 24 h. |
 | **Job step** | job, index, name, state, started, finished, error | Progress and resume. |
 | **Job log line** | job, sequence, time, level, step, text (already redacted) | |
 | **Event** | id, time, module, type, subject type + id, actor, payload | Append-only. |

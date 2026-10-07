@@ -1,0 +1,65 @@
+package ui
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// JobsCell is the header cell: running jobs and failures since the last look.
+// htmx replaces it every 5 s from /jobs/cell.
+templ JobsCell(v JobsCellView) {
+	<a id="jobs-cell" href="/jobs" class="hdr-cell pc-seg pc-hide-s" hx-get="/jobs/cell" hx-trigger="every 5s" hx-swap="outerHTML">
+		if v.Running > 0 {
+			<span class="st st-running" aria-hidden="true"></span>
+			{ i18n.N(ctx, "ui.jobs_running", int64(v.Running)) }
+		} else {
+			<span class="st st-unknown" aria-hidden="true"></span>
+			<span class="subtle">{ i18n.T(ctx, "ui.no_jobs") }</span>
+		}
+		if v.Failed > 0 {
+			<span class="love">· { i18n.N(ctx, "ui.jobs_failed", int64(v.Failed)) }</span>
+		}
+	</a>
+}
+
+// FilterBar is the row of filters above a list: chips are links, the form
+// holds the choices.
+templ FilterBar(chips []Chip, form *FilterForm, clearHref string) {
+	<div class="filters">
+		for _, c := range chips {
+			<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ boolStr(c.On) }>{ c.Label }</a>
+		}
+		if form != nil {
+			<form method="get" action={ form.Action } class="filter-form">
+				for k, v := range form.Hidden {
+					<input type="hidden" name={ k } value={ v }/>
+				}
+				for _, s := range form.Selects {
+					<select name={ s.Name } class="pc-inp sel" aria-label={ s.Label }>
+						for _, o := range s.Options {
+							<option value={ o.Value } selected?={ o.Value == s.Value }>{ o.Label }</option>
+						}
+					</select>
+				}
+				<button type="submit" class="pc-btn pc-sm">{ form.Apply }</button>
+			</form>
+		}
+		if clearHref != "" {
+			<a href={ templ.SafeURL(clearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
+		}
+	</div>
+}
+
+func boolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// Pager is the line under a list: how many are shown and a link to older ones.
+templ Pager(info, olderHref string) {
+	<p class="pager">
+		{ info }
+		if olderHref != "" {
+			· <a href={ templ.SafeURL(olderHref) }>{ i18n.T(ctx, "ui.older") }</a>
+		}
+	</p>
+}

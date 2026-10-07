@@ -1,0 +1,168 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ jobsPage(s ui.Shell, v jobsView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "nav.jobs") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "jobs.note") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "jobs.demo", Label: "jobs.demo", Method: "POST", Href: "/jobs/demo", Small: true})
+				@ui.ActionButton(ui.Action{ID: "jobs.demo_fail", Label: "jobs.demo_fail", Method: "POST", Href: "/jobs/demo", Fields: map[string]string{"fail": "1"}, Small: true})
+			</div>
+		</div>
+		@ui.FilterBar(v.Chips, v.Form, v.Clear)
+		if len(v.Rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "jobs.empty"), "")
+		} else {
+			<div class="jobrow jobhead" aria-hidden="true">
+				<span>#</span><span>{ i18n.T(ctx, "jobs.col.job") }</span><span>{ i18n.T(ctx, "jobs.col.subject") }</span><span>{ i18n.T(ctx, "jobs.col.state") }</span><span>{ i18n.T(ctx, "jobs.col.started") }</span><span>{ i18n.T(ctx, "jobs.col.took") }</span>
+			</div>
+			for _, r := range v.Rows {
+				<a href={ templ.SafeURL(r.Href) } class="row jobrow pc-row" data-row={ strconv.FormatInt(r.ID, 10) } data-href={ r.Href } data-hint={ r.Hint }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="muted">{ strconv.FormatInt(r.ID, 10) }</span>
+					<span class="col"><span class="bold">{ r.Type }</span><span class="sm subtle">{ r.By }</span></span>
+					<span class="subtle">{ r.Subject.Label }</span>
+					<span class="col">
+						@ui.Status(r.Kind, r.State)
+						if r.Detail != "" {
+							<span class="sm subtle">{ r.Detail }</span>
+						}
+					</span>
+					<span class="subtle">{ r.Started }</span>
+					<span class="subtle">{ r.Took }</span>
+				</a>
+			}
+		}
+		@ui.Pager(v.Info, v.Older)
+	}
+}
+
+templ jobHead(v jobView) {
+	<div id="job-head" class="titleblock">
+		<div class="head">
+			<nav class="crumbs" aria-label="Breadcrumb"><a href="/jobs">{ i18n.T(ctx, "nav.jobs") }</a><span aria-hidden="true">/</span><span>#{ strconv.FormatInt(v.ID, 10) }</span></nav>
+			<div class="jobtitle">
+				<h1>{ v.Title }</h1>
+				@ui.Status(v.Kind, v.State)
+				if v.Note != "" {
+					<span class="sm subtle">{ v.Note }</span>
+				}
+			</div>
+			<p class="subtle">
+				{ v.Meta }
+				if v.RetryOf != 0 {
+					· <a href={ templ.SafeURL("/jobs/" + strconv.FormatInt(v.RetryOf, 10)) }>{ i18n.T(ctx, "job.retry_of", i18n.Args{"id": v.RetryOf}) }</a>
+				}
+			</p>
+			if v.Error != "" && !v.Live {
+				<p class="love">{ v.Error }</p>
+			}
+		</div>
+		<div class="actions">
+			if v.CanRetry {
+				@ui.ActionButton(ui.Action{ID: "job.retry", Label: "job.retry", Method: "POST", Href: "/jobs/" + strconv.FormatInt(v.ID, 10) + "/retry", Key: "r", Kind: ui.Primary})
+			}
+			if v.Retried {
+				@ui.ActionButton(ui.Action{ID: "job.retry_now", Label: "job.retry_now", Method: "POST", Href: "/jobs/" + strconv.FormatInt(v.ID, 10) + "/retry", Key: "r", Kind: ui.Primary})
+			}
+			if v.CanStop {
+				@ui.ActionButton(ui.Action{
+					ID: "job.cancel", Label: cancelLabel(v), Method: "POST", Href: "/jobs/" + strconv.FormatInt(v.ID, 10) + "/cancel",
+					Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, cancelLabel(v)), Body: i18n.T(ctx, "job.cancel_body")},
+				})
+			}
+			if v.Subject.Href != "" {
+				@ui.ActionButton(ui.Action{ID: "job.open_subject", Label: "job.open_subject", Method: "GET", Href: v.Subject.Href})
+			}
+		</div>
+	</div>
+}
+
+func cancelLabel(v jobView) string {
+	if v.Retried {
+		return "job.cancel_retries"
+	}
+	return "job.cancel"
+}
+
+templ stepList(v jobView) {
+	<ol id="job-steps" class="steps">
+		for _, s := range v.Steps {
+			<li class="step" data-state={ s.State }>
+				<span class="mk"><span class={ "st", "st-" + s.Kind } aria-hidden="true"></span></span>
+				<span class="nm">{ s.Name }</span>
+				<span class="sm subtle">{ s.Time }</span>
+			</li>
+		}
+	</ol>
+}
+
+templ logLine(l logLineView) {
+	<div class={ "ll", "ll-" + l.Level } data-id={ strconv.FormatInt(l.ID, 10) }><span class="subtle">{ l.Time }</span><span class="tx">{ l.Text }</span></div>
+}
+
+templ jobPage(s ui.Shell, v jobView) {
+	@ui.Layout(s) {
+		@jobHead(v)
+		<div class="jobcols">
+			<aside class="jobside">
+				<section>
+					<div class="pc-title"><h2>{ v.StepsHdr }</h2></div>
+					@stepList(v)
+				</section>
+				if len(v.Attempt) > 0 {
+					<section>
+						<div class="pc-title"><h2>{ i18n.T(ctx, "job.attempts") }</h2></div>
+						<div class="side-body">
+							for _, a := range v.Attempt {
+								<p class="subtle">{ a }</p>
+							}
+						</div>
+					</section>
+				}
+				<section>
+					<div class="pc-title"><h2>{ i18n.T(ctx, "job.payload") }</h2></div>
+					<dl class="payload">
+						for _, p := range v.Payload {
+							<dt class="subtle">{ p.Key }</dt>
+							<dd>{ p.Value }</dd>
+						}
+					</dl>
+				</section>
+			</aside>
+			<section class="jobmain" aria-labelledby="lg-h">
+				<div class="pc-title">
+					<h2 id="lg-h">{ i18n.T(ctx, "job.log") }</h2>
+					<span class="sm subtle">{ v.LogInfo }</span>
+					<span class="flex1"></span>
+					<button type="button" class="pc-btn pc-sm" data-copy-from="#log" data-key="y">{ i18n.T(ctx, "job.copy") }</button>
+					<a class="pc-btn pc-sm" href={ templ.SafeURL("/jobs/" + strconv.FormatInt(v.ID, 10) + "/log.txt") }>{ i18n.T(ctx, "job.download") }</a>
+				</div>
+				if v.Earlier != "" {
+					<a class="pager" href={ templ.SafeURL(v.Earlier) }>{ i18n.T(ctx, "job.earlier") }</a>
+				}
+				<div
+					id="log"
+					class="log"
+					if v.Live {
+						data-stream={ "/jobs/" + strconv.FormatInt(v.ID, 10) + "/stream?after=" + strconv.FormatInt(v.LastID, 10) }
+					}
+				>
+					for _, l := range v.Lines {
+						@logLine(l)
+					}
+				</div>
+			</section>
+		</div>
+	}
+}

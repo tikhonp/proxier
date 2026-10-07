@@ -244,3 +244,33 @@ func (l *Localizer) Has(key string) bool {
 	_, ok := l.lookup(key)
 	return ok
 }
+
+// Clock renders the time of day in the display zone: "15:04:05".
+func (l *Localizer) Clock(t time.Time) string { return t.In(l.TZ).Format("15:04:05") }
+
+// Day renders the date in the display zone: "2026-10-07".
+func (l *Localizer) Day(t time.Time) string { return t.In(l.TZ).Format("2006-01-02") }
+
+// Duration renders a short span: "21 s", "1 min 52 s", "2 h 5 min" (RU: с, мин, ч).
+func (l *Localizer) Duration(d time.Duration) string {
+	sec, min, hour := "s", "min", "h"
+	if l.Lang == RU {
+		sec, min, hour = "с", "мин", "ч"
+	}
+	d = d.Round(time.Second)
+	switch {
+	case d < time.Second:
+		return "< 1 " + sec
+	case d < time.Minute:
+		return fmt.Sprintf("%d %s", int(d/time.Second), sec)
+	case d < time.Hour:
+		if s := int(d%time.Minute) / int(time.Second); s > 0 {
+			return fmt.Sprintf("%d %s %d %s", int(d/time.Minute), min, s, sec)
+		}
+		return fmt.Sprintf("%d %s", int(d/time.Minute), min)
+	}
+	if m := int(d%time.Hour) / int(time.Minute); m > 0 {
+		return fmt.Sprintf("%d %s %d %s", int(d/time.Hour), hour, m, min)
+	}
+	return fmt.Sprintf("%d %s", int(d/time.Hour), hour)
+}

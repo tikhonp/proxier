@@ -8,7 +8,8 @@ All long or remote work is a job: provisioning, redeploys, check rounds, router 
 
 1. A module enqueues a job: type, queue, payload, resource key, optional coalescing key, optional delay, created by (admin / schedule / event).
    - If the coalescing key matches a **queued** job, the new request merges into it: the payload is merged and the later of the two run-after times is kept. No new job is created.
-   - If it matches a **running** job, one follow-up is queued (or merged into the existing follow-up).
+   - If it matches a **running** job, or one that already started and waits for a retry, one follow-up is queued (or merged into the existing follow-up). Only a job that has never started is merged into.
+   - A module may ask to skip instead (`SkipIfBusy`): when the resource key has a running, queued or interrupted job, nothing is queued and the caller records the skip.
 2. When its run-after time has passed, a worker of its queue with free capacity claims it, provided no other job with the same resource key is running. The job becomes `running` with a lease, and its attempt count goes up.
 3. The job runs its steps in order. Each step is marked running, then succeeded or failed, with timings. Log lines stream to the job page as they are written, redacted.
 4. All steps succeeded → `succeeded`.
@@ -20,9 +21,11 @@ All long or remote work is a job: provisioning, redeploys, check rounds, router 
 
 ## Steps — restart
 
-1. On startup, every `running` job whose lease has expired is marked `interrupted` in its log.
+1. On startup, every `running` job of another boot is marked `interrupted` in its log at once (one process owns the database, so it cannot still be running). Inside one boot a lease that expires means a stuck runner: the job is interrupted and `/healthz` fails until then.
 2. Interrupted jobs are queued again and resume from the first step that didn't succeed. Every step is written to be safe to run twice.
 3. A job whose type says it can't resume (none in the first version) becomes `failed` with "interrupted by restart".
+
+A step may also return `Defer(d)`: the job is queued again after `d` without counting the attempt (Telegram rate limits).
 
 ## Rules
 

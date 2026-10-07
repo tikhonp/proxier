@@ -119,11 +119,6 @@ templ header(s Shell) {
 	</header>
 }
 
-// JobsCellIdle is 0b's jobs cell: no jobs yet. 0c replaces it.
-templ JobsCellIdle() {
-	<span class="hdr-cell quiet pc-hide-s"><span class="st st-unknown" aria-hidden="true"></span>{ i18n.T(ctx, "ui.no_jobs") }</span>
-}
-
 templ keyLine(s Shell) {
 	<footer class="pc-keys" id="keyline">
 		<div class="keyline-in">

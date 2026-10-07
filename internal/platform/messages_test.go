@@ -93,3 +93,21 @@ func TestEveryUsedKeyExists(t *testing.T) {
 		}
 	}
 }
+
+func TestEveryEventTypeHasASentence(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	for _, e := range s.App.Events.Types() {
+		if !s.App.I18n.Has("event." + e.Name) {
+			t.Errorf("event type %q has no event.%s message", e.Name, e.Name)
+		}
+	}
+}
+
+func TestEveryJobTypeHasATitle(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	for _, name := range s.App.Jobs.Types() {
+		if !s.App.I18n.Has("job." + name) {
+			t.Errorf("job type %q has no job.%s message", name, name)
+		}
+	}
+}

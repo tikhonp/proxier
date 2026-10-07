@@ -90,3 +90,30 @@ func TestPlaceholdersAndMissingKeys(t *testing.T) {
 		t.Error("From without a localizer must not be nil")
 	}
 }
+
+func TestClockDayAndDuration(t *testing.T) {
+	tz, _ := time.LoadLocation("Europe/Moscow")
+	at := time.Date(2026, 10, 7, 12, 14, 40, 0, time.UTC)
+	en := NewCatalog().Localizer(EN, tz)
+	if en.Clock(at) != "15:14:40" || en.Day(at) != "2026-10-07" {
+		t.Fatalf("%s %s", en.Clock(at), en.Day(at))
+	}
+	ru := NewCatalog().Localizer(RU, tz)
+	for _, c := range []struct {
+		d        time.Duration
+		en, want string
+	}{
+		{300 * time.Millisecond, "< 1 s", "< 1 с"},
+		{21 * time.Second, "21 s", "21 с"},
+		{112 * time.Second, "1 min 52 s", "1 мин 52 с"},
+		{4 * time.Minute, "4 min", "4 мин"},
+		{125 * time.Minute, "2 h 5 min", "2 ч 5 мин"},
+	} {
+		if got := en.Duration(c.d); got != c.en {
+			t.Errorf("%v: %q, want %q", c.d, got, c.en)
+		}
+		if got := ru.Duration(c.d); got != c.want {
+			t.Errorf("%v: %q, want %q", c.d, got, c.want)
+		}
+	}
+}

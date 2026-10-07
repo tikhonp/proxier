@@ -64,7 +64,7 @@ type Shell struct {
 	Nav      []NavGroup
 	Keys     Keymap
 	Warning  *HeaderWarning  // optional warning cell (0d: Telegram)
-	JobsCell templ.Component // 0b: static "no jobs running"; 0c replaces
+	JobsCell templ.Component // the header cell, polled from /jobs/cell
 	PageKeys string          // key line hint when nothing is under the cursor (i18n key)
 }
 
@@ -92,6 +92,12 @@ type SettingsPage struct {
 	Slug  string // "/settings/<slug>"
 	Title string // i18n key
 	Order int    // General 10, Security 20, SSH 30, Integrations 40, Notifications 50, … About 900
+}
+
+// SubjectRef names a subject of an event or job and links to it.
+type SubjectRef struct {
+	Label string
+	Href  string
 }
 
 type SearchHit struct {
@@ -169,3 +175,33 @@ func csrfHeaders(token string) string {
 }
 
 const htmxConfig = `{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"historyCacheSize":0,"refreshOnHistoryMiss":true}`
+
+// Chip is a filter shown as a pressed or released link.
+type Chip struct {
+	Label string // already translated
+	Href  string
+	On    bool
+}
+
+// FilterForm is the part of a filter bar that needs a choice: selects sent
+// with a GET.
+type FilterForm struct {
+	Action  string
+	Selects []FilterSelect
+	Hidden  map[string]string // filters to keep
+	Apply   string            // already translated
+}
+
+type FilterSelect struct {
+	Name, Label string // Label already translated
+	Value       string
+	Options     []FilterOption
+}
+
+type FilterOption struct{ Value, Label string }
+
+// JobsCellView feeds the header jobs cell.
+type JobsCellView struct {
+	Running int
+	Failed  int // failed since the admin last looked
+}

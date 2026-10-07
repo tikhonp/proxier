@@ -22,7 +22,6 @@ import (
 	"github.com/tikhonp/proxier/internal/platform"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
-	"github.com/tikhonp/proxier/internal/platform/httpx"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/obs"
 )
@@ -97,9 +96,9 @@ func serve() int {
 
 	log.Info("starting", "version", obs.AppVersion, "listen", cfg.Listen, "base_url", cfg.BaseURL.String(),
 		"modules", len(app.Modules))
-	err = httpx.Run(ctx, app.HTTP(), cfg.Listen, func(a net.Addr) { log.Info("listening", "addr", a.String()) })
+	err = app.Serve(ctx, func(a net.Addr) { log.Info("listening", "addr", a.String()) })
 	if err != nil {
-		log.Error("http", "error", err)
+		log.Error("serve", "error", err)
 		return 1
 	}
 	log.Info("stopped")

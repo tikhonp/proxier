@@ -1,0 +1,45 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ activityPage(s ui.Shell, v activityView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "nav.activity") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "activity.note") }</p>
+			</div>
+		</div>
+		@ui.FilterBar(v.Chips, v.Form, v.Clear)
+		if len(v.Days) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "activity.empty"), "")
+		}
+		for _, d := range v.Days {
+			<div class="dayhead">{ d.Day }</div>
+			for _, r := range d.Rows {
+				<div class="row actrow pc-row" data-row={ r.Time + r.Actor }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="subtle">{ r.Time }</span>
+					<span class={ templ.KV("subtle", r.Actor == "system") }>{ r.Actor }</span>
+					<span class="subtle">
+						if r.Plain != "" {
+							{ r.Plain }
+						} else {
+							{ r.Pre }
+							if r.Subject.Href != "" {
+								<a href={ templ.SafeURL(r.Subject.Href) } class="text">{ r.Subject.Label }</a>
+							} else {
+								<span class="text">{ r.Subject.Label }</span>
+							}
+							{ r.Post }
+						}
+					</span>
+				</div>
+			}
+		}
+		@ui.Pager(v.Info, v.Older)
+	}
+}

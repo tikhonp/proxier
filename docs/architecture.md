@@ -112,7 +112,7 @@ All long or remote work runs as **jobs** stored in SQLite, so they survive resta
 - **States**: `queued` → `running` → `succeeded` | `failed` | `cancelled`. `interrupted` is recorded when a restart cut a job short.
 - **Steps**: a job is a sequence of named steps. Step state is stored, the UI shows progress per step, and an interrupted or retried job resumes from the first step that didn't finish. Every step is written so that running it twice is harmless.
 - **Resource key**: at most one running job per key (`server:12`, `router:3`). Others with the same key wait in the queue. Health checks skip a server whose resource key is busy with a mutating job.
-- **Coalescing key**: enqueueing a job whose coalescing key matches a queued (not yet running) job merges into it. If the matching job is already running, exactly one follow-up is queued. Router syncs use this, so adding five services in a minute causes one sync, not five.
+- **Coalescing key**: enqueueing a job whose coalescing key matches a queued (not yet running) job merges into it, but only if that job has never started. If the matching job is running (or has started and waits for a retry), exactly one follow-up is queued, and further requests merge into the follow-up. Router syncs use this, so adding five services in a minute causes one sync, not five.
 - **Delay**: jobs can be queued to run after a moment. Router syncs wait 30 s after the triggering change, to gather more changes.
 - **Retries**: each job type declares attempts and backoff, e.g. a router sync tries 4 times (5 min, 15 min, 1 h).
 - **Cancellation**: a queued job is cancelled at once. A running job gets a cancel request, and its handler stops at the next step boundary (or inside a step that supports it).
@@ -123,7 +123,7 @@ All long or remote work runs as **jobs** stored in SQLite, so they survive resta
 
 Every state change records an **event** in the same transaction as the change ([events catalog](./events.md)): time, module, type, subject (`server:12`), actor (`admin`, `system`, `job:<id>`), and a payload. Events are append-only and are the activity history.
 
-A **dispatcher** delivers committed events to subscribers after the commit: other modules' reactions, and the notifier. Delivery is at least once, tracked by a cursor per subscriber, so every handler must be idempotent. Nothing slow or remote happens inside a transaction: a reaction that needs the network enqueues a job.
+A **dispatcher** delivers committed events to subscribers after the commit: other modules' reactions, and the notifier. Delivery is at least once, tracked by a cursor per subscriber. A handler runs inside the write transaction that advances its cursor, so a reaction that only writes locally happens exactly once; any other handler must be idempotent. A subscriber seen for the first time starts at the newest event. Nothing slow or remote happens inside a transaction: a reaction that needs the network enqueues a job.
 
 ## Reconciliation
 

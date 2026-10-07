@@ -188,7 +188,7 @@
 
   // ---- clicks ------------------------------------------------------------
   document.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('[data-open-palette],[data-menu-toggle],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-switch]') : null;
+    var t = e.target.closest ? e.target.closest('[data-open-palette],[data-menu-toggle],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-copy-from],[data-switch]') : null;
     var menu = $('#admin-pop');
     if (menu && !menu.classList.contains('hidden') && !(e.target.closest && e.target.closest('.admin-menu'))) closeMenu();
     if (pal && !pal.classList.contains('hidden') && e.target === pal) closePalette();
@@ -208,6 +208,11 @@
     if (t.hasAttribute('data-dialog-close')) {
       var dd = t.closest('dialog');
       if (dd) dd.close();
+      return;
+    }
+    if (t.hasAttribute('data-copy-from')) {
+      var src = $(t.getAttribute('data-copy-from'));
+      if (src && navigator.clipboard) navigator.clipboard.writeText(Array.prototype.map.call(src.children, function (r) { return r.textContent; }).join('\n')).then(function () { say('Copied'); });
       return;
     }
     if (t.hasAttribute('data-copy')) {
@@ -286,7 +291,8 @@
       case 'g': setPending(true); e.preventDefault(); return;
       case 'j': case 'ArrowDown': if (rows().length) { setCursor(cursor + 1); e.preventDefault(); } return;
       case 'k': case 'ArrowUp': if (rows().length) { setCursor(cursor < 0 ? 0 : cursor - 1); e.preventDefault(); } return;
-      case 'G': if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
+      case 'f': { var lg = $('#log'); if (lg) { follow = !follow; if (follow && lg.lastElementChild) lg.lastElementChild.scrollIntoView(); say(follow ? 'Following' : 'Not following'); e.preventDefault(); } return; }
+      case 'G': if (!rows().length) { var l2 = $('#log'); if (l2 && l2.lastElementChild) { l2.lastElementChild.scrollIntoView(); e.preventDefault(); } } else if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
       case 'Enter': {
         var r = currentRow();
         if (r) { var href = r.getAttribute('data-href'); if (href) { window.location.href = href; e.preventDefault(); } }
@@ -311,6 +317,28 @@
       if (el && el.offsetParent !== null) { el.click(); e.preventDefault(); }
     }
   });
+
+  // ---- live job log: EventSource reconnects with Last-Event-ID by itself
+  var follow = true;
+  (function () {
+    var log = $('#log[data-stream]');
+    if (!log || !window.EventSource) return;
+    var es = new EventSource(log.getAttribute('data-stream'));
+    function swap(id, html) {
+      var old = document.getElementById(id);
+      if (!old) return;
+      var t = document.createElement('template');
+      t.innerHTML = html;
+      if (t.content.firstElementChild) old.replaceWith(t.content.firstElementChild);
+    }
+    es.addEventListener('line', function (e) {
+      log.insertAdjacentHTML('beforeend', e.data);
+      if (follow && log.lastElementChild) log.lastElementChild.scrollIntoView({ block: 'nearest' });
+    });
+    es.addEventListener('steps', function (e) { swap('job-steps', e.data); });
+    es.addEventListener('state', function (e) { swap('job-head', e.data); });
+    es.addEventListener('done', function () { es.close(); });
+  })();
 
   // htmx swaps leave the cursor pointing at nothing
   document.addEventListener('htmx:afterSwap', function () { cursor = -1; });

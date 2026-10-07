@@ -7,10 +7,13 @@ import (
 	"log/slog"
 	"sort"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/config"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -32,16 +35,25 @@ type Deps struct {
 	Nav           []ui.NavItem
 	SettingsPages []ui.SettingsPage
 	Searchers     []Searcher
+	Jobs          *jobs.System
+	Query         sqlx.QueryerContext // the read pool, for Activity
+	Events        *events.Catalog
+	Namers        []Namer
+	// Closing is closed when the server starts shutting down; live streams
+	// end then.
+	Closing <-chan struct{}
 }
 
 type handler struct {
 	Deps
 	secure bool
+	names  *subjectNames
 }
 
 // Register adds the platform's routes to r.
 func Register(r web.Routes, d Deps) {
-	h := &handler{Deps: d, secure: d.Cfg.BaseURL != nil && d.Cfg.BaseURL.Scheme == "https"}
+	h := &handler{Deps: d, secure: d.Cfg.BaseURL != nil && d.Cfg.BaseURL.Scheme == "https",
+		names: newSubjectNames(d.Log, d.Settings, d.Namers)}
 
 	r.Open.GET("/login", h.loginPage)
 	r.Open.POST("/login", h.login)
@@ -49,6 +61,16 @@ func Register(r web.Routes, d Deps) {
 
 	r.Admin.GET("/", h.dashboard)
 	r.Admin.GET("/search", h.search)
+
+	r.Admin.GET("/jobs", h.jobsPage)
+	r.Admin.GET("/jobs/cell", h.jobsCell)
+	r.Admin.POST("/jobs/demo", h.runDemo)
+	r.Admin.GET("/jobs/:id", h.jobPage)
+	r.Admin.GET("/jobs/:id/stream", h.jobStream)
+	r.Admin.GET("/jobs/:id/log.txt", h.jobLogText)
+	r.Admin.POST("/jobs/:id/cancel", h.jobCancel)
+	r.Admin.POST("/jobs/:id/retry", h.jobRetry)
+	r.Admin.GET("/activity", h.activityPage)
 	r.Admin.POST("/me/language", h.setLanguage)
 
 	r.Admin.GET("/settings", func(c *echo.Context) error { return web.Redirect(c, "/settings/general") })
@@ -68,7 +90,7 @@ func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	q := web.FromContext(c.Request().Context())
 	s := ui.Shell{
 		Title: title, Path: path, Lang: q.Loc.Lang,
-		Nav: h.navGroups(), Keys: h.keymap(), JobsCell: ui.JobsCellIdle(), PageKeys: "ui.hints.default",
+		Nav: h.navGroups(), Keys: h.keymap(), JobsCell: h.jobsCellView(c), PageKeys: "ui.hints.default",
 	}
 	if q.Session != nil {
 		s.CSRF = q.Session.CSRF

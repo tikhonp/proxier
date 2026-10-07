@@ -23,6 +23,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/vault"
@@ -80,6 +81,10 @@ type Deps struct {
 	Settings *settings.Store
 	I18n     *i18n.Catalog
 	Auth     *auth.Service
+	// Jobs enqueues work; Dispatcher is for modules that react to events
+	// outside SubscriberDeclarer.
+	Jobs       *jobs.System
+	Dispatcher *events.Dispatcher
 }
 
 // Initializer is called by platform.Open after the platform services exist.
@@ -100,4 +105,20 @@ type SettingsPageDeclarer interface{ SettingsPages() []ui.SettingsPage }
 // Searcher is a module whose things appear in the search pop-up's "Go to".
 type Searcher interface {
 	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)
+}
+
+// JobDeclarer is a module with job types and schedules (docs/processes/platform/jobs.md).
+type JobDeclarer interface {
+	JobTypes() []jobs.Type
+	Schedules() []jobs.Schedule
+}
+
+// SubscriberDeclarer is a module that reacts to committed events.
+type SubscriberDeclarer interface{ Subscribers() []events.Subscriber }
+
+// SubjectNamer names the subjects of events and jobs for Activity and the Jobs
+// pages: a label and a link. An unnamed subject shows as type:id.
+type SubjectNamer interface {
+	SubjectTypes() []string
+	NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error)
 }
