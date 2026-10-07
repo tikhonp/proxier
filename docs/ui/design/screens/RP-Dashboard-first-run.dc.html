@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard — first run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Settings.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>Telegram not set up</a>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:20px 16px 16px;border-bottom:1px solid #26233a">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Dashboard</h1>
+<p style="color:#908caa;margin-top:8px">Nothing to watch yet. Set up the integrations, then add a server.</p>
+</div>
+
+<section aria-labelledby="fr-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="fr-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Getting started</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">2 of 7 done · this goes away when all are done</span>
+<span style="flex:1"></span>
+<span style="display:flex;gap:2px" aria-hidden="true"><span style="width:24px;height:4px;background:#31748f"></span><span style="width:24px;height:4px;background:#31748f"></span><span style="width:24px;height:4px;background:#26233a"></span><span style="width:24px;height:4px;background:#26233a"></span><span style="width:24px;height:4px;background:#26233a"></span><span style="width:24px;height:4px;background:#26233a"></span><span style="width:24px;height:4px;background:#26233a"></span></span>
+</div>
+<div style="padding:8px 0">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="7">
+<div class="pc-row {{s.cls}}" style="position:relative;display:grid;grid-template-columns:24px 260px minmax(0,1fr) 220px;gap:12px;align-items:center;min-height:40px;padding:4px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:10px">{{s.car}}</span>
+<span aria-hidden="true" style="display:flex;justify-content:center"><span style="{{s.m}}"></span></span>
+<span style="font-weight:600;color:{{s.tc}}">{{s.title}}</span>
+<span style="color:#908caa">{{s.what}}</span>
+<span style="display:flex;justify-content:flex-end">
+<sc-if value="{{s.todo}}" hint-placeholder-val="{{ true }}"><a href="{{s.href}}" class="pc-btn pc-sm {{s.bcls}}">{{s.action}}</a></sc-if>
+<sc-if value="{{s.done}}" hint-placeholder-val="{{ false }}"><span style="font-size:12px;color:#908caa">{{s.action}}</span></sc-if>
+</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+<sc-for list="{{empties}}" as="e" hint-placeholder-count="4">
+<section style="background:#000000;padding-bottom:20px">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{e.title}}</h2>
+</div>
+<div style="padding:20px 16px 0;display:flex;flex-direction:column;gap:6px;align-items:flex-start">
+<p>{{e.none}}</p>
+<p style="color:#908caa;max-width:520px">{{e.what}}</p>
+<a href="{{e.href}}" class="pc-btn pc-sm" style="margin-top:8px">{{e.action}}</a>
+</div>
+</section>
+</sc-for>
+</div>
+
+<section style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Recent activity</h2>
+</div>
+<div style="height:8px"></div>
+<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">2 min ago</span><span style="color:#908caa">Cloudflare connected: zone <span style="color:#e0def4">tikhonnnnn.com</span></span></div>
+<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">9 min ago</span><span style="color:#908caa">SSH key pair generated · <span style="color:#e0def4">ed25519</span></span></div>
+<div style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">9 min ago</span><span style="color:#908caa">Proxier started for the first time · routing list <span style="color:#e0def4">Main</span> created</span></div>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> set up Telegram</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 10:04:12</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const DONE = 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f';
+    const TODO = 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa';
+    const step = (done, title, what, action, href, cur, pri) => ({
+      title: title, what: what, action: action, href: href, done: done, todo: !done,
+      m: done ? DONE : TODO, tc: done ? '#908caa' : '#e0def4',
+      cls: cur ? 'pc-cur' : '', car: cur ? '›' : '', bcls: pri ? 'pc-pri' : ''
+    });
+    return {
+      nav: this.nav('dashboard', {}),
+      steps: [
+        step(true, 'SSH key pair', 'Proxier made its key. It goes on every server, router and jump host.', 'done 9 min ago', '#'),
+        step(true, 'Cloudflare', 'Writes the DNS records for new servers. Zone tikhonnnnn.com.', 'done 2 min ago', '#'),
+        step(false, 'Telegram', 'Where alerts go. Without it nothing reaches you when a server is blocked.', 'Set up Telegram', 'RP-Settings.dc.html', true, true),
+        step(false, 'Your SSH keys', 'Your own public keys, added to every new server so you can always log in.', 'Add keys', 'RP-Settings.dc.html'),
+        step(false, 'First server', 'A fresh VPS with root access. Proxier installs the proxy and checks it.', 'New server', 'RP-Server-new.dc.html'),
+        step(false, 'First subscription and link', 'A set of servers people get, and the link they paste into their app.', 'New subscription', 'RP-Subscriptions.dc.html'),
+        step(false, 'First router', 'A MikroTik at home that sends chosen sites through the tunnel.', 'Add router', 'RP-Router-add.dc.html')
+      ],
+      empties: [
+        { title: 'Fleet', none: 'No servers yet.', what: 'A server is a VPS that Proxier sets up and then checks every 5 minutes from home, from Russia and from abroad.', action: 'New server', href: 'RP-Server-new.dc.html' },
+        { title: 'Links', none: 'No links yet.', what: 'A link is the subscription URL one person pastes into their app. You can expire, disable or cut it off at any time.', action: 'New link', href: 'RP-Link-new.dc.html' },
+        { title: 'Routing', none: 'The list Main is empty and no router follows it.', what: 'Add the services whose sites should go through the tunnel, then add your router.', action: 'Search services', href: 'RP-Search.dc.html' },
+        { title: 'Jobs', none: 'Nothing has run yet.', what: 'Long work (provisioning, syncs, checks) runs as jobs with a live log. They show up here.', action: 'Jobs', href: 'RP-Jobs.dc.html' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

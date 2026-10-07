@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Rolling upgrade to v3</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>1 job running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Servers.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>Rolling upgrade</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Upgrade 3 servers to v3</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>running · 1 of 3 done</span>
+</div>
+<p style="color:#908caa;margin-top:4px">One server at a time, in name order. The next starts only after the previous one's proxy test passes. The first failure stops the rollout.</p>
+</div>
+<button type="button" class="pc-btn">Stop after this server</button>
+</div>
+
+<div style="display:flex;gap:2px;padding:14px 16px;border-bottom:1px solid #26233a" aria-hidden="true">
+<span style="flex:1;height:6px;background:#31748f"></span>
+<span style="flex:1;height:6px;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>
+<span style="flex:1;height:6px;background:#26233a"></span>
+</div>
+
+<div style="display:grid;grid-template-columns:28px 90px 150px 150px minmax(0,1fr) 120px;gap:16px;padding:12px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span></span><span>Server</span><span>State</span><span>Version</span><span>Step</span><span>Time</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="3">
+<div class="pc-row {{r.cls}}" style="position:relative;display:grid;grid-template-columns:28px 90px 150px 150px minmax(0,1fr) 120px;gap:16px;align-items:center;padding:7px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:7px">{{r.car}}</span>
+<span style="color:#6e6a86">{{r.n}}</span>
+<a href="{{r.href}}" style="font-weight:600;text-decoration:none">{{r.name}}</a>
+<span style="display:inline-flex;align-items:center;gap:7px;color:{{r.c}}"><span aria-hidden="true" style="{{r.m}}"></span>{{r.state}}</span>
+<span style="color:#908caa">{{r.ver}}</span>
+<span style="color:#908caa">{{r.step}}</span>
+<span style="color:#908caa">{{r.t}}</span>
+</div>
+</sc-for>
+
+<section aria-labelledby="log-h" style="margin-top:12px;border-top:1px solid #26233a;flex:1">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="log-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">pl-1 · live log</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">following</span>
+<span style="flex:1"></span>
+<a href="RP-Job.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Job #418 →</a>
+</div>
+<div style="background:#191724;font-size:12px;line-height:19px;padding:8px 0">
+<sc-for list="{{log}}" as="l" hint-placeholder-count="7">
+<div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:0 16px;background:{{l.bg}}"><span style="color:#908caa">{{l.t}}</span><span style="color:{{l.c}};font-weight:{{l.w}}">{{l.s}}</span></div>
+</sc-for>
+</div>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> open pl-1</span>
+<span><span style="color:#e0def4;font-weight:600">f</span> follow the log</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 17:06:41</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const L = (t, s, kind) => ({ t: t, s: s, c: kind === 'ok' ? '#9ccfd8' : '#e0def4', w: kind === 'step' ? '600' : '400', bg: kind === 'step' ? '#21202e' : 'transparent' });
+    return {
+      nav: this.nav('servers', {}),
+      rows: [
+        { n: '1', name: 'fi-1', href: 'RP-Server-overview.dc.html', state: 'upgraded', c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f', ver: 'v2 → v3', step: 'proxy test passed · 0.27 s', t: '2 min 41 s', cls: '', car: '' },
+        { n: '2', name: 'pl-1', href: 'RP-Server-overview.dc.html', state: 'upgrading', c: '#e0def4', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite', ver: 'v2 → v3', step: '3 of 5 · compose up -d', t: '48 s', cls: 'pc-cur', car: '›' },
+        { n: '3', name: 'se-1', href: 'RP-Server-overview.dc.html', state: 'not started', c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa', ver: 'v2 → v3', step: 'waits for pl-1', t: '—', cls: '', car: '' }
+      ],
+      log: [
+        L('17:05:53', '==> 1/5 Connect over SSH', 'step'),
+        L('17:05:54', 'host key SHA256:Kp0d…a1Vw matches the pinned key'),
+        L('17:05:54', '==> 2/5 Upload 4 files', 'step'),
+        L('17:05:56', 'compose.yaml, nginx/nginx.conf, xray/config.json, nginx/reload.sh'),
+        L('17:05:56', '==> 3/5 compose up -d', 'step'),
+        L('17:06:31', 'Pulling xray (ghcr.io/xtls/xray-core:25.9.11)… done'),
+        L('17:06:40', 'Recreating proxier-xray-1 … done', 'ok')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

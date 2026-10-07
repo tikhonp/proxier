@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Service — netflix</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:26px;padding:0 8px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0;font-size:12px}
+.pc-inp:focus{border-color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Services.dc.html" style="color:#908caa">Services</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>netflix</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">netflix</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>rejected snapshot waiting</span>
+</div>
+<p style="color:#908caa;margin-top:4px">v2fly:netflix · tag netflix · in Main and Parents · routers have 212 domains</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn">Refresh now</button>
+<button type="button" class="pc-btn">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<section aria-labelledby="rej-h" style="background:#140f0a;border-bottom:1px solid #624d30">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:14px 16px;border-bottom:1px solid #2c2315">
+<h2 id="rej-h" style="display:inline-flex;align-items:center;gap:10px;font-size:15px;line-height:22px;font-weight:600;color:#f6c177"><span aria-hidden="true" style="width:12px;height:11px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>Today's snapshot was held back</h2>
+<span>It has 83 domains instead of 212: a 61 % drop, above the 30 % safety limit.</span>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1px;background:#2c2315">
+<div style="background:#140f0a;padding:12px 16px">
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;margin-bottom:6px">Removed · 131</div>
+<p style="color:#eb6f92">− nflxvideo.net <span style="color:#908caa">and 119 more under it</span></p>
+<p style="color:#eb6f92">− nflximg.com, nflximg.net</p>
+<p style="color:#eb6f92">− nflxso.net, nflxext.com <span style="color:#908caa">· 8 more</span></p>
+</div>
+<div style="background:#140f0a;padding:12px 16px">
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;margin-bottom:6px">Likely cause</div>
+<p>The v2fly list now includes <span style="color:#f6c177">netflix-cdn</span>, which Proxier doesn't follow yet. The 131 domains moved there.</p>
+<p style="color:#908caa;margin-top:4px">v2fly commit 8f2c1e0 · 6 Oct</p>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:12px 16px">
+<button type="button" class="pc-btn pc-pri">Keep 212, dismiss this one</button>
+<button type="button" class="pc-btn">Accept anyway…</button>
+<a href="RP-Search.dc.html" class="pc-btn">Add v2fly:netflix-cdn…</a>
+<span style="color:#908caa;font-size:12px">Routers keep the 212 domains until you decide.</span>
+</div>
+</section>
+
+<div style="flex:1;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)">
+
+<section aria-labelledby="dom-h" style="border-right:1px solid #26233a;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:5px 16px;border-bottom:1px solid #26233a">
+<h2 id="dom-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Domains · accepted snapshot</h2>
+<span style="font-size:12px;color:#908caa">212 · 198 suffix, 14 exact · 3 skipped</span>
+<span style="flex:1"></span>
+<input class="pc-inp" aria-label="Filter domains" placeholder="filter…" style="width:160px">
+</div>
+<sc-for list="{{domains}}" as="d" hint-placeholder-count="9">
+<div class="pc-row" style="display:grid;grid-template-columns:minmax(0,1fr) 70px minmax(0,1fr);gap:16px;padding:4px 16px;color:{{d.c}}">
+<span>{{d.name}}</span><span style="color:#908caa">{{d.kind}}</span><span style="color:#908caa">{{d.note}}</span>
+</div>
+</sc-for>
+<p style="padding:8px 16px;color:#908caa">9 of 212 · <a href="#" style="color:#908caa">all domains</a> · <a href="#" style="color:#908caa">3 skipped</a></p>
+</section>
+
+<aside style="display:flex;flex-direction:column">
+<section aria-labelledby="ov-h" style="border-bottom:1px solid #26233a;padding-bottom:12px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="ov-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Source</h2></div>
+<dl style="display:grid;grid-template-columns:130px minmax(0,1fr);gap:6px 12px;padding:12px 16px 0">
+<dt style="color:#908caa">Selector</dt><dd>v2fly:netflix</dd>
+<dt style="color:#908caa">Last check</dt><dd>today 04:00 · fetched ok</dd>
+<dt style="color:#908caa">Last accepted</dt><dd>5 Oct 04:00 · 212</dd>
+<dt style="color:#908caa">Lists</dt><dd><a href="RP-List.dc.html">Main</a> #4 · <a href="RP-List.dc.html">Parents</a> #2</dd>
+</dl>
+</section>
+<section aria-labelledby="hi-h" style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="hi-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Snapshots</h2></div>
+<div style="height:6px"></div>
+<sc-for list="{{history}}" as="h" hint-placeholder-count="4">
+<div class="pc-row" style="display:grid;grid-template-columns:96px 100px minmax(0,1fr);gap:12px;padding:5px 16px">
+<span style="color:#908caa">{{h.t}}</span>
+<span style="color:{{h.c}}">{{h.state}}</span>
+<span><span>{{h.n}}</span> <span style="color:#9ccfd8">{{h.add}}</span> <span style="color:#eb6f92">{{h.del}}</span></span>
+</div>
+</sc-for>
+</section>
+</aside>
+
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">r</span> refresh now</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> domains</span>
+<span><span style="color:#e0def4;font-weight:600">y</span> copy domain</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const d = (name, kind, note, other) => ({ name: name, kind: kind, note: note || '', c: other ? '#908caa' : '#e0def4' });
+    return {
+      nav: this.nav('services', {}),
+      domains: [
+        d('netflix.com', 'suffix'),
+        d('netflix.net', 'suffix'),
+        d('nflxvideo.net', 'suffix'),
+        d('nflximg.com', 'suffix'),
+        d('nflxso.net', 'suffix'),
+        d('fast.com', 'suffix'),
+        d('netflix.ca', 'suffix'),
+        d('api-global.netflix.com', 'exact', 'covered by netflix.com'),
+        d('netflixdnstest1.com', 'suffix', 'owned by streaming-misc in Parents', true)
+      ],
+      history: [
+        { t: 'today 04:00', state: 'rejected', c: '#f6c177', n: '83', add: '+2', del: '−131' },
+        { t: '5 Oct 04:00', state: 'accepted', c: '#908caa', n: '212', add: '+1', del: '' },
+        { t: '4 Oct 04:00', state: 'superseded', c: '#6e6a86', n: '211', add: '', del: '' },
+        { t: '1 Oct 12:30', state: 'accepted', c: '#908caa', n: '211', add: '+211', del: '' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

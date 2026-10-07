@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>de-1 — Health</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+.pc-sb{position:relative;height:26px;padding:0 10px;margin-left:-1px;background:transparent;border:1px solid #6e6a86;color:#908caa;font-size:12px;white-space:nowrap}
+.pc-sb:first-child{margin-left:0}
+.pc-sb:hover{border-color:#908caa;color:#e0def4;z-index:1}
+.pc-sb[aria-pressed="true"]{border-color:#e0def4;color:#e0def4;z-index:2}
+.pc-sb:focus-visible{outline-offset:-1px;z-index:3}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Server-provisioning.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>2 jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>de-1</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">de-1</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#c4a7e7"><span aria-hidden="true" style="width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>blocked</span>
+<span style="font-size:12px;color:#908caa" title="Mon 5 Oct 2026, 14:20 MSK">since 14:20 · 2 h 32 min</span>
+</div>
+<p style="color:#908caa;margin-top:4px">Germany · 198.51.100.7 · de-1.hosts.tikhonnnnn.com · VLESS XHTTP behind nginx v3</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn pc-pri">Run checks now</button>
+<button type="button" class="pc-btn">Pause checks<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+<button type="button" class="pc-btn" aria-label="More actions for de-1">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;border-bottom:1px solid #26233a">
+<nav aria-label="Server sections" style="display:flex;flex-wrap:wrap;overflow-x:auto">
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Overview</a>
+<a href="#" aria-current="page" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;background:#26233a">Health</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Stats</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Stack</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Jobs</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Activity</a>
+</nav>
+</div>
+
+<section aria-labelledby="verdict-h" style="background:#100d12;border-bottom:1px solid #4e435c">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:14px 16px;border-bottom:1px solid #312a3a">
+<h2 id="verdict-h" style="display:inline-flex;align-items:center;gap:10px;font-size:15px;line-height:22px;font-weight:600;color:#c4a7e7"><span aria-hidden="true" style="width:12px;height:12px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>Blocked</h2>
+<span>de-1 works and the rest of the internet can reach it, but it can't be used from Russia.</span>
+</div>
+<div style="padding:12px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Why blocked, not down</div>
+<div style="padding:0 0 8px">
+<sc-for list="{{why}}" as="w" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:minmax(150px,220px) 120px minmax(0,1fr);gap:4px 16px;align-items:center;padding:5px 16px">
+<span style="color:#908caa">{{w.check}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{w.c}}"><span aria-hidden="true" style="{{w.m}}"></span>{{w.result}}</span>
+<span>{{w.meaning}}</span>
+</div>
+</sc-for>
+<p style="padding:5px 16px;color:#908caa">Down would need the server itself to fail: SSH unreachable, or its stack broken.</p>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #312a3a;color:#908caa">Hidden from <a href="RP-Subscription.dc.html">Family</a> since 14:50 (hide unhealthy, 30 min grace). Still served in Me — everything. Notified at 14:20; next reminder at 14:20 tomorrow.</p>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px">
+<button type="button" class="pc-btn">Visit a site through de-1…</button>
+</div>
+</section>
+
+<section aria-labelledby="matrix-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="matrix-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Latest checks</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">results older than two intervals don't count</span>
+</div>
+<div style="overflow-x:auto">
+<div style="min-width:940px;padding-bottom:8px">
+<div style="display:grid;grid-template-columns:minmax(200px,1.2fr) 110px minmax(220px,1.6fr) 90px 150px;gap:16px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span>Check</span><span>Result</span><span>Detail</span><span>When</span><span>24 h</span>
+</div>
+<sc-for list="{{matrix}}" as="r" hint-placeholder-count="14">
+<sc-if value="{{r.group}}" hint-placeholder-val="{{ false }}">
+<div style="padding:12px 16px 4px;font-size:12px;color:#e0def4">{{r.label}} <span style="color:#908caa">{{r.sub}}</span></div>
+</sc-if>
+<sc-if value="{{r.row}}" hint-placeholder-val="{{ true }}">
+<div class="pc-row {{r.cls}}" style="position:relative;display:grid;grid-template-columns:minmax(200px,1.2fr) 110px minmax(220px,1.6fr) 90px 150px;gap:16px;align-items:center;padding:5px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:5px">{{r.car}}</span>
+<span style="padding-left:12px">{{r.check}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{r.c}}"><span aria-hidden="true" style="{{r.m}}"></span>{{r.result}}</span>
+<span style="color:#908caa">{{r.detail}}</span>
+<span style="color:#908caa;font-size:12px">{{r.when}}</span>
+<span title="{{r.spark}}" style="display:flex;gap:1px;align-items:center;height:16px">
+<sc-for list="{{r.cells}}" as="x" hint-placeholder-count="48">
+<span style="width:2px;height:14px;flex:none;background:{{x.c}}"></span>
+</sc-for>
+</span>
+</div>
+</sc-if>
+</sc-for>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="tl-h" style="flex:1">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<div style="flex:1;display:flex;align-items:center;padding:8px 16px">
+<h2 id="tl-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Health timeline</h2>
+</div>
+<div role="group" aria-label="Range" style="display:flex;align-self:center;margin-right:16px">
+<button type="button" aria-pressed="true" class="pc-sb">24 h</button>
+<button type="button" aria-pressed="false" class="pc-sb">7 d</button>
+<button type="button" aria-pressed="false" class="pc-sb">30 d</button>
+</div>
+</div>
+<div style="padding:16px 16px 0">
+<div style="display:flex;gap:2px;height:18px" aria-label="Healthy until 03:10, degraded 03:10 to 03:40, healthy until 14:20, blocked since 14:20">
+<sc-for list="{{segments}}" as="sg" hint-placeholder-count="4">
+<span title="{{sg.title}}" style="height:18px;flex:none;width:{{sg.w}};background:{{sg.c}}"></span>
+</sc-for>
+</div>
+<div style="position:relative;height:20px;margin-top:6px;font-size:11px;color:#908caa">
+<span style="position:absolute;left:0">16:52</span>
+<span style="position:absolute;left:4.7%">18:00</span>
+<span style="position:absolute;left:29.7%">00:00</span>
+<span style="position:absolute;left:54.7%">06:00</span>
+<span style="position:absolute;left:79.7%">12:00</span>
+<span style="position:absolute;right:0">now</span>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px 20px;margin-top:6px;font-size:12px;color:#908caa">
+<span style="display:inline-flex;align-items:center;gap:7px"><span aria-hidden="true" style="width:10px;height:10px;background:#31748f"></span>healthy 21 h 58 min</span>
+<span style="display:inline-flex;align-items:center;gap:7px"><span aria-hidden="true" style="width:10px;height:10px;background:#f6c177"></span>degraded 30 min</span>
+<span style="display:inline-flex;align-items:center;gap:7px"><span aria-hidden="true" style="width:10px;height:10px;background:#c4a7e7"></span>blocked 2 h 32 min</span>
+</div>
+</div>
+<div style="margin-top:16px;padding:8px 0;border-top:1px solid #26233a">
+<sc-for list="{{changes}}" as="h" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:72px 230px minmax(0,1fr);gap:4px 16px;padding:6px 16px;align-items:baseline">
+<span style="color:#908caa">{{h.t}}</span>
+<span style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="color:{{h.fc}}">{{h.from}}</span><span style="color:#6e6a86">→</span><span style="color:{{h.tc}}">{{h.to}}</span></span>
+<span style="color:#908caa">{{h.reason}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> open endpoint main</span>
+<span><span style="color:#e0def4;font-weight:600">r</span> run checks now</span>
+<span><span style="color:#e0def4;font-weight:600">p</span> pause checks</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+<span><span style="color:#e0def4;font-weight:600">[ ]</span> tabs</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1640}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const OK = { c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f' };
+    const FAIL = { c: '#eb6f92', m: 'width:8px;height:8px;flex:none;background:#eb6f92' };
+    const cells = (p) => (p + 'o'.repeat(48)).slice(0, 48).split('').map((ch) => ({ c: ch === 'o' ? '#31748f' : (ch === 'x' ? '#eb6f92' : (ch === 's' ? '#f6c177' : '#26233a')) }));
+    const allOk = 'o'.repeat(48);
+    const lateFail = 'o'.repeat(43) + 'x'.repeat(5);
+    const proxy = 'o'.repeat(20) + 's' + 'o'.repeat(22) + 'x'.repeat(5);
+    const flaky = 'oooxoooooooxoooooooooxooooooooooxoooooooooooooxox';
+    const row = (check, st, result, detail, when, p, spark, on) => ({ row: true, group: false, check: check, c: st.c, m: st.m, result: result, detail: detail, when: when, cells: cells(p), spark: spark, cls: on ? 'pc-cur' : '', car: on ? '›' : '' });
+    const group = (label, sub) => ({ group: true, row: false, label: label, sub: sub, cells: [] });
+    return {
+      nav: this.nav('servers', { servers: ['◆ 1', '#c4a7e7'] }),
+      why: [
+        { check: 'self-check over SSH', c: OK.c, m: OK.m, result: 'ok', meaning: 'the server and its stack work' },
+        { check: 'nodes abroad', c: OK.c, m: OK.m, result: '2/3 ok', meaning: 'the internet outside Russia reaches it' },
+        { check: 'proxy test from home', c: FAIL.c, m: FAIL.m, result: 'fails', meaning: 'stalls after 16 KB: throttled in Russia' },
+        { check: 'nodes in Russia', c: FAIL.c, m: FAIL.m, result: '0/3 ok', meaning: 'confirms it from three Russian networks' }
+      ],
+      matrix: [
+        group('Home internet', '· reference check every 1 min'),
+        row('reference check', OK, 'online', 'ya.ru 38 ms · cloudflare.com 61 ms', '16:52', allOk, 'ok all day'),
+        group('On the server', '· self-check over SSH every 5 min'),
+        row('compose-running', OK, 'ok', 'nginx, xray, certbot running', '16:50', allOk, 'ok all day'),
+        row('http-local', OK, 'ok', '200 in 41 ms', '16:50', allOk, 'ok all day'),
+        row('cert-expiry', OK, 'ok', '71 days left', '16:50', allOk, 'ok all day'),
+        row('disk-free', OK, 'ok', '78 % free', '16:50', allOk, 'ok all day'),
+        group('From home', '· proxy test every 5 min'),
+        row('endpoint main', FAIL, 'stalled', 'after 16 KB · connect 41 ms · tls 103 ms', '16:51', proxy, 'slow once at 03:10, failing since 14:20', true),
+        group('From Russia', '· check-host.net every 30 min'),
+        row('Moscow', FAIL, 'timeout', 'tcp 198.51.100.7:443', '16:40', lateFail, 'failing since 14:20'),
+        row('Saint Petersburg', FAIL, 'timeout', 'tcp 198.51.100.7:443', '16:40', lateFail, 'failing since 14:20'),
+        row('Yekaterinburg', FAIL, 'timeout', 'tcp 198.51.100.7:443', '16:40', lateFail, 'failing since 14:20'),
+        group('From abroad', '· check-host.net every 30 min'),
+        row('Frankfurt, DE', OK, 'ok', 'connect 12 ms', '16:40', allOk, 'ok all day'),
+        row('Helsinki, FI', OK, 'ok', 'connect 31 ms', '16:40', allOk, 'ok all day'),
+        row('Amsterdam, NL', FAIL, 'timeout', 'this node often times out', '16:40', flaky, 'fails now and then all day')
+      ],
+      segments: [
+        { w: 'calc(42.92% - 2px)', c: '#31748f', title: 'healthy · 16:52 to 03:10' },
+        { w: 'calc(2.08% - 2px)', c: '#f6c177', title: 'degraded · 03:10 to 03:40 · slow: 2.4 s to first byte' },
+        { w: 'calc(44.44% - 2px)', c: '#31748f', title: 'healthy · 03:40 to 14:20' },
+        { w: '10.56%', c: '#c4a7e7', title: 'blocked · since 14:20' }
+      ],
+      changes: [
+        { t: '14:20', from: 'healthy', fc: '#908caa', to: 'blocked', tc: '#c4a7e7', reason: 'Reachable from Germany and Finland, but the proxy fails from home (stalled after 16 KB); 0/3 Russian nodes connect. Notified.' },
+        { t: '03:40', from: 'degraded', fc: '#f6c177', to: 'healthy', tc: '#908caa', reason: 'Proxy test back within thresholds: 0.31 s to first byte.' },
+        { t: '03:10', from: 'healthy', fc: '#908caa', to: 'degraded', tc: '#f6c177', reason: 'Slow: 2.4 s to first byte. Not notified (degraded is off by default).' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

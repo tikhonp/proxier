@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Discover — example.com</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-btn:disabled:hover{background:transparent;border-color:#524f67}
+.pc-pri:disabled:hover{background:#e0def4;border-color:#e0def4}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}.pc-form{grid-template-columns:minmax(0,1fr) !important}.pc-form>label,.pc-form>span{padding-top:0 !important}}
+</style>
+</helmet>
+<div tabindex="0" onKeyDown="{{onKey}}" style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4;outline:0">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Discover</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>run #41</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">example.com</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>finished</span>
+<span style="font-size:12px;color:#908caa">16:31 · took 41 s · nothing changes until you save</span>
+</div>
+<p style="color:#908caa;margin-top:4px">https://app.example.com/ · visit through Auto · home page + up to 5 links · registrable domain example.com</p>
+</div>
+<button type="button" class="pc-btn">Visit again through…<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+
+<section aria-labelledby="sug-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="sug-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">1 · Already in the catalog</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">found in 12 ms, before the visit</span>
+</div>
+<div class="pc-row" style="display:grid;grid-template-columns:minmax(180px,auto) minmax(0,1fr) auto;gap:8px 20px;align-items:center;padding:8px 16px">
+<span style="font-weight:600">iplist:example.com</span>
+<span style="color:#908caa">contains example.com as a suffix · 6 domains · not a service yet</span>
+<button type="button" class="pc-btn pc-sm">Use suggestion…</button>
+</div>
+<p style="padding:0 16px 10px;font-size:12px;color:#908caa">The list may be missing hosts the site loads today. The visit below shows what it really uses.</p>
+</section>
+
+<section aria-labelledby="vis-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="vis-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">2 · Headless visits</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">fresh browser, no cookies, no sign-in</span>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(380px,100%),1fr));gap:1px;background:#26233a">
+<figure style="margin:0;background:#000000">
+<div style="height:200px;background:#191724;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border-bottom:1px solid #26233a;padding:16px;text-align:center">
+<span style="color:#eb6f92;font-weight:600">ERR_CONNECTION_RESET</span>
+<span style="font-size:12px;color:#908caa">screenshot · the page never loaded</span>
+</div>
+<figcaption style="display:flex;flex-wrap:wrap;gap:4px 12px;padding:8px 16px;font-size:12px">
+<span style="display:inline-flex;align-items:center;gap:7px;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>direct, from home</span>
+<span style="color:#908caa">3 of 4 hosts failed · repeated through nl-1</span>
+</figcaption>
+</figure>
+<figure style="margin:0;background:#000000">
+<div style="height:200px;background:#faf4ed;display:flex;flex-direction:column;gap:10px;padding:18px 22px;border-bottom:1px solid #26233a;overflow:hidden">
+<div style="display:flex;align-items:center;gap:10px"><span style="width:18px;height:18px;background:#464261"></span><span style="height:8px;width:90px;background:#9893a5"></span><span style="flex:1"></span><span style="height:8px;width:40px;background:#cecacd"></span><span style="height:8px;width:40px;background:#cecacd"></span></div>
+<div style="height:14px;width:62%;background:#464261;margin-top:12px"></div>
+<div style="height:8px;width:80%;background:#cecacd"></div>
+<div style="height:8px;width:72%;background:#cecacd"></div>
+<div style="display:flex;gap:10px;margin-top:10px"><span style="height:56px;flex:1;background:#f2e9e1"></span><span style="height:56px;flex:1;background:#f2e9e1"></span><span style="height:56px;flex:1;background:#f2e9e1"></span></div>
+</div>
+<figcaption style="display:flex;flex-wrap:wrap;gap:4px 12px;padding:8px 16px;font-size:12px">
+<span style="display:inline-flex;align-items:center;gap:7px;color:#e0def4"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>through nl-1</span>
+<span style="color:#908caa">loaded · 6 pages · 74 requests · 9 hosts</span>
+</figcaption>
+</figure>
+</div>
+</section>
+
+<section aria-labelledby="pick-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="pick-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">3 · Pick what to route</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">grouped by registrable domain · a ticked group is added as a suffix</span>
+</div>
+<div style="overflow-x:auto">
+<div style="min-width:940px;padding-bottom:6px">
+<div style="display:grid;grid-template-columns:28px minmax(200px,1.2fr) 150px 60px minmax(200px,1.3fr) minmax(140px,.9fr);gap:12px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span></span><span>Domain</span><span>Class</span><span style="text-align:right">Req</span><span>Failures on the direct visit</span><span>Covered by</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="6">
+<div class="pc-row {{r.cur}}" style="position:relative">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{r.car}}</span>
+<div style="display:grid;grid-template-columns:28px minmax(200px,1.2fr) 150px 60px minmax(200px,1.3fr) minmax(140px,.9fr);gap:12px;align-items:center;padding:6px 16px">
+<input type="checkbox" id="{{r.id}}" checked="{{r.on}}" onChange="{{r.toggle}}" style="accent-color:#e0def4;width:16px;height:16px;margin:0 0 0 4px">
+<label for="{{r.id}}" style="font-weight:600;cursor:pointer">{{r.domain}} <span style="font-weight:400;color:#908caa">{{r.hosts}}</span></label>
+<span style="color:{{r.cc}}">{{r.cls}}</span>
+<span style="text-align:right;color:#908caa">{{r.req}}</span>
+<span style="color:{{r.fc}}">{{r.fail}}</span>
+<span style="color:#908caa">{{r.cov}}</span>
+</div>
+<sc-if value="{{r.expanded}}" hint-placeholder-val="{{ false }}">
+<div style="padding:0 16px 8px 56px;display:flex;flex-direction:column;gap:2px;font-size:12px">
+<sc-for list="{{r.list}}" as="h" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(190px,1.2fr) 150px 60px minmax(200px,1.3fr);gap:12px;color:#908caa">
+<span>{{h.host}}</span><span>exact, if picked alone</span><span style="text-align:right">{{h.req}}</span><span style="color:{{h.fc}}">{{h.fail}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+<p style="padding:8px 16px;border-top:1px solid #26233a;color:#908caa">IP literals can't be routed (domains only): 203.0.113.5 · 1 request</p>
+</section>
+
+<section aria-labelledby="save-h" style="flex:1">
+<h2 id="save-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">4 · Save as a custom service</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+<label for="sn" style="padding-top:6px;color:#908caa">Name</label>
+<input id="sn" class="pc-inp" value="Example" style="width:100%;max-width:320px">
+<label for="st" style="padding-top:6px;color:#908caa">Tag on routers</label>
+<input id="st" class="pc-inp" value="example" style="width:100%;max-width:320px">
+<span style="color:#908caa">Routing lists</span>
+<div style="display:flex;flex-wrap:wrap;gap:6px 24px;align-items:center">
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">Main <span style="color:#908caa">· Home, iPhone</span></label>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="accent-color:#e0def4;margin:0">Parents</label>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:0 16px 16px">
+<button type="button" class="pc-btn pc-pri" disabled="{{none}}">{{createLabel}}</button>
+<button type="button" class="pc-btn" disabled="{{none}}">Add to an existing custom service…<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+<span style="font-size:12px;color:#908caa">{{summary}}</span>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Saving goes through the normal checks: normalising, ownership, and the guard that refuses any domain covering a server hostname. Home and the iPhone config sync about 30 s later.</p>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">space</span> {{pickHint}}</span>
+<span><span style="color:#e0def4;font-weight:600">↵</span> {{openHint}}</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> create the service</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:31:44</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1340}}'>
+class Component extends DCLogic {
+  state = { picked: { 'example.com': true, 'examplecdn.net': true }, open: { 'example.com': true }, cur: 0 };
+
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  groups() {
+    const RED = '#eb6f92';
+    const DIM = '#908caa';
+    const NONE = '#6e6a86';
+    return [
+      { domain: 'example.com', cls: 'first-party', cc: '#e0def4', req: 51, fail: 'reset ×9 on 3 of 4 hosts', fc: RED, cov: '—',
+        list: [
+          { host: 'app.example.com', req: 28, fail: 'reset ×4', fc: RED },
+          { host: 'api.example.com', req: 14, fail: 'reset ×3', fc: RED },
+          { host: 'ws.example.com', req: 5, fail: 'reset ×2', fc: RED },
+          { host: 'www.example.com', req: 4, fail: 'ok', fc: DIM }
+        ] },
+      { domain: 'examplecdn.net', cls: 'failed directly', cc: RED, req: 12, fail: 'timeout ×12', fc: RED, cov: '—', list: [] },
+      { domain: 'jsdelivr.net', cls: 'CDN', cc: DIM, req: 3, fail: '—', fc: NONE, cov: '—', list: [] },
+      { domain: 'gstatic.com', cls: 'CDN', cc: DIM, req: 2, fail: '—', fc: NONE, cov: 'v2fly:google', list: [] },
+      { domain: 'google-analytics.com', cls: 'tracker / ads', cc: DIM, req: 2, fail: '—', fc: NONE, cov: '—', list: [] },
+      { domain: 'sentry.io', cls: 'third-party', cc: DIM, req: 3, fail: '—', fc: NONE, cov: '—', list: [] }
+    ];
+  }
+  pick(domain) {
+    this.setState({ picked: Object.assign({}, this.state.picked, { [domain]: !this.state.picked[domain] }) });
+  }
+  renderVals() {
+    const groups = this.groups();
+    const picked = this.state.picked;
+    const st = this.state;
+    const rows = groups.map((g, i) => Object.assign({}, g, {
+      id: 'pick-' + i,
+      hosts: g.list.length ? '· ' + g.list.length + ' hosts' : '',
+      on: !!picked[g.domain],
+      expanded: !!st.open[g.domain] && g.list.length > 0,
+      cur: i === st.cur ? 'pc-cur' : '',
+      car: i === st.cur ? '›' : '',
+      toggle: () => this.pick(g.domain)
+    }));
+    const chosen = groups.filter((g) => picked[g.domain]).map((g) => g.domain);
+    const n = chosen.length;
+    const curG = groups[st.cur];
+    return {
+      nav: this.nav('discover', {}),
+      onKey: (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (e.target && e.target.tagName) || '';
+        if (tag === 'TEXTAREA' || tag === 'SELECT' || (tag === 'INPUT' && e.target.type !== 'checkbox')) return;
+        const k = e.key;
+        if (k === 'j' || k === 'ArrowDown') { e.preventDefault(); this.setState({ cur: Math.min(st.cur + 1, groups.length - 1) }); }
+        else if (k === 'k' || k === 'ArrowUp') { e.preventDefault(); this.setState({ cur: Math.max(st.cur - 1, 0) }); }
+        else if (k === ' ') { e.preventDefault(); this.pick(curG.domain); }
+        else if (k === 'Enter' && curG.list.length) { e.preventDefault(); this.setState({ open: Object.assign({}, st.open, { [curG.domain]: !st.open[curG.domain] }) }); }
+      },
+      pickHint: picked[curG.domain] ? 'untick ' + curG.domain : 'tick ' + curG.domain,
+      openHint: curG.list.length ? (st.open[curG.domain] ? 'hide its hosts' : 'show its hosts') : 'no hosts to show',
+      rows: rows,
+      none: n === 0,
+      createLabel: n ? 'Create “Example” · ' + n + (n === 1 ? ' domain' : ' domains') : 'Pick at least one domain',
+      summary: n ? chosen.join(', ') + (n === 1 ? ' as a suffix' : ' as suffixes') : 'Nothing picked.'
+    };
+  }
+}
+</script>
+</body>
+</html>

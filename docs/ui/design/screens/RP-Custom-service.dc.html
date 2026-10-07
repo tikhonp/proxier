@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Custom service — my-sites</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+.pc-tg{display:flex}
+.pc-tg>button{position:relative;height:22px;padding:0 8px;margin-left:-1px;background:transparent;border:1px solid #6e6a86;font-size:11px;color:#908caa}
+.pc-tg>button:first-child{margin-left:0}
+.pc-tg>button:hover{border-color:#908caa;color:#e0def4;z-index:1}
+.pc-tg>button[aria-pressed="true"]{border-color:#e0def4;color:#e0def4;z-index:2}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible,.pc-tg>button:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Services.dc.html" style="color:#908caa">Services</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>my-sites</span><span aria-hidden="true" style="color:#6e6a86">/</span><span>Edit domains</span></nav>
+<h1 style="font-size:22px;line-height:28px;font-weight:600;margin-top:6px">my-sites</h1>
+<p style="color:#908caa;margin-top:4px">custom · in Main · 38 domains saved · 12 unsaved changes</p>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:150px minmax(0,320px) 110px minmax(0,1fr);gap:12px 16px;align-items:center;padding:14px 16px;border-bottom:1px solid #26233a">
+<label for="nm" style="color:#908caa">Name</label><input id="nm" class="pc-inp" value="my-sites">
+<label for="tg" style="color:#908caa">Tag</label><div style="display:flex;align-items:center;gap:12px"><input id="tg" class="pc-inp" value="my-sites" style="width:200px"><span style="font-size:12px;color:#908caa">routers install it under this tag</span></div>
+<label for="ds" style="color:#908caa">Description</label><input id="ds" class="pc-inp" value="Sites I use that no list has" style="grid-column:2 / -1">
+</div>
+
+<div style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 420px">
+
+<section aria-labelledby="dt-h" style="border-right:1px solid #26233a;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="dt-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Domains · 50</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">suffix also covers every name under it</span>
+</div>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr) 28px;gap:12px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86"><span>Domain</span><span>Match</span><span>Note</span><span></span></div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="10">
+<div class="pc-row" style="display:grid;grid-template-columns:minmax(0,1fr) 120px minmax(0,1fr) 28px;gap:12px;align-items:center;padding:4px 16px;background:{{r.bg}}">
+<span style="display:flex;align-items:center;gap:8px;min-width:0"><span style="color:{{r.mc}};width:10px;flex:none">{{r.mark}}</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{r.name}}</span></span>
+<span class="pc-tg" role="group" aria-label="Match" style="align-self:center;justify-self:start"><button type="button" aria-pressed="{{r.suf}}">suffix</button><button type="button" aria-pressed="{{r.ex}}">exact</button></span>
+<span style="font-size:12px;color:{{r.nc}}">{{r.note}}</span>
+<button type="button" class="pc-btn pc-sm pc-ghost" aria-label="Remove" style="width:26px;padding:0;color:#908caa !important">×</button>
+</div>
+</sc-for>
+<p style="padding:8px 16px;color:#908caa">10 of 50 · <a href="#" style="color:#908caa">show all</a></p>
+</section>
+
+<aside style="display:flex;flex-direction:column">
+<section aria-labelledby="pm-h" style="padding-bottom:14px;border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="pm-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Paste many</h2></div>
+<div style="padding:12px 16px 0;display:flex;flex-direction:column;gap:10px">
+<textarea class="pc-inp" aria-label="Domains, one per line" rows="7" style="height:auto;padding:8px 10px;font-size:12px;line-height:18px;resize:vertical">https://www.kinopoisk.ru/film/1
+*.hd.kinopoisk.ru
+full:api.ott.kinopoisk.ru
+domain:yastatic.net
+Кинопоиск.рф
+93.158.134.11
+rutracker.org</textarea>
+<p style="font-size:12px;color:#908caa">One per line. URLs, <span style="color:#e0def4">*.</span>, <span style="color:#e0def4">domain:</span> and <span style="color:#e0def4">full:</span> are understood.</p>
+<div style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:#191724;border:1px solid #403d52">
+<p><span style="color:#9ccfd8">+12 added</span> · <span>2 merged</span> · <span style="color:#eb6f92">1 refused</span></p>
+<p style="font-size:12px;color:#908caa">merged: hd.kinopoisk.ru and api.ott.kinopoisk.ru go under kinopoisk.ru</p>
+<p style="font-size:12px;color:#908caa">punycode: Кинопоиск.рф → xn--h1aaekdkhcb.xn--p1ai</p>
+<p style="font-size:12px;color:#eb6f92">refused: 93.158.134.11 is an IP address; services hold domains only</p>
+</div>
+<button type="button" class="pc-btn pc-sm" style="align-self:flex-start">Add 12 to the table</button>
+</div>
+</section>
+<section style="padding:12px 16px;color:#908caa;font-size:12px;display:flex;flex-direction:column;gap:6px">
+<p><span style="color:#e0def4">Covered by</span> means another service in the same list already sends it through the tunnel. It's kept, but it does nothing there.</p>
+<p>Saving re-syncs Home and iPhone, the targets of Main.</p>
+</section>
+<div style="margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
+<button type="button" class="pc-btn pc-pri">Save 50 domains</button>
+<a href="RP-Services.dc.html" class="pc-btn pc-ghost">Cancel</a>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:#908caa"><b style="color:#e0def4">⌘ ↵</b> save</span>
+</div>
+</aside>
+
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">tab</span> next field</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> save</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> leave the field</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const r = (name, exact, note, o) => Object.assign({ name: name, suf: exact ? 'false' : 'true', ex: exact ? 'true' : 'false', note: note || '', nc: '#908caa', mark: '', mc: '#908caa', bg: 'transparent' }, o || {});
+    const NEW = { mark: '+', mc: '#9ccfd8', bg: '#0e1a1c' };
+    return {
+      nav: this.nav('services', {}),
+      rows: [
+        r('kinopoisk.ru', false, 'new · absorbed 2 names under it', NEW),
+        r('yastatic.net', false, 'new', NEW),
+        r('xn--h1aaekdkhcb.xn--p1ai', false, 'new · Кинопоиск.рф', NEW),
+        r('rutracker.org', false, 'new', NEW),
+        r('chatgpt.com', false, 'covered by openai in Main'),
+        r('claude.ai', false, 'covered by anthropic in Main'),
+        r('habr.com', false),
+        r('medium.com', false),
+        r('news.ycombinator.com', true),
+        r('notion.so', false)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Template — VLESS XHTTP behind nginx</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-dng{border-color:#763849;color:#eb6f92 !important}
+.pc-dng:hover{border-color:#eb6f92}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Templates.dc.html" style="color:#908caa">Templates</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>nginx-xhttp</span></nav>
+<h1 style="font-size:22px;line-height:28px;font-weight:600;margin-top:6px">VLESS XHTTP behind nginx</h1>
+<p style="color:#908caa;margin-top:4px">xray behind nginx with a fallback site · default v3 · 7 servers built from it</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<a href="RP-Template-editor.dc.html" class="pc-btn pc-pri">Edit the draft</a>
+<button type="button" class="pc-btn">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<section aria-labelledby="ag-h" style="background:#050c0e;border-bottom:1px solid #193a48">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:12px 16px">
+<h2 id="ag-h" style="display:inline-flex;align-items:center;gap:8px;font-weight:600"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>An agent is editing the draft</h2>
+<span style="color:#908caa">session opened 16:41 for “fix the 2 validation errors” · 3 saves, 2 validations · last at 16:50 · expires 18:41</span>
+<span style="flex:1"></span>
+<a href="RP-Activity.dc.html" class="pc-btn pc-sm">What it changed</a>
+<button type="button" class="pc-btn pc-sm pc-dng">Revoke access</button>
+</div>
+</section>
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+
+<section aria-labelledby="ver-h" style="background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="ver-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Versions</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">published versions never change</span>
+</div>
+<div style="display:grid;grid-template-columns:60px 120px minmax(0,1fr) 170px auto;gap:16px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86"><span>Ver</span><span>Published</span><span>Notes</span><span>Servers</span><span></span></div>
+<sc-for list="{{versions}}" as="v" hint-placeholder-count="3">
+<div class="pc-row {{v.cls}}" style="position:relative;display:grid;grid-template-columns:60px 120px minmax(0,1fr) 170px auto;gap:16px;align-items:center;padding:7px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:7px">{{v.car}}</span>
+<span style="font-weight:600">{{v.n}}<span style="font-weight:400;font-size:12px;color:#908caa">{{v.def}}</span></span>
+<span style="color:#908caa">{{v.when}}</span>
+<span style="color:#908caa">{{v.notes}}</span>
+<span style="color:#908caa">{{v.servers}}</span>
+<span style="display:flex;gap:8px;justify-content:flex-end">
+<sc-if value="{{v.canDefault}}" hint-placeholder-val="{{ false }}"><button type="button" class="pc-btn pc-sm">Make default</button></sc-if>
+<button type="button" class="pc-btn pc-sm">Diff</button>
+<button type="button" class="pc-btn pc-sm">Export</button>
+</span>
+</div>
+</sc-for>
+</section>
+
+<section aria-labelledby="dr-h" style="background:#000000;padding-bottom:12px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="dr-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Draft</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">based on v3</span>
+</div>
+<div style="padding:14px 16px 0;display:flex;flex-direction:column;gap:10px">
+<p style="display:inline-flex;align-items:center;gap:8px;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>2 errors · 1 warning <span style="color:#908caa">· validated 16:50 by the agent</span></p>
+<dl style="display:grid;grid-template-columns:110px minmax(0,1fr);gap:6px 12px">
+<dt style="color:#908caa">Files</dt><dd>7 · 2 changed from v3</dd>
+<dt style="color:#908caa">Last saved</dt><dd>16:50 by the agent</dd>
+<dt style="color:#908caa">Before that</dt><dd>14:12 by admin</dd>
+</dl>
+<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">
+<a href="RP-Template-editor.dc.html" class="pc-btn pc-sm">Open editor</a>
+<a href="RP-Template-agent.dc.html" class="pc-btn pc-sm">Hand off to an agent…</a>
+<button type="button" class="pc-btn pc-sm pc-dng">Discard draft…</button>
+</div>
+</div>
+</section>
+
+</div>
+
+<section aria-labelledby="use-h" style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="use-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Servers on older versions</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">changing the default never touches a server</span>
+<span style="flex:1"></span>
+<a href="RP-Server-rollout.dc.html" class="pc-btn pc-sm" style="margin:-3px 0">Upgrade all to v3…</a>
+</div>
+<div style="height:6px"></div>
+<a href="RP-Server-redeploy.dc.html" class="pc-row" style="display:grid;grid-template-columns:90px 110px minmax(0,1fr);gap:16px;padding:6px 16px;text-decoration:none"><span style="font-weight:600">fi-1</span><span style="color:#908caa">v2</span><span style="color:#908caa">needs a value for nginx_reload, which v3 adds</span></a>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">e</span> edit the draft</span>
+<span><span style="color:#e0def4;font-weight:600">d</span> diff v3 with v2</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":820}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    return {
+      nav: this.nav('templates', {}),
+      versions: [
+        { n: 'v3', def: ' · default', when: '28 Sep', notes: 'xray 25.9, nginx reload timer, new XHTTP path', servers: '5 active · 1 failed', canDefault: false, cls: 'pc-cur', car: '›' },
+        { n: 'v2', def: '', when: '12 Sep', notes: 'fallback site as a parameter', servers: '1 active', canDefault: true, cls: '', car: '' },
+        { n: 'v1', def: '', when: '3 Sep', notes: 'imported from setup.sh', servers: '2 retired', canDefault: true, cls: '', car: '' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

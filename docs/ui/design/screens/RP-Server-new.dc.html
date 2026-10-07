@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>New server</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus,.pc-grp:focus-within{border-color:#908caa}
+.pc-grp{display:flex;align-items:stretch;background:#191724;border:1px solid #403d52}
+.pc-grp>button{background:transparent;border:0;border-left:1px solid #403d52;padding:0 12px;white-space:nowrap}
+.pc-grp>button:hover{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible,.pc-grp>button:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}.pc-form{grid-template-columns:minmax(0,1fr) !important}.pc-form>label{padding-top:0 !important}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Server-health.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>New server</span></nav>
+<h1 style="font-size:22px;line-height:28px;font-weight:600;margin-top:6px">New server</h1>
+<p style="color:#908caa;margin-top:4px;max-width:760px">Paste a fresh VPS's IP and root password. Proxier installs its key, hardens SSH, sets up the firewall and Docker, creates DNS, deploys the stack and runs a smoke test from home.</p>
+</div>
+
+<form style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<div style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column">
+
+<div role="group" aria-labelledby="g-access" style="border-bottom:1px solid #26233a">
+<h2 id="g-access" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Access</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+<label for="ip" style="padding-top:6px;color:#908caa">IP address</label>
+<div>
+<input id="ip" class="pc-inp" value="203.0.113.24" style="width:100%;max-width:320px;border-color:#908caa">
+<p style="display:flex;align-items:center;gap:8px;font-size:12px;color:#908caa;margin-top:6px"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>Netherlands · not used by any server</p>
+</div>
+<label for="pw" style="padding-top:6px;color:#908caa">Root password</label>
+<div>
+<div class="pc-grp" style="max-width:420px;height:32px">
+<input id="pw" type="password" value="correct-horse-battery" style="flex:1;min-width:0;padding:0 10px;background:transparent;border:0;outline:0">
+<button type="button" style="font-size:12px">Show</button>
+</div>
+<p style="font-size:12px;color:#908caa;margin-top:6px">Used once to install Proxier's key, then erased. Never shown again, never logged.</p>
+</div>
+<label for="port" style="padding-top:6px;color:#908caa">SSH port</label>
+<input id="port" class="pc-inp" value="22" inputmode="numeric" style="width:100px">
+</div>
+</div>
+
+<div role="group" aria-labelledby="g-loc" style="border-bottom:1px solid #26233a">
+<h2 id="g-loc" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Location</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+<label for="loc" style="padding-top:6px;color:#908caa">Location</label>
+<div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+<div style="position:relative;width:280px;max-width:100%">
+<select id="loc" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>nl — Netherlands</option><option>de — Germany</option><option>fi — Finland</option><option>se — Sweden</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+<button type="button" class="pc-btn">New location…</button>
+</div>
+<p style="font-size:12px;color:#908caa;margin-top:6px">Suggested from the IP's country. The location is the first half of the server name.</p>
+</div>
+</div>
+</div>
+
+<div role="group" aria-labelledby="g-tpl" style="border-bottom:1px solid #26233a">
+<h2 id="g-tpl" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Template</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+<label for="tpl" style="padding-top:6px;color:#908caa">Template</label>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<div style="position:relative;flex:1 1 280px;max-width:360px">
+<select id="tpl" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>VLESS XHTTP behind nginx</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+<div style="position:relative;width:160px">
+<select id="ver" aria-label="Version" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>v3 · default</option><option>v2</option><option>v1</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+</div>
+<label for="le" style="padding-top:6px;color:#908caa">Let's Encrypt email<span style="display:block;font-size:12px;line-height:16px;color:#6e6a86">optional · v3</span></label>
+<div>
+<input id="le" class="pc-inp" type="email" placeholder="you@example.com" style="width:100%;max-width:420px">
+<p style="font-size:12px;color:#908caa;margin-top:6px">Where Let's Encrypt sends certificate expiry mail. Empty registers without an email.</p>
+</div>
+<label for="notes" style="padding-top:6px;color:#908caa">Notes</label>
+<textarea id="notes" class="pc-inp" rows="3" placeholder="Provider, plan, renewal date…" style="width:100%;max-width:560px;height:auto;padding:8px 10px;resize:vertical"></textarea>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:16px">
+<a href="RP-Server-provisioning.dc.html" class="pc-btn pc-pri">Create nl-2</a>
+<a href="RP-Main.dc.html" class="pc-btn pc-ghost">Cancel</a>
+<span style="font-size:12px;color:#908caa">Opens nl-2's page with the live log. Takes about 3 min.</span>
+</div>
+
+</div>
+
+<aside aria-labelledby="wbc-h" style="flex:1 1 360px;min-width:0;border-left:1px solid #26233a">
+<h2 id="wbc-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Will be created</h2>
+<dl style="display:grid;grid-template-columns:112px minmax(0,1fr);gap:12px 16px;padding:14px 16px 16px">
+<dt style="color:#908caa">Server name</dt>
+<dd><span style="font-size:15px;font-weight:600">nl-2</span><div style="font-size:12px;color:#908caa">next number in nl · never reused</div></dd>
+<dt style="color:#908caa">Host</dt>
+<dd style="word-break:break-all">nl-2.hosts.tikhonnnnn.com<div style="font-size:12px;color:#908caa">management and proxy</div></dd>
+<dt style="color:#908caa">DNS record</dt>
+<dd><div style="word-break:break-all">A nl-2.hosts → 203.0.113.24</div><div style="font-size:12px;color:#908caa">DNS only · TTL 60 · proxier:nl-2</div></dd>
+<dt style="color:#908caa">Endpoint</dt>
+<dd><div>main · vless-xhttp-tls · 443</div><div style="font-size:12px;color:#908caa">apps show it as “🇳🇱 Netherlands 2”</div></dd>
+<dt style="color:#908caa">Firewall</dt>
+<dd>22, 80, 443 /tcp</dd>
+<dt style="color:#908caa">Subscriptions</dt>
+<dd><div>Me — everything</div><div style="font-size:12px;color:#908caa">adds new servers automatically</div></dd>
+</dl>
+<h3 style="padding:12px 16px 6px;border-top:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Checked on create</h3>
+<div style="display:flex;flex-direction:column;gap:6px;padding:0 16px 16px">
+<sc-for list="{{checks}}" as="k" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:10px"><span aria-hidden="true" style="{{k.m}}"></span><span style="color:{{k.c}}">{{k.text}}</span></div>
+</sc-for>
+</div>
+</aside>
+
+</form>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span style="color:#e0def4">typing in IP address</span>
+<span><span style="color:#e0def4;font-weight:600">tab</span> next field</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> create nl-2</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> leave the field</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">letters type here · <span style="color:#e0def4;font-weight:600">esc</span> first for <span style="color:#e0def4;font-weight:600">/ : g ?</span></div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:49:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const ok = 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f';
+    return {
+      nav: this.nav('servers', {}),
+      checks: [
+        { m: ok, c: '#908caa', text: 'no other server uses 203.0.113.24' },
+        { m: ok, c: '#908caa', text: 'location nl and template v3 exist' },
+        { m: ok, c: '#908caa', text: 'Cloudflare zone tikhonnnnn.com covers the name' },
+        { m: ok, c: '#908caa', text: 'parameters are valid' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

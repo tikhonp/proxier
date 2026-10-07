@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone — new link, share</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:22px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:active,.pc-row:active{background:#191724}
+.pc-btn{display:flex;align-items:center;justify-content:center;height:48px;padding:0 14px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:active{background:#191724}
+.pc-sm{height:40px;font-size:13px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</helmet>
+<div style="position:relative;width:390px;min-height:1380px;background:#000000;color:#e0def4;display:flex;flex-direction:column">
+
+<header style="height:56px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button type="button" class="pc-seg" aria-label="Open menu" style="width:56px;padding:0;border-right:1px solid #26233a;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"></path></svg></button>
+<a href="RP-Main.dc.html" style="display:flex;align-items:center;gap:8px;padding:0 16px;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<span style="flex:1"></span>
+<button type="button" class="pc-seg" aria-label="Search" style="width:56px;padding:0;border-left:1px solid #26233a;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="9" r="5.5"></circle><path d="M13 13l4 4"></path></svg></button>
+</header>
+
+<a href="RP-Link-new.dc.html" class="pc-seg" style="display:flex;align-items:center;height:44px;padding:0 16px;border-bottom:1px solid #26233a;color:#908caa;font-size:13px">‹ Links</a>
+
+<div style="padding:12px 16px 14px;border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px">
+<h1 style="font-size:24px;line-height:32px;font-weight:600">Masha — Pixel</h1>
+<span style="display:inline-flex;align-items:center;gap:8px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>active</span>
+</div>
+<p style="font-size:13px;color:#908caa;margin-top:2px">Friends · until 9 Oct · Русский</p>
+</div>
+
+<div role="status" style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:#050c0e;border-bottom:1px solid #193a48;font-size:13px"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>Link created. Share the URL or let Masha scan the code.</div>
+
+<section aria-labelledby="url-h" style="border-bottom:1px solid #26233a">
+<h2 id="url-h" style="min-height:40px;display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">URL</h2>
+<div style="padding:12px 16px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="background:#191724;border:1px solid #403d52;padding:10px 12px;word-break:break-all;font-size:13px">{{url}}</div>
+<div style="display:flex;gap:8px">
+<button type="button" onClick="{{copy}}" class="pc-btn pc-pri" style="flex:2">Copy URL</button>
+<button type="button" onClick="{{toggleReveal}}" class="pc-btn" style="flex:1">{{revealLabel}}</button>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="qr-h" style="border-bottom:1px solid #26233a">
+<div style="display:flex;align-items:center;gap:10px;min-height:56px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="qr-h" style="flex:1;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">QR code</h2>
+<button type="button" onClick="{{toggleQr}}" class="pc-btn pc-sm" style="min-width:96px">{{qrLabel}}</button>
+</div>
+<sc-if value="{{qr}}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;justify-content:center;padding:16px">
+<svg width="312" height="312" viewBox="-4 -4 41 41" role="img" aria-label="QR code of Masha's link URL" shape-rendering="crispEdges" style="display:block;max-width:100%;height:auto"><rect x="-4" y="-4" width="41" height="41" fill="#ffffff"></rect><path fill="#000000" d="M0 0h7v1h-7zM9 0h2v1h-2zM13 0h1v1h-1zM16 0h5v1h-5zM23 0h1v1h-1zM26 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM9 1h7v1h-7zM17 1h2v1h-2zM21 1h2v1h-2zM26 1h1v1h-1zM32 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h1v1h-1zM11 2h1v1h-1zM13 2h1v1h-1zM15 2h2v1h-2zM21 2h2v1h-2zM24 2h1v1h-1zM26 2h1v1h-1zM28 2h3v1h-3zM32 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h5v1h-5zM14 3h1v1h-1zM16 3h2v1h-2zM22 3h3v1h-3zM26 3h1v1h-1zM28 3h3v1h-3zM32 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h4v1h-4zM15 4h1v1h-1zM17 4h8v1h-8zM26 4h1v1h-1zM28 4h3v1h-3zM32 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM11 5h1v1h-1zM15 5h2v1h-2zM20 5h3v1h-3zM26 5h1v1h-1zM32 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h1v1h-1zM24 6h1v1h-1zM26 6h7v1h-7zM8 7h4v1h-4zM14 7h2v1h-2zM18 7h5v1h-5zM24 7h1v1h-1zM0 8h1v1h-1zM2 8h5v1h-5zM12 8h4v1h-4zM17 8h1v1h-1zM19 8h2v1h-2zM22 8h1v1h-1zM24 8h1v1h-1zM26 8h5v1h-5zM0 9h1v1h-1zM2 9h4v1h-4zM9 9h2v1h-2zM16 9h1v1h-1zM18 9h6v1h-6zM26 9h2v1h-2zM29 9h2v1h-2zM32 9h1v1h-1zM1 10h1v1h-1zM3 10h2v1h-2zM6 10h1v1h-1zM10 10h3v1h-3zM15 10h2v1h-2zM20 10h1v1h-1zM24 10h3v1h-3zM28 10h1v1h-1zM30 10h1v1h-1zM1 11h1v1h-1zM3 11h2v1h-2zM7 11h2v1h-2zM12 11h1v1h-1zM14 11h2v1h-2zM20 11h2v1h-2zM24 11h2v1h-2zM28 11h5v1h-5zM0 12h2v1h-2zM5 12h2v1h-2zM9 12h1v1h-1zM11 12h1v1h-1zM15 12h1v1h-1zM17 12h1v1h-1zM19 12h1v1h-1zM22 12h4v1h-4zM27 12h3v1h-3zM4 13h2v1h-2zM7 13h2v1h-2zM11 13h2v1h-2zM14 13h3v1h-3zM18 13h4v1h-4zM23 13h1v1h-1zM26 13h2v1h-2zM29 13h1v1h-1zM31 13h2v1h-2zM0 14h2v1h-2zM6 14h1v1h-1zM8 14h3v1h-3zM12 14h3v1h-3zM25 14h2v1h-2zM28 14h2v1h-2zM31 14h1v1h-1zM2 15h1v1h-1zM4 15h1v1h-1zM7 15h1v1h-1zM10 15h1v1h-1zM14 15h1v1h-1zM16 15h1v1h-1zM20 15h2v1h-2zM25 15h2v1h-2zM28 15h3v1h-3zM0 16h3v1h-3zM6 16h1v1h-1zM8 16h1v1h-1zM10 16h1v1h-1zM12 16h1v1h-1zM17 16h2v1h-2zM23 16h1v1h-1zM25 16h1v1h-1zM27 16h2v1h-2zM32 16h1v1h-1zM0 17h1v1h-1zM3 17h1v1h-1zM8 17h1v1h-1zM13 17h2v1h-2zM16 17h6v1h-6zM23 17h1v1h-1zM25 17h3v1h-3zM29 17h4v1h-4zM3 18h1v1h-1zM6 18h1v1h-1zM8 18h2v1h-2zM11 18h1v1h-1zM13 18h3v1h-3zM17 18h1v1h-1zM20 18h3v1h-3zM25 18h4v1h-4zM30 18h2v1h-2zM0 19h2v1h-2zM10 19h2v1h-2zM13 19h1v1h-1zM16 19h1v1h-1zM18 19h1v1h-1zM21 19h3v1h-3zM26 19h7v1h-7zM2 20h1v1h-1zM4 20h1v1h-1zM6 20h1v1h-1zM8 20h2v1h-2zM12 20h1v1h-1zM14 20h3v1h-3zM18 20h1v1h-1zM20 20h1v1h-1zM22 20h4v1h-4zM27 20h3v1h-3zM31 20h2v1h-2zM0 21h1v1h-1zM2 21h4v1h-4zM9 21h1v1h-1zM11 21h2v1h-2zM14 21h2v1h-2zM17 21h4v1h-4zM23 21h2v1h-2zM26 21h1v1h-1zM29 21h2v1h-2zM32 21h1v1h-1zM0 22h1v1h-1zM2 22h3v1h-3zM6 22h3v1h-3zM10 22h3v1h-3zM14 22h4v1h-4zM20 22h1v1h-1zM22 22h1v1h-1zM24 22h1v1h-1zM30 22h2v1h-2zM0 23h1v1h-1zM5 23h1v1h-1zM8 23h3v1h-3zM13 23h3v1h-3zM18 23h1v1h-1zM20 23h2v1h-2zM28 23h5v1h-5zM0 24h1v1h-1zM2 24h2v1h-2zM5 24h2v1h-2zM8 24h1v1h-1zM11 24h1v1h-1zM13 24h5v1h-5zM19 24h1v1h-1zM22 24h1v1h-1zM24 24h5v1h-5zM31 24h1v1h-1zM8 25h1v1h-1zM10 25h2v1h-2zM13 25h2v1h-2zM16 25h1v1h-1zM18 25h4v1h-4zM24 25h1v1h-1zM28 25h1v1h-1zM30 25h1v1h-1zM32 25h1v1h-1zM0 26h7v1h-7zM9 26h1v1h-1zM11 26h5v1h-5zM18 26h1v1h-1zM21 26h1v1h-1zM23 26h2v1h-2zM26 26h1v1h-1zM28 26h1v1h-1zM30 26h1v1h-1zM0 27h1v1h-1zM6 27h1v1h-1zM8 27h1v1h-1zM13 27h1v1h-1zM16 27h1v1h-1zM18 27h1v1h-1zM21 27h4v1h-4zM28 27h3v1h-3zM0 28h1v1h-1zM2 28h3v1h-3zM6 28h1v1h-1zM8 28h2v1h-2zM11 28h1v1h-1zM13 28h1v1h-1zM18 28h2v1h-2zM22 28h1v1h-1zM24 28h6v1h-6zM31 28h1v1h-1zM0 29h1v1h-1zM2 29h3v1h-3zM6 29h1v1h-1zM8 29h1v1h-1zM15 29h5v1h-5zM21 29h1v1h-1zM25 29h1v1h-1zM28 29h5v1h-5zM0 30h1v1h-1zM2 30h3v1h-3zM6 30h1v1h-1zM8 30h1v1h-1zM10 30h2v1h-2zM18 30h1v1h-1zM21 30h2v1h-2zM24 30h4v1h-4zM29 30h2v1h-2zM0 31h1v1h-1zM6 31h1v1h-1zM9 31h2v1h-2zM12 31h1v1h-1zM14 31h1v1h-1zM16 31h1v1h-1zM20 31h4v1h-4zM25 31h2v1h-2zM28 31h3v1h-3zM0 32h7v1h-7zM8 32h2v1h-2zM11 32h1v1h-1zM14 32h1v1h-1zM17 32h1v1h-1zM19 32h2v1h-2zM22 32h6v1h-6zM31 32h1v1h-1z"></path></svg>
+</div>
+<p style="padding:0 16px 14px;font-size:12px;color:#908caa;text-align:center">In the app: add subscription → scan QR. Turn the brightness up.</p>
+</sc-if>
+</section>
+
+<section aria-labelledby="gets-h" style="border-bottom:1px solid #26233a">
+<h2 id="gets-h" style="min-height:40px;display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">What the app will get</h2>
+<div style="padding:4px 0">
+<div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:44px;padding:0 16px"><span style="color:#908caa">1</span><span>🇳🇱 Netherlands 1</span><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;font-size:13px"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>nl-1</span></div>
+<div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;min-height:44px;padding:0 16px"><span style="color:#908caa">2</span><span>🇸🇪 Sweden 1</span><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;font-size:13px"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>se-1</span></div>
+</div>
+<p style="padding:8px 16px 12px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Title “Friends”, refresh every 12 h. After 9 Oct the app gets “⏳ Срок истёк 9 окт · пишите @tikhonp”.</p>
+</section>
+
+<section aria-labelledby="log-h" style="flex:1;border-bottom:1px solid #26233a">
+<h2 id="log-h" style="min-height:40px;display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Fetches</h2>
+<p style="color:#908caa;font-size:13px;padding:12px 16px">None yet. The first fetch from Masha's app shows up here.</p>
+</section>
+
+<div style="display:flex;gap:8px;padding:16px">
+<button type="button" class="pc-btn" style="flex:1">Disable…</button>
+<button type="button" class="pc-btn" style="flex:1">More ▾</button>
+</div>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="position:absolute;left:0;right:0;top:56px;padding:12px 16px;background:#e0def4;color:#000000;font-weight:600;text-align:center">{{toast}}</div>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1380}}'>
+class Component extends DCLogic {
+  state = { reveal: false, qr: true, toast: '' };
+
+  componentWillUnmount() { clearTimeout(this.toastTimer); }
+  renderVals() {
+    return {
+      url: this.state.reveal
+        ? 'https://proxier.tikhonnnnn.com/s/Pq4nW7xLr2TbY9cHs0KdVe'
+        : 'https://proxier.tikhonnnnn.com/s/••••••••••••••••••••••',
+      revealLabel: this.state.reveal ? 'Hide' : 'Reveal',
+      toggleReveal: () => this.setState({ reveal: !this.state.reveal }),
+      qr: this.state.qr,
+      qrLabel: this.state.qr ? 'Hide' : 'Show QR',
+      toggleQr: () => this.setState({ qr: !this.state.qr }),
+      copy: () => {
+        clearTimeout(this.toastTimer);
+        this.setState({ toast: 'Link URL copied' });
+        this.toastTimer = setTimeout(() => this.setState({ toast: '' }), 2200);
+      },
+      hasToast: !!this.state.toast,
+      toast: this.state.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

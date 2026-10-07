@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard — one server blocked</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-dng{border-color:#763849;color:#eb6f92 !important}
+.pc-dng:hover{border-color:#eb6f92}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-btn:disabled:hover{background:transparent;border-color:#524f67}
+.pc-pri:disabled:hover{background:#e0def4;border-color:#e0def4}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-cnt{grid-template-columns:repeat(3,minmax(0,1fr)) !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div tabindex="0" ref="{{rootRef}}" onKeyDown="{{onKey}}" style="position:relative;min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4;outline:0">
+
+<header style="position:relative;z-index:4;height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<button type="button" class="pc-field" onClick="{{openAll}}" aria-label="Search or run an action" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;border:0;color:#6e6a86;text-align:left;cursor:text"><span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>Search or run an action…</button>
+<a href="RP-Server-provisioning.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>2 jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:20px 16px 16px;border-bottom:1px solid #26233a">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Dashboard</h1>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 24px;margin-top:8px">
+<span style="display:inline-flex;align-items:center;gap:8px;color:#c4a7e7"><span aria-hidden="true" style="width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>de-1 is blocked</span>
+<span style="display:inline-flex;align-items:center;gap:8px;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>1 shared-link alert</span>
+<span style="color:#908caa">Everything else is fine.</span>
+</div>
+</div>
+
+<section aria-labelledby="fleet-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="fleet-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Fleet</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">4 active · 1 provisioning</span>
+<span style="flex:1"></span>
+<a href="RP-Server-health.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Servers →</a>
+</div>
+
+<div class="pc-cnt" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+<sc-for list="{{counts}}" as="c" hint-placeholder-count="6">
+<div style="background:#000000;padding:10px 16px">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#908caa"><span aria-hidden="true" style="{{c.m}}"></span>{{c.label}}</div>
+<div style="font-size:22px;line-height:30px;font-weight:600;color:{{c.vc}}">{{c.n}}</div>
+</div>
+</sc-for>
+</div>
+
+<div data-row="de1" class="{{cls.de1}}" style="position:relative;border-bottom:1px solid #26233a">
+<span aria-hidden="true" style="position:absolute;left:4px;top:12px">{{car.de1}}</span>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:12px 16px 0">
+<span style="display:inline-flex;align-items:center;gap:8px;color:#c4a7e7;white-space:nowrap"><span aria-hidden="true" style="width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)"></span>blocked</span>
+<a href="RP-Server-health.dc.html" style="font-size:15px;font-weight:600">de-1</a>
+<span style="color:#908caa">Germany · 198.51.100.7</span>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:#908caa" title="Mon 5 Oct 2026, 14:20 MSK">since 14:20 · 2 h 32 min</span>
+</div>
+<div style="padding:8px 16px 12px;display:flex;flex-direction:column;gap:4px;max-width:900px">
+<p>Reachable from Germany and Finland, but the proxy fails from home (stalled after 16 KB); 0/3 Russian nodes connect.</p>
+<p style="color:#908caa">Hidden from Family since 14:50. Still served in Me — everything.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px">
+<a href="RP-Server-health.dc.html" data-open="1" class="pc-btn pc-pri">Open de-1 health</a>
+<button type="button" class="pc-btn">Run checks now</button>
+<button type="button" class="pc-btn">Pause checks…</button>
+</div>
+</div>
+
+<div data-row="fi1" class="{{cls.fi1}}" style="position:relative;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;padding:8px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:11px">{{car.fi1}}</span>
+<span style="color:#908caa;white-space:nowrap">↑ update available</span>
+<span><a href="#" data-open="1">fi-1</a> runs VLESS XHTTP behind nginx v2 · v3 is the default</span>
+<span style="flex:1"></span>
+<button type="button" class="pc-btn pc-sm">Upgrade fi-1…</button>
+</div>
+</section>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+
+<section aria-labelledby="jobs-h" style="background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="jobs-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Jobs</h2>
+<span style="flex:1"></span>
+<a href="#" style="font-size:12px;line-height:16px;color:#908caa">Jobs →</a>
+</div>
+<div style="padding:12px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Running · 2</div>
+<sc-for list="{{jobs}}" as="j" hint-placeholder-count="2">
+<a href="{{j.href}}" data-row="{{j.id}}" class="pc-row {{j.cls}}" style="position:relative;display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:6px 16px;text-decoration:none">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{j.car}}</span>
+<span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite;align-self:center"></span>
+<span><span style="font-weight:600">{{j.name}}</span><span style="color:#908caa"> · {{j.meta}}</span></span>
+<span style="font-size:12px;color:#908caa">{{j.t}}</span>
+</a>
+</sc-for>
+<div style="padding:16px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Failed · last 24 h</div>
+<p style="padding:6px 16px;color:#908caa">None.</p>
+</section>
+
+<div style="display:flex;flex-direction:column;gap:1px;background:#26233a">
+<section aria-labelledby="routing-h" style="background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="routing-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Routing</h2>
+<span style="flex:1"></span>
+<a href="RP-Router.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Routers →</a>
+</div>
+<div style="height:8px"></div>
+<sc-for list="{{routers}}" as="r" hint-placeholder-count="2">
+<a href="{{r.href}}" data-row="{{r.id}}" class="pc-row {{r.cls}}" style="position:relative;display:grid;grid-template-columns:120px 96px minmax(0,1fr);gap:16px;align-items:center;padding:6px 16px;text-decoration:none">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{r.car}}</span>
+<span style="font-weight:600">{{r.name}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;white-space:nowrap"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>synced</span>
+<span style="color:#908caa" title="{{r.abs}}">{{r.t}}</span>
+</a>
+</sc-for>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Snapshots</span><span style="color:#908caa">None waiting for a decision.</span></div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Daily refresh</span><span><span style="color:#908caa">04:00 ·</span> 3 services changed <span style="color:#908caa">(+42 / −5 domains) · 0 rejected</span></span></div>
+</section>
+
+<section aria-labelledby="links-h" style="flex:1;background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="links-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Links</h2>
+<span style="flex:1"></span>
+<a href="RP-Link.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Links →</a>
+</div>
+<div style="height:8px"></div>
+<div data-row="alex" class="pc-row {{cls.alex}}" style="position:relative;display:grid;grid-template-columns:120px 96px minmax(0,1fr);gap:16px;align-items:center;padding:6px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{car.alex}}</span>
+<a href="RP-Link.dc.html" data-open="1" style="font-weight:600">Alex</a>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#f6c177;white-space:nowrap"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>alert</span>
+<span style="color:#908caa">6 networks, 4 apps in 24 h</span>
+</div>
+<div data-row="masha" class="pc-row {{cls.masha}}" style="position:relative;display:grid;grid-template-columns:120px 96px minmax(0,1fr);gap:16px;align-items:center;padding:6px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{car.masha}}</span>
+<a href="RP-Phone-link.dc.html" data-open="1" style="font-weight:600;white-space:nowrap">Masha — Pixel</a>
+<span style="color:#908caa">expiring</span>
+<span style="color:#908caa" title="Fri 9 Oct 2026, 23:59 MSK">9 Oct · in 4 days</span>
+</div>
+</section>
+</div>
+</div>
+
+<section aria-labelledby="act-h" style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="act-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Recent activity</h2>
+<span style="flex:1"></span>
+<a href="#" style="font-size:12px;line-height:16px;color:#908caa">Activity →</a>
+</div>
+<div style="height:8px"></div>
+<sc-for list="{{activity}}" as="e" hint-placeholder-count="8">
+<div data-row="{{e.id}}" class="pc-row {{e.cls}}" style="position:relative;display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:6px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{e.car}}</span>
+<span style="color:#908caa;white-space:nowrap" title="{{e.abs}}">{{e.t}}</span>
+<span style="color:#908caa">{{e.pre}}<a href="{{e.href}}" data-open="1" style="color:#e0def4">{{e.subj}}</a>{{e.post}}</span>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+
+<sc-if value="{{whichKey}}" hint-placeholder-val="{{false}}">
+<div class="pc-keys" style="position:sticky;bottom:28px;z-index:3;display:flex;flex-wrap:wrap;background:#000000;border-top:1px solid #26233a">
+<sc-for list="{{go}}" as="w" hint-placeholder-count="8">
+<a href="{{w.href}}" data-go="{{w.k}}" class="pc-seg" style="display:flex;align-items:center;gap:10px;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa"><span style="color:#e0def4;font-weight:600">{{w.k}}</span>{{w.label}}</a>
+</sc-for>
+<span style="display:flex;align-items:center;gap:10px;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa"><span style="color:#e0def4;font-weight:600">g</span>top of the list</span>
+</div>
+</sc-if>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}"><span style="color:#e0def4">{{msg}}</span></sc-if>
+<sc-if value="{{noMsg}}" hint-placeholder-val="{{true}}">
+<sc-for list="{{hints}}" as="h" hint-placeholder-count="3"><span><span style="color:#e0def4;font-weight:600">{{h.k}}</span> {{h.d}}</span></sc-for>
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+<sc-if value="{{palOpen}}" hint-placeholder-val="{{false}}">
+<div onMouseDown="{{closeBackdrop}}" style="position:fixed;inset:0;z-index:12;display:flex;justify-content:center;align-items:flex-start;padding:72px 16px 16px;background:rgba(0,0,0,.6)">
+<div role="dialog" aria-modal="true" aria-label="Search and actions" onMouseDown="{{stop}}" style="width:min(680px,100%);background:#000000;border:1px solid #524f67">
+<div style="display:flex;align-items:stretch;background:#191724;border-bottom:1px solid #26233a">
+<label style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;height:52px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600;font-size:15px">{{prompt}}</span>
+<input type="search" ref="{{inpRef}}" value="{{q}}" onChange="{{onQ}}" aria-label="Search or run an action" placeholder="{{ph}}" style="flex:1;min-width:0;height:50px;padding:0;background:transparent;border:0;outline:0;font-size:15px">
+</label></div>
+<div style="max-height:440px;overflow:auto;padding:4px 0 8px">
+<sc-for list="{{groups}}" as="grp" hint-placeholder-count="2">
+<div style="padding:10px 16px 4px;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{grp.title}}</div>
+<sc-for list="{{grp.rows}}" as="r" hint-placeholder-count="4">
+<a href="{{r.href}}" data-pi="{{r.i}}" class="pc-row {{r.cls}}" onMouseDown="{{r.keep}}" onClick="{{r.pick}}" style="position:relative;display:flex;align-items:baseline;gap:12px;padding:6px 16px;text-decoration:none">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{r.car}}</span>
+<span style="font-weight:600">{{r.t}}</span><span style="font-size:12px;color:#908caa">{{r.m}}</span>
+</a>
+</sc-for>
+</sc-for>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{false}}"><p style="padding:10px 16px;color:#908caa">Nothing matches.</p></sc-if>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px 20px;padding:8px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↑ ↓</span> move</span>
+<span><span style="color:#e0def4;font-weight:600">↵</span> open or run</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions only</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> close</span>
+</div>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{help}}" hint-placeholder-val="{{false}}">
+<div style="position:fixed;inset:0;z-index:10;display:flex;align-items:flex-start;justify-content:center;padding:80px 16px 16px;background:rgba(0,0,0,.72)">
+<section role="dialog" aria-modal="true" aria-labelledby="keys-h" style="width:min(820px,100%);background:#000000;border:1px solid #524f67">
+<div style="display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<h2 id="keys-h" style="flex:1;display:flex;align-items:baseline;gap:12px;padding:10px 16px;font-size:15px;line-height:22px;font-weight:600">Keys<span style="font-size:12px;font-weight:400;color:#908caa">esc closes</span></h2>
+<button type="button" class="pc-seg" onClick="{{closeHelp}}" aria-label="Close" style="width:42px;height:42px;flex:none;border-left:1px solid #26233a;font-size:18px;color:#908caa">×</button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr));gap:1px;background:#26233a">
+<sc-for list="{{keyGroups}}" as="kg" hint-placeholder-count="4">
+<div style="background:#000000;padding:12px 16px 14px">
+<h3 style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa;margin-bottom:6px">{{kg.title}}</h3>
+<sc-for list="{{kg.keys}}" as="kk" hint-placeholder-count="5">
+<div style="display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;padding:3px 0"><span style="font-weight:600;white-space:nowrap">{{kk.k}}</span><span style="color:#908caa">{{kk.d}}</span></div>
+</sc-for>
+</div>
+</sc-for>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Nothing that deletes has a single key: use its button or <span style="color:#e0def4">:</span>, then type the name.</p>
+</section>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { cur: 0, pend: '', pal: '', q: '', pi: 0, help: false, msg: '' };
+    this.root = null;
+    this.inp = null;
+    this.rootRef = (el) => { this.root = el; };
+    this.inpRef = (el) => { this.inp = el; };
+    this.onKey = this.onKey.bind(this);
+    this.onQ = (e) => {
+      const v = e.target.value;
+      if (this.state.pal === 'all' && v.charAt(0) === ':') this.setState({ pal: 'act', q: v.slice(1), pi: 0 });
+      else this.setState({ q: v, pi: 0 });
+    };
+    this.openAll = () => this.openPal('all');
+    this.closeBackdrop = () => this.closePal();
+    this.stop = (e) => e.stopPropagation();
+    this.closeHelp = () => { this.setState({ help: false }); this.refocus(); };
+    this.keep = (e) => e.preventDefault();
+  }
+  componentWillUnmount() { clearTimeout(this.timer); clearTimeout(this.blurT); }
+  componentDidUpdate(pp, ps) {
+    if (ps.cur !== this.state.cur && this.root) {
+      const it = this.items()[this.state.cur];
+      const el = it && this.root.querySelector('[data-row="' + it.id + '"]');
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  refocus() { if (this.root) this.root.focus({ preventScroll: true }); }
+  say(msg) {
+    clearTimeout(this.timer);
+    this.setState({ msg: msg, pend: '' });
+    this.timer = setTimeout(() => this.setState({ msg: '' }), 3200);
+  }
+  follow(a) {
+    if (!a) return;
+    const h = a.getAttribute('href');
+    if (!h || h === '#') this.say('That page isn’t drawn on this canvas');
+    else a.click();
+  }
+  activity() {
+    return [
+      { t: '3 min ago', abs: 'Mon 5 Oct, 16:49', pre: 'Admin created server ', subj: 'nl-2', href: 'RP-Server-provisioning.dc.html', post: ' · 203.0.113.24 · VLESS XHTTP behind nginx v3' },
+      { t: '2 h ago', abs: 'Mon 5 Oct, 14:20', pre: '', subj: 'de-1', href: 'RP-Server-health.dc.html', post: ' became blocked: reachable from Germany and Finland, but the proxy fails from home' },
+      { t: '3 h ago', abs: 'Mon 5 Oct, 13:05', pre: 'Admin created link ', subj: 'Masha — Pixel', href: 'RP-Phone-link.dc.html', post: ' in Friends, expires 9 Oct' },
+      { t: '5 h ago', abs: 'Mon 5 Oct, 11:15', pre: 'Link ', subj: 'Alex', href: 'RP-Link.dc.html', post: ' looks shared: fetched from 6 networks and 4 apps in 24 h' },
+      { t: '6 h ago', abs: 'Mon 5 Oct, 10:10', pre: 'Router ', subj: 'Home', href: 'RP-Router.dc.html', post: ' synced: 1 tag updated' },
+      { t: '12 h ago', abs: 'Mon 5 Oct, 04:00', pre: 'Routing refresh: ', subj: '3 services changed', href: '#', post: ' (+42 / −5 domains), 0 rejected' },
+      { t: '13 h ago', abs: 'Mon 5 Oct, 03:30', pre: 'Backup completed: ', subj: 'proxier-20261005-0330.db.gz', href: '#', post: ' · 2.4 MB' },
+      { t: 'yesterday', abs: 'Sun 4 Oct, 22:14', pre: 'Admin upgraded ', subj: 'se-1', href: '#', post: ' from v2 to v3 · 2 files changed' }
+    ];
+  }
+  items() {
+    return [
+      { id: 'de1', keys: [['↵', 'open de-1 health'], ['r', 'run checks now']], act: { r: 'Check round queued for de-1 · 6 nodes' } },
+      { id: 'fi1', keys: [['↵', 'open fi-1']] },
+      { id: 'job0', keys: [['↵', 'open the job']] },
+      { id: 'job1', keys: [['↵', 'open the job']] },
+      { id: 'home', keys: [['↵', 'open Home'], ['s', 'sync now']], act: { s: 'Home: sync queued' } },
+      { id: 'parents', keys: [['↵', 'open Parents'], ['s', 'sync now']], act: { s: 'Parents: sync queued' } },
+      { id: 'alex', keys: [['↵', 'open Alex'], ['y', 'copy the subscription URL']], act: { y: 'Copied Alex’s subscription URL' } },
+      { id: 'masha', keys: [['↵', 'open Masha — Pixel'], ['y', 'copy the subscription URL']], act: { y: 'Copied Masha — Pixel’s subscription URL' } }
+    ].concat(this.activity().map((e, i) => ({ id: 'a' + i, keys: [['↵', 'open ' + e.subj]] })));
+  }
+  finds() {
+    return [
+      { t: 'de-1', m: 'server · blocked', href: 'RP-Server-health.dc.html' },
+      { t: 'nl-2', m: 'server · provisioning', href: 'RP-Server-provisioning.dc.html' },
+      { t: 'fi-1', m: 'server · update available', href: '#' },
+      { t: 'se-1', m: 'server', href: '#' },
+      { t: 'Alex', m: 'link · alert', href: 'RP-Link.dc.html' },
+      { t: 'Masha — Pixel', m: 'link · expires 9 Oct', href: 'RP-Phone-link.dc.html' },
+      { t: 'Family', m: 'subscription', href: 'RP-Subscription.dc.html' },
+      { t: 'Home', m: 'router', href: 'RP-Router.dc.html' },
+      { t: 'Parents', m: 'router', href: 'RP-Phone-router.dc.html' },
+      { t: 'Discover', m: 'page', href: 'RP-Discover.dc.html' },
+      { t: 'Templates', m: 'page', href: 'RP-Template-editor.dc.html' },
+      { t: 'Scripts', m: 'page', href: 'RP-Script-generate.dc.html' }
+    ];
+  }
+  commands() {
+    return [
+      { t: 'New server', m: 'opens the form', href: 'RP-Server-new.dc.html' },
+      { t: 'New link', m: 'opens the form', href: 'RP-Link-new.dc.html' },
+      { t: 'Run checks on de-1', m: 'a check round now', msg: 'Check round queued for de-1 · 6 nodes' },
+      { t: 'Sync Home', m: 'router', msg: 'Home: sync queued' },
+      { t: 'Sync Parents', m: 'router', msg: 'Parents: sync queued' },
+      { t: 'Copy Alex’s subscription URL', m: 'link', msg: 'Copied Alex’s subscription URL' },
+      { t: 'Discover a site…', m: 'find a service’s domains', href: 'RP-Discover.dc.html' },
+      { t: 'Generate a router script', m: 'Scripts', href: 'RP-Script-generate.dc.html' },
+      { t: 'Publish the template draft…', m: 'VLESS XHTTP behind nginx', href: 'RP-Template-publish.dc.html' },
+      { t: 'Pause checks on de-1…', m: 'asks for how long', href: '#' }
+    ];
+  }
+  // One list for things and actions. "/" shows both groups; ":" shows actions only.
+  results() {
+    const st = this.state;
+    const q = st.q.trim().toLowerCase();
+    const match = (r) => !q || (r.t + ' ' + r.m).toLowerCase().indexOf(q) >= 0;
+    const lim = q ? 6 : 5;
+    const things = st.pal === 'act' ? [] : this.finds().filter(match).slice(0, lim).map((r) => Object.assign({ g: 'Go to' }, r));
+    const acts = this.commands().filter(match).slice(0, st.pal === 'act' ? 10 : lim).map((r) => Object.assign({ g: 'Actions' }, r));
+    return things.concat(acts).map((r, i) => Object.assign({ i: i }, r));
+  }
+  goList() {
+    return [
+      { k: 'd', label: 'dashboard', href: 'RP-Main.dc.html' },
+      { k: 's', label: 'servers', href: 'RP-Server-health.dc.html' },
+      { k: 't', label: 'templates', href: 'RP-Template-editor.dc.html' },
+      { k: 'u', label: 'subscriptions', href: 'RP-Subscription.dc.html' },
+      { k: 'l', label: 'links', href: 'RP-Link.dc.html' },
+      { k: 'r', label: 'routers', href: 'RP-Router.dc.html' },
+      { k: 'j', label: 'jobs', href: '#' },
+      { k: 'a', label: 'activity', href: '#' }
+    ];
+  }
+  keyGroups() {
+    const G = [
+      ['Anywhere', [['/', 'search things and actions'], [':', 'actions only'], ['g', 'go to a page, then a letter'], ['?', 'this list'], ['esc', 'close · cancel · leave a field']]],
+      ['In a list', [['j k', 'down · up (arrows too)'], ['gg G', 'first · last row'], ['↵', 'open'], ['n', 'new'], ['space', 'tick the row, where rows have a box']]],
+      ['On the row or page', [['r', 'run checks · retry'], ['s', 'sync now'], ['p', 'pause · resume'], ['y', 'copy the URL or value'], ['e', 'edit'], ['[ ]', 'previous · next tab']]],
+      ['Fields and dialogs', [['tab', 'next field'], ['esc', 'leave the field'], ['⌘ ↵', 'save the form'], ['↵', 'confirm a simple dialog']]],
+      ['On some pages', [['J K', 'move the row down · up'], ['f', 'follow the log'], ['G', 'end of the log']]],
+      ['Template editor', [['vim keys', 'optional, off by default'], [':w', 'save the draft'], ['esc esc', 'leave the editor']]]
+    ];
+    return G.map(([title, keys]) => ({ title: title, keys: keys.map(([k, d]) => ({ k: k, d: d })) }));
+  }
+  openPal(mode) {
+    clearTimeout(this.blurT);
+    this.setState({ pal: mode, q: '', pi: 0, pend: '', msg: '' }, () => { if (this.inp) this.inp.focus(); });
+  }
+  closePal() {
+    clearTimeout(this.blurT);
+    this.setState({ pal: '', q: '', pi: 0 });
+    this.refocus();
+  }
+  run(r) {
+    if (!r) return;
+    if (r.msg) { this.closePal(); this.say(r.msg); return; }
+    const a = this.root && this.root.querySelector('[data-pi="' + r.i + '"]');
+    this.follow(a);
+    this.closePal();
+  }
+  goKey(k) {
+    if (k === 'g') { this.setState({ pend: '', cur: 0 }); return; }
+    const w = this.goList().filter((x) => x.k === k)[0];
+    if (!w) { this.setState({ pend: '' }); return; }
+    const a = this.root && this.root.querySelector('[data-go="' + k + '"]');
+    this.follow(a);
+    this.setState({ pend: '' });
+  }
+  openRow(it) {
+    const row = this.root && this.root.querySelector('[data-row="' + it.id + '"]');
+    if (!row) return;
+    this.follow(row.tagName === 'A' ? row : row.querySelector('a[data-open]'));
+  }
+  onKey(e) {
+    const k = e.key;
+    const st = this.state;
+    if (e.metaKey || e.altKey) return;
+    const tag = (e.target && e.target.tagName) || '';
+    const inField = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+    if (st.pal) {
+      const rs = this.results();
+      if (k === 'Escape') { e.preventDefault(); this.closePal(); }
+      else if (k === 'ArrowDown' || (e.ctrlKey && k === 'n')) { e.preventDefault(); this.setState({ pi: Math.min(st.pi + 1, Math.max(rs.length - 1, 0)) }); }
+      else if (k === 'ArrowUp' || (e.ctrlKey && k === 'p')) { e.preventDefault(); this.setState({ pi: Math.max(st.pi - 1, 0) }); }
+      else if (k === 'Enter') { e.preventDefault(); if (rs[st.pi]) this.run(rs[st.pi]); }
+      else if (k === 'Backspace' && st.pal === 'act' && st.q === '') { e.preventDefault(); this.setState({ pal: 'all', pi: 0 }); }
+      return;
+    }
+    if (e.ctrlKey) return;
+    if (inField) {
+      if (k === 'Escape') { e.preventDefault(); e.target.blur(); this.refocus(); }
+      return;
+    }
+    if (st.help) {
+      if (k === 'Escape' || k === '?' || k === 'q') { e.preventDefault(); this.closeHelp(); }
+      return;
+    }
+    if (st.pend === 'g') { e.preventDefault(); this.goKey(k); return; }
+    if (k === 'Enter' && e.target !== this.root) return;
+    const its = this.items();
+    const it = its[st.cur] || its[0];
+    let used = true;
+    if (k === 'j' || k === 'ArrowDown') this.setState({ cur: Math.min(st.cur + 1, its.length - 1), msg: '' });
+    else if (k === 'k' || k === 'ArrowUp') this.setState({ cur: Math.max(st.cur - 1, 0), msg: '' });
+    else if (k === 'G') this.setState({ cur: its.length - 1, msg: '' });
+    else if (k === 'g') this.setState({ pend: 'g', msg: '' });
+    else if (k === 'Enter') this.openRow(it);
+    else if (k === '/') this.openPal('all');
+    else if (k === ':') this.openPal('act');
+    else if (k === '?') this.setState({ help: true, pend: '', msg: '' });
+    else if (k === 'Escape') this.setState({ msg: '', pend: '' });
+    else if (it.act && it.act[k]) this.say(it.act[k]);
+    else used = false;
+    if (used) e.preventDefault();
+  }
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const st = this.state;
+    const its = this.items();
+    const cur = its[st.cur] || its[0];
+    const cls = {};
+    const car = {};
+    its.forEach((it) => { const on = it.id === cur.id; cls[it.id] = on ? 'pc-cur' : ''; car[it.id] = on ? '›' : ''; });
+    const mark = (o) => Object.assign({}, o, { cls: cls[o.id], car: car[o.id] });
+    const rs = st.pal ? this.results() : [];
+    const hints = st.pal ? [['↑ ↓', 'move'], ['↵', 'open or run'], ['esc', 'close']]
+      : st.help ? [['esc', 'close']]
+      : st.pend === 'g' ? [['g', 'then a key from the list'], ['esc', 'cancel']]
+      : cur.keys.concat([['j k', 'move']]);
+    const M = {
+      healthy: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f',
+      degraded: 'width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)',
+      blocked: 'width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)',
+      down: 'width:8px;height:8px;flex:none;background:#eb6f92',
+      unknown: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa',
+      paused: 'width:8px;height:8px;flex:none;background:linear-gradient(90deg,#9ccfd8 0 3px,transparent 3px 5px,#9ccfd8 5px)'
+    };
+    const count = (k, n) => ({ label: k, n: n, m: M[k] + (n ? '' : ';opacity:.4'), vc: n ? '#e0def4' : '#6e6a86' });
+    return {
+      rootRef: this.rootRef,
+      onKey: this.onKey,
+      inpRef: this.inpRef,
+      onQ: this.onQ,
+      openAll: this.openAll,
+      closeBackdrop: this.closeBackdrop,
+      stop: this.stop,
+      prompt: st.pal === 'act' ? ':' : '/',
+      ph: st.pal === 'act' ? 'Run an action: sync, run checks, new…' : 'Search servers, links, routers and actions…',
+      q: st.q,
+      palOpen: !!st.pal,
+      noResults: !!st.pal && rs.length === 0,
+      groups: ['Go to', 'Actions'].map((g) => ({
+        title: g,
+        rows: rs.filter((r) => r.g === g).map((r) => ({
+          t: r.t, m: r.m, i: r.i, href: r.href || '#',
+          cls: r.i === st.pi ? 'pc-cur' : '',
+          car: r.i === st.pi ? '›' : '',
+          keep: this.keep,
+          pick: (e) => {
+            if (r.msg || !r.href || r.href === '#') { e.preventDefault(); this.run(r); }
+            else setTimeout(() => this.closePal(), 0);
+          }
+        }))
+      })).filter((g) => g.rows.length > 0),
+      whichKey: st.pend === 'g',
+      go: this.goList(),
+      help: st.help,
+      closeHelp: this.closeHelp,
+      keyGroups: this.keyGroups(),
+      hasMsg: !!st.msg,
+      noMsg: !st.msg,
+      msg: st.msg,
+      hints: hints.map((h) => ({ k: h[0], d: h[1] })),
+      cls: cls,
+      car: car,
+      nav: this.nav('dashboard', { servers: ['◆ 1', '#c4a7e7'], links: ['▲ 1', '#f6c177'] }),
+      counts: [count('healthy', 3), count('degraded', 0), count('blocked', 1), count('down', 0), count('unknown', 0), count('paused', 0)],
+      jobs: [
+        mark({ id: 'job0', href: 'RP-Server-provisioning.dc.html', name: 'Provision nl-2', meta: 'step 7/11 · Template install steps', t: '2 min 30 s' }),
+        mark({ id: 'job1', href: '#', name: 'Check round de-1', meta: 'external check · 6 nodes', t: '8 s' })
+      ],
+      routers: [
+        mark({ id: 'home', href: 'RP-Router.dc.html', name: 'Home', t: '42 min ago', abs: '16:10' }),
+        mark({ id: 'parents', href: 'RP-Phone-router.dc.html', name: 'Parents', t: '2 h ago', abs: '14:48' })
+      ],
+      activity: this.activity().map((e, i) => mark(Object.assign({ id: 'a' + i }, e)))
+    };
+  }
+}
+</script>
+</body>
+</html>

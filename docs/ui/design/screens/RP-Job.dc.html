@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Job #421 — router sync Parents</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>2 jobs running<span style="color:#eb6f92">· 1 failed</span></a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Jobs.dc.html" style="color:#908caa">Jobs</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>#421</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Router sync · Parents</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>failed · attempt 1 of 4</span>
+<span style="font-size:12px;color:#908caa">next attempt at 15:16, in 1 min 20 s</span>
+</div>
+<p style="color:#908caa;margin-top:4px">#421 · queue sync · started by the event “list Parents changed” · resource router:2</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn pc-pri">Retry now</button>
+<button type="button" class="pc-btn">Cancel the retries</button>
+<a href="RP-Phone-router.dc.html" class="pc-btn">Open Parents</a>
+</div>
+</div>
+
+<div style="flex:1;display:grid;grid-template-columns:340px minmax(0,1fr)">
+
+<aside style="border-right:1px solid #26233a;display:flex;flex-direction:column">
+<section aria-labelledby="st-h" style="border-bottom:1px solid #26233a;padding-bottom:10px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="st-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Steps · attempt 1</h2></div>
+<ol style="list-style:none;padding:8px 0 0">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="5">
+<li class="pc-row {{s.cls}}" style="position:relative;display:grid;grid-template-columns:16px minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 16px;color:{{s.c}}">
+<span aria-hidden="true" style="position:absolute;left:4px;top:5px">{{s.car}}</span>
+<span aria-hidden="true" style="display:flex;justify-content:center"><span style="{{s.m}}"></span></span>
+<span>{{s.name}}</span>
+<span style="font-size:12px;color:#908caa">{{s.t}}</span>
+</li>
+</sc-for>
+</ol>
+</section>
+<section aria-labelledby="at-h" style="border-bottom:1px solid #26233a;padding-bottom:10px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="at-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Attempts</h2></div>
+<div style="padding:8px 16px 0;display:flex;flex-direction:column;gap:4px">
+<p><span style="color:#908caa">1 · 15:11</span> <span style="color:#eb6f92">connect: i/o timeout</span></p>
+<p style="color:#908caa">2 · 15:16 · 3 at 15:31 · 4 at 16:31</p>
+<p style="font-size:12px;color:#6e6a86">backoff 5 min, 15 min, 1 h</p>
+</div>
+</section>
+<section aria-labelledby="pl-h" style="padding-bottom:12px">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="pl-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Payload</h2></div>
+<dl style="display:grid;grid-template-columns:100px minmax(0,1fr);gap:4px 12px;padding:10px 16px 0">
+<dt style="color:#908caa">router</dt><dd>Parents</dd>
+<dt style="color:#908caa">via</dt><dd>parents-pi.tail3c1e.ts.net</dd>
+<dt style="color:#908caa">tags</dt><dd>youtube, instagram</dd>
+<dt style="color:#908caa">reason</dt><dd>list Parents changed</dd>
+<dt style="color:#908caa">merged</dt><dd>1 later request</dd>
+</dl>
+</section>
+</aside>
+
+<section aria-labelledby="lg-h" style="display:flex;flex-direction:column;min-width:0">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:5px 16px;border-bottom:1px solid #26233a">
+<h2 id="lg-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Log</h2>
+<span style="font-size:12px;color:#908caa">redacted · 18 lines</span>
+<span style="flex:1"></span>
+<button type="button" class="pc-btn pc-sm">Copy</button>
+<button type="button" class="pc-btn pc-sm">Download</button>
+</div>
+<div style="flex:1;background:#191724;font-size:12px;line-height:19px;padding:8px 0">
+<sc-for list="{{log}}" as="l" hint-placeholder-count="14">
+<div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:0 16px;background:{{l.bg}}"><span style="color:#908caa">{{l.t}}</span><span style="color:{{l.c}};font-weight:{{l.w}}">{{l.s}}</span></div>
+</sc-for>
+</div>
+<div style="padding:10px 16px;border-top:1px solid #26233a;color:#908caa">Most likely the jump host is off: parents-pi was last seen on the tailnet 2 h ago. Retries keep going on their own.</div>
+</section>
+
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">r</span> retry now</span>
+<span><span style="color:#e0def4;font-weight:600">y</span> copy log</span>
+<span><span style="color:#e0def4;font-weight:600">G</span> end of log</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 15:14:40</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const OK = 'width:8px;height:8px;border-radius:50%;background:#31748f';
+    const BAD = 'width:8px;height:8px;background:#eb6f92';
+    const TODO = 'width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86';
+    const s = (name, m, c, t, on) => ({ name: name, m: m, c: c, t: t, cls: on ? 'pc-cur' : '', car: on ? '›' : '' });
+    const L = (t, s, k) => ({ t: t, s: s, c: k === 'err' ? '#eb6f92' : (k === 'ok' ? '#9ccfd8' : '#e0def4'), w: k === 'step' ? '600' : '400', bg: k === 'step' ? '#21202e' : (k === 'err' ? '#2e202f' : 'transparent') });
+    return {
+      nav: this.nav('jobs', { jobs: ['■ 1', '#eb6f92'] }),
+      steps: [
+        s('Connect', BAD, '#eb6f92', '30 s', true),
+        s('Read the router', TODO, '#6e6a86', ''),
+        s('Plan', TODO, '#6e6a86', ''),
+        s('Write tags', TODO, '#6e6a86', ''),
+        s('Verify', TODO, '#6e6a86', '')
+      ],
+      log: [
+        L('15:11:02', '==> attempt 1 of 4', 'step'),
+        L('15:11:02', '==> 1/5 Connect', 'step'),
+        L('15:11:02', 'jump host parents-pi.tail3c1e.ts.net:22 as pi'),
+        L('15:11:12', 'dial tcp 100.101.7.22:22: i/o timeout (10 s)', 'err'),
+        L('15:11:12', 'retrying the jump host in 5 s (1 of 3)'),
+        L('15:11:17', 'dial tcp 100.101.7.22:22: i/o timeout (10 s)', 'err'),
+        L('15:11:22', 'retrying the jump host in 5 s (2 of 3)'),
+        L('15:11:27', 'dial tcp 100.101.7.22:22: i/o timeout (10 s)', 'err'),
+        L('15:11:32', 'connect failed: jump host unreachable', 'err'),
+        L('15:11:32', 'tailnet: parents-pi last seen 13:04 (2 h ago)'),
+        L('15:11:32', 'step failed · retryable · next attempt at 15:16')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

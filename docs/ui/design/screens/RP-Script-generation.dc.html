@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Generation — Dacha</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-grp{display:flex;align-items:stretch;background:#191724;border:1px solid #403d52}
+.pc-grp:focus-within{border-color:#908caa}
+.pc-grp>button{background:transparent;border:0;border-left:1px solid #403d52;padding:0 14px;white-space:nowrap}
+.pc-grp>button:hover{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible,.pc-grp>button:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div tabindex="0" onKeyDown="{{onKey}}" style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4;outline:0">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Router scripts</a><span aria-hidden="true" style="color:#6e6a86">/</span><a href="RP-Script-generate.dc.html" style="color:#908caa">fresh-router.rsc</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>generation #12</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Dacha</h1>
+<span style="font-size:12px;color:#908caa">fresh-router.rsc v4 · generated 16:30 by admin</span>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn">Download .rsc</button>
+<button type="button" class="pc-btn">Generate again…</button>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<div style="flex:999 1 700px;min-width:0;display:flex;flex-direction:column">
+
+<section aria-labelledby="fu-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="fu-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Fetch URL</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">works once</span>
+<span style="flex:1"></span>
+<span style="display:inline-flex;align-items:center;gap:8px;color:{{cdColor}}"><span aria-hidden="true" style="{{cdMark}}"></span>{{countdown}}</span>
+</div>
+<div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+<div class="pc-grp" style="flex-wrap:wrap">
+<code style="flex:1 1 360px;min-width:0;padding:7px 12px;font:inherit;word-break:break-all">{{fetchUrl}}</code>
+<button type="button" onClick="{{toggleReveal}}" style="min-height:34px">{{revealLabel}}</button>
+<button type="button" onClick="{{copyUrl}}" style="min-height:34px">Copy</button>
+</div>
+<div>
+<div style="font-size:12px;color:#908caa;margin-bottom:8px">Paste into the new router's terminal, after the prerequisites in the script header</div>
+<div style="border:1px solid #26233a;background:#191724">
+<div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 8px 8px 12px;border-bottom:1px solid #26233a">
+<span style="color:#6e6a86">1</span>
+<code style="font:inherit;word-break:break-all"><sc-for list="{{cmd1}}" as="p" hint-placeholder-count="3"><span style="color:{{p.c}}">{{p.t}}</span></sc-for></code>
+<button type="button" onClick="{{copyCmd}}" class="pc-btn pc-sm">Copy</button>
+</div>
+<div style="display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:8px;align-items:center;padding:8px 8px 8px 12px">
+<span style="color:#6e6a86">2</span>
+<code style="font:inherit;word-break:break-all">/import fresh-router.rsc</code>
+<button type="button" onClick="{{copyCmd}}" class="pc-btn pc-sm">Copy</button>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px">
+<button type="button" onClick="{{copyBoth}}" class="pc-btn pc-pri">Copy both lines</button>
+<button type="button" class="pc-btn">New fetch URL</button>
+<span style="font-size:12px;color:#908caa">A new URL makes this one stop working.</span>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="next-h" style="border-bottom:1px solid #26233a">
+<h2 id="next-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">After the import</h2>
+<ol style="list-style:none;padding:6px 0">
+<li style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;padding:8px 16px">
+<span style="color:#908caa">1</span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px"><span style="font-weight:600">The router fetches the file</span><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa"></span>waiting</span></span>
+<span style="font-size:12px;color:#908caa">You get a Telegram message with the router's IP when it happens.</span>
+</div>
+</li>
+<li style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;padding:8px 16px">
+<span style="color:#908caa">2</span>
+<div style="display:flex;flex-direction:column;gap:8px;min-width:0">
+<span style="font-weight:600">Add Proxier's key to the router</span>
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;border:1px solid #26233a;background:#191724;padding:6px 6px 6px 12px">
+<code style="font:inherit;font-size:12px;word-break:break-all">/user ssh-keys add user=proxier key=<span style="color:#f6c177">"ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI…Qx proxier"</span></code>
+<button type="button" onClick="{{copyCmd}}" class="pc-btn pc-sm">Copy</button>
+</div>
+</div>
+</li>
+<li style="display:grid;grid-template-columns:24px minmax(0,1fr);gap:8px;padding:8px 16px">
+<span style="color:#908caa">3</span>
+<div style="display:flex;flex-direction:column;gap:2px">
+<span style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px"><span style="font-weight:600">Proxier connects and runs the first sync</span><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa"></span>awaiting setup</span></span>
+<span style="font-size:12px;color:#908caa">It tries <a href="#">Dacha</a> every 10 min for 7 days, through dacha-pi.</span>
+</div>
+</li>
+</ol>
+</section>
+
+<section aria-labelledby="fh-h" style="flex:1">
+<h2 id="fh-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Fetch history</h2>
+<p style="padding:10px 16px;color:#908caa">No fetches yet.</p>
+</section>
+</div>
+
+<aside style="flex:1 1 340px;max-width:420px;min-width:0;border-left:1px solid #26233a;display:flex;flex-direction:column">
+<section aria-labelledby="g-h" style="border-bottom:1px solid #26233a">
+<h2 id="g-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Generation #12</h2>
+<dl style="display:grid;grid-template-columns:minmax(80px,auto) minmax(0,1fr);gap:10px 14px;padding:12px 16px 14px;font-size:12px">
+<dt style="color:#908caa">Script</dt><dd>fresh-router.rsc v4</dd>
+<dt style="color:#908caa">Router</dt><dd><a href="#">Dacha</a> <span style="color:#908caa">· awaiting setup · Main</span></dd>
+<dt style="color:#908caa">Link</dt><dd><a href="#">Router — Dacha</a> <span style="color:#908caa">· Me — everything</span></dd>
+<dt style="color:#908caa">File</dt><dd style="word-break:break-all">fresh-router-Dacha-v4.rsc <span style="color:#908caa">· 2 lines differ from v4</span></dd>
+</dl>
+</section>
+
+<section aria-labelledby="v-h" style="flex:1">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="v-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Values</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">changed from v4 first</span>
+</div>
+<div style="padding:6px 0">
+<sc-for list="{{values}}" as="v" hint-placeholder-count="7">
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px;padding:4px 16px;font-size:12px">
+<span style="font-weight:600;color:{{v.kc}}">{{v.k}}</span>
+<span style="color:#908caa;word-break:break-all">{{v.v}}</span>
+</div>
+</sc-for>
+</div>
+<div style="padding:4px 16px 16px">
+<button type="button" class="pc-btn pc-sm">Show all 18</button>
+</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}"><span style="color:#e0def4">{{msg}}</span></sc-if>
+<sc-if value="{{noMsg}}" hint-placeholder-val="{{true}}">
+<span><span style="color:#e0def4;font-weight:600">y</span> copy both lines</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+class Component extends DCLogic {
+  state = { left: 3134, reveal: false, msg: '' };
+
+  componentDidMount() {
+    this.timer = setInterval(() => {
+      if (this.state.left > 0) this.setState({ left: this.state.left - 1 });
+    }, 1000);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+    clearTimeout(this.msgTimer);
+  }
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  highlight(line) {
+    const out = [];
+    const re = /"[^"]*"/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(line))) {
+      if (m.index > last) out.push({ t: line.slice(last, m.index), c: '#e0def4' });
+      out.push({ t: m[0], c: '#f6c177' });
+      last = m.index + m[0].length;
+    }
+    if (last < line.length) out.push({ t: line.slice(last), c: '#e0def4' });
+    return out;
+  }
+  renderVals() {
+    const left = this.state.left;
+    const mm = String(Math.floor(left / 60)).padStart(2, '0');
+    const ss = String(left % 60).padStart(2, '0');
+    const url = this.state.reveal
+      ? 'https://proxier.tikhonnnnn.com/f/Zr8Kd2Qm9VxT4pWc'
+      : 'https://proxier.tikhonnnnn.com/f/••••••••••••••••';
+    const say = (t) => {
+      clearTimeout(this.msgTimer);
+      this.setState({ msg: t });
+      this.msgTimer = setTimeout(() => this.setState({ msg: '' }), 2600);
+    };
+    const copyBoth = () => say('Both lines copied');
+    return {
+      nav: this.nav('scripts', {}),
+      onKey: (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key === 'y') { e.preventDefault(); copyBoth(); }
+      },
+      countdown: left > 0 ? 'expires in ' + mm + ':' + ss : 'expired · create a new one',
+      cdColor: left > 0 ? '#e0def4' : '#eb6f92',
+      cdMark: left > 0
+        ? 'width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite'
+        : 'width:8px;height:8px;flex:none;background:#eb6f92',
+      fetchUrl: url,
+      cmd1: this.highlight('/tool fetch url="' + url + '" dst-path=fresh-router.rsc'),
+      revealLabel: this.state.reveal ? 'Hide' : 'Reveal',
+      toggleReveal: () => this.setState({ reveal: !this.state.reveal }),
+      copyUrl: () => say('Fetch URL copied'),
+      copyCmd: () => say('Command copied'),
+      copyBoth: copyBoth,
+      hasMsg: !!this.state.msg,
+      noMsg: !this.state.msg,
+      msg: this.state.msg,
+      values: [
+        { k: 'lanNet', v: '10.230.3 · changed', kc: '#ebbcba' },
+        { k: 'subUrl', v: 'https://proxier.tikhonnnnn.com/s/•••••• · secret', kc: '#ebbcba' },
+        { k: 'vpnList', v: 'to_vpn_list · from router Dacha', kc: '#e0def4' },
+        { k: 'dohForwarder', v: 'vpn-doh · from router Dacha', kc: '#e0def4' },
+        { k: 'wanIface', v: 'ether1', kc: '#e0def4' },
+        { k: 'containerNet', v: '192.168.89', kc: '#e0def4' },
+        { k: 'timeZone', v: 'Europe/Moscow', kc: '#e0def4' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

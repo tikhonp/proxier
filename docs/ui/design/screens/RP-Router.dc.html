@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Router — Home</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-dng{border-color:#763849;color:#eb6f92 !important}
+.pc-dng:hover{border-color:#eb6f92}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Routers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>Home</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Home</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>synced</span>
+<span style="font-size:12px;color:#908caa" title="Mon 5 Oct 2026, 16:10 MSK">42 min ago</span>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>1 unmanaged tag</span>
+</div>
+<p style="color:#908caa;margin-top:4px">active · follows <a href="#">Main</a> (14 services, 1,264 domains) · RouterOS 7.24.5 · RB5009UG+S+</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn">Sync now</button>
+<button type="button" aria-pressed="true" class="pc-btn" style="border-color:#e0def4">Preview sync</button>
+<button type="button" class="pc-btn" aria-label="More actions for Home">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<div style="flex:999 1 700px;min-width:0;display:flex;flex-direction:column">
+
+<section aria-labelledby="plan-h" style="border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;padding:8px 16px">
+<h2 id="plan-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Sync preview</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">read from the router at 16:51:20 · nothing applied</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:5px 16px 5px 0">
+<button type="button" class="pc-btn pc-sm pc-pri">Run this sync</button>
+<button type="button" class="pc-btn pc-sm pc-ghost">Close</button>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:6px 22px;padding:10px 16px;border-bottom:1px solid #26233a">
+<span><span style="font-weight:600">2</span> <span style="color:#908caa">updates</span></span>
+<span><span style="font-weight:600">1</span> <span style="color:#908caa">removal</span></span>
+<span><span style="font-weight:600">12</span> <span style="color:#908caa">unchanged</span></span>
+<span><span style="font-weight:600;color:#f6c177">1</span> <span style="color:#908caa">unmanaged, left alone</span></span>
+<span style="color:#908caa">order: tags that gain names, other updates, then removals</span>
+</div>
+<div style="overflow-x:auto">
+<div style="min-width:760px;padding-bottom:6px">
+<div style="display:grid;grid-template-columns:120px minmax(150px,1fr) 70px 80px 110px minmax(160px,1.2fr);gap:12px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span>Tag</span><span>Service</span><span style="text-align:right">Want</span><span style="text-align:right">On router</span><span>Plan</span><span>Why</span>
+</div>
+<sc-for list="{{tags}}" as="t" hint-placeholder-count="16">
+<div class="pc-row {{t.cls}}" style="position:relative;display:grid;grid-template-columns:120px minmax(150px,1fr) 70px 80px 110px minmax(160px,1.2fr);gap:12px;align-items:center;padding:4px 16px;color:{{t.fg}}">
+<span aria-hidden="true" style="position:absolute;left:4px;top:4px;color:#e0def4">{{t.car}}</span>
+<span style="font-weight:600">{{t.tag}}</span>
+<span style="color:#908caa">{{t.svc}}</span>
+<span style="text-align:right">{{t.want}}</span>
+<span style="text-align:right">{{t.have}}</span>
+<span style="color:{{t.pc}};font-weight:{{t.pw}}">{{t.plan}}</span>
+<span style="color:#908caa;font-size:12px">{{t.why}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</section>
+
+<section aria-labelledby="script-h" style="border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px">
+<h2 id="script-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">RouterOS script</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">proxier-sync-2207-1.rsc · 3 blocks · uploaded over SFTP, run with /import</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:5px 16px 5px 0">
+<button type="button" class="pc-btn pc-sm">Copy</button>
+<button type="button" class="pc-btn pc-sm">Download</button>
+</div>
+</div>
+<div style="background:#191724;max-height:420px;overflow:auto;padding:10px 0;font-size:12px;line-height:19px">
+<sc-for list="{{script}}" as="s" hint-placeholder-count="20">
+<div style="display:grid;grid-template-columns:36px minmax(0,1fr);gap:12px;padding:0 16px 0 0">
+<span style="text-align:right;color:#6e6a86;user-select:none">{{s.n}}</span>
+<span style="white-space:pre-wrap;word-break:break-all"><sc-for list="{{s.parts}}" as="p" hint-placeholder-count="3"><span style="color:{{p.c}};font-style:{{p.i}}">{{p.t}}</span></sc-for></span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="unm-h" style="flex:1">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="unm-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Not Proxier's</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">found on the router · never deleted on its own</span>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 16px">
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>unmanaged</span>
+<span style="font-weight:600">netflix</span>
+<span style="color:#908caa">26 entries · seen since 3 Oct · the catalog has v2fly:netflix</span>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 4px">
+<button type="button" class="pc-btn pc-sm">Adopt as v2fly:netflix</button>
+<button type="button" class="pc-btn pc-sm">Ignore</button>
+<button type="button" class="pc-btn pc-sm pc-dng">Remove from router…</button>
+</div>
+<div style="display:grid;grid-template-columns:minmax(110px,auto) minmax(0,1fr);gap:8px 16px;padding:12px 16px;font-size:12px">
+<span style="color:#e0def4">untagged</span><span style="color:#908caa">3 entries without a comment. Left alone unless a desired tag includes their name.</span>
+<span style="color:#e0def4">infra pins</span><span style="color:#908caa">4 entries commented mtvpn: (mtvpn:doh and others) belong to the router script. Never touched.</span>
+</div>
+</section>
+</div>
+
+<aside style="flex:1 1 360px;max-width:440px;min-width:0;border-left:1px solid #26233a;display:flex;flex-direction:column">
+<section aria-labelledby="conn-h" style="border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<h2 id="conn-h" style="flex:1;display:flex;align-items:center;padding:8px 16px;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Connection</h2>
+<div style="display:flex;align-items:center;padding:5px 16px 5px 0"><button type="button" class="pc-btn pc-sm">Test connection</button></div>
+</div>
+<dl style="display:grid;grid-template-columns:minmax(92px,auto) minmax(0,1fr);gap:10px 14px;padding:12px 16px 14px;font-size:12px">
+<dt style="color:#908caa">Router</dt><dd style="word-break:break-all">proxier@10.230.1.1:22</dd>
+<dt style="color:#908caa">Jump host</dt><dd style="word-break:break-all">tikhon@blackberry:22 <span style="color:#908caa">· tailnet</span></dd>
+<dt style="color:#908caa">Host keys</dt><dd style="word-break:break-all">router SHA256:mY3oQ…9QfE<br>jump SHA256:Kp1xT…v7Ad<br><span style="color:#908caa">pinned on first contact</span></dd>
+<dt style="color:#908caa">Address list</dt><dd>to_vpn_list</dd>
+<dt style="color:#908caa">DoH forwarder</dt><dd>vpn-doh</dd>
+<dt style="color:#908caa">Drift check</dt><dd>every 6 h <span style="color:#908caa">· auto-repair on</span></dd>
+</dl>
+</section>
+
+<section aria-labelledby="hist-h" style="flex:1">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="hist-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Sync history</h2>
+<span style="flex:1"></span>
+<a href="#" style="font-size:12px;line-height:16px;color:#908caa">All →</a>
+</div>
+<div style="padding:6px 0">
+<sc-for list="{{history}}" as="h" hint-placeholder-count="5">
+<div class="pc-row" style="display:grid;grid-template-columns:62px minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:6px 16px;font-size:12px">
+<span style="color:#908caa">{{h.t}}</span>
+<span style="display:flex;flex-direction:column;gap:2px;min-width:0">
+<span style="display:inline-flex;align-items:center;gap:7px;color:{{h.c}}"><span aria-hidden="true" style="{{h.m}}"></span>{{h.what}}</span>
+<span style="color:#908caa">{{h.detail}}</span>
+</span>
+<a href="#" style="color:#908caa">{{h.link}}</a>
+</div>
+</sc-for>
+</div>
+</section>
+</aside>
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">s</span> run this sync</span>
+<span><span style="color:#e0def4;font-weight:600">y</span> copy the script</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> close the preview</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1560}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  // RouterOS has no tree-sitter grammar, so only what Rosé Pine colours everywhere:
+  // comments subtle italic, strings gold, brackets subtle, the rest plain text.
+  highlight(line) {
+    if (line.trim().charAt(0) === '#') return [{ t: line, c: '#908caa', i: 'italic' }];
+    const out = [];
+    const re = /("[^"]*")|([\[\]{}()])/g;
+    let last = 0;
+    let m;
+    while ((m = re.exec(line))) {
+      if (m.index > last) out.push({ t: line.slice(last, m.index), c: '#e0def4', i: 'normal' });
+      out.push({ t: m[0], c: m[1] ? '#f6c177' : '#908caa', i: 'normal' });
+      last = m.index + m[0].length;
+    }
+    if (last < line.length) out.push({ t: line.slice(last), c: '#e0def4', i: 'normal' });
+    return out;
+  }
+  renderVals() {
+    const T = (tag, svc, want, have, plan, why, on) => {
+      const P = {
+        update: ['#e0def4', '600'],
+        remove: ['#eb6f92', '600'],
+        unmanaged: ['#f6c177', '600'],
+        unchanged: ['#908caa', '400']
+      }[plan];
+      return { tag: tag, svc: svc, want: want, have: have, plan: plan, why: why || '', pc: P[0], pw: P[1], fg: plan === 'unchanged' ? '#908caa' : '#e0def4', cls: on ? 'pc-cur' : '', car: on ? '›' : '' };
+    };
+    const lines = [
+      '# proxier sync · router Home · job #2207 · plan read 16:51:20',
+      '# 1/3 update openai (+31)',
+      '{',
+      '/ip dns static remove [find comment="openai" address-list="to_vpn_list"]',
+      '/ip firewall address-list remove [find list="to_vpn_list" comment="openai" dynamic=no]',
+      ':local ours [:toarray ""]',
+      ':set ($ours->"openai.com") 1',
+      ':set ($ours->"chatgpt.com") 1',
+      ':set ($ours->"oaistatic.com") 1',
+      '# … 28 more :set lines',
+      ':foreach e in=[/ip dns static find where address-list="to_vpn_list" type=FWD] do={:if ([:typeof ($ours->[/ip dns static get $e name])]!="nothing") do={/ip dns static remove $e}}',
+      ':foreach e in=[/ip firewall address-list find where list="to_vpn_list" dynamic=no] do={ … skips mtvpn: entries … }',
+      '/ip dns static add name=openai.com type=FWD match-subdomain=yes forward-to=vpn-doh address-list=to_vpn_list comment="openai"',
+      ':do {/ip firewall address-list add list=to_vpn_list address=openai.com comment="openai"} on-error={}',
+      '# … 30 more names',
+      '}',
+      '# 2/3 update mine (+2, drift repair)',
+      '{',
+      '# same block shape · 8 names',
+      '}',
+      '# 3/3 remove discord (−14)',
+      '/ip dns static remove [find comment="discord" address-list="to_vpn_list"]',
+      '/ip firewall address-list remove [find list="to_vpn_list" comment="discord" dynamic=no]'
+    ];
+    const OK = 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f';
+    const DR = 'width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)';
+    return {
+      nav: this.nav('routers', {}),
+      tags: [
+        T('openai', 'v2fly:openai', 31, 0, 'update', 'added to Main 1 min ago', true),
+        T('mine', 'custom · Mine', 8, 6, 'update', 'drift: 2 names missing on the router'),
+        T('discord', 'v2fly:discord', '—', 14, 'remove', 'removed from Main'),
+        T('netflix', '—', '—', 26, 'unmanaged', 'Proxier never installed it'),
+        T('anthropic', 'v2fly:anthropic', 12, 12, 'unchanged'),
+        T('cloudflare.com', 'iplist:beta:cloudflare.com', 9, 9, 'unchanged'),
+        T('facebook', 'v2fly:facebook', 41, 41, 'unchanged'),
+        T('github', 'v2fly:github', 26, 26, 'unchanged'),
+        T('google', 'v2fly:google', 862, 862, 'unchanged'),
+        T('instagram', 'v2fly:instagram', 9, 9, 'unchanged'),
+        T('linkedin', 'v2fly:linkedin', 12, 12, 'unchanged'),
+        T('notion', 'v2fly:notion', 7, 7, 'unchanged'),
+        T('spotify', 'v2fly:spotify', 18, 18, 'unchanged'),
+        T('telegram', 'v2fly:telegram', 19, 19, 'unchanged'),
+        T('twitter', 'v2fly:twitter', 23, 23, 'unchanged'),
+        T('youtube', 'v2fly:youtube', 187, 187, 'unchanged')
+      ],
+      script: lines.map((t, i) => ({ n: i + 1, parts: this.highlight(t) })),
+      history: [
+        { t: '16:10', c: '#908caa', m: OK, what: 'synced', detail: '1 update · 9 s · after linkedin changed upstream', link: 'Plan' },
+        { t: '10:10', c: '#908caa', m: OK, what: 'drift check', detail: 'no drift', link: 'Log' },
+        { t: '04:10', c: '#f6c177', m: DR, what: 'drift found', detail: 'youtube: 10 entries deleted by hand · repaired', link: 'Plan' },
+        { t: 'Sun 22:10', c: '#908caa', m: OK, what: 'drift check', detail: 'no drift', link: 'Log' },
+        { t: 'Sun 19:03', c: '#908caa', m: OK, what: 'synced', detail: '1 update (linkedin added) · 7 s', link: 'Plan' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

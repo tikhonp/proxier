@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nl-2 — provisioning</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@keyframes pc-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div tabindex="0" onKeyDown="{{onKey}}" style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4;outline:0">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:{{jobsColor}}"><span aria-hidden="true" style="{{jobsMark}}"></span>{{jobsText}}</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Server-health.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>nl-2</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">nl-2</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{badge.c}}"><span aria-hidden="true" style="{{badge.m}}"></span>{{badge.t}}</span>
+<span style="font-size:12px;color:#908caa">{{badgeNote}}</span>
+</div>
+<p style="color:#908caa;margin-top:4px">Netherlands · 203.0.113.24 · nl-2.hosts.tikhonnnnn.com · VLESS XHTTP behind nginx v3</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<sc-if value="{{running}}" hint-placeholder-val="{{ true }}">
+<button type="button" class="pc-btn">Cancel provisioning</button>
+</sc-if>
+<sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+<button type="button" class="pc-btn pc-pri">Run checks now</button>
+<button type="button" class="pc-btn">Redeploy</button>
+</sc-if>
+<button type="button" class="pc-btn" aria-label="More actions for nl-2">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;border-bottom:1px solid #26233a">
+<nav aria-label="Server sections" style="display:flex;flex-wrap:wrap;overflow-x:auto">
+<a href="#" aria-current="page" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;background:#26233a">Overview</a>
+<span style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:{{tabOff}};white-space:nowrap">Health</span>
+<span style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:{{tabOff}};white-space:nowrap">Stats</span>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Stack</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Jobs</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Activity</a>
+</nav>
+</div>
+
+<sc-if value="{{done}}" hint-placeholder-val="{{ false }}">
+<div role="status" style="padding:12px 16px;display:flex;flex-direction:column;gap:4px;background:#050c0e;border-bottom:1px solid #193a48">
+<p style="display:flex;align-items:center;gap:8px;font-weight:600"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>nl-2 is active</p>
+<p style="color:#908caa">Smoke test passed from home: connect 38 ms · first byte 212 ms · 41.6 Mbit/s. Added to Me — everything. First check round within 5 min.</p>
+</div>
+</sc-if>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<section aria-labelledby="steps-h" style="flex:1 1 340px;max-width:420px;min-width:0;border-right:1px solid #26233a;display:flex;flex-direction:column">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="steps-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Provisioning</h2>
+<span style="flex:1"></span>
+<span style="font-size:12px;line-height:16px;color:#908caa">{{elapsed}}</span>
+</div>
+<div style="padding:8px 0;flex:1">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="11">
+<div style="background:{{s.bg}}">
+<div style="display:grid;grid-template-columns:14px 36px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 16px">
+<span aria-hidden="true" style="{{s.m}}"></span>
+<span style="font-size:12px;color:#908caa">{{s.n}}</span>
+<span style="color:{{s.c}};font-weight:{{s.w}}">{{s.label}}</span>
+<span style="font-size:12px;color:#908caa">{{s.d}}</span>
+</div>
+<sc-if value="{{s.hasSub}}" hint-placeholder-val="{{ false }}">
+<div style="padding:0 16px 8px 82px;display:flex;flex-direction:column;gap:4px">
+<sc-for list="{{s.subs}}" as="u" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:12px minmax(0,1fr) auto;gap:8px;align-items:center;font-size:12px">
+<span aria-hidden="true" style="{{u.m}}"></span>
+<span style="color:{{u.c}}">{{u.label}}</span>
+<span style="color:#908caa">{{u.d}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Each step resumes where it stopped. Cancel stops after the current step.</p>
+</section>
+
+<section aria-labelledby="log-h" style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px">
+<h2 id="log-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Live log</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">job #318 · attempt 1 · started by admin · {{lineCount}}</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:5px 16px 5px 0">
+<label style="display:flex;align-items:center;gap:8px;padding:0 8px;font-size:12px;cursor:pointer"><input type="checkbox" checked="{{follow}}" onChange="{{toggleFollow}}" style="accent-color:#e0def4;margin:0">Follow</label>
+<button type="button" class="pc-btn pc-sm" onClick="{{copy}}">Copy</button>
+<button type="button" class="pc-btn pc-sm">Download</button>
+</div>
+</div>
+<div ref="{{setLog}}" style="height:620px;overflow:auto;padding:10px 0 14px;background:#191724;font-size:12px;line-height:19px">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="20">
+<div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:0 16px;background:{{l.bg}}">
+<span style="color:#908caa">{{l.t}}</span>
+<span style="color:{{l.c}};font-weight:{{l.w}};white-space:pre-wrap;word-break:break-word">{{l.m}}</span>
+</div>
+</sc-for>
+<sc-if value="{{running}}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:0 16px"><span></span><span aria-hidden="true" style="color:#e0def4;animation:pc-blink 1s step-end infinite">▌</span></div>
+</sc-if>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Secrets are written as ••• before a line is stored. The root password never reaches the log.</p>
+</section>
+
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<sc-if value="{{hasMsg}}" hint-placeholder-val="{{false}}"><span style="color:#e0def4">{{msg}}</span></sc-if>
+<sc-if value="{{noMsg}}" hint-placeholder-val="{{true}}">
+<span><span style="color:#e0def4;font-weight:600">f</span> {{followHint}}</span>
+<span><span style="color:#e0def4;font-weight:600">y</span> copy the log</span>
+<span><span style="color:#e0def4;font-weight:600">G</span> end of the log</span>
+<span><span style="color:#e0def4;font-weight:600">[ ]</span> tabs</span>
+</sc-if>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"live":{"editor":"boolean","default":false},"$preview":{"width":1440,"height":1120}}'>
+class Component extends DCLogic {
+  state = { n: 33, follow: true, msg: '' };
+
+  componentDidMount() {
+    if (this.props.live) this.play();
+    this.toBottom();
+  }
+  componentDidUpdate(prev) {
+    if (!!this.props.live !== !!prev.live) {
+      if (this.props.live) this.play(); else this.halt(33);
+    }
+    if (this.state.follow) this.toBottom();
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+    clearTimeout(this.msgTimer);
+  }
+  play() {
+    clearInterval(this.timer);
+    this.setState({ n: 26 });
+    this.timer = setInterval(() => {
+      const total = this.lines().length;
+      if (this.state.n >= total) { clearInterval(this.timer); return; }
+      this.setState({ n: this.state.n + 1 });
+    }, 420);
+  }
+  halt(n) {
+    clearInterval(this.timer);
+    this.setState({ n: n });
+  }
+  toBottom() {
+    if (this.logEl) this.logEl.scrollTop = this.logEl.scrollHeight;
+  }
+  say(msg) {
+    clearTimeout(this.msgTimer);
+    this.setState({ msg: msg });
+    this.msgTimer = setTimeout(() => this.setState({ msg: '' }), 2600);
+  }
+  lines() {
+    return [
+      ['16:49:38', 1, 'h', '==> 1/11 Preflight'],
+      ['16:49:38', 1, '', 'connect 203.0.113.24:22'],
+      ['16:49:39', 1, '', 'password login as root: ok'],
+      ['16:49:39', 1, '', 'host key pinned: ED25519 SHA256:Tz8cWq1…f2Lq'],
+      ['16:49:40', 1, '', 'os debian-12 (bookworm) · amd64 · matches the template'],
+      ['16:49:41', 1, '', 'ports 80/tcp and 443/tcp are free'],
+      ['16:49:41', 2, 'h', '==> 2/11 Install access'],
+      ['16:49:42', 2, '', 'authorized_keys: +2 keys (proxier, tikhon@macbook)'],
+      ['16:49:43', 2, '', 'new connection with Proxier\'s key: ok'],
+      ['16:49:44', 2, 'g', 'root password erased from the job'],
+      ['16:49:44', 3, 'h', '==> 3/11 Base bootstrap'],
+      ['16:49:45', 3, '', 'sshd drop-in: PasswordAuthentication no, PermitRootLogin prohibit-password'],
+      ['16:49:46', 3, '', 'sshd reloaded · key login verified'],
+      ['16:49:46', 3, '', '$ apt-get install -y ca-certificates curl ufw'],
+      ['16:50:02', 3, '', 'docker not found · installing from get.docker.com'],
+      ['16:50:33', 3, '', 'docker 28.5.1 installed'],
+      ['16:50:38', 3, '', 'ufw allow 22/tcp 80/tcp 443/tcp · enabled'],
+      ['16:50:39', 4, 'h', '==> 4/11 DNS'],
+      ['16:50:40', 4, '', 'cloudflare: A nl-2.hosts.tikhonnnnn.com → 203.0.113.24 · dns only · ttl 60 · proxier:nl-2'],
+      ['16:50:41', 4, '', 'waiting for 1.1.1.1 and 8.8.8.8 …'],
+      ['16:51:14', 4, '', '1.1.1.1 → 203.0.113.24 · 8.8.8.8 → 203.0.113.24'],
+      ['16:51:14', 5, 'h', '==> 5/11 Generated values'],
+      ['16:51:14', 5, '', 'client_uuid ••• · xhttp_path ••• · container_postfix 3fa1'],
+      ['16:51:15', 6, 'h', '==> 6/11 Render and upload'],
+      ['16:51:16', 6, '', 'render vless-xhttp v3 for nl-2: 6 files'],
+      ['16:51:17', 6, '', 'upload → /opt/proxier/vless-xhttp (temp name, then rename)'],
+      ['16:51:17', 7, 'h', '==> 7/11 Template install steps'],
+      ['16:51:17', 7, '', '[1/3] run ./issue-cert.sh · timeout 5m'],
+      ['16:51:38', 7, '', 'certbot: Successfully received certificate.'],
+      ['16:51:39', 7, '', 'certbot: expires on 2027-01-03'],
+      ['16:51:40', 7, '', '[2/3] compose-up · pull'],
+      ['16:51:52', 7, '', 'pulled nginx, xray, certbot'],
+      ['16:51:58', 7, '', 'container vless-xhttp-nginx-3fa1 started'],
+      ['16:51:58', 7, '', 'container vless-xhttp-xray-3fa1 started'],
+      ['16:51:59', 7, '', 'container vless-xhttp-certbot-3fa1 started'],
+      ['16:51:59', 7, '', '[3/3] wait-http https://nl-2.hosts.tikhonnnnn.com/ · resolve 127.0.0.1 · expect 200'],
+      ['16:52:03', 7, '', 'wait-http: 200 after 4 s'],
+      ['16:52:03', 8, 'h', '==> 8/11 Endpoints'],
+      ['16:52:03', 8, '', 'main · vless-xhttp-tls · nl-2.hosts.tikhonnnnn.com:443 · “🇳🇱 Netherlands 2”'],
+      ['16:52:03', 9, 'h', '==> 9/11 Self-check'],
+      ['16:52:05', 9, '', 'compose-running ok · http-local 200 · cert-expiry 90 d · disk-free 91 %'],
+      ['16:52:05', 10, 'h', '==> 10/11 Smoke test'],
+      ['16:52:06', 10, '', 'proxy test main from home · attempt 1/3'],
+      ['16:52:08', 10, '', 'connect 38 ms · tls 96 ms · first byte 212 ms · 256 KB at 41.6 Mbit/s'],
+      ['16:52:08', 10, 'g', 'smoke test passed'],
+      ['16:52:08', 11, 'h', '==> 11/11 Activate'],
+      ['16:52:09', 11, '', 'nl-2 is active · health unknown until the first check round'],
+      ['16:52:09', 11, '', 'appended to Me — everything'],
+      ['16:52:09', 11, 'g', 'job #318 succeeded in 2 min 31 s']
+    ];
+  }
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const L = this.lines();
+    const n = Math.max(1, Math.min(this.state.n, L.length));
+    const done = n >= L.length;
+    const last = L[n - 1];
+    const cur = done ? 12 : last[1];
+    const sec = (t) => { const p = t.split(':'); return (+p[0]) * 3600 + (+p[1]) * 60 + (+p[2]); };
+    const fmt = (s) => s < 60 ? s + ' s' : Math.floor(s / 60) + ' min ' + (s % 60) + ' s';
+    const MK = {
+      done: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f',
+      run: 'width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite',
+      todo: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #524f67'
+    };
+    const names = ['Preflight', 'Install access', 'Base bootstrap', 'DNS', 'Generated values', 'Render and upload', 'Template install steps', 'Endpoints', 'Self-check', 'Smoke test', 'Activate'];
+    const took = ['3 s', '3 s', '55 s', '35 s', '<1 s', '2 s', '46 s', '<1 s', '2 s', '3 s', '1 s'];
+    const startOf = (i) => { const f = L.find((x) => x[1] === i); return f ? sec(f[0]) : 0; };
+    const idx = n - 1;
+    const subState = (from, to) => idx > to || done ? 'done' : (idx >= from ? 'run' : 'todo');
+    const subs = [
+      ['run ./issue-cert.sh', subState(27, 29), '22 s'],
+      ['compose-up · pull', subState(30, 34), '19 s'],
+      ['wait-http · 200', subState(35, 36), '4 s']
+    ].map(([label, st, d]) => ({ label: label, m: MK[st], c: st === 'todo' ? '#6e6a86' : '#908caa', d: st === 'done' ? d : (st === 'run' ? 'running' : '') }));
+    const steps = names.map((label, i) => {
+      const k = i + 1;
+      const st = k < cur ? 'done' : (k === cur ? 'run' : 'todo');
+      const runFor = st === 'run' ? fmt(sec(last[0]) - startOf(k)) : '';
+      return {
+        n: k + '/11', label: label, m: MK[st],
+        c: st === 'todo' ? '#6e6a86' : '#e0def4',
+        w: st === 'run' ? '600' : '400',
+        bg: st === 'run' ? '#191724' : 'transparent',
+        d: st === 'done' ? took[i] : runFor,
+        hasSub: k === 7 && st !== 'todo',
+        subs: subs
+      };
+    });
+    const lines = L.slice(0, n).map(([t, s, k, m]) => ({
+      t: t, m: m,
+      c: k === 'g' ? '#9ccfd8' : '#e0def4',
+      w: k === 'h' ? '600' : '400',
+      bg: k === 'h' ? '#21202e' : 'transparent'
+    }));
+    const elapsed = fmt(sec(last[0]) - sec(L[0][0]));
+    const copy = () => this.say('Log copied · secrets stay •••');
+    return {
+      nav: this.nav('servers', {}),
+      onKey: (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        const tag = (e.target && e.target.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+        if (e.key === 'f') { e.preventDefault(); this.setState({ follow: !this.state.follow }); }
+        else if (e.key === 'y') { e.preventDefault(); copy(); }
+        else if (e.key === 'G') { e.preventDefault(); this.setState({ follow: true }); this.toBottom(); }
+      },
+      running: !done,
+      done: done,
+      badge: done
+        ? { t: 'active', c: '#908caa', m: MK.done }
+        : { t: 'provisioning', c: '#e0def4', m: MK.run },
+      badgeNote: done ? 'health unknown · waiting for the first checks' : 'step ' + cur + '/11 · ' + names[cur - 1],
+      jobsMark: done ? 'width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86' : MK.run,
+      jobsText: done ? 'no jobs running' : '1 job running',
+      jobsColor: done ? '#908caa' : '#e0def4',
+      tabOff: done ? '#908caa' : '#6e6a86',
+      elapsed: done ? 'took 2 min 31 s' : elapsed,
+      steps: steps,
+      lines: lines,
+      lineCount: n + ' lines',
+      follow: this.state.follow,
+      followHint: this.state.follow ? 'stop following' : 'follow the log',
+      toggleFollow: () => this.setState({ follow: !this.state.follow }),
+      setLog: (el) => { this.logEl = el; },
+      copy: copy,
+      hasMsg: !!this.state.msg,
+      noMsg: !this.state.msg,
+      msg: this.state.msg
+    };
+  }
+}
+</script>
+</body>
+</html>

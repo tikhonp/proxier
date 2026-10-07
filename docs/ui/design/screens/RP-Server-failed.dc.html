@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nl-2 — provisioning failed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-dng{border-color:#763849;color:#eb6f92 !important}
+.pc-dng:hover{border-color:#eb6f92}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running<span style="color:#eb6f92">· 1 failed</span></a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Server-health.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>nl-2</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">nl-2</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>failed</span>
+<span style="font-size:12px;color:#908caa">at step 4/11 · DNS</span>
+</div>
+<p style="color:#908caa;margin-top:4px">Netherlands · 203.0.113.24 · nl-2.hosts.tikhonnnnn.com · VLESS XHTTP behind nginx v3</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn" aria-label="More actions for nl-2">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;border-bottom:1px solid #26233a">
+<nav aria-label="Server sections" style="display:flex;flex-wrap:wrap;overflow-x:auto">
+<a href="#" aria-current="page" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;background:#26233a">Overview</a>
+<span style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#6e6a86;white-space:nowrap">Health</span>
+<span style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#6e6a86;white-space:nowrap">Stats</span>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Stack</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Jobs</a>
+<a href="#" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Activity</a>
+</nav>
+</div>
+
+<div role="alert" style="background:#13090c;border-bottom:1px solid #763849">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:12px 16px 0">
+<span style="display:inline-flex;align-items:center;gap:8px;color:#eb6f92;font-weight:600"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>Provisioning stopped at DNS</span>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:#908caa" title="Mon 5 Oct 2026, 16:50:40 MSK">16:50 · after 1 min 2 s</span>
+</div>
+<div style="padding:8px 16px 12px;display:flex;flex-direction:column;gap:4px;max-width:980px">
+<p>An A record for nl-2.hosts.tikhonnnnn.com already exists and points to 192.0.2.200.</p>
+<p style="color:#908caa">Proxier didn't create it (it has no proxier: comment), so it was left alone. Delete or change it in Cloudflare and retry, or let Proxier replace it. Retry resumes at step 4; the root password is already erased, so you won't be asked for it again.</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px">
+<button type="button" class="pc-btn pc-pri">Retry and overwrite the record</button>
+<button type="button" class="pc-btn">Retry, I fixed it</button>
+<button type="button" class="pc-btn pc-dng">Retire nl-2…</button>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<div style="flex:1 1 340px;max-width:420px;min-width:0;border-right:1px solid #26233a;display:flex;flex-direction:column">
+<section aria-labelledby="steps-h">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="steps-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Provisioning</h2>
+<span style="flex:1"></span>
+<span style="font-size:12px;line-height:16px;color:#908caa">job #318</span>
+</div>
+<div style="padding:8px 0">
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="11">
+<div style="display:grid;grid-template-columns:14px 36px minmax(0,1fr) auto;gap:8px;align-items:center;padding:6px 16px;background:{{s.bg}}">
+<span aria-hidden="true" style="{{s.m}}"></span>
+<span style="font-size:12px;color:#908caa">{{s.n}}</span>
+<span style="color:{{s.c}};font-weight:{{s.w}}">{{s.label}}</span>
+<span style="font-size:12px;color:{{s.dc}}">{{s.d}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+<section aria-labelledby="state-h" style="border-top:1px solid #26233a;flex:1">
+<h2 id="state-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">On the VPS now</h2>
+<div style="padding:12px 16px;display:flex;flex-direction:column;gap:8px">
+<sc-for list="{{state}}" as="x" hint-placeholder-count="4">
+<div style="display:grid;grid-template-columns:14px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="{{x.m}}"></span><span style="color:{{x.c}}">{{x.text}}</span></div>
+</sc-for>
+</div>
+</section>
+</div>
+
+<section aria-labelledby="log-h" style="flex:999 1 560px;min-width:0;display:flex;flex-direction:column">
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;min-height:36px;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px">
+<h2 id="log-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Log</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">job #318 · failed · attempt 1 · 22 lines</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:5px 16px 5px 0">
+<button type="button" class="pc-btn pc-sm">Copy</button>
+<button type="button" class="pc-btn pc-sm">Download</button>
+</div>
+</div>
+<div style="flex:1;min-height:440px;overflow:auto;padding:10px 0 14px;background:#191724;font-size:12px;line-height:19px">
+<sc-for list="{{lines}}" as="l" hint-placeholder-count="20">
+<div style="display:grid;grid-template-columns:64px minmax(0,1fr);gap:14px;padding:0 16px;background:{{l.bg}}">
+<span style="color:#908caa">{{l.t}}</span>
+<span style="color:{{l.c}};font-weight:{{l.w}};white-space:pre-wrap;word-break:break-word">{{l.m}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">r</span> retry, I fixed it</span>
+<span><span style="color:#e0def4;font-weight:600">y</span> copy the log</span>
+<span><span style="color:#e0def4;font-weight:600">[ ]</span> tabs</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:51:02</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const MK = {
+      done: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f',
+      fail: 'width:8px;height:8px;flex:none;background:#eb6f92',
+      todo: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #524f67'
+    };
+    const names = ['Preflight', 'Install access', 'Base bootstrap', 'DNS', 'Generated values', 'Render and upload', 'Template install steps', 'Endpoints', 'Self-check', 'Smoke test', 'Activate'];
+    const took = ['3 s', '3 s', '55 s', 'failed', 'not run', 'not run', 'not run', 'not run', 'not run', 'not run', 'not run'];
+    const steps = names.map((label, i) => {
+      const st = i < 3 ? 'done' : (i === 3 ? 'fail' : 'todo');
+      return {
+        n: (i + 1) + '/11', label: label, m: MK[st], d: took[i],
+        c: st === 'todo' ? '#6e6a86' : (st === 'fail' ? '#eb6f92' : '#e0def4'),
+        w: st === 'fail' ? '600' : '400',
+        dc: st === 'fail' ? '#eb6f92' : '#908caa',
+        bg: st === 'fail' ? '#13090c' : 'transparent'
+      };
+    });
+    const L = [
+      ['16:49:38', 'h', '==> 1/11 Preflight'],
+      ['16:49:38', '', 'connect 203.0.113.24:22'],
+      ['16:49:39', '', 'password login as root: ok'],
+      ['16:49:39', '', 'host key pinned: ED25519 SHA256:Tz8cWq1…f2Lq'],
+      ['16:49:40', '', 'os debian-12 (bookworm) · amd64 · matches the template'],
+      ['16:49:41', '', 'ports 80/tcp and 443/tcp are free'],
+      ['16:49:41', 'h', '==> 2/11 Install access'],
+      ['16:49:42', '', 'authorized_keys: +2 keys (proxier, tikhon@macbook)'],
+      ['16:49:43', '', 'new connection with Proxier\'s key: ok'],
+      ['16:49:44', 'g', 'root password erased from the job'],
+      ['16:49:44', 'h', '==> 3/11 Base bootstrap'],
+      ['16:49:45', '', 'sshd drop-in: PasswordAuthentication no, PermitRootLogin prohibit-password'],
+      ['16:49:46', '', 'sshd reloaded · key login verified'],
+      ['16:49:46', '', '$ apt-get install -y ca-certificates curl ufw'],
+      ['16:50:33', '', 'docker 28.5.1 installed'],
+      ['16:50:38', '', 'ufw allow 22/tcp 80/tcp 443/tcp · enabled'],
+      ['16:50:39', 'h', '==> 4/11 DNS'],
+      ['16:50:40', '', 'cloudflare: look up A nl-2.hosts.tikhonnnnn.com in zone tikhonnnnn.com'],
+      ['16:50:40', 'e', 'found A 192.0.2.200 · proxied no · comment none'],
+      ['16:50:40', 'e', 'not created by Proxier: refusing to overwrite'],
+      ['16:50:40', 'e', 'step 4/11 DNS failed · no retries left (provisioning retries are manual)'],
+      ['16:50:40', 'e', 'job #318 failed after 1 min 2 s']
+    ];
+    const lines = L.map(([t, k, m]) => ({
+      t: t, m: m,
+      c: k === 'g' ? '#9ccfd8' : (k === 'e' ? '#eb6f92' : '#e0def4'),
+      w: k === 'h' ? '600' : '400',
+      bg: k === 'h' ? '#21202e' : (k === 'e' ? '#2e202f' : 'transparent')
+    }));
+    const ok = 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f';
+    const none = 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #524f67';
+    return {
+      nav: this.nav('servers', {}),
+      steps: steps,
+      lines: lines,
+      state: [
+        { m: ok, c: '#e0def4', text: 'Proxier\'s key and yours installed; password login off' },
+        { m: ok, c: '#e0def4', text: 'Docker 28.5.1; firewall allows 22, 80, 443' },
+        { m: none, c: '#908caa', text: 'No DNS record created' },
+        { m: none, c: '#908caa', text: 'No stack uploaded' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

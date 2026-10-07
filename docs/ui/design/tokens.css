@@ -1,0 +1,193 @@
+/*
+ * Proxier design tokens and shared classes.
+ *
+ * Source: the Rosé Pine page of the design canvas
+ * https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec
+ * The rules behind these values are in README.md next to this file.
+ *
+ * Dark only. Rosé Pine (main) on a black ground, IBM Plex Mono.
+ * The class names (pc-*) are the ones the screens in screens/ use,
+ * so a screen's inline styles can be read against this file.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap");
+
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --black: #000000;          /* page, areas, bands, dialogs */
+  --base: #191724;           /* wells: fields, logs, previews · hover */
+  --overlay: #26233a;        /* every 1 px line · cursor row · current tab */
+  --hl-med: #403d52;         /* field borders · text selection · link underline */
+  --hl-high: #524f67;        /* button and dialog borders */
+
+  /* Text */
+  --text: #e0def4;           /* primary text, key names */
+  --subtle: #908caa;         /* secondary text, labels, meta */
+  --muted: #6e6a86;          /* separators, placeholders, line numbers */
+
+  /* State colours: colour means state and nothing else */
+  --pine: #31748f;           /* works (the word next to it stays subtle) */
+  --gold: #f6c177;           /* needs a look */
+  --iris: #c4a7e7;           /* blocked: works, but not from Russia */
+  --love: #eb6f92;           /* broken, failed · − removed */
+  --foam: #9ccfd8;           /* paused · + added · success lines */
+  --rose: #ebbcba;           /* changed from the default */
+
+  /* Tinted bands for banners and alerts: background / border / inner line */
+  --love-bg: #13090c;  --love-border: #763849;  --love-line: #3b1c25;
+  --gold-bg: #140f0a;  --gold-border: #624d30;  --gold-line: #2c2315;
+  --iris-bg: #100d12;  --iris-border: #4e435c;  --iris-line: #312a3a;
+  --pine-bg: #050c0e;  --pine-border: #193a48;
+
+  /* Log line tints */
+  --log-step: #21202e;       /* a step header line */
+  --log-error: #2e202f;      /* an error line */
+
+  /* Type */
+  --font: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --fs: 13px;  --lh: 20px;           /* body on desktop */
+  --fs-phone: 14px;  --lh-phone: 22px;
+  --fs-sm: 12px;                     /* meta, key line, small buttons */
+  --fs-label: 11px;                  /* area titles: uppercase, .08em tracking */
+  --fs-h1: 22px;  --lh-h1: 28px;     /* page title */
+  --fs-dialog: 15px;                 /* dialog title */
+
+  /* Sizes */
+  --header-h: 48px;          /* desktop header; 56px on phone */
+  --sidebar-w: 212px;
+  --title-band-h: 36px;      /* area title bar */
+  --keyline-h: 28px;         /* bottom key line */
+  --btn-h: 32px;  --btn-sm-h: 26px;
+  --pad-x: 16px;             /* side gutter of every block */
+}
+
+/* Base */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; background: var(--black); color: var(--text); }
+body {
+  font-family: var(--font); font-size: var(--fs); line-height: var(--lh);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, p, dl, dd, ul, ol { margin: 0; }
+a { color: var(--text); text-decoration: underline; text-decoration-color: var(--hl-med); text-underline-offset: 3px; }
+a:hover { color: #ffffff; text-decoration-color: var(--text); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: .45; }
+::placeholder { color: var(--muted); opacity: 1; }
+::selection { background: var(--hl-med); color: var(--text); }
+:focus-visible { outline: 1px solid var(--text); outline-offset: 2px; }
+
+/* Flush cells: header items, tab strips, pop-up close. No border, no box. */
+.pc-seg { background: transparent; border: 0; color: var(--text); text-decoration: none; white-space: nowrap; }
+.pc-seg:hover { background: var(--base); }
+.pc-seg:focus-visible { outline-offset: -1px; }
+
+/* The × of a pop-up: a flush corner cell with a line on its left.
+   The search pop-up has none (esc or a click outside closes it). */
+/* Always square: width = height = the title row's height (42–62px). */
+.pc-close { width: var(--close, 46px); height: var(--close, 46px); flex: none; border-left: 1px solid var(--overlay); font-size: 18px; color: var(--subtle); }
+
+/* Rows: no dividers. Hover is base; the cursor row is overlay plus a › caret. */
+.pc-row:hover { background: var(--base); }
+.pc-row:focus-visible { outline-offset: -1px; }
+.pc-cur, .pc-cur:hover { background: var(--overlay); }
+
+/* Buttons: boxed, with room */
+.pc-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: var(--btn-h); padding: 0 12px;
+  background: transparent; border: 1px solid var(--hl-high);
+  color: var(--text) !important; text-decoration: none !important; white-space: nowrap;
+}
+.pc-btn:hover { background: var(--base); border-color: var(--subtle); }
+.pc-sm { height: var(--btn-sm-h); padding: 0 10px; font-size: var(--fs-sm); }
+.pc-pri { background: var(--text); border-color: var(--text); color: var(--black) !important; font-weight: 600; }
+.pc-pri:hover { background: #ffffff; border-color: #ffffff; }
+.pc-dng { border-color: var(--love-border); color: var(--love) !important; }
+.pc-dng:hover { border-color: var(--love); }
+.pc-ghost { border-color: transparent; }                    /* Cancel, Close */
+.pc-ghost:hover { border-color: transparent; background: var(--base); }
+.pc-btn:disabled:hover { background: transparent; border-color: var(--hl-high); }
+.pc-pri:disabled:hover { background: var(--text); border-color: var(--text); }
+
+/* Fields */
+.pc-field { background: var(--base); }                       /* header search cell */
+.pc-field:focus-within { background: var(--overlay); }
+.pc-inp { height: var(--btn-h); padding: 0 10px; background: var(--base); border: 1px solid var(--hl-med); color: var(--text); outline: 0; border-radius: 0; }
+.pc-inp:focus { border-color: var(--subtle); }
+.pc-inp:focus-visible { outline: 0; }
+.pc-inp[aria-invalid="true"] { border-color: var(--love); }
+/* A field with buttons inside it, e.g. a secret: value | Reveal | Copy | QR */
+.pc-grp { display: flex; align-items: stretch; background: var(--base); border: 1px solid var(--hl-med); }
+.pc-grp:focus-within { border-color: var(--subtle); }
+.pc-grp > button { background: transparent; border: 0; border-left: 1px solid var(--hl-med); padding: 0 12px; white-space: nowrap; }
+.pc-grp > button:hover { background: var(--overlay); }
+.pc-grp > button:focus-visible { outline-offset: -1px; }
+
+/* Selectable buttons (filter chips, segmented switches, option cards) follow the switch:
+   border and text share one colour. Off: muted border, subtle text. On: text-coloured border and text. No fill. */
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--muted); background: transparent; font-size: var(--fs-sm); color: var(--subtle); white-space: nowrap; }
+.pc-chip:hover { border-color: var(--subtle); color: var(--text); }
+.pc-chip[aria-pressed="true"] { border-color: var(--text); color: var(--text); }
+
+/* Segmented switch (24 h / 7 d / 30 d): bordered segments that overlap by 1 px; the pressed one sits on top. */
+.pc-sb { position: relative; height: 26px; padding: 0 10px; margin-left: -1px; background: transparent; border: 1px solid var(--muted); color: var(--subtle); font-size: var(--fs-sm); white-space: nowrap; }
+.pc-sb:first-child { margin-left: 0; }
+.pc-sb:hover { border-color: var(--subtle); color: var(--text); z-index: 1; }
+.pc-sb[aria-pressed="true"] { border-color: var(--text); color: var(--text); z-index: 2; }
+.pc-sb:focus-visible { outline-offset: -1px; z-index: 3; }
+
+/* On/off switch (settings): a square that fills the track's height and sits flush in one end.
+   The border and the square share one colour: muted when off, text when on. */
+.pc-sw { position: relative; width: 36px; height: 18px; flex: none; border: 1px solid var(--muted); background: transparent; padding: 0; }
+.pc-sw::after { content: ""; position: absolute; top: 0; left: 0; width: 16px; height: 16px; background: var(--muted); }
+.pc-sw[aria-checked="true"] { border-color: var(--text); }
+.pc-sw[aria-checked="true"]::after { left: 18px; background: var(--text); }
+.pc-sw:hover { border-color: var(--subtle); }
+.pc-sw:hover::after { background: var(--subtle); }
+.pc-sw[aria-checked="true"]:hover { border-color: #ffffff; }
+.pc-sw[aria-checked="true"]:hover::after { background: #ffffff; }
+
+/* Menu items (the More menu) */
+.pc-mi { display: flex; align-items: center; gap: 12px; width: 100%; height: 30px; padding: 0 12px; background: transparent; border: 0; text-align: left; white-space: nowrap; }
+.pc-mi:hover { background: var(--base); }
+.pc-mi:focus-visible { outline-offset: -1px; }
+
+/* Area title band: 36px, uppercase label left, small actions right */
+.pc-title { min-height: var(--title-band-h); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 8px var(--pad-x); border-bottom: 1px solid var(--overlay); }
+.pc-title h2, .pc-label { font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
+
+/* Status markers: every state is a shape, a colour and a word */
+.st { display: inline-block; flex: none; width: 8px; height: 8px; }
+.st-ok      { border-radius: 50%; background: var(--pine); }                                            /* dot: works */
+.st-look    { width: 10px; height: 9px; background: var(--gold); clip-path: polygon(50% 0, 100% 100%, 0 100%); } /* triangle */
+.st-blocked { width: 10px; height: 10px; background: var(--iris); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); } /* diamond */
+.st-broken  { background: var(--love); }                                                                 /* square */
+.st-unknown { border-radius: 50%; box-shadow: inset 0 0 0 1.5px var(--subtle); }                       /* ring */
+.st-off     { box-shadow: inset 0 0 0 1.5px var(--subtle); }                                            /* open square */
+.st-paused  { background: linear-gradient(90deg, var(--foam) 0 3px, transparent 3px 5px, var(--foam) 5px); } /* bars */
+.st-running { border-radius: 50%; background: var(--text); animation: pc-pulse 1.4s ease-in-out infinite; } /* pulse */
+.st-gone    { width: 10px; height: 2px; background: var(--muted); }                                    /* dash: retired, deleted */
+@keyframes pc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { .st-running { animation: none; } }
+
+/* Pop-ups: dimmed page, box near the top */
+.pc-backdrop { position: fixed; inset: 0; z-index: 10; display: flex; justify-content: center; align-items: flex-start; padding: 72px 16px 16px; background: rgba(0, 0, 0, .7); }
+.pc-dialog { width: min(560px, 100%); background: var(--black); border: 1px solid var(--hl-high); }
+
+/* Bottom key line (desktop only) */
+.pc-keys { position: sticky; bottom: 0; z-index: 3; height: var(--keyline-h); display: flex; align-items: stretch; border-top: 1px solid var(--overlay); background: var(--black); font-size: var(--fs-sm); line-height: 16px; white-space: nowrap; color: var(--subtle); }
+.pc-keys b { color: var(--text); font-weight: 600; }
+
+/* Phone: under 760px the sidebar and key line go, touch targets grow */
+@media (max-width: 760px) {
+  body { font-size: var(--fs-phone); line-height: var(--lh-phone); }
+  .pc-side, .pc-keys, .pc-hide-s { display: none !important; }
+  .pc-menu { display: flex !important; }
+  .pc-btn { min-height: 48px; padding: 0 14px; }
+  .pc-sm { min-height: 40px; }
+  .pc-close { width: 56px; }
+}

@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Subscription — Family</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-btn:disabled:hover{background:transparent;border-color:#524f67}
+.pc-pri:disabled:hover{background:#e0def4;border-color:#e0def4}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}.pc-form{grid-template-columns:minmax(0,1fr) !important}.pc-form>label,.pc-form>span{padding-top:0 !important}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Subscriptions</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>Family</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Family</h1>
+<span style="font-size:12px;color:#908caa">apps show “Семья” · 3 servers · 5 links</span>
+</div>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<a href="RP-Link-new.dc.html" class="pc-btn pc-pri">New link</a>
+<button type="button" class="pc-btn" aria-label="More actions for Family">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<div style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column">
+
+<section aria-labelledby="srv-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:5px 16px;border-bottom:1px solid #26233a">
+<h2 id="srv-h" style="flex:1;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Servers · 3</h2>
+<button type="button" class="pc-btn pc-sm">Add servers…</button>
+</div>
+<div style="padding:6px 0">
+<sc-for list="{{servers}}" as="s" hint-placeholder-count="3">
+<div class="pc-row {{s.cls}}" style="position:relative;display:grid;grid-template-columns:24px 20px 56px minmax(0,1fr) auto;gap:10px;align-items:center;padding:4px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:8px">{{s.car}}</span>
+<button type="button" aria-label="{{s.drag}}" style="width:24px;height:24px;padding:0;background:transparent;border:0;color:#6e6a86;cursor:grab;letter-spacing:-2px">⋮⋮</button>
+<span style="color:#908caa">{{s.pos}}</span>
+<a href="{{s.href}}" style="font-weight:600;text-decoration:none">{{s.name}}</a>
+<span style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;min-width:0">
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{s.c}}"><span aria-hidden="true" style="{{s.m}}"></span>{{s.health}}</span>
+<span style="color:{{s.oc}}">{{s.out}}</span>
+</span>
+<button type="button" class="pc-btn pc-sm">Remove</button>
+</div>
+</sc-for>
+</div>
+<p style="padding:8px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">Drag, or <span style="color:#e0def4;font-weight:600">J</span> <span style="color:#e0def4;font-weight:600">K</span> on the selected row, to reorder. Links get the new order on their next fetch; there's nothing to push.</p>
+</section>
+
+<section aria-labelledby="set-h" style="flex:1">
+<h2 id="set-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Settings</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:160px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+
+<label for="title" style="padding-top:6px;color:#908caa">Title</label>
+<div>
+<input id="title" class="pc-inp" value="Семья" style="width:260px;max-width:100%">
+<p style="font-size:12px;color:#908caa;margin-top:6px">The subscription's name inside the apps.</p>
+</div>
+
+<span style="color:#908caa">Formats</span>
+<div style="display:grid;grid-template-columns:auto auto;justify-content:start;gap:8px 28px">
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">uri-plain</label>
+<label style="display:flex;align-items:center;gap:8px;color:#908caa"><input type="radio" name="def" checked="{{ true }}" style="accent-color:#e0def4;margin:0">default</label>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">uri-base64</label>
+<label style="display:flex;align-items:center;gap:8px;color:#908caa"><input type="radio" name="def" style="accent-color:#e0def4;margin:0">default</label>
+</div>
+
+<label for="upd" style="padding-top:6px;color:#908caa">Update every</label>
+<div style="display:flex;align-items:center;gap:10px">
+<input id="upd" class="pc-inp" value="12" inputmode="numeric" style="width:72px">
+<span style="color:#908caa">hours · a hint to the apps</span>
+</div>
+
+<span style="color:#908caa">Hide unhealthy</span>
+<div style="display:flex;flex-direction:column;gap:10px">
+<label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">Leave unhealthy servers out of the output</label>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px">
+<span style="color:#908caa">when</span>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">blocked</label>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">down</label>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="accent-color:#e0def4;margin:0">degraded</label>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="accent-color:#e0def4;margin:0">unknown</label>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px">
+<label for="grace" style="color:#908caa">for at least</label>
+<input id="grace" class="pc-inp" value="30" inputmode="numeric" style="width:64px;height:28px">
+<span style="color:#908caa">min</span>
+</div>
+<p style="font-size:12px;color:#908caa">Never empties the output. If every server would be hidden, all are served and you get a notification.</p>
+</div>
+
+<span style="color:#908caa">New servers</span>
+<label style="display:flex;align-items:center;gap:8px"><input type="checkbox" style="accent-color:#e0def4;margin:0">Add every server that becomes active</label>
+</div>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:0 16px 20px">
+<button type="button" disabled="{{ true }}" class="pc-btn pc-pri">Save settings</button>
+<span style="font-size:12px;color:#908caa">No changes.</span>
+</div>
+</section>
+</div>
+
+<div style="flex:1 1 440px;min-width:0;border-left:1px solid #26233a;display:flex;flex-direction:column">
+<section aria-labelledby="pre-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;padding:5px 16px;border-bottom:1px solid #26233a">
+<h2 id="pre-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Preview</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">exactly what a link gets now</span>
+<span style="flex:1"></span>
+<button type="button" class="pc-btn pc-sm">uri-plain<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+<button type="button" class="pc-btn pc-sm">Reveal</button>
+</div>
+<div style="background:#191724;padding:10px 16px;font-size:12px;line-height:19px;display:flex;flex-direction:column;gap:1px">
+<div style="color:#908caa"><span style="color:#f6c177">200</span> OK</div>
+<div style="color:#908caa"><span style="color:#9ccfd8">content-type</span>: text/plain; charset=utf-8</div>
+<div style="color:#908caa"><span style="color:#9ccfd8">cache-control</span>: no-store</div>
+<div style="color:#908caa;word-break:break-all"><span style="color:#9ccfd8">profile-title</span>: base64:0KHQtdC80YzRjw==</div>
+<div style="color:#908caa"><span style="color:#9ccfd8">profile-update-interval</span>: <span style="color:#f6c177">12</span></div>
+<div style="color:#908caa;word-break:break-all"><span style="color:#9ccfd8">subscription-userinfo</span>: upload=0; download=0; total=0; expire=0</div>
+<div style="color:#908caa;word-break:break-all"><span style="color:#9ccfd8">content-disposition</span>: inline; filename*=UTF-8''%D0%A1%D0%B5%D0%BC%D1%8C%D1%8F.txt</div>
+<div style="height:10px"></div>
+<div style="word-break:break-all">vless://••••••••@nl-1.hosts.tikhonnnnn.com:443?encryption=none&amp;security=tls&amp;sni=nl-1.hosts.tikhonnnnn.com&amp;fp=chrome&amp;host=nl-1.hosts.tikhonnnnn.com&amp;alpn=h2&amp;type=xhttp&amp;path=%2F••••••••&amp;mode=stream-up#%F0%9F%87%B3%F0%9F%87%B1%20Netherlands%201</div>
+<div style="height:4px"></div>
+<div style="word-break:break-all">vless://••••••••@fi-1.hosts.tikhonnnnn.com:443?encryption=none&amp;security=tls&amp;sni=fi-1.hosts.tikhonnnnn.com&amp;fp=chrome&amp;host=fi-1.hosts.tikhonnnnn.com&amp;alpn=h2&amp;type=xhttp&amp;path=%2F••••••••&amp;mode=stream-up#%F0%9F%87%AB%F0%9F%87%AE%20Finland%201</div>
+</div>
+<div style="padding:10px 16px;border-top:1px solid #26233a;display:flex;flex-direction:column;gap:6px;font-size:12px">
+<div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px"><span style="color:#908caa">1</span><span>🇳🇱 Netherlands 1 <span style="color:#908caa">· nl-1 · main</span></span></div>
+<div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px"><span style="color:#908caa">2</span><span>🇫🇮 Finland 1 <span style="color:#908caa">· fi-1 · main</span></span></div>
+<div style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px;color:#c4a7e7"><span>–</span><span>de-1 hidden: blocked for 2 h 32 min (more than 30 min)</span></div>
+</div>
+</section>
+
+<section aria-labelledby="links-h" style="border-bottom:1px solid #26233a">
+<h2 id="links-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Links · 5</h2>
+<div style="padding:6px 0">
+<sc-for list="{{links}}" as="k" hint-placeholder-count="5">
+<div class="pc-row" style="display:grid;grid-template-columns:minmax(0,1fr) 96px minmax(0,1fr);gap:12px;align-items:center;padding:5px 16px">
+<a href="#" style="text-decoration:none;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{k.name}}</a>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{k.sc}}"><span aria-hidden="true" style="{{k.sm}}"></span>{{k.state}}</span>
+<span style="color:#908caa;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{k.last}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+
+<section aria-labelledby="act-h" style="flex:1">
+<h2 id="act-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Activity</h2>
+<div style="padding:6px 0">
+<sc-for list="{{activity}}" as="e" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:72px minmax(0,1fr);gap:12px;padding:5px 16px;font-size:12px">
+<span style="color:#908caa">{{e.t}}</span>
+<span style="color:#908caa">{{e.text}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> open de-1</span>
+<span><span style="color:#e0def4;font-weight:600">J K</span> move it down · up</span>
+<span><span style="color:#e0def4;font-weight:600">n</span> new link</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1160}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const H = ['healthy', '#908caa', 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f'];
+    const B = ['blocked · 2 h 32 min', '#c4a7e7', 'width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)'];
+    const S = (pos, name, h, out, oc, href, on) => ({ pos: pos, name: name, health: h[0], c: h[1], m: h[2], out: out, oc: oc, href: href, drag: 'Move ' + name + ', position ' + pos, cls: on ? 'pc-cur' : '', car: on ? '›' : '' });
+    const ACT = ['active', '#908caa', 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f'];
+    const DIS = ['disabled', '#908caa', 'width:8px;height:8px;flex:none;box-shadow:inset 0 0 0 1.5px #908caa'];
+    const K = (name, st, last) => ({ name: name, state: st[0], sc: st[1], sm: st[2], last: last });
+    return {
+      nav: this.nav('subscriptions', {}),
+      servers: [
+        S(1, 'nl-1', H, 'served', '#908caa', '#', false),
+        S(2, 'de-1', B, 'hidden since 14:50', '#c4a7e7', 'RP-Server-health.dc.html', true),
+        S(3, 'fi-1', H, 'served', '#908caa', '#', false)
+      ],
+      links: [
+        K('Mom — iPhone', ACT, '16:31 · Happ'),
+        K('Dad — Android', ACT, '15:02 · v2rayNG'),
+        K('Grandma — iPad', ACT, 'until 1 Dec · 09:12 · Happ'),
+        K('Router — Parents', ACT, '16:45 · Clash / mihomo'),
+        K('Lena — Laptop', DIS, '2 d ago · Hiddify')
+      ],
+      activity: [
+        { t: '2 Oct', text: 'Admin added fi-1 at position 3' },
+        { t: '28 Sep', text: 'Admin turned on hide unhealthy: blocked, down · 30 min' },
+        { t: '14 Sep', text: 'Admin created Family with nl-1 and de-1' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

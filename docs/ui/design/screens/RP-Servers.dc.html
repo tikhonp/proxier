@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Servers</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-sel{background:#191724}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-chip{display:inline-flex;align-items:center;gap:6px;height:26px;padding:0 10px;border:1px solid #6e6a86;background:transparent;font-size:12px;color:#908caa;white-space:nowrap}
+.pc-chip:hover{border-color:#908caa;color:#e0def4}
+.pc-chip[aria-pressed="true"]{border-color:#e0def4;color:#e0def4}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite"></span>1 job running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Servers</h1>
+<p style="color:#908caa;margin-top:4px">5 active · 1 provisioning · 1 blocked · 1 update available</p>
+</div>
+<a href="RP-Server-new.dc.html" class="pc-btn pc-pri">New server</a>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #26233a">
+<button type="button" class="pc-chip" aria-pressed="true">State: not retired</button>
+<button type="button" class="pc-chip" aria-pressed="false">Health: any</button>
+<button type="button" class="pc-chip" aria-pressed="false">Location: any</button>
+<button type="button" class="pc-chip" aria-pressed="false">Template: any</button>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:#908caa">sorted by name</span>
+</div>
+
+<div role="region" aria-label="Selection" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:8px 16px;background:#191724;border-bottom:1px solid #26233a">
+<span style="font-weight:600">2 selected</span>
+<span style="color:#908caa">fi-1, se-1</span>
+<span style="flex:1"></span>
+<button type="button" class="pc-btn pc-sm">Run checks now</button>
+<button type="button" class="pc-btn pc-sm">Upgrade to default version…</button>
+<button type="button" class="pc-btn pc-sm">Pause checks…</button>
+<button type="button" class="pc-btn pc-sm pc-ghost">Clear</button>
+</div>
+
+<div style="overflow-x:auto;border-bottom:1px solid #26233a">
+<div style="min-width:1180px;padding-bottom:8px">
+<div style="display:grid;grid-template-columns:28px 92px 176px minmax(150px,1fr) 150px 80px 128px 92px 40px;gap:14px;padding:12px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span></span><span>Name</span><span>Health</span><span>Address</span><span>Template</span><span>Proxy</span><span>CPU · mem · disk</span><span>Today</span><span title="subscriptions">Sub</span>
+</div>
+<sc-for list="{{rows}}" as="r" hint-placeholder-count="7">
+<div class="pc-row {{r.cls}}" style="position:relative;display:grid;grid-template-columns:28px 92px 176px minmax(150px,1fr) 150px 80px 128px 92px 40px;gap:14px;align-items:center;padding:6px 16px;color:{{r.ink}}">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{r.car}}</span>
+<input type="checkbox" checked="{{r.sel}}" aria-label="Select {{r.name}}" style="accent-color:#e0def4;margin:0 0 0 4px">
+<a href="{{r.href}}" style="font-weight:600;text-decoration:none;white-space:nowrap"><span style="color:#908caa;font-weight:400;font-size:12px">{{r.cc}}</span> {{r.name}}</a>
+<span style="display:flex;flex-direction:column;min-width:0">
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{r.hc}}"><span aria-hidden="true" style="{{r.hm}}"></span>{{r.health}}</span>
+<span style="font-size:12px;color:#6e6a86">{{r.since}}</span>
+</span>
+<span style="display:flex;flex-direction:column;min-width:0"><span>{{r.ip}}</span><span style="font-size:12px;color:#908caa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{r.host}}</span></span>
+<span style="display:flex;flex-direction:column;min-width:0"><span style="color:#908caa">{{r.tpl}}</span><span style="font-size:12px;color:{{r.uc}}">{{r.upd}}</span></span>
+<span style="color:#908caa">{{r.lat}}</span>
+<span style="display:flex;flex-direction:column;gap:3px" title="{{r.usage}}">
+<sc-for list="{{r.bars}}" as="b" hint-placeholder-count="3">
+<span style="display:flex;align-items:center;gap:6px"><span style="width:84px;height:4px;background:#26233a;display:block"><span style="display:block;height:4px;width:{{b.w}};background:{{b.c}}"></span></span><span style="font-size:11px;line-height:12px;color:#6e6a86">{{b.v}}</span></span>
+</sc-for>
+</span>
+<span style="color:#908caa">{{r.traffic}}</span>
+<span style="color:#908caa">{{r.subs}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;padding:10px 16px;color:#908caa">
+<span>Retired servers are hidden.</span>
+<a href="#" style="color:#908caa">Show 2 retired</a>
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> open de-1</span>
+<span><span style="color:#e0def4;font-weight:600">space</span> select</span>
+<span><span style="color:#e0def4;font-weight:600">r</span> run checks</span>
+<span><span style="color:#e0def4;font-weight:600">p</span> pause checks</span>
+<span><span style="color:#e0def4;font-weight:600">n</span> new server</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  st(k, w) {
+    const M = {
+      ok: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f',
+      tri: 'width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)',
+      dia: 'width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)',
+      sq: 'width:8px;height:8px;flex:none;background:#eb6f92',
+      ring: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa',
+      bars: 'width:8px;height:8px;flex:none;background:linear-gradient(90deg,#9ccfd8 0 3px,transparent 3px 5px,#9ccfd8 5px)',
+      pulse: 'width:8px;height:8px;flex:none;border-radius:50%;background:#e0def4;animation:pc-pulse 1.4s ease-in-out infinite'
+    };
+    const C = { ok: '#908caa', tri: '#f6c177', dia: '#c4a7e7', sq: '#eb6f92', ring: '#908caa', bars: '#9ccfd8', pulse: '#e0def4' };
+    return { hm: M[k], hc: C[k], health: w };
+  }
+  renderVals() {
+    const bars = (c, m, d) => [c, m, d].map((v) => ({ w: v + '%', v: v + '%', c: v >= 85 ? '#f6c177' : '#6e6a86' }));
+    const row = (o) => Object.assign({ cls: '', car: '', sel: false, ink: '#e0def4', href: 'RP-Server-overview.dc.html', uc: '#6e6a86', upd: '' }, o);
+    return {
+      nav: this.nav('servers', { servers: ['◆ 1', '#c4a7e7'] }),
+      rows: [
+        row(Object.assign(this.st('dia', 'blocked'), { name: 'de-1', cc: 'DE', since: 'since 14:20 · 2 h 32 min', ip: '198.51.100.7', host: 'de-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '—', bars: bars(4, 31, 22), usage: 'CPU 4 % · memory 31 % · disk 22 %', traffic: '0.4 GB', subs: '2', cls: 'pc-cur', car: '›', href: 'RP-Server-health.dc.html' })),
+        row(Object.assign(this.st('ok', 'healthy'), { name: 'fi-1', cc: 'FI', since: 'since Sat', ip: '198.51.100.33', host: 'fi-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v2', upd: '↑ v3 available', uc: '#e0def4', lat: '0.29 s', bars: bars(7, 44, 61), usage: 'CPU 7 % · memory 44 % · disk 61 %', traffic: '3.1 GB', subs: '2', sel: true })),
+        row(Object.assign(this.st('pulse', 'provisioning'), { name: 'nl-2', cc: 'NL', since: 'step 7 of 11 · 3 min', ip: '203.0.113.24', host: 'nl-2.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '—', bars: bars(0, 0, 0), usage: 'no samples yet', traffic: '—', subs: '0', href: 'RP-Server-provisioning.dc.html' })),
+        row(Object.assign(this.st('ok', 'healthy'), { name: 'nl-1', cc: 'NL', since: 'since 2 Oct', ip: '203.0.113.10', host: 'nl-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '0.21 s', bars: bars(12, 52, 38), usage: 'CPU 12 % · memory 52 % · disk 38 %', traffic: '8.7 GB', subs: '3' })),
+        row(Object.assign(this.st('bars', 'paused'), { name: 'pl-1', cc: 'PL', since: 'until 18:00 · moving VPS', ip: '192.0.2.81', host: 'pl-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '—', bars: bars(2, 28, 87), usage: 'CPU 2 % · memory 28 % · disk 87 %', traffic: '0.1 GB', subs: '1' })),
+        row(Object.assign(this.st('ok', 'healthy'), { name: 'se-1', cc: 'SE', since: 'since 4 Oct', ip: '192.0.2.45', host: 'se-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '0.31 s', bars: bars(9, 47, 35), usage: 'CPU 9 % · memory 47 % · disk 35 %', traffic: '5.2 GB', subs: '2', sel: true })),
+        row(Object.assign(this.st('sq', 'failed'), { name: 'us-1', cc: 'US', since: 'provisioning failed · yesterday', ip: '198.51.100.90', host: 'us-1.hosts.tikhonnnnn.com', tpl: 'nginx-xhttp v3', lat: '—', bars: bars(0, 0, 0), usage: 'no samples', traffic: '—', subs: '0', href: 'RP-Server-failed.dc.html' }))
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

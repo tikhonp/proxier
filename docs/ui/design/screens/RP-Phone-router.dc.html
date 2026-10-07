@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Phone — Parents router, sync failed</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:14px;line-height:22px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:active,.pc-row:active{background:#191724}
+.pc-btn{display:flex;align-items:center;justify-content:center;height:48px;padding:0 14px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:active{background:#191724}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+</style>
+</helmet>
+<div style="width:390px;min-height:1200px;background:#000000;color:#e0def4;display:flex;flex-direction:column">
+
+<header style="height:56px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button type="button" class="pc-seg" aria-label="Open menu" style="width:56px;padding:0;border-right:1px solid #26233a;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14"></path></svg></button>
+<a href="RP-Main.dc.html" style="display:flex;align-items:center;gap:8px;padding:0 16px;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<span style="flex:1"></span>
+<a href="#" class="pc-seg" aria-label="No jobs running, 1 failed" style="width:56px;display:flex;align-items:center;justify-content:center;gap:6px;border-left:1px solid #26233a;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;background:#eb6f92"></span>1</a>
+<button type="button" class="pc-seg" aria-label="Search" style="width:56px;padding:0;border-left:1px solid #26233a;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="9" r="5.5"></circle><path d="M13 13l4 4"></path></svg></button>
+</header>
+
+<a href="RP-Router.dc.html" class="pc-seg" style="display:flex;align-items:center;height:44px;padding:0 16px;border-bottom:1px solid #26233a;color:#908caa;font-size:13px">‹ Routers</a>
+
+<div style="padding:12px 16px 14px;border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px">
+<h1 style="font-size:24px;line-height:32px;font-weight:600">Parents</h1>
+<span style="display:inline-flex;align-items:center;gap:8px;color:#eb6f92"><span aria-hidden="true" style="width:8px;height:8px;flex:none;background:#eb6f92"></span>sync failed</span>
+</div>
+<p style="font-size:13px;color:#908caa;margin-top:2px">2 in a row · last at 21:17 · follows Parents</p>
+</div>
+
+<section aria-label="Why it failed" style="background:#13090c;border-bottom:1px solid #763849">
+<div style="padding:14px 16px 10px;display:flex;flex-direction:column;gap:8px">
+<p style="font-weight:600">Proxier can't reach the jump host parents-pi.</p>
+<p style="font-size:13px;color:#908caa">The tailnet node parents-pi was last seen at 21:05. The router behind it was never tried. Nothing was changed on the router.</p>
+</div>
+<div style="border-top:1px solid #3b1c25;padding:4px 0">
+<sc-for list="{{hops}}" as="h" hint-placeholder-count="3">
+<div style="display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 12px;padding:6px 16px">
+<span style="font-size:13px">{{h.name}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;justify-self:end;font-size:13px;color:{{h.c}}"><span aria-hidden="true" style="{{h.m}}"></span>{{h.result}}</span>
+<span style="font-size:12px;color:#908caa;grid-column:1 / -1">{{h.detail}}</span>
+</div>
+</sc-for>
+</div>
+<p style="padding:10px 16px;border-top:1px solid #3b1c25;font-size:12px;color:#908caa">Next retry at 21:32. What's on the router keeps working; only the new change waits.</p>
+</section>
+
+<div style="display:flex;flex-direction:column;gap:8px;padding:16px;border-bottom:1px solid #26233a">
+<button type="button" class="pc-btn pc-pri">Test connection</button>
+<div style="display:flex;gap:8px">
+<button type="button" class="pc-btn" style="flex:1">Sync now</button>
+<button type="button" class="pc-btn" style="flex:1">Pause syncs</button>
+</div>
+</div>
+
+<section aria-labelledby="st-h" style="border-bottom:1px solid #26233a">
+<h2 id="st-h" style="min-height:40px;display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Last known state</h2>
+<dl style="display:grid;grid-template-columns:minmax(96px,auto) minmax(0,1fr);gap:10px 14px;padding:12px 16px 14px;font-size:13px">
+<dt style="color:#908caa">Installed</dt><dd>6 tags · 402 domains <span style="color:#908caa">· matched Parents at 14:48</span></dd>
+<dt style="color:#908caa">Waiting</dt><dd>1 update <span style="color:#908caa">· reddit +9, added to Parents at 21:11</span></dd>
+<dt style="color:#908caa">Router</dt><dd style="word-break:break-all">proxier@10.230.2.1:22</dd>
+<dt style="color:#908caa">Jump host</dt><dd style="word-break:break-all">pi@parents-pi:22 <span style="color:#908caa">· tailnet</span></dd>
+</dl>
+</section>
+
+<section aria-labelledby="hist-h" style="flex:1">
+<h2 id="hist-h" style="min-height:40px;display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Recent syncs</h2>
+<div style="padding:4px 0">
+<sc-for list="{{history}}" as="s" hint-placeholder-count="4">
+<a href="#" class="pc-row" style="display:grid;grid-template-columns:52px minmax(0,1fr);gap:10px;align-items:baseline;min-height:56px;padding:8px 16px;text-decoration:none">
+<span style="color:#908caa;font-size:13px">{{s.t}}</span>
+<span style="display:flex;flex-direction:column;gap:0;min-width:0">
+<span style="display:inline-flex;align-items:center;gap:7px;color:{{s.c}}"><span aria-hidden="true" style="{{s.m}}"></span>{{s.what}}</span>
+<span style="font-size:12px;color:#908caa">{{s.detail}}</span>
+</span>
+</a>
+</sc-for>
+</div>
+</section>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1200}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const OK = { c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f' };
+    const FAIL = { c: '#eb6f92', m: 'width:8px;height:8px;flex:none;background:#eb6f92' };
+    const SKIP = { c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #524f67' };
+    return {
+      hops: [
+        { name: 'tailnet node proxier', c: OK.c, m: OK.m, result: 'up', detail: 'Proxier itself is on the tailnet' },
+        { name: 'jump host parents-pi', c: FAIL.c, m: FAIL.m, result: 'offline', detail: 'dial tcp parents-pi:22: no route to host' },
+        { name: 'router 10.230.2.1', c: SKIP.c, m: SKIP.m, result: 'not tried', detail: 'reached only through parents-pi' }
+      ],
+      history: [
+        { t: '21:17', c: FAIL.c, m: FAIL.m, what: 'failed at connect', detail: '2nd in a row · you were notified' },
+        { t: '21:12', c: FAIL.c, m: FAIL.m, what: 'failed at connect', detail: 'queued 30 s after reddit was added' },
+        { t: '14:48', c: OK.c, m: OK.m, what: 'synced', detail: '2 updates · 11 s' },
+        { t: '08:48', c: OK.c, m: OK.m, what: 'drift check', detail: 'no drift' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

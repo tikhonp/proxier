@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>fi-1 — Upgrade plan</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+.pc-sb{position:relative;height:26px;padding:0 10px;margin-left:-1px;background:transparent;border:1px solid #6e6a86;color:#908caa;font-size:12px;white-space:nowrap}
+.pc-sb:first-child{margin-left:0}
+.pc-sb:hover{border-color:#908caa;color:#e0def4;z-index:1}
+.pc-sb[aria-pressed="true"]{border-color:#e0def4;color:#e0def4;z-index:2}
+.pc-sb:focus-visible{outline-offset:-1px;z-index:3}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Servers.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><a href="RP-Server-overview.dc.html" style="color:#908caa">fi-1</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>Upgrade</span></nav>
+<h1 style="font-size:22px;line-height:28px;font-weight:600;margin-top:6px">Upgrade fi-1 from v2 to v3</h1>
+<p style="color:#908caa;margin-top:4px">Nothing is applied yet. This is what will change, rendered for fi-1 at 16:52.</p>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 28px;padding:12px 16px;border-bottom:1px solid #26233a">
+<span><span style="font-weight:600">3</span> <span style="color:#908caa">files changed</span></span>
+<span><span style="font-weight:600;color:#9ccfd8">+1</span> <span style="color:#908caa">file added</span></span>
+<span><span style="font-weight:600">1</span> <span style="color:#908caa">new value generated</span></span>
+<span style="display:inline-flex;align-items:center;gap:8px;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>the connection URI changes</span>
+<span><span style="font-weight:600">~20 s</span> <span style="color:#908caa">without service</span></span>
+</div>
+
+<div style="flex:1;display:grid;grid-template-columns:minmax(0,1fr) 380px;border-bottom:1px solid #26233a">
+
+<div style="min-width:0;border-right:1px solid #26233a">
+
+<section aria-labelledby="par-h" style="border-bottom:1px solid #26233a;padding-bottom:14px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="par-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Parameters v3 adds</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">one needs a value · one is removed</span>
+</div>
+<div style="display:grid;grid-template-columns:170px minmax(0,1fr);gap:12px 16px;align-items:start;padding:14px 16px 0">
+<label for="rl" style="padding-top:6px">nginx_reload <span style="color:#eb6f92">*</span></label>
+<div><input id="rl" class="pc-inp" value="6h" style="width:200px;border-color:#908caa"><p style="font-size:12px;color:#908caa;margin-top:6px">How often nginx reloads to pick up renewed certificates. No default in v3.</p></div>
+<span style="padding-top:2px;color:#908caa;text-decoration:line-through">legacy_ws</span>
+<p style="color:#908caa">removed in v3 · fi-1 had <span style="color:#e0def4">false</span>, it is dropped</p>
+</div>
+</section>
+
+<section aria-labelledby="files-h">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="files-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Files</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">against the last successful deployment · secrets masked</span>
+<span style="flex:1"></span>
+<div role="group" aria-label="Diff view" style="display:flex">
+<button type="button" aria-pressed="true" class="pc-sb" style="height:24px">unified</button>
+<button type="button" aria-pressed="false" class="pc-sb" style="height:24px">side by side</button>
+</div>
+</div>
+<sc-for list="{{files}}" as="f" hint-placeholder-count="4">
+<div style="border-bottom:1px solid #26233a">
+<div style="display:flex;flex-wrap:wrap;gap:4px 14px;padding:8px 16px;font-size:12px"><span style="font-weight:600">{{f.name}}</span><span style="color:#908caa">{{f.state}}</span><span style="flex:1"></span><span style="color:#9ccfd8">{{f.add}}</span><span style="color:#eb6f92">{{f.del}}</span></div>
+<sc-if value="{{f.open}}" hint-placeholder-val="{{ true }}">
+<div style="background:#191724;padding:6px 0;font-size:12px;line-height:19px">
+<sc-for list="{{f.lines}}" as="l" hint-placeholder-count="6">
+<div style="display:grid;grid-template-columns:40px 18px minmax(0,1fr);padding-right:16px;white-space:pre;background:{{l.bg}}"><span style="text-align:right;color:#6e6a86;padding-right:6px">{{l.n}}</span><span style="color:{{l.c}}">{{l.s}}</span><span style="color:{{l.tc}}">{{l.t}}</span></div>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</sc-for>
+</section>
+</div>
+
+<aside style="min-width:0;display:flex;flex-direction:column">
+<section aria-labelledby="ep-h" style="background:#140f0a;border-bottom:1px solid #624d30;padding:12px 16px 14px">
+<h2 id="ep-h" style="display:flex;align-items:center;gap:8px;color:#f6c177;font-weight:600"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span>Endpoint main changes</h2>
+<p style="margin-top:6px">v3 moves the XHTTP path to a new generated value.</p>
+<p style="color:#908caa;margin-top:4px">5 links in 2 subscriptions get the new URI on their next refresh. Copied URIs stop working.</p>
+</section>
+<section aria-labelledby="steps-h" style="padding-bottom:12px;border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a"><h2 id="steps-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Steps that will run</h2></div>
+<ol style="list-style:none;padding:10px 16px 0;display:flex;flex-direction:column;gap:6px">
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px"><span style="color:#6e6a86">1</span><span>Connect over SSH <span style="color:#908caa">· pinned host key</span></span></li>
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px"><span style="color:#6e6a86">2</span><span>Upload 4 files</span></li>
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px"><span style="color:#6e6a86">3</span><span>compose up -d</span></li>
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px"><span style="color:#6e6a86">4</span><span>Self-check, then proxy test</span></li>
+<li style="display:grid;grid-template-columns:22px minmax(0,1fr);gap:8px"><span style="color:#6e6a86">5</span><span>Record v3 and the new endpoint</span></li>
+</ol>
+</section>
+<p style="padding:12px 16px;color:#908caa;font-size:12px">If a step fails, fi-1 stays active as it is and the deployment is marked failed. Roll back opens this same plan for v2.</p>
+<div style="margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
+<button type="button" class="pc-btn pc-pri">Apply upgrade to v3</button>
+<a href="RP-Server-overview.dc.html" class="pc-btn pc-ghost">Cancel</a>
+<span style="flex:1"></span>
+<span style="font-size:12px;color:#908caa"><b style="color:#e0def4">⌘ ↵</b> apply</span>
+</div>
+</aside>
+
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">j k</span> files</span>
+<span><span style="color:#e0def4;font-weight:600">↵</span> open or fold a diff</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> apply</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> cancel</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1100}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const ctx = (n, t) => ({ n: n, s: '', t: t, c: '#6e6a86', tc: '#908caa', bg: 'transparent' });
+    const add = (n, t) => ({ n: n, s: '+', t: t, c: '#9ccfd8', tc: '#e0def4', bg: '#0e1a1c' });
+    const del = (n, t) => ({ n: n, s: '−', t: t, c: '#eb6f92', tc: '#e0def4', bg: '#2e202f' });
+    return {
+      nav: this.nav('servers', { servers: ['◆ 1', '#c4a7e7'] }),
+      files: [
+        { name: 'compose.yaml', state: 'changed', add: '+2', del: '−1', open: true, lines: [
+          ctx(9, '  xray:'),
+          del(10, '    image: ghcr.io/xtls/xray-core:24.12.31'),
+          add(10, '    image: ghcr.io/xtls/xray-core:25.9.11'),
+          ctx(11, '    restart: unless-stopped'),
+          add(12, '    environment: { XHTTP_PATH: ••• }'),
+          ctx(13, '  certbot:')
+        ] },
+        { name: 'nginx/nginx.conf', state: 'changed', add: '+3', del: '−3', open: false, lines: [] },
+        { name: 'xray/config.json', state: 'changed · has secrets', add: '+1', del: '−1', open: false, lines: [] },
+        { name: 'nginx/reload.sh', state: 'added', add: '+9', del: '', open: false, lines: [] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

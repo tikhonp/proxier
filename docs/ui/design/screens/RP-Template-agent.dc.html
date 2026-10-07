@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Hand off the draft to an agent</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul,dl,dd{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-seg{background:transparent;border:0;color:#e0def4;white-space:nowrap}
+.pc-seg:hover{background:#191724}
+.pc-inp{padding:8px 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+.pc-tg{display:flex}
+.pc-tg>button{position:relative;height:28px;padding:0 12px;margin-left:-1px;background:transparent;border:1px solid #6e6a86;color:#908caa;font-size:12px}
+.pc-tg>button:first-child{margin-left:0}
+.pc-tg>button:hover{border-color:#908caa;color:#e0def4;z-index:1}
+.pc-tg>button[aria-pressed="true"]{border-color:#e0def4;color:#e0def4;z-index:2}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-tg>button:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+</style>
+</helmet>
+<div style="width:1000px;min-height:1240px;padding:32px;background:#000000;display:flex;align-items:flex-start;justify-content:center">
+<div role="dialog" aria-modal="true" aria-labelledby="ag-h" style="width:100%;background:#000000;border:1px solid #524f67">
+
+<div style="display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;padding:10px 16px">
+<h2 id="ag-h" style="font-size:15px;line-height:22px;font-weight:600">Hand off the draft to an agent</h2>
+<p style="font-size:12px;color:#908caa">VLESS XHTTP behind nginx · draft based on v3 · for Claude Code, Codex or any agent that can make HTTP requests</p>
+</div>
+<button type="button" class="pc-seg" aria-label="Close" style="width:62px;height:62px;flex:none;border-left:1px solid #26233a;font-size:18px;color:#908caa">×</button>
+</div>
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr)">
+
+<div style="padding:16px;display:flex;flex-direction:column;gap:18px;border-right:1px solid #26233a">
+<div>
+<label for="task" style="display:block;font-size:12px;color:#908caa;margin-bottom:6px">What's the problem, and what should it do?</label>
+<textarea id="task" class="pc-inp" rows="6" style="display:block;width:100%;resize:vertical">nl-2 failed at step 7: nginx won't start. Validation now says grpc_pass isn't allowed in the xhttp location. Fix the draft so validation has no errors and the preview for nl-2 renders. Keep the endpoint path and the fallback site as they are.</textarea>
+</div>
+
+<fieldset style="border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:8px">
+<legend style="font-size:12px;color:#908caa;margin-bottom:8px">Context it can read</legend>
+<label style="display:flex;align-items:flex-start;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:3px 0 0"><span>Validation report <span style="color:#908caa">· 2 errors, 1 warning, 16:38</span></span></label>
+<label style="display:flex;align-items:flex-start;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:3px 0 0"><span>Failed job log <span style="color:#908caa">· nl-2 provisioning #412, step 7, redacted</span></span></label>
+<label style="display:flex;align-items:flex-start;gap:8px"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:3px 0 0"><span>Preview for <span style="border-bottom:1px solid #403d52">nl-2 ▾</span> <span style="color:#908caa">· rendered files, secrets masked</span></span></label>
+<label style="display:flex;align-items:flex-start;gap:8px"><input type="checkbox" style="accent-color:#e0def4;margin:3px 0 0"><span>Diff against v3 <span style="color:#908caa">· what the draft already changed</span></span></label>
+<p style="font-size:12px;color:#6e6a86;padding-left:22px">The manifest reference and the validator rules are always included.</p>
+</fieldset>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="font-size:12px;color:#908caa">Agent</div>
+<div class="pc-tg" role="group" aria-label="Agent" style="align-self:flex-start">
+<button type="button" aria-pressed="true">Claude Code</button>
+<button type="button" aria-pressed="false" class="pc-seg">Codex</button>
+<button type="button" aria-pressed="false" class="pc-seg">Other</button>
+</div>
+<p style="font-size:12px;color:#6e6a86">Changes only the wording. The API is the same.</p>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="font-size:12px;color:#908caa">Access expires after</div>
+<div class="pc-tg" role="group" aria-label="Expiry" style="align-self:flex-start">
+<button type="button" aria-pressed="false" class="pc-seg">30 min</button>
+<button type="button" aria-pressed="true">2 h</button>
+<button type="button" aria-pressed="false" class="pc-seg">8 h</button>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:#26233a;border:1px solid #26233a">
+<div style="background:#000000;padding:10px 12px">
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;margin-bottom:6px">It can</div>
+<ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:4px">
+<li>read and write this draft</li>
+<li>validate it</li>
+<li>preview it for nl-2</li>
+<li>read the context above</li>
+</ul>
+</div>
+<div style="background:#000000;padding:10px 12px">
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;margin-bottom:6px">It can't</div>
+<ul style="list-style:none;padding:0;display:flex;flex-direction:column;gap:4px;color:#908caa">
+<li>publish or discard</li>
+<li>deploy to any server</li>
+<li>see a secret value</li>
+<li>touch anything else</li>
+</ul>
+</div>
+</div>
+</div>
+
+<div style="min-width:0;display:flex;flex-direction:column">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<span style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Prompt</span>
+<span style="font-size:12px;color:#908caa">Markdown · 2.1 KB · the token is shown once</span>
+</div>
+<div style="flex:1;background:#191724;padding:10px 0;font-size:12px;line-height:19px;overflow:hidden">
+<sc-for list="{{prompt}}" as="l" hint-placeholder-count="34">
+<div style="padding:0 16px;white-space:pre-wrap;color:{{l.c}};font-weight:{{l.w}}">{{l.t}}</div>
+</sc-for>
+</div>
+</div>
+
+</div>
+
+<div style="display:flex;align-items:center;gap:8px;padding:10px 16px;background:#140f0a;border-top:1px solid #624d30;color:#f6c177"><span aria-hidden="true" style="width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span><span>The prompt holds the token in plain text. Anyone who has it can edit this draft until 18:41. You can revoke it on the template page.</span></div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
+<button type="button" class="pc-btn pc-pri">Copy prompt</button>
+<button type="button" class="pc-btn pc-ghost">Cancel</button>
+<span style="font-size:12px;color:#908caa">then paste it into Claude Code or Codex</span>
+<span style="flex:1"></span>
+<span style="display:flex;gap:14px;font-size:12px;color:#908caa;white-space:nowrap"><span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> copy</span><span><span style="color:#e0def4;font-weight:600">esc</span> cancel</span></span>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":1240}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const H = (t) => ({ t: t, c: '#e0def4', w: '600' });
+    const T = (t) => ({ t: t, c: '#e0def4', w: '400' });
+    const S = (t) => ({ t: t, c: '#908caa', w: '400' });
+    const C = (t) => ({ t: t, c: '#f6c177', w: '400' });
+    const B = { t: ' ', c: '#e0def4', w: '400' };
+    return {
+      prompt: [
+        H('# Fix the Proxier template draft "nginx-xhttp"'), B,
+        T('You are editing the draft of the template "VLESS XHTTP behind nginx",'),
+        T('based on v3, on a Proxier instance. Work only through the API below.'), B,
+        H('## The problem'),
+        S('nl-2 failed at step 7: nginx won\'t start. Validation now says grpc_pass'),
+        S('isn\'t allowed in the xhttp location. Fix the draft so validation has no'),
+        S('errors and the preview for nl-2 renders. Keep the endpoint path and the'),
+        S('fallback site as they are.'), B,
+        H('## Access'),
+        C('BASE=https://proxier.tikhonnnnn.com/agent/v1'),
+        C('TOKEN=pxa_••••••••••••••••  # expires 18:41 MSK'),
+        T('Send "Authorization: Bearer $TOKEN" with every request.'), B,
+        H('## API'),
+        C('GET    $BASE/context                 problem, report, job log'),
+        C('GET    $BASE/draft                   manifest and file list'),
+        C('GET    $BASE/draft/files/{path}      one file, with an ETag'),
+        C('PUT    $BASE/draft/files/{path}      write it; send If-Match'),
+        C('DELETE $BASE/draft/files/{path}'),
+        C('POST   $BASE/draft/validate          returns the report'),
+        C('POST   $BASE/draft/preview?server=nl-2'),
+        C('GET    $BASE/docs/manifest           the manifest reference'), B,
+        H('## Rules'),
+        T('- Start with GET /context. Read every file before you change it.'),
+        T('- Validate after each change. Stop when there are no errors and'),
+        T('  the preview renders.'),
+        T('- You can\'t publish or deploy; the admin does that after review.'),
+        T('- Secret values show as •••. Don\'t try to fill them in.'),
+        T('- End with a short summary: what you changed and why.')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Add router</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,ul,ol,dl,dd{margin:0}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-seg{background:transparent;border:0;color:#e0def4;white-space:nowrap}
+.pc-seg:hover{background:#191724}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+.pc-grp{display:flex;align-items:stretch;background:#191724;border:1px solid #403d52}
+.pc-grp>button{background:transparent;border:0;border-left:1px solid #403d52;padding:0 12px;white-space:nowrap}
+.pc-grp>button:hover{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-grp>button:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+</style>
+</helmet>
+<div style="width:1000px;min-height:1080px;padding:32px;background:#000000;display:flex;align-items:flex-start;justify-content:center">
+<div role="dialog" aria-modal="true" aria-labelledby="ar-h" style="width:100%;background:#000000;border:1px solid #524f67">
+
+<div style="display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0;padding:10px 16px">
+<h2 id="ar-h" style="font-size:15px;line-height:22px;font-weight:600">Add router</h2>
+<p style="font-size:12px;color:#908caa">a MikroTik that Proxier reaches over SSH, directly or through one jump host</p>
+</div>
+<button type="button" class="pc-seg" aria-label="Close" style="width:62px;height:62px;flex:none;border-left:1px solid #26233a;font-size:18px;color:#908caa">×</button>
+</div>
+
+<div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr)">
+
+<div style="padding:16px;display:flex;flex-direction:column;gap:14px;border-right:1px solid #26233a">
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px 12px;align-items:center">
+<label for="n" style="color:#908caa">Name</label><input id="n" class="pc-inp" value="Office">
+<label for="l" style="color:#908caa">Routing list</label><input id="l" class="pc-inp" value="Main ▾" readonly="{{ true }}">
+</div>
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;padding-top:4px;border-top:1px solid #26233a;padding-top:12px">Router</div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr) 80px;gap:10px 12px;align-items:center">
+<label for="h" style="color:#908caa">Host · port</label><input id="h" class="pc-inp" value="10.230.4.1"><input class="pc-inp" aria-label="Port" value="22">
+<label for="u" style="color:#908caa">User</label><input id="u" class="pc-inp" value="proxier" style="grid-column:2 / -1">
+</div>
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;border-top:1px solid #26233a;padding-top:12px">Jump host <span style="text-transform:none;letter-spacing:0;color:#6e6a86">· optional</span></div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr) 80px;gap:10px 12px;align-items:center">
+<label for="jh" style="color:#908caa">Host · port</label><input id="jh" class="pc-inp" value="office-pi.tail3c1e.ts.net"><input class="pc-inp" aria-label="Jump port" value="22">
+<label for="ju" style="color:#908caa">User</label><input id="ju" class="pc-inp" value="pi" style="grid-column:2 / -1">
+</div>
+<div style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa;border-top:1px solid #26233a;padding-top:12px">On the router</div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:10px 12px;align-items:center">
+<label for="al" style="color:#908caa">Address list</label><input id="al" class="pc-inp" value="to_vpn_list">
+<label for="dh" style="color:#908caa">DoH forwarder</label><input id="dh" class="pc-inp" value="vpn-doh">
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column">
+<div style="padding:16px;display:flex;flex-direction:column;gap:10px;border-bottom:1px solid #26233a">
+<div style="font-size:12px;color:#908caa">Proxier's public key, to install on both hops</div>
+<div class="pc-grp"><code style="flex:1;min-width:0;padding:7px 12px;font:inherit;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK7v…qP2 proxier</code><button type="button">Copy</button></div>
+<div style="font-size:12px;color:#908caa;margin-top:4px">On the jump host</div>
+<div class="pc-grp"><code style="flex:1;min-width:0;padding:7px 12px;font:inherit;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">echo 'ssh-ed25519 AAAA…qP2 proxier' &gt;&gt; ~/.ssh/authorized_keys</code><button type="button">Copy</button></div>
+<div style="font-size:12px;color:#908caa;margin-top:4px">On the router</div>
+<div class="pc-grp"><code style="flex:1;min-width:0;padding:7px 12px;font:inherit;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">/user ssh-keys add user=proxier key="ssh-ed25519 AAAA…qP2"</code><button type="button">Copy</button></div>
+</div>
+
+<div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;align-items:center;gap:12px"><span style="font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Test connection</span><span style="flex:1"></span><span style="font-size:12px;color:#908caa">read-only · nothing changes</span></div>
+<ol style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px">
+<li style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#31748f"></span><span>Jump host office-pi <span style="color:#908caa">· key SHA256:3hQx…P0c confirmed</span></span></li>
+<li style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="display:inline-block;width:10px;height:9px;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)"></span><span>Router 10.230.4.1 answered with a key Proxier hasn't seen</span></li>
+</ol>
+<div style="padding:10px 12px;background:#140f0a;border:1px solid #624d30;display:flex;flex-direction:column;gap:8px">
+<p>Is this the router's key? Check it on the router with <span style="color:#f6c177">/ip ssh print</span>.</p>
+<code style="font:inherit;color:#f6c177;word-break:break-all">SHA256:Vb7nKq2T1xYpW3cR9mE0sLfA8uHd6Zo4jN5gB1iQe2k</code>
+<div style="display:flex;gap:8px"><button type="button" class="pc-btn pc-sm pc-pri">It matches, continue</button><button type="button" class="pc-btn pc-sm pc-ghost">Stop</button></div>
+</div>
+<ol start="3" style="list-style:none;padding:0;display:flex;flex-direction:column;gap:6px;color:#6e6a86">
+<li style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span><span>RouterOS version and board</span></li>
+<li style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span><span>DoH forwarder vpn-doh and mtvpn:doh pins</span></li>
+<li style="display:grid;grid-template-columns:16px minmax(0,1fr);gap:8px;align-items:baseline"><span aria-hidden="true" style="display:inline-block;width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span><span>Entries in to_vpn_list</span></li>
+</ol>
+</div>
+</div>
+
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
+<button type="button" class="pc-btn pc-pri" disabled="{{ true }}" style="opacity:.45;cursor:not-allowed">Save and sync</button>
+<button type="button" class="pc-btn">Test connection</button>
+<button type="button" class="pc-btn pc-ghost">Cancel</button>
+<span style="font-size:12px;color:#908caa">Save is available once the test passes.</span>
+<span style="flex:1"></span>
+<span style="display:flex;gap:14px;font-size:12px;color:#908caa;white-space:nowrap"><span><span style="color:#e0def4;font-weight:600">t</span> test</span><span><span style="color:#e0def4;font-weight:600">esc</span> cancel</span></span>
+</div>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1000,"height":1080}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

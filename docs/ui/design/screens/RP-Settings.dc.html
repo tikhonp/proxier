@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Settings — Notifications</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-sw{position:relative;width:36px;height:18px;flex:none;border:1px solid #6e6a86;background:transparent;padding:0}
+.pc-sw::after{content:"";position:absolute;top:0;left:0;width:16px;height:16px;background:#6e6a86}
+.pc-sw[aria-checked="true"]{border-color:#e0def4}
+.pc-sw[aria-checked="true"]::after{left:18px;background:#e0def4}
+.pc-sw:hover{border-color:#908caa}
+.pc-sw:hover::after{background:#908caa}
+.pc-sw[aria-checked="true"]:hover{border-color:#ffffff}
+.pc-sw[aria-checked="true"]:hover::after{background:#ffffff}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-sm{min-height:40px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Settings</h1>
+</div>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav aria-label="Settings sections" style="width:200px;flex:none;border-right:1px solid #26233a;padding:8px 0">
+<sc-for list="{{sections}}" as="s" hint-placeholder-count="11">
+<a href="#" aria-current="{{s.cur}}" class="pc-seg" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;color:{{s.c}};background:{{s.bg}}"><span aria-hidden="true" style="width:8px">{{s.mark}}</span>{{s.name}}</a>
+</sc-for>
+</nav>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column">
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:14px 16px;border-bottom:1px solid #26233a">
+<div style="flex:1;min-width:0">
+<h2 style="font-size:15px;line-height:22px;font-weight:600">Notifications</h2>
+<p style="color:#908caa">Which events go to Telegram. Everything is still recorded in Activity.</p>
+</div>
+<span style="display:inline-flex;align-items:center;gap:8px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;background:#31748f"></span>Telegram · chat “tikhon” · last sent 14:20</span>
+<button type="button" class="pc-btn pc-sm">Send test</button>
+</div>
+
+<sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+<section style="border-bottom:1px solid #26233a;padding-bottom:6px">
+<div style="min-height:36px;display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid #26233a"><h3 style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.name}}</h3><span style="font-size:12px;color:#908caa">{{g.note}}</span></div>
+<sc-for list="{{g.rows}}" as="r" hint-placeholder-count="5">
+<div class="pc-row {{r.cls}}" style="position:relative;display:grid;grid-template-columns:46px minmax(0,1.1fr) minmax(0,1.6fr) 140px;gap:14px;align-items:center;padding:6px 16px">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{r.car}}</span>
+<button type="button" role="switch" class="pc-sw" aria-checked="{{r.on}}" aria-label="{{r.name}}" style="margin-left:6px"></button>
+<span style="font-weight:600">{{r.name}}</span>
+<span style="color:#908caa">{{r.desc}}</span>
+<span style="font-size:12px;color:{{r.dc}}">{{r.def}}</span>
+</div>
+</sc-for>
+</section>
+</sc-for>
+<p style="padding:12px 16px;color:#908caa">Showing 3 of 6 groups · <a href="#" style="color:#908caa">all events</a></p>
+</div>
+</div>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">space</span> turn on · off</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+<span><span style="color:#e0def4;font-weight:600">[ ]</span> sections</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const sec = ['General', 'Security', 'SSH', 'Integrations', 'Notifications', 'Servers', 'Subscriptions', 'Routing', 'Retention', 'Backups', 'About'];
+    const r = (name, desc, on, deflt, cur) => ({ name: name, desc: desc, on: on ? 'true' : 'false', def: (deflt ? 'on' : 'off') + ' by default' + (on !== deflt ? ' · changed' : ''), dc: on !== deflt ? '#ebbcba' : '#6e6a86', cls: cur ? 'pc-cur' : '', car: cur ? '›' : '' });
+    return {
+      nav: this.nav('settings', {}),
+      sections: sec.map((s) => ({ name: s, cur: s === 'Notifications' ? 'page' : undefined, c: s === 'Notifications' ? '#e0def4' : '#908caa', bg: s === 'Notifications' ? '#26233a' : 'transparent', mark: s === 'Notifications' ? '›' : ' ' })),
+      groups: [
+        { name: 'Servers', note: '17 events', rows: [
+          r('Health: blocked or down', 'a server becomes blocked or down, and when it is healthy again', true, true, true),
+          r('Health: degraded', 'slow or partly failing checks', true, false),
+          r('Still unhealthy', 'a reminder every 24 h while blocked or down', true, true),
+          r('Provisioning failed', 'a new server stopped at a step', true, true),
+          r('Certificate expiring', 'once a day while fewer than 14 days are left', true, true),
+          r('Disk low', 'under 10 % free', true, true)
+        ] },
+        { name: 'Links', note: '11 events', rows: [
+          r('Link looks shared', 'fetched from too many networks or apps in 24 h', true, true),
+          r('Link expiring soon', 'once, 3 days before', false, true),
+          r('Link expired', 'a link stopped working because it expired', true, true)
+        ] },
+        { name: 'Platform', note: '11 events', rows: [
+          r('Sign-in from a new IP', 'an IP without a successful sign-in in 30 days', true, true),
+          r('Host key changed', 'a server, router or jump host shows a new SSH key', true, true),
+          r('Agent session opened', 'anyone with the copied prompt can edit a template draft', true, true)
+        ] }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

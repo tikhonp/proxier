@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>nl-1 — Stats</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ul,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+.pc-sb{position:relative;height:26px;padding:0 10px;margin-left:-1px;background:transparent;border:1px solid #6e6a86;color:#908caa;font-size:12px;white-space:nowrap}
+.pc-sb:first-child{margin-left:0}
+.pc-sb:hover{border-color:#908caa;color:#e0def4;z-index:1}
+.pc-sb[aria-pressed="true"]{border-color:#e0def4;color:#e0def4;z-index:2}
+.pc-sb:focus-visible{outline-offset:-1px;z-index:3}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:48px}.pc-now{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run an action" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="RP-Jobs.dc.html" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="RP-Servers.dc.html" style="color:#908caa">Servers</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>nl-1</span></nav>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 16px;margin-top:6px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">nl-1</h1>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>healthy</span>
+<span style="font-size:12px;color:#908caa">since 2 Oct · first byte 0.21 s</span>
+</div>
+<p style="color:#908caa;margin-top:4px">Netherlands · 203.0.113.10 · nl-1.hosts.tikhonnnnn.com · VLESS XHTTP behind nginx v3</p>
+</div>
+<div style="display:flex;flex-wrap:wrap;gap:8px">
+<button type="button" class="pc-btn pc-pri">Run checks now</button>
+<a href="RP-Server-redeploy.dc.html" class="pc-btn">Redeploy…</a>
+<button type="button" class="pc-btn">More<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+</div>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:stretch;border-bottom:1px solid #26233a">
+<nav aria-label="Server sections" style="display:flex;flex-wrap:wrap;flex:1">
+<a href="RP-Server-overview.dc.html" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Overview</a>
+<a href="RP-Server-health.dc.html" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Health</a>
+<a href="#" aria-current="page" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;background:#26233a">Stats</a>
+<a href="RP-Server-stack.dc.html" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Stack</a>
+<a href="RP-Jobs.dc.html" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Jobs</a>
+<a href="RP-Activity.dc.html" class="pc-seg" style="display:flex;align-items:center;height:36px;padding:0 16px;border-right:1px solid #26233a;color:#908caa">Activity</a>
+</nav>
+<div role="group" aria-label="Range" style="display:flex;align-self:center;margin-right:16px">
+<button type="button" aria-pressed="true" class="pc-sb">24 h</button>
+<button type="button" aria-pressed="false" class="pc-sb">7 d</button>
+<button type="button" aria-pressed="false" class="pc-sb">30 d</button>
+</div>
+</div>
+
+<div class="pc-now" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+<sc-for list="{{now}}" as="n" hint-placeholder-count="6">
+<div style="background:#000000;padding:10px 16px">
+<div style="font-size:12px;color:#908caa">{{n.k}}</div>
+<div style="font-size:22px;line-height:30px;font-weight:600">{{n.v}}</div>
+<div style="font-size:12px;color:#6e6a86">{{n.sub}}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+<sc-for list="{{charts}}" as="c" hint-placeholder-count="5">
+<section style="background:#000000;padding:0 0 14px;grid-column:{{c.span}}">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{c.title}}</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">{{c.note}}</span>
+<span style="flex:1"></span>
+<sc-if value="{{c.legend}}" hint-placeholder-val="{{ false }}">
+<span style="display:flex;gap:16px;font-size:12px;color:#908caa"><span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:14px;height:2px;background:#e0def4"></span>received {{c.l1}}</span><span style="display:inline-flex;align-items:center;gap:6px"><span aria-hidden="true" style="width:14px;height:0;border-top:2px dashed #908caa"></span>sent {{c.l2}}</span></span>
+</sc-if>
+</div>
+<div style="position:relative;display:grid;grid-template-columns:44px minmax(0,1fr);gap:8px;padding:14px 16px 0">
+<div style="display:flex;flex-direction:column;justify-content:space-between;height:{{c.h}};font-size:11px;line-height:12px;color:#6e6a86;text-align:right"><span>{{c.top}}</span><span>{{c.mid}}</span><span>0</span></div>
+<div style="position:relative">
+<svg viewBox="0 0 480 100" preserveAspectRatio="none" role="img" aria-label="{{c.aria}}" style="display:block;width:100%;height:{{c.h}};overflow:visible">
+<path d="M0 0H480M0 50H480M0 100H480" stroke="#26233a" stroke-width="1" fill="none" vector-effect="non-scaling-stroke"></path>
+<rect x="{{c.gapX}}" y="0" width="{{c.gapW}}" height="100" fill="#191724"></rect>
+<path d="{{c.d2}}" stroke="#908caa" stroke-width="2" stroke-dasharray="4 3" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+<path d="{{c.d}}" stroke="#e0def4" stroke-width="2" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path>
+</svg>
+<span style="position:absolute;top:2px;left:{{c.gapL}};font-size:11px;color:#6e6a86;white-space:nowrap">{{c.gapLabel}}</span>
+<div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:#6e6a86"><span>17:00</span><span>23:00</span><span>05:00</span><span>11:00</span><span>now</span></div>
+</div>
+</div>
+</section>
+</sc-for>
+</div>
+
+<section aria-labelledby="ct-h" style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="ct-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Containers</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">from docker ps at 16:50</span>
+</div>
+<div style="display:grid;grid-template-columns:160px 130px 140px minmax(0,1fr);gap:16px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86"><span>Service</span><span>State</span><span>Restarts</span><span>Image</span></div>
+<sc-for list="{{containers}}" as="k" hint-placeholder-count="3">
+<div class="pc-row" style="display:grid;grid-template-columns:160px 130px 140px minmax(0,1fr);gap:16px;padding:6px 16px">
+<span style="font-weight:600">{{k.name}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:{{k.c}}"><span aria-hidden="true" style="{{k.m}}"></span>{{k.state}}</span>
+<span style="color:#908caa">{{k.restarts}}</span>
+<span style="color:#908caa">{{k.image}}</span>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">1 2 3</span> 24 h · 7 d · 30 d</span>
+<span><span style="color:#e0def4;font-weight:600">r</span> run checks now</span>
+<span><span style="color:#e0def4;font-weight:600">[ ]</span> tabs</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:52:10</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Servers.dc.html'], ['templates', 'Templates', 'RP-Templates.dc.html'], ['locations', 'Locations', 'RP-Locations.dc.html']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscriptions.dc.html'], ['links', 'Links', 'RP-Links.dc.html']]],
+      ['Routing', [['lists', 'Lists', 'RP-Lists.dc.html'], ['services', 'Services', 'RP-Services.dc.html'], ['search', 'Search', 'RP-Search.dc.html'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Routers.dc.html'], ['shadowrocket', 'Shadowrocket', 'RP-Shadowrocket.dc.html']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Scripts.dc.html']]],
+      ['System', [['jobs', 'Jobs', 'RP-Jobs.dc.html'], ['activity', 'Activity', 'RP-Activity.dc.html'], ['settings', 'Settings', 'RP-Settings.dc.html']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  series(seed, base, amp, n) {
+    let s = seed;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      s = (s * 9301 + 49297) % 233280;
+      const r = s / 233280;
+      const day = Math.sin((i / n) * Math.PI * 2 - 1.2) * 0.5 + 0.5;
+      out.push(Math.max(0, base + amp * (0.6 * day + 0.4 * r)));
+    }
+    return out;
+  }
+  path(vals, max, gap) {
+    const n = vals.length;
+    let d = '';
+    let pen = false;
+    vals.forEach((v, i) => {
+      if (gap && i >= gap[0] && i < gap[1]) { pen = false; return; }
+      const x = (i / (n - 1)) * 480;
+      const y = 100 - Math.min(v / max, 1) * 100;
+      d += (pen ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      pen = true;
+    });
+    return d;
+  }
+  renderVals() {
+    const N = 96;
+    const gap = [52, 58];
+    const gx = (gap[0] / (N - 1)) * 480;
+    const gw = ((gap[1] - gap[0]) / (N - 1)) * 480;
+    const chart = (title, note, vals, max, top, mid, aria, extra) => Object.assign({
+      title: title, note: note, d: this.path(vals, max, gap), d2: '', legend: false, l1: '', l2: '',
+      top: top, mid: mid, aria: aria, h: '120px', span: 'auto',
+      gapX: gx.toFixed(1), gapW: gw.toFixed(1), gapL: ((gap[0] / (N - 1)) * 100).toFixed(1) + '%', gapLabel: 'no samples · 03:10–03:40'
+    }, extra || {});
+    const cpu = this.series(7, 4, 18, N);
+    const load = this.series(11, 0.05, 0.5, N);
+    const mem = this.series(3, 48, 6, N);
+    const disk = this.series(5, 37.5, 1, N);
+    const rx = this.series(13, 20, 220, N);
+    const tx = this.series(17, 10, 120, N);
+    return {
+      nav: this.nav('servers', { servers: ['◆ 1', '#c4a7e7'] }),
+      now: [
+        { k: 'CPU', v: '12 %', sub: '1 vCPU · load 0.18' },
+        { k: 'Memory', v: '52 %', sub: '1.0 of 1.9 GB' },
+        { k: 'Disk', v: '38 %', sub: '15 of 40 GB' },
+        { k: 'Traffic today', v: '8.7 GB', sub: '5.6 in · 3.1 out' },
+        { k: 'This month', v: '214 GB', sub: 'since 1 Oct' },
+        { k: 'Uptime', v: '34 d', sub: 'since 1 Sep reboot' }
+      ],
+      charts: [
+        chart('CPU', 'busy, per 5 min', cpu, 100, '100 %', '50 %', 'CPU between 4 and 22 percent over 24 hours'),
+        chart('Load', '1-minute average', load, 1, '1.0', '0.5', 'Load between 0.05 and 0.55'),
+        chart('Memory', 'used, without caches', mem, 100, '100 %', '50 %', 'Memory steady around 52 percent'),
+        chart('Disk', 'used on /', disk, 100, '100 %', '50 %', 'Disk steady at 38 percent'),
+        chart('Traffic', 'MB per 5 min · default-route interface', rx, 300, '300 MB', '150 MB', 'Traffic received peaks in the evening; sent follows at about half', { d2: this.path(tx, 300, gap), legend: true, l1: '5.6 GB', l2: '3.1 GB', span: '1 / -1', h: '140px' })
+      ],
+      containers: [
+        { name: 'nginx', state: 'running', c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f', restarts: '0', image: 'nginx:1.27-alpine' },
+        { name: 'xray', state: 'running', c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f', restarts: '1 · 2 Oct, 11:01', image: 'ghcr.io/xtls/xray-core:25.9.11' },
+        { name: 'certbot', state: 'running', c: '#908caa', m: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f', restarts: '0', image: 'certbot/certbot:v3.0.1' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

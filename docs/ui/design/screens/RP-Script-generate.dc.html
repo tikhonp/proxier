@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Generate for a new router</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd,ol{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+.pc-inp[readonly]{background:#000000;border-color:#26233a;color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-form{grid-template-columns:minmax(0,1fr) !important}.pc-form>label,.pc-form>span{padding-top:0 !important}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0">
+<nav aria-label="Breadcrumb" style="display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:#908caa"><a href="#" style="color:#908caa">Router scripts</a><span aria-hidden="true" style="color:#6e6a86">/</span><a href="#" style="color:#908caa">fresh-router.rsc</a><span aria-hidden="true" style="color:#6e6a86">/</span><span>generate</span></nav>
+<h1 style="font-size:22px;line-height:28px;font-weight:600;margin-top:6px">Generate for a new router</h1>
+<p style="color:#908caa;margin-top:4px;max-width:820px">Fills in the PARAMETERS block of fresh-router.rsc. Only the literal of each parameter line changes; every other byte is copied as written.</p>
+</div>
+<div style="display:flex;align-items:center;gap:10px">
+<label for="ver" style="font-size:12px;color:#908caa">Version</label>
+<div style="position:relative;width:170px">
+<select id="ver" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>v4 · current</option><option>v3</option><option>v2</option><option>v1</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-wrap:wrap;align-items:stretch">
+
+<form style="flex:999 1 700px;min-width:0;display:flex;flex-direction:column">
+
+<div role="group" aria-labelledby="g-reg" style="border-bottom:1px solid #26233a">
+<h2 id="g-reg" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Register for routing</h2>
+<div style="padding:16px 16px 0">
+<label style="display:flex;align-items:center;gap:8px;font-weight:600"><input type="checkbox" checked="{{ true }}" style="accent-color:#e0def4;margin:0">Keep this router's domain list in sync</label>
+</div>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:14px 16px;padding:16px 16px 4px;align-items:start">
+<label for="rn" style="padding-top:6px;color:#908caa">Router name</label>
+<input id="rn" class="pc-inp" value="Dacha" style="width:100%;max-width:320px">
+<label for="rl" style="padding-top:6px;color:#908caa">Routing list</label>
+<div style="position:relative;max-width:320px"><select id="rl" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>Main · default</option><option>Parents</option></select><span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span></div>
+<label for="rh" style="padding-top:6px;color:#908caa">Host <span style="color:#6e6a86">· lanNet + .1</span></label>
+<input id="rh" class="pc-inp" value="10.230.3.1" style="width:100%;max-width:320px">
+<label for="ru" style="padding-top:6px;color:#908caa">SSH user · port</label>
+<div style="display:flex;gap:8px;max-width:320px"><input id="ru" class="pc-inp" value="proxier" style="flex:1;min-width:0"><input aria-label="SSH port" class="pc-inp" value="22" style="width:72px"></div>
+<label for="rj" style="padding-top:6px;color:#908caa">Jump host</label>
+<div style="position:relative;max-width:320px"><select id="rj" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>dacha-pi · tailnet</option><option>none</option><option>blackberry · tailnet</option></select><span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span></div>
+</div>
+<p style="padding:10px 16px 18px;font-size:12px;color:#908caa">Registered as awaiting setup: no syncs and no alarms until Proxier first reaches it. Fills vpnList and dohForwarder below and locks them to this router.</p>
+</div>
+
+<div role="group" aria-labelledby="g-sub" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="g-sub" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Subscription link · subUrl</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">the router's mihomo container (SUB1) gets its servers from this URL</span>
+</div>
+<div style="padding:16px 16px 20px;display:flex;flex-direction:column;gap:12px">
+<label style="display:flex;align-items:center;gap:8px"><input type="radio" name="sub" checked="{{ true }}" style="accent-color:#e0def4;margin:0">Create a link</label>
+<div class="pc-form" style="display:grid;grid-template-columns:156px minmax(0,1fr);gap:14px 16px;padding-left:24px;align-items:start">
+<label for="kn" style="padding-top:6px;color:#908caa">Link name</label>
+<input id="kn" class="pc-inp" value="Router — Dacha" style="width:100%;max-width:320px">
+<label for="ks" style="padding-top:6px;color:#908caa">Subscription</label>
+<div style="position:relative;max-width:320px"><select id="ks" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>Me — everything · 4 servers</option><option>Family · 3 servers</option><option>Friends · 2 servers</option></select><span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span></div>
+</div>
+<label style="display:flex;align-items:center;gap:8px;color:#908caa"><input type="radio" name="sub" style="accent-color:#e0def4;margin:0">Use an existing link</label>
+<label style="display:flex;align-items:center;gap:8px;color:#908caa"><input type="radio" name="sub" style="accent-color:#e0def4;margin:0">Type a URL</label>
+</div>
+</div>
+
+<section aria-labelledby="par-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="par-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Parameters</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">18 from the PARAMETERS block · grouped as in the script</span>
+</div>
+<div style="padding:8px 16px 18px">
+<sc-for list="{{params}}" as="p" hint-placeholder-count="20">
+<sc-if value="{{p.group}}" hint-placeholder-val="{{ false }}">
+<div style="padding:14px 0 4px;font-size:12px;color:#908caa;font-style:italic"># {{p.label}}</div>
+</sc-if>
+<sc-if value="{{p.field}}" hint-placeholder-val="{{ true }}">
+<div class="pc-form" style="display:grid;grid-template-columns:164px minmax(200px,340px) minmax(0,1fr);gap:6px 16px;align-items:center;padding:4px 0">
+<label for="{{p.id}}" style="font-weight:600;color:{{p.lc}}">{{p.name}}</label>
+<input id="{{p.id}}" class="pc-inp" value="{{p.value}}" readonly="{{p.locked}}" style="width:100%;border-color:{{p.bc}}">
+<span style="font-size:12px;line-height:16px;color:#908caa">{{p.help}}<span style="color:{{p.nc}}">&#160;{{p.note}}</span></span>
+</div>
+</sc-if>
+</sc-for>
+</div>
+</section>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:16px">
+<a href="RP-Script-generation.dc.html" class="pc-btn pc-pri">Generate for Dacha</a>
+<button type="button" class="pc-btn pc-ghost">Cancel</button>
+<span style="display:inline-flex;align-items:center;gap:8px;font-size:12px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>all values valid RouterOS literals</span>
+</div>
+</form>
+
+<aside aria-labelledby="gen-h" style="flex:1 1 340px;max-width:420px;min-width:0;border-left:1px solid #26233a">
+<h2 id="gen-h" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">On generate</h2>
+<ol style="list-style:none;padding:14px 16px;display:flex;flex-direction:column;gap:12px">
+<li style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px"><span style="color:#908caa">1</span><span>Create link <span style="font-weight:600">Router — Dacha</span> in Me — everything</span></li>
+<li style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px"><span style="color:#908caa">2</span><span>Register router <span style="font-weight:600">Dacha</span>, awaiting setup, following Main</span></li>
+<li style="display:grid;grid-template-columns:20px minmax(0,1fr);gap:8px"><span style="color:#908caa">3</span><span>Write fresh-router-Dacha-v4.rsc <span style="color:#908caa">· 2 lines differ from v4: <span style="color:#ebbcba">lanNet</span>, <span style="color:#ebbcba">subUrl</span></span></span></li>
+</ol>
+<p style="padding:10px 16px;border-top:1px solid #26233a;font-size:12px;color:#908caa">The file holds the router's subscription link, so it is a secret. Next: download it, or create a one-time fetch URL for the router.</p>
+</aside>
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">tab</span> next field</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> generate for Dacha</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> leave the field</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 16:29:05</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":2040}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    let i = 0;
+    const G = (label) => ({ group: true, field: false, label: label });
+    const P = (name, value, help, kind) => {
+      i += 1;
+      const locked = kind === 'locked' || kind === 'computed';
+      const changed = kind === 'changed' || kind === 'link';
+      return {
+        group: false, field: true, id: 'p' + i, name: name, value: value, help: help, locked: locked,
+        lc: changed ? '#ebbcba' : '#e0def4',
+        bc: kind === 'changed' ? '#ebbcba' : (locked ? '#26233a' : '#403d52'),
+        note: kind === 'changed' ? '· changed, default "10.230.1"' : (kind === 'locked' ? '· filled from router Dacha' : (kind === 'computed' ? '· computed, read-only' : (kind === 'link' ? '· from the link above' : ''))),
+        nc: changed ? '#ebbcba' : '#908caa'
+      };
+    };
+    return {
+      nav: this.nav('scripts', {}),
+      params: [
+        P('lanNet', '10.230.3', 'LAN /24 prefix, no trailing dot. Router gets .1, DHCP hands out .20-.254', 'changed'),
+        P('wanIface', 'ether1', 'WAN port; gets its address and the LAN\'s DNS servers via DHCP client'),
+        P('subUrl', 'https://proxier.tikhonnnnn.com/s/•••••• (created on generate)', 'mihomo subscription URL (SUB1 env of the container)', 'link'),
+        P('image', 'registry-1.docker.io/wiktorbgu/mihomo-mikrotik:latest', ''),
+        P('timeZone', 'Europe/Moscow', ''),
+        G('interface names'),
+        P('lanIface', 'LAN', ''),
+        P('containerIface', 'container', ''),
+        P('vethName', 'vless', ''),
+        G('interface list names'),
+        P('lanList', 'LANiface', ''),
+        P('wanList', 'WANiface', ''),
+        G('selective-VPN routing names'),
+        P('vpnList', 'to_vpn_list', 'must match the router\'s address list', 'locked'),
+        P('vpnTable', 'to_vpn_table', ''),
+        P('vpnMark', 'to_vpn_mark', ''),
+        G('disk holding the container\'s layers and root-dir'),
+        P('containerDisk', 'usb1', ''),
+        G('container internal /24: router side = .1, mihomo veth = .2 = the VPN gateway'),
+        P('containerNet', '192.168.89', ''),
+        P('vpnGateway', '192.168.89.2', '($containerNet . ".2")', 'computed'),
+        G('DoH resolver for tunneled services only'),
+        P('dohHost', 'dns.google', ''),
+        P('dohIP', '8.8.8.8', ''),
+        P('dohForwarder', 'vpn-doh', 'must match the router\'s DoH forwarder', 'locked')
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

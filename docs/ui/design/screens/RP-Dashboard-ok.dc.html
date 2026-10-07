@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard — all good</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-dng{border-color:#763849;color:#eb6f92 !important}
+.pc-dng:hover{border-color:#eb6f92}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-cur,.pc-cur:hover{background:#26233a}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@keyframes pc-pulse{0%,100%{opacity:1}50%{opacity:.2}}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-cnt{grid-template-columns:repeat(3,minmax(0,1fr)) !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:20px 16px 16px;border-bottom:1px solid #26233a">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Dashboard</h1>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px 24px;margin-top:8px">
+<span style="display:inline-flex;align-items:center;gap:8px;color:#e0def4"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>Everything is fine</span>
+<span style="color:#908caa">4 servers healthy · 2 routers in sync · no failed jobs</span>
+</div>
+</div>
+
+<section aria-labelledby="fleet-h" style="border-bottom:1px solid #26233a">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="fleet-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Fleet</h2>
+<span style="font-size:12px;line-height:16px;color:#908caa">4 active</span>
+<span style="flex:1"></span>
+<a href="RP-Server-health.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Servers →</a>
+</div>
+
+<div class="pc-cnt" style="display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+<sc-for list="{{counts}}" as="c" hint-placeholder-count="6">
+<div style="background:#000000;padding:10px 16px">
+<div style="display:flex;align-items:center;gap:8px;font-size:12px;color:#908caa"><span aria-hidden="true" style="{{c.m}}"></span>{{c.label}}</div>
+<div style="font-size:22px;line-height:30px;font-weight:600;color:{{c.vc}}">{{c.n}}</div>
+</div>
+</sc-for>
+</div>
+
+<div style="padding:8px 0;border-bottom:1px solid #26233a">
+<sc-for list="{{servers}}" as="s" hint-placeholder-count="4">
+<a href="RP-Server-health.dc.html" class="pc-row {{s.cls}}" style="position:relative;display:grid;grid-template-columns:72px 96px minmax(0,1fr) auto;gap:16px;align-items:center;padding:6px 16px;text-decoration:none">
+<span aria-hidden="true" style="position:absolute;left:4px;top:6px">{{s.car}}</span>
+<span style="font-weight:600">{{s.name}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;white-space:nowrap"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>healthy</span>
+<span style="color:#908caa;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.where}}</span>
+<span style="font-size:12px;color:#908caa;white-space:nowrap">{{s.ttfb}}</span>
+</a>
+</sc-for>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px 16px;padding:8px 16px">
+<span style="color:#908caa;white-space:nowrap">↑ update available</span>
+<span><a href="#">fi-1</a> runs VLESS XHTTP behind nginx v2 · v3 is the default</span>
+<span style="flex:1"></span>
+<button type="button" class="pc-btn pc-sm">Upgrade fi-1…</button>
+</div>
+</section>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(440px,100%),1fr));gap:1px;background:#26233a;border-bottom:1px solid #26233a">
+
+<section aria-labelledby="jobs-h" style="background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="jobs-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Jobs</h2>
+<span style="flex:1"></span>
+<a href="#" style="font-size:12px;line-height:16px;color:#908caa">Jobs →</a>
+</div>
+<div style="padding:12px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Running</div>
+<p style="padding:6px 16px;color:#908caa">Nothing running. Next check round in 2 min.</p>
+<div style="padding:16px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Failed · last 24 h</div>
+<p style="padding:6px 16px;color:#908caa">None.</p>
+</section>
+
+<div style="display:flex;flex-direction:column;gap:1px;background:#26233a">
+<section aria-labelledby="routing-h" style="background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="routing-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Routing</h2>
+<span style="flex:1"></span>
+<a href="RP-Router.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Routers →</a>
+</div>
+<div style="height:8px"></div>
+<a href="RP-Router.dc.html" class="pc-row" style="display:grid;grid-template-columns:120px 96px minmax(0,1fr);gap:16px;align-items:center;padding:6px 16px;text-decoration:none">
+<span style="font-weight:600">Home</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;white-space:nowrap"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>synced</span>
+<span style="color:#908caa" title="08:10">1 h ago</span>
+</a>
+<a href="RP-Phone-router.dc.html" class="pc-row" style="display:grid;grid-template-columns:120px 96px minmax(0,1fr);gap:16px;align-items:center;padding:6px 16px;text-decoration:none">
+<span style="font-weight:600">Parents</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#908caa;white-space:nowrap"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>synced</span>
+<span style="color:#908caa" title="04:31">5 h ago</span>
+</a>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Snapshots</span><span style="color:#908caa">None waiting for a decision.</span></div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Daily refresh</span><span><span style="color:#908caa">04:00 ·</span> 3 services changed <span style="color:#908caa">(+42 / −5 domains) · 0 rejected</span></span></div>
+</section>
+
+<section aria-labelledby="links-h" style="flex:1;background:#000000;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="links-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Links</h2>
+<span style="flex:1"></span>
+<a href="RP-Link.dc.html" style="font-size:12px;line-height:16px;color:#908caa">Links →</a>
+</div>
+<div style="height:8px"></div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Alerts</span><span style="color:#908caa">None.</span></div>
+<div class="pc-row" style="display:grid;grid-template-columns:120px 96px minmax(0,1fr) auto;gap:16px;align-items:center;padding:4px 16px">
+<a href="#" style="font-weight:600;white-space:nowrap">Ivan — iPhone</a>
+<span style="color:#908caa">expiring</span>
+<span style="color:#908caa" title="Thu 8 Oct 2026, 23:59 MSK">8 Oct · in 3 days</span>
+<button type="button" class="pc-btn pc-sm">Extend…</button>
+</div>
+</section>
+</div>
+</div>
+
+<section aria-labelledby="act-h" style="flex:1;padding-bottom:8px">
+<div style="min-height:36px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 12px;padding:8px 16px;border-bottom:1px solid #26233a">
+<h2 id="act-h" style="font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Recent activity</h2>
+<span style="flex:1"></span>
+<a href="#" style="font-size:12px;line-height:16px;color:#908caa">Activity →</a>
+</div>
+<div style="height:8px"></div>
+<sc-for list="{{activity}}" as="e" hint-placeholder-count="8">
+<div class="pc-row" style="display:grid;grid-template-columns:96px minmax(0,1fr);gap:16px;padding:6px 16px">
+<span style="color:#908caa;white-space:nowrap" title="{{e.abs}}">{{e.t}}</span>
+<span style="color:#908caa">{{e.pre}}<a href="{{e.href}}" style="color:#e0def4">{{e.subj}}</a>{{e.post}}</span>
+</div>
+</sc-for>
+</section>
+
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">↵</span> open nl-1</span>
+<span><span style="color:#e0def4;font-weight:600">r</span> run checks now</span>
+<span><span style="color:#e0def4;font-weight:600">j k</span> move</span>
+</div>
+<div style="display:flex;align-items:center;gap:20px;padding:0 16px;border-left:1px solid #26233a;color:#908caa">
+<span><span style="color:#e0def4;font-weight:600">/</span> search</span>
+<span><span style="color:#e0def4;font-weight:600">:</span> actions</span>
+<span><span style="color:#e0def4;font-weight:600">g</span> go to</span>
+<span><span style="color:#e0def4;font-weight:600">?</span> keys</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 09:30:02</div>
+</footer>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":1180}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const M = {
+      healthy: 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f',
+      degraded: 'width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)',
+      blocked: 'width:10px;height:10px;flex:none;background:#c4a7e7;clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%)',
+      down: 'width:8px;height:8px;flex:none;background:#eb6f92',
+      unknown: 'width:8px;height:8px;flex:none;border-radius:50%;box-shadow:inset 0 0 0 1.5px #908caa',
+      paused: 'width:8px;height:8px;flex:none;background:linear-gradient(90deg,#9ccfd8 0 3px,transparent 3px 5px,#9ccfd8 5px)'
+    };
+    const count = (k, n) => ({ label: k, n: n, m: M[k] + (n ? '' : ';opacity:.4'), vc: n ? '#e0def4' : '#6e6a86' });
+    const srv = (name, where, ttfb, on) => ({ name: name, where: where, ttfb: ttfb, cls: on ? 'pc-cur' : '', car: on ? '›' : '' });
+    return {
+      nav: this.nav('dashboard', {}),
+      counts: [count('healthy', 4), count('degraded', 0), count('blocked', 0), count('down', 0), count('unknown', 0), count('paused', 0)],
+      servers: [
+        srv('nl-1', 'Netherlands · 203.0.113.10 · in 3 subscriptions', 'first byte 0.21 s', true),
+        srv('de-1', 'Germany · 198.51.100.7 · in 2 subscriptions', 'first byte 0.34 s', false),
+        srv('fi-1', 'Finland · 198.51.100.33 · in 2 subscriptions', 'first byte 0.29 s', false),
+        srv('se-1', 'Sweden · 192.0.2.45 · in 2 subscriptions', 'first byte 0.31 s', false)
+      ],
+      activity: [
+        { t: '1 h ago', abs: 'Mon 5 Oct, 08:10', pre: 'Router ', subj: 'Home', href: 'RP-Router.dc.html', post: ' synced: 1 tag updated' },
+        { t: '5 h ago', abs: 'Mon 5 Oct, 04:31', pre: 'Router ', subj: 'Parents', href: 'RP-Phone-router.dc.html', post: ' synced: 2 tags updated' },
+        { t: '5 h ago', abs: 'Mon 5 Oct, 04:00', pre: 'Routing refresh: ', subj: '3 services changed', href: '#', post: ' (+42 / −5 domains), 0 rejected' },
+        { t: '6 h ago', abs: 'Mon 5 Oct, 03:30', pre: 'Backup completed: ', subj: 'proxier-20261005-0330.db.gz', href: '#', post: ' · 2.4 MB' },
+        { t: 'yesterday', abs: 'Sun 4 Oct, 22:14', pre: 'Admin upgraded ', subj: 'se-1', href: '#', post: ' from v2 to v3 · 2 files changed' },
+        { t: 'yesterday', abs: 'Sun 4 Oct, 19:02', pre: 'Admin added ', subj: 'v2fly:linkedin', href: '#', post: ' to routing list Main' },
+        { t: 'yesterday', abs: 'Sun 4 Oct, 11:47', pre: 'Admin extended ', subj: 'Grandma — iPad', href: '#', post: ' until 1 Dec' },
+        { t: 'Sat', abs: 'Sat 3 Oct, 12:40', pre: 'Router script ', subj: 'fresh-router.rsc', href: 'RP-Script-generate.dc.html', post: ' v4 published' }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

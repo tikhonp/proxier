@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Links — new link</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#000000;color:#e0def4;font-family:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;line-height:20px;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+h1,h2,h3,p,dl,dd{margin:0}
+a{color:#e0def4;text-decoration:underline;text-decoration-color:#403d52;text-underline-offset:3px}
+a:hover{color:#ffffff;text-decoration-color:#e0def4}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:disabled{cursor:not-allowed;opacity:.45}
+.pc-seg{background:transparent;border:0;color:#e0def4;text-decoration:none;white-space:nowrap}
+.pc-seg:hover,.pc-row:hover{background:#191724}
+.pc-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;background:transparent;border:1px solid #524f67;color:#e0def4 !important;text-decoration:none !important;white-space:nowrap}
+.pc-btn:hover{background:#191724;border-color:#908caa}
+.pc-sm{height:26px;padding:0 10px;font-size:12px}
+.pc-pri{background:#e0def4;border-color:#e0def4;color:#000000 !important;font-weight:600}
+.pc-pri:hover{background:#ffffff;border-color:#ffffff}
+.pc-ghost{border-color:transparent}
+.pc-ghost:hover{border-color:transparent;background:#191724}
+.pc-tog{border-color:#6e6a86;color:#908caa !important}
+.pc-tog:hover{border-color:#908caa;color:#e0def4 !important}
+.pc-tog[aria-pressed="true"]{background:transparent;border-color:#e0def4;color:#e0def4 !important}
+.pc-field{background:#191724}
+.pc-field:focus-within{background:#26233a}
+.pc-inp{height:32px;padding:0 10px;background:#191724;border:1px solid #403d52;color:#e0def4;outline:0;border-radius:0}
+.pc-inp:focus{border-color:#908caa}
+:focus-visible{outline:1px solid #e0def4;outline-offset:2px}
+.pc-seg:focus-visible,.pc-row:focus-visible{outline-offset:-1px}
+.pc-inp:focus-visible{outline:0}
+::placeholder{color:#6e6a86;opacity:1}
+::selection{background:#403d52;color:#e0def4}
+@media (max-width:760px){.pc-side,.pc-keys,.pc-hide-s{display:none !important}.pc-menu{display:flex !important}.pc-logo{width:auto !important;border-right:0 !important}.pc-btn{min-height:44px}.pc-sm{min-height:36px}}
+</style>
+</helmet>
+<div style="position:relative;min-height:100vh;display:flex;flex-direction:column;background:#000000;color:#e0def4">
+
+<header style="height:48px;flex:none;display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<button class="pc-menu pc-seg" type="button" aria-label="Open menu" style="display:none;align-items:center;justify-content:center;width:48px;padding:0;border-right:1px solid #26233a"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M2 4h12M2 8h12M2 12h12"></path></svg></button>
+<a href="RP-Main.dc.html" class="pc-logo" style="width:212px;flex:none;display:flex;align-items:center;gap:8px;padding:0 16px;border-right:1px solid #26233a;font-weight:700;text-decoration:none"><span aria-hidden="true" style="width:10px;height:10px;background:#e0def4"></span>proxier</a>
+<label class="pc-field" style="flex:1;min-width:0;display:flex;align-items:center;gap:10px;padding:0 16px;cursor:text">
+<span aria-hidden="true" style="color:#908caa;font-weight:600">/</span>
+<input type="search" aria-label="Search or run a command" placeholder="Search or run an action…" style="flex:1;min-width:0;height:46px;padding:0;background:transparent;border:0;outline:0">
+</label>
+<a href="#" class="pc-seg pc-hide-s" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 1.5px #6e6a86"></span>no jobs running</a>
+<button type="button" class="pc-seg" style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a">admin<span aria-hidden="true" style="color:#6e6a86">▾</span></button>
+</header>
+
+<div style="flex:1;display:flex;align-items:stretch">
+<nav class="pc-side" aria-label="Main" style="width:212px;flex:none;border-right:1px solid #26233a;padding:4px 0 24px">
+<sc-for list="{{nav}}" as="g" hint-placeholder-count="6">
+<div style="padding:16px 16px 6px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#908caa">{{g.label}}</div>
+<sc-for list="{{g.items}}" as="it" hint-placeholder-count="3">
+<a href="{{it.href}}" aria-current="{{it.cur}}" style="{{it.style}}"><span aria-hidden="true" style="width:8px;flex:none">{{it.mark}}</span><span style="flex:1;min-width:0">{{it.label}}</span><span style="font-size:12px;color:{{it.nc}}">{{it.note}}</span></a>
+</sc-for>
+</sc-for>
+</nav>
+
+<main class="pc-main" style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+<div style="padding:16px;border-bottom:1px solid #26233a;display:flex;flex-wrap:wrap;align-items:center;gap:12px 24px">
+<div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 16px">
+<h1 style="font-size:22px;line-height:28px;font-weight:600">Links</h1>
+<span style="font-size:12px;color:#908caa">11 links · 3 subscriptions</span>
+</div>
+<button type="button" class="pc-btn pc-pri">New link</button>
+</div>
+
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid #26233a">
+<input aria-label="Filter by name" class="pc-inp" placeholder="Filter by name" style="width:260px;height:28px">
+<button type="button" class="pc-btn pc-sm">Subscription: all<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+<button type="button" class="pc-btn pc-sm">State: not deleted<span aria-hidden="true" style="color:#6e6a86">&#160;▾</span></button>
+<button type="button" aria-pressed="false" class="pc-btn pc-sm pc-tog">Expiring ≤ 7 d</button>
+<button type="button" aria-pressed="false" class="pc-btn pc-sm pc-tog">With alerts</button>
+</div>
+
+<div style="overflow-x:auto">
+<div style="min-width:960px;padding-bottom:8px">
+<div style="display:grid;grid-template-columns:minmax(170px,1.3fr) 150px 110px 90px minmax(170px,1fr) 70px 70px;gap:16px;padding:10px 16px 4px;font-size:11px;line-height:16px;letter-spacing:.08em;text-transform:uppercase;color:#6e6a86">
+<span>Name</span><span>Subscription</span><span>State</span><span>Expiry</span><span>Last fetch</span><span style="text-align:right">24 h</span><span>Alert</span>
+</div>
+<sc-for list="{{links}}" as="k" hint-placeholder-count="11">
+<div class="pc-row" style="display:grid;grid-template-columns:minmax(170px,1.3fr) 150px 110px 90px minmax(170px,1fr) 70px 70px;gap:16px;align-items:center;padding:6px 16px">
+<a href="{{k.href}}" style="font-weight:600;text-decoration:none">{{k.name}}</a>
+<span style="color:#908caa">{{k.sub}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;color:{{k.sc}}"><span aria-hidden="true" style="{{k.sm}}"></span>{{k.state}}</span>
+<span style="color:#908caa">{{k.exp}}</span>
+<span style="color:#908caa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{k.last}}</span>
+<span style="text-align:right;color:#908caa">{{k.n}}</span>
+<span style="display:inline-flex;align-items:center;gap:7px;color:#f6c177"><span aria-hidden="true" style="{{k.am}}"></span>{{k.alert}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</main>
+</div>
+
+<footer class="pc-keys" style="position:sticky;bottom:0;z-index:3;height:28px;flex:none;display:flex;align-items:stretch;border-top:1px solid #26233a;background:#000000;font-size:12px;line-height:16px;white-space:nowrap">
+<div style="flex:1;min-width:0;display:flex;align-items:center;gap:20px;padding:0 16px;overflow:hidden;color:#908caa">
+<span style="color:#e0def4">typing in Name</span>
+<span><span style="color:#e0def4;font-weight:600">tab</span> next field</span>
+<span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> create the link</span>
+<span><span style="color:#e0def4;font-weight:600">esc</span> leave the field · twice to cancel</span>
+</div>
+<div style="display:flex;align-items:center;gap:8px;padding:0 16px;border-left:1px solid #26233a;color:#908caa"><span aria-hidden="true" style="width:6px;height:6px;border-radius:50%;background:#31748f"></span>live 13:04:51</div>
+</footer>
+
+<div style="position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.74);display:flex;justify-content:center;align-items:flex-start;padding:84px 16px 32px">
+<div role="dialog" aria-modal="true" aria-labelledby="dlg-h" style="width:560px;max-width:100%;background:#000000;border:1px solid #524f67">
+<div style="display:flex;align-items:stretch;border-bottom:1px solid #26233a">
+<h2 id="dlg-h" style="flex:1;padding:12px 16px;font-size:15px;line-height:22px;font-weight:600">New link</h2>
+<button type="button" class="pc-seg" aria-label="Close" style="width:46px;height:46px;flex:none;border-left:1px solid #26233a;font-size:18px;color:#908caa">×</button>
+</div>
+<form style="padding:16px;display:flex;flex-direction:column;gap:18px">
+<div>
+<label for="ln" style="display:block;font-size:12px;color:#908caa;margin-bottom:6px">Name</label>
+<input id="ln" class="pc-inp" value="Masha — Pixel" style="width:100%;border-color:#908caa">
+<p style="font-size:12px;color:#908caa;margin-top:6px">Who or what it's for. Unique among links.</p>
+</div>
+<div>
+<label for="ls" style="display:block;font-size:12px;color:#908caa;margin-bottom:6px">Subscription</label>
+<div style="position:relative">
+<select id="ls" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>Friends</option><option>Family</option><option>Me — everything</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+<p style="display:flex;align-items:center;gap:8px;font-size:12px;color:#908caa;margin-top:6px"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>2 servers: nl-1, se-1 · both healthy</p>
+</div>
+<fieldset style="margin:0;padding:0;border:0">
+<legend style="padding:0;font-size:12px;color:#908caa;margin-bottom:8px">Expiry</legend>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px">
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="exp" style="accent-color:#e0def4;margin:0">Never</label>
+<label style="display:flex;align-items:center;gap:8px;cursor:pointer"><input type="radio" name="exp" checked="{{ true }}" style="accent-color:#e0def4;margin:0">On</label>
+<input aria-label="Expiry date" class="pc-inp" value="2026-10-09" style="width:150px">
+</div>
+<p style="font-size:12px;color:#908caa;margin-top:6px">Works until 9 Oct, 23:59 Moscow time. Then the app shows “⏳ Expired on 9 Oct · contact @tikhonp”.</p>
+</fieldset>
+<div>
+<label for="ll" style="display:block;font-size:12px;color:#908caa;margin-bottom:6px">Language</label>
+<div style="position:relative;width:220px;max-width:100%">
+<select id="ll" class="pc-inp" style="appearance:none;-webkit-appearance:none;width:100%;padding-right:32px"><option>Русский</option><option>English</option></select>
+<span aria-hidden="true" style="position:absolute;right:10px;top:6px;color:#6e6a86;pointer-events:none">▾</span>
+</div>
+<p style="font-size:12px;color:#908caa;margin-top:6px">For the text of disabled and expired entries in their app.</p>
+</div>
+<div>
+<label for="lnote" style="display:block;font-size:12px;color:#908caa;margin-bottom:6px">Note <span style="color:#6e6a86">· optional</span></label>
+<input id="lnote" class="pc-inp" placeholder="Only you see this" style="width:100%">
+</div>
+</form>
+<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
+<a href="RP-Phone-link.dc.html" class="pc-btn pc-pri">Create link</a>
+<button type="button" class="pc-btn pc-ghost">Cancel</button>
+<span style="flex:1"></span>
+<span style="display:flex;gap:14px;font-size:12px;color:#908caa;white-space:nowrap"><span><span style="color:#e0def4;font-weight:600">⌘ ↵</span> create</span><span><span style="color:#e0def4;font-weight:600">esc</span> cancel</span></span>
+</div>
+</div>
+</div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  nav(active, notes) {
+    const N = [
+      ['Overview', [['dashboard', 'Dashboard', 'RP-Main.dc.html']]],
+      ['Servers', [['servers', 'Servers', 'RP-Server-health.dc.html'], ['templates', 'Templates', 'RP-Template-editor.dc.html'], ['locations', 'Locations', '#']]],
+      ['Subscriptions', [['subscriptions', 'Subscriptions', 'RP-Subscription.dc.html'], ['links', 'Links', 'RP-Link.dc.html']]],
+      ['Routing', [['lists', 'Lists', '#'], ['services', 'Services', '#'], ['search', 'Search', '#'], ['discover', 'Discover', 'RP-Discover.dc.html'], ['routers', 'Routers', 'RP-Router.dc.html'], ['shadowrocket', 'Shadowrocket', '#']]],
+      ['Router scripts', [['scripts', 'Scripts', 'RP-Script-generate.dc.html']]],
+      ['System', [['jobs', 'Jobs', '#'], ['activity', 'Activity', '#'], ['settings', 'Settings', '#']]]
+    ];
+    return N.map(([label, items]) => ({
+      label: label,
+      items: items.map(([k, l, href]) => {
+        const on = k === active;
+        const n = (notes || {})[k] || ['', '#908caa'];
+        return {
+          label: l, href: href, note: n[0], nc: n[1],
+          mark: on ? '›' : ' ',
+          cur: on ? 'page' : undefined,
+          style: 'display:flex;align-items:center;gap:8px;height:30px;padding:0 16px;text-decoration:none;' + (on ? 'color:#e0def4;background:#26233a' : 'color:#908caa')
+        };
+      })
+    }));
+  }
+  renderVals() {
+    const ACT = ['active', '#908caa', 'width:8px;height:8px;flex:none;border-radius:50%;background:#31748f'];
+    const DIS = ['disabled', '#908caa', 'width:8px;height:8px;flex:none;box-shadow:inset 0 0 0 1.5px #908caa'];
+    const ALERT = 'width:10px;height:9px;flex:none;background:#f6c177;clip-path:polygon(50% 0,100% 100%,0 100%)';
+    const L = (name, sub, st, exp, last, n, alert, href) => ({
+      name: name, sub: sub, state: st[0], sc: st[1], sm: st[2], exp: exp, last: last, n: n,
+      alert: alert ? 'shared' : '', am: alert ? ALERT : 'display:none', href: href || '#'
+    });
+    return {
+      nav: this.nav('links', { links: ['▲ 1', '#f6c177'] }),
+      links: [
+        L('Alex', 'Friends', ACT, '—', '16:40 · v2RayTun', 31, true, 'RP-Link.dc.html'),
+        L('Dad — Android', 'Family', ACT, '—', '15:02 · v2rayNG', 4),
+        L('Grandma — iPad', 'Family', ACT, '1 Dec', '09:12 · Happ', 2),
+        L('Ivan — iPhone', 'Friends', ACT, '8 Oct', '14:55 · Streisand', 6),
+        L('Lena — Laptop', 'Family', DIS, '—', '2 d ago · Hiddify', 0),
+        L('Mom — iPhone', 'Family', ACT, '—', '16:31 · Happ', 5),
+        L('Olya — MacBook', 'Friends', ACT, '—', '12:20 · FoXray', 3),
+        L('Router — Home', 'Me — everything', ACT, '—', '16:45 · Clash / mihomo', 24),
+        L('Router — Parents', 'Family', ACT, '—', '16:45 · Clash / mihomo', 24),
+        L('Tikhon — iPhone', 'Me — everything', ACT, '—', '16:50 · Shadowrocket', 9),
+        L('Tikhon — MacBook', 'Me — everything', ACT, '—', '16:12 · Hiddify', 6)
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>
