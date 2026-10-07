@@ -149,6 +149,12 @@ func Permanent(err error) error {
 	return permanent{err}
 }
 
+// IsPermanent reports whether err, or an error it wraps, was marked Permanent.
+func IsPermanent(err error) bool {
+	var p permanent
+	return errors.As(err, &p)
+}
+
 type deferral struct {
 	d      time.Duration
 	reason string

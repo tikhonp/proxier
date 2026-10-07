@@ -17,12 +17,15 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `auth.signed_out_everywhere` | admin | sessions ended | off | |
 | `admin.language_changed` | admin | from, to | off | |
 | `settings.changed` | setting group | keys changed (never values) | off | |
-| `ssh.host_key_changed` | known host | address, old and new fingerprint | **on** | All work with that host stops until accepted. |
-| `ssh.host_key_accepted` | known host | new fingerprint | off | |
+| `ssh.key_generated` | ssh key (`ssh:identity`) | fingerprint, regenerated | **on when `regenerated`** | The first start generates the key silently; **Regenerate** notifies, because every server, jump host and router needs the new key. |
+| `ssh.host_key_pinned` | known host | address, fingerprint | off | First contact with an address (subject `ssh_host:<address>`). |
+| `ssh.host_key_changed` | known host | address, old and new fingerprint | **on** | All work with that host stops until accepted. Recorded once per new key, however many jobs meet it. |
+| `ssh.host_key_accepted` | known host | address, old and new fingerprint | off | |
+| `ssh.host_forgotten` | known host | address, fingerprint | off | By the admin, or when the servers module retires a server. |
 | `job.failed` | job | type, error | **on** for job types without their own failure event | |
 | `notification.failed` | event (`event:<id>`) | channel, error | off, and never notifiable | A delivery gave up after its last retry. Shown on the dashboard. |
-| `backup.completed` | — | file, size | off | |
-| `backup.failed` | — | error | **on** | |
+| `backup.completed` | job | file, size | off | |
+| `backup.failed` | job | error | **on** | The job's own failure event, so no `job.failed`. The message links to the job. |
 
 ## Servers
 
@@ -114,6 +117,7 @@ Titles and sentences of the events the platform notifies about; each has a Russi
 | `auth.signed_in` (`new_ip`) | 🔐 | Signed in from a new IP {ip} | {browser} |
 | `auth.locked` | 🔐 | {failures} failed sign-ins from {ip} | Locked for {minutes} min. |
 | `auth.password_changed` | 🔐 | The admin password was changed | Via {via}. |
+| `ssh.key_generated` (`regenerated`) | 🔐 | Proxier's SSH key was regenerated | Install the new key on every server, jump host and router. |
 | `ssh.host_key_changed` | 🔐 | Host key of {subject} changed | Work with it is stopped until you accept the new key. |
 | `job.failed` | 🔴 | {subject} failed | {error} |
 | `backup.failed` | 🔴 | Backup failed | {error} |

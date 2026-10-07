@@ -107,9 +107,43 @@ func TestEventsAndSettingsAreDeclared(t *testing.T) {
 	if err := a.Settings.Set(ctx, events.ActorAdmin, "general", map[string]string{"general.time_zone": "Asia/Yekaterinburg", "general.language": "ru"}); err != nil {
 		t.Fatal(err)
 	}
+	// The first Migrate generated Proxier's SSH key before the settings changed.
 	got, _ := events.After(ctx, a.DB.R, 0, 10)
-	if len(got) != 1 || got[0].Type != "settings.changed" || got[0].Module != "platform" {
+	if len(got) != 2 || got[0].Type != "ssh.key_generated" || got[1].Type != "settings.changed" || got[1].Module != "platform" {
 		t.Errorf("events = %+v", got)
+	}
+}
+
+func TestFirstStartGeneratesTheSSHKeyOnce(t *testing.T) {
+	cfg := testConfig(t)
+	start := func() (line string, a *platform.App) {
+		t.Helper()
+		a, err := platform.Open(cfg, discard, fake{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = a.Close() })
+		if err := a.Migrate(ctx); err != nil {
+			t.Fatal(err)
+		}
+		line, _, err = a.SSH.PublicKey(ctx)
+		if err != nil {
+			t.Fatalf("no SSH key after Migrate: %v", err)
+		}
+		return line, a
+	}
+	first, a := start()
+	if !strings.HasSuffix(first, " proxier@Proxier") {
+		t.Errorf("key comment: %q", first)
+	}
+	_ = a.Close()
+	second, a2 := start() // a restart
+	if first != second {
+		t.Fatal("the SSH key changed on restart")
+	}
+	got, _ := events.After(ctx, a2.DB.R, 0, 10)
+	if len(got) != 1 || got[0].Type != "ssh.key_generated" {
+		t.Errorf("events after a restart: %+v", got)
 	}
 }
 

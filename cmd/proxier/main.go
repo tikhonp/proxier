@@ -2,6 +2,7 @@
 //
 //	proxier serve                     the HTTP server, the scheduler and every worker pool
 //	proxier manage <command> [args]   one-off admin commands, run in the container's shell
+//	proxier healthcheck               exit 0 when /healthz answers, 1 otherwise (compose's healthcheck)
 //	proxier version
 package main
 
@@ -12,11 +13,13 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"text/tabwriter"
+	"time"
 	_ "time/tzdata" // the image has no zoneinfo
 
 	"github.com/tikhonp/proxier/internal/platform"
@@ -39,6 +42,7 @@ const usage = `Usage:
   proxier manage migrate status           list every module's migrations
   proxier manage create-admin             create the admin (asks for a username and a password)
   proxier manage reset-password           set a new admin password and end every session
+  proxier healthcheck                     exit 0 when the running server is healthy, 1 otherwise
   proxier version
 `
 
@@ -56,6 +60,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return serve()
 	case "manage":
 		return manage(args[1:], stdout, stderr)
+	case "healthcheck":
+		return healthcheck(os.Getenv, stderr)
 	case "version", "-v", "--version":
 		sayln(stdout, obs.AppVersion)
 		return 0
@@ -104,6 +110,42 @@ func serve() int {
 	log.Info("stopped")
 	return 0
 }
+
+// healthcheck asks the server of this container whether it is well. The image
+// has no curl, so compose runs this. It needs no configuration beyond
+// PROXIER_LISTEN, so a broken PROXIER_MASTER_KEY shows as an unhealthy server
+// and not as a failing check.
+func healthcheck(getenv func(string) string, stderr io.Writer) int {
+	listen := strings.TrimSpace(getenv("PROXIER_LISTEN"))
+	if listen == "" {
+		listen = ":8080"
+	}
+	_, port, err := net.SplitHostPort(listen)
+	if err != nil {
+		sayf(stderr, "PROXIER_LISTEN %q: %v\n", listen, err)
+		return 1
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), healthTimeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, "http://"+net.JoinHostPort("127.0.0.1", port)+"/healthz", nil)
+	if err != nil {
+		sayln(stderr, err)
+		return 1
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		sayln(stderr, err)
+		return 1
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		sayf(stderr, "healthz answered %s\n", resp.Status)
+		return 1
+	}
+	return 0
+}
+
+const healthTimeout = 3 * time.Second
 
 func manage(args []string, stdout, stderr io.Writer) int {
 	if len(args) == 0 {

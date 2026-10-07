@@ -26,6 +26,8 @@ const ReadPoolSize = 4
 type DB struct {
 	W *sqlx.DB
 	R *sqlx.DB
+
+	path string
 }
 
 // Pragmas set on every connection.
@@ -71,7 +73,23 @@ func Open(path string) (*DB, error) {
 		_ = r.Close()
 		return nil, fmt.Errorf("open sqlite %s: %w", path, err)
 	}
-	return &DB{W: w, R: r}, nil
+	return &DB{W: w, R: r, path: path}, nil
+}
+
+// VacuumInto writes a consistent copy of the database to dest, which must not
+// exist. It runs on a connection of its own: W would hold up every write for
+// the duration, and a reader in WAL mode sees one snapshot while writers go on.
+// The connection is opened read-only (mode=ro), not with query_only, which
+// refuses VACUUM INTO.
+func (d *DB) VacuumInto(ctx context.Context, dest string) error {
+	c, err := sqlx.Open("sqlite", "file:"+(&url.URL{Path: d.path}).EscapedPath()+"?mode=ro&_pragma=busy_timeout(5000)")
+	if err != nil {
+		return err
+	}
+	defer func() { _ = c.Close() }()
+	c.SetMaxOpenConns(1)
+	_, err = c.ExecContext(ctx, `VACUUM INTO ?`, dest)
+	return err
 }
 
 // Close closes both pools.

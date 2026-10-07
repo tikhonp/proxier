@@ -10,6 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/backup"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -17,6 +18,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/sshx"
+	"github.com/tikhonp/proxier/internal/platform/tailnet"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -42,6 +45,9 @@ type Deps struct {
 	Events        *events.Catalog
 	Notify        *notify.Service
 	Telegram      *telegram.Channel
+	SSH           *sshx.SSH
+	Tailnet       *tailnet.Node
+	Backup        *backup.Service
 	Namers        []Namer
 	// Closing is closed when the server starts shutting down; live streams
 	// end then.
@@ -78,11 +84,22 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/me/language", h.setLanguage)
 
 	r.Admin.GET("/settings/integrations", h.integrationsPage)
+	r.Admin.GET("/settings/integrations/tailnet", h.tailnetPage)
+	r.Admin.POST("/settings/integrations/tailnet/reauth", h.tailnetReauth)
 	r.Admin.GET("/settings/integrations/telegram", h.telegramPage)
 	r.Admin.POST("/settings/integrations/telegram/token", h.telegramToken)
 	r.Admin.POST("/settings/integrations/telegram/detect", h.telegramDetect)
 	r.Admin.POST("/settings/integrations/telegram/chat", h.telegramChat)
 	r.Admin.POST("/settings/integrations/telegram/test", h.telegramTest)
+	r.Admin.GET("/settings/ssh", h.sshPage)
+	r.Admin.POST("/settings/ssh/regenerate", h.sshRegenerate)
+	r.Admin.POST("/settings/ssh/personal-keys", h.sshPersonalKeys)
+	r.Admin.POST("/settings/ssh/hosts/:id/accept", h.sshAccept)
+	r.Admin.POST("/settings/ssh/hosts/:id/forget", h.sshForget)
+	r.Admin.GET("/settings/backups", h.backupsPage)
+	r.Admin.POST("/settings/backups", h.backupsSave)
+	r.Admin.POST("/settings/backups/run", h.backupsRun)
+	r.Admin.GET("/settings/backups/latest", h.backupsLatest)
 	r.Admin.GET("/settings/notifications", h.notificationsPage)
 	r.Admin.POST("/settings/notifications/:type", h.notificationsSet)
 	r.Admin.POST("/notifications/:id/retry", h.notificationRetry)

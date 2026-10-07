@@ -42,14 +42,15 @@ Settings are grouped by module. Each module declares its own section, fields, de
 ## SSH
 
 - Proxier has **one ed25519 key pair**, generated on first start. It is installed on every server at provisioning, and installed by the admin on jump hosts and routers.
-- Your **personal public keys** (Settings → SSH) are added to every new server alongside Proxier's, so you can always log in yourself.
-- **Host keys are pinned on first contact** (trust on first use), per address. When a pinned key changes, every job touching that host fails with "host key changed", a notification is sent, and the known host shows the old and new fingerprints with **Accept new key**. Nothing reconnects until that is clicked ([ADR 0007](../adr/0007-agentless-ssh-with-pinned-host-keys.md)).
+- Your **personal public keys** (Settings → SSH) are added to every new server alongside Proxier's, so you can always log in yourself. They are one settings field: one `authorized_keys` line per line, each checked when saved (a bad line is named by its number).
+- **Host keys are pinned on first contact** (trust on first use), per address, one key type each (the client offers only that type, so a server with several host keys never looks changed). Two first-contact modes: servers are pinned when the handshake succeeds (nobody could have confirmed a fingerprint at provisioning), while routers and jump hosts stop with the fingerprint, which the admin confirms before it is pinned. When a pinned key changes, every job touching that host fails with "host key changed", a notification is sent once, and the known host shows the old and new fingerprints with **Accept new key** or **Forget**. Nothing reconnects until one is clicked ([ADR 0007](../adr/0007-agentless-ssh-with-pinned-host-keys.md)). Retiring a server forgets its pins, so a provider reusing the address is a first contact.
+- **Regenerate** replaces Proxier's key (type `regenerate` to confirm) and notifies; every server, jump host and router must be given the new one.
 - **Jump hosts**: a connection to a router can go through one jump host. Both hops use Proxier's key, and both host keys are pinned.
 - Commands run with timeouts. Output is streamed into the job log (redacted).
 
 ## Tailnet
 
-Proxier joins the headscale tailnet as its own node (`proxier`) through an embedded tailnet client. It does not use blackberry's host network. It uses the tailnet only for outgoing connections to jump hosts and routers, and serves nothing on it ([ADR 0008](../adr/0008-tsnet-node-for-router-reachability.md)). Settings → Integrations shows its state, tailnet IP and key expiry. Without `PROXIER_TS_AUTHKEY` the tailnet is off, and routers must be reachable directly from blackberry's network.
+Proxier joins the headscale tailnet as its own node (`proxier`) through an embedded tailnet client. It does not use blackberry's host network. It uses the tailnet only for outgoing connections to jump hosts and routers, and serves nothing on it ([ADR 0008](../adr/0008-tsnet-node-for-router-reachability.md)). Settings → Integrations shows its state, tailnet IP and key expiry. Without `PROXIER_TS_AUTHKEY` the tailnet is off, and routers must be reachable directly from blackberry's network. The node's state lives in `/data/tailnet` (not in the database or its backups), so a restart needs no key again; after restoring a backup on a new volume, Settings → Integrations → Tailnet takes a new pre-auth key.
 
 ## Jobs and scheduler
 

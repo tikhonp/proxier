@@ -86,6 +86,12 @@ func TestEveryUsedKeyExists(t *testing.T) {
 	for _, c := range []string{"403", "404", "500"} {
 		dynamic = append(dynamic, "err."+c, "err."+c+".text")
 	}
+	for _, k := range []string{"regenerated", "keys", "accepted", "forgotten"} {
+		dynamic = append(dynamic, "ssh.saved."+k)
+	}
+	for _, k := range []string{"off", "starting", "running", "needs_login", "error"} {
+		dynamic = append(dynamic, "tailnet.state."+k)
+	}
 	for _, l := range []string{"en", "ru"} {
 		dynamic = append(dynamic, "ui.language."+l, "settings.option.general.language."+l)
 	}

@@ -13,10 +13,12 @@ import (
 	"log/slog"
 	"net"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/backup"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -29,6 +31,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/pages"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/sshx"
+	"github.com/tikhonp/proxier/internal/platform/tailnet"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -53,6 +57,12 @@ type App struct {
 	// Notify renders and queues notifications; Telegram is its channel.
 	Notify   *notify.Service
 	Telegram *telegram.Channel
+	// SSH is the SSH client with Proxier's key and the pinned host keys;
+	// Tailnet is the node it dials routers through; Backup writes the nightly
+	// database snapshots.
+	SSH     *sshx.SSH
+	Tailnet *tailnet.Node
+	Backup  *backup.Service
 	// closing is closed when Serve starts shutting down, so live streams end
 	// before the HTTP server's grace period runs out.
 	closing chan struct{}
@@ -89,6 +99,9 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.Dispatcher = events.NewDispatcher(d, log)
 	a.Notify = notify.New(d, a.Events, a.I18n, a.Jobs, a.Auth, a.Settings, cfg.BaseURL, log)
 	a.Telegram = telegram.NewChannel(a.Settings, nil, "")
+	a.Tailnet = tailnet.New(cfg, log)
+	a.SSH = sshx.New(d, v, a.Events, a.Settings, a.Tailnet.Dial, log)
+	a.Backup = backup.New(d, cfg, a.Settings, a.Events, log)
 	a.closing = make(chan struct{})
 
 	var errs []error
@@ -118,7 +131,8 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		}
 	}
 	errs = append(errs, a.Notify.AddChannel(a.Telegram), a.Jobs.Register(Name, a.Notify.JobType()),
-		a.Dispatcher.Subscribe(a.Notify.Subscriber()))
+		a.Dispatcher.Subscribe(a.Notify.Subscriber()),
+		a.Jobs.Register(Name, a.Backup.JobType()), a.Jobs.RegisterSchedules(Name, a.Backup.Schedule()))
 	types, schedules := a.Jobs.PlatformTypes()
 	errs = append(errs, a.Jobs.Register(Name, types...), a.Jobs.RegisterSchedules(Name, schedules...))
 	if err := errors.Join(errs...); err != nil {
@@ -126,7 +140,7 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		return nil, err
 	}
 	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth,
-		Jobs: a.Jobs, Dispatcher: a.Dispatcher, Notify: a.Notify}
+		Jobs: a.Jobs, Dispatcher: a.Dispatcher, Notify: a.Notify, SSH: a.SSH, Tailnet: a.Tailnet}
 	for _, m := range all {
 		if in, ok := m.(module.Initializer); ok {
 			if err := in.Init(deps); err != nil {
@@ -148,9 +162,18 @@ func (a *App) Module(name string) (module.Module, bool) {
 	return nil, false
 }
 
-// Migrate applies every module's pending migrations, the platform's first.
+// Migrate applies every module's pending migrations, the platform's first,
+// then makes sure Proxier has its SSH key: it is generated on the first start
+// and kept.
 func (a *App) Migrate(ctx context.Context) error {
-	return db.MigrateUp(ctx, a.DB, a.Log, a.migrationSources()...)
+	if err := db.MigrateUp(ctx, a.DB, a.Log, a.migrationSources()...); err != nil {
+		return err
+	}
+	name, err := a.Settings.Get(ctx, "general.instance_name")
+	if err != nil {
+		return err
+	}
+	return a.SSH.EnsureIdentity(ctx, name)
 }
 
 func (a *App) migrationSources() []db.MigrationSource {
@@ -179,7 +202,8 @@ func (a *App) HTTP() *echo.Echo {
 		ui.StaticFS, ui.StaticHash)
 
 	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n,
-		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Query: a.DB.R, Closing: a.closing}
+		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Query: a.DB.R, Closing: a.closing,
+		SSH: a.SSH, Tailnet: a.Tailnet, Backup: a.Backup}
 	for _, m := range a.Modules {
 		if nd, ok := m.(module.NavDeclarer); ok {
 			pd.Nav = append(pd.Nav, nd.Nav()...)
@@ -213,6 +237,8 @@ func (a *App) Serve(ctx context.Context, onListen func(net.Addr)) error {
 	defer stopJobs()
 	defer stopDisp()
 	jobsDone, dispDone := make(chan error, 1), make(chan error, 1)
+	// The tailnet node joins in the background: HTTP does not wait for it.
+	a.Tailnet.Start(ctx)
 	go func() { jobsDone <- a.Jobs.Start(jobsCtx) }()
 	go func() { dispDone <- a.Dispatcher.Start(dispCtx) }()
 
@@ -223,7 +249,8 @@ func (a *App) Serve(ctx context.Context, onListen func(net.Addr)) error {
 	jobsErr := <-jobsDone
 	stopDisp()
 	dispErr := <-dispDone
-	return errors.Join(httpErr, jobsErr, dispErr)
+	// After the jobs: a running step may still be dialling through it.
+	return errors.Join(httpErr, jobsErr, dispErr, a.Tailnet.Close())
 }
 
 // Close closes the database.
@@ -239,16 +266,12 @@ func (core) EventTypes() []events.Type { return Events }
 
 // Events is the platform's event catalog (docs/events.md#platform): the
 // sign-in events belong to auth, the rest to the platform's other parts.
-var Events = append(append([]events.Type(nil), auth.Events...),
+var Events = slices.Concat(auth.Events, sshx.Events, backup.Events, []events.Type{
 	settings.ChangedEvent,
 	jobs.ScheduleEnabledChanged,
 	notify.FailedEvent,
-	events.Type{Name: "ssh.host_key_changed", Module: Name, Notify: true, Emoji: "🔐", Description: "A pinned SSH host key changed; work with that host stops."},
-	events.Type{Name: "ssh.host_key_accepted", Module: Name, Description: "A new SSH host key was accepted."},
-	events.Type{Name: "job.failed", Module: Name, Notify: true, Emoji: "🔴", Description: "A job failed (job types without their own failure event)."},
-	events.Type{Name: "backup.completed", Module: Name, Description: "A database backup was written."},
-	events.Type{Name: "backup.failed", Module: Name, Notify: true, Emoji: "🔴", Description: "A database backup failed."},
-)
+	{Name: "job.failed", Module: Name, Notify: true, Emoji: "🔴", Description: "A job failed (job types without their own failure event)."},
+})
 
 func (core) Messages() i18n.Messages { return messages }
 
@@ -271,7 +294,7 @@ func (core) SettingsPages() []ui.SettingsPage {
 }
 
 func (c core) SettingsSections() []settings.Section {
-	return []settings.Section{auth.SecuritySection, telegram.Section, {
+	return []settings.Section{auth.SecuritySection, telegram.Section, sshx.Section, backup.Section, {
 		Name: "general", Module: Name,
 		Fields: []settings.Field{
 			{Key: "general.instance_name", Kind: settings.String, Default: "Proxier", MaxLen: 64},
@@ -295,6 +318,25 @@ func (core) RenderNotification(_ context.Context, e events.Event, loc *i18n.Loca
 		Title: loc.T("notify.auth.signed_in", i18n.Args{"ip": ip}),
 		Body:  loc.T("notify.auth.signed_in.body", i18n.Args{"browser": auth.BrowserName(ua)}),
 	}, true, nil
+}
+
+// SubjectTypes are the subject types the platform's SSH events use; the
+// other platform subjects are named by the pages and the notifier themselves.
+func (core) SubjectTypes() []string { return sshx.SubjectTypes }
+
+// NameSubjects names the SSH identity and the pinned hosts (whose id is their
+// address, so no lookup is needed).
+func (core) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
+	out := map[string]ui.SubjectRef{}
+	for _, id := range ids {
+		switch typ {
+		case "ssh":
+			out[id] = ui.SubjectRef{Label: i18n.T(ctx, "subject.ssh"), Href: "/settings/ssh"}
+		case "ssh_host":
+			out[id] = ui.SubjectRef{Label: id, Href: "/settings/ssh#hosts"}
+		}
+	}
+	return out, nil
 }
 
 func validTimeZone(s string) error {

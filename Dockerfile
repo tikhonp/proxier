@@ -48,6 +48,9 @@ COPY --from=build /out/proxier /bin/proxier
 COPY --from=build --chown=65532:65532 /out/data /data
 USER nonroot:nonroot
 ENV PROXIER_DATA_DIR=/data
+# The embedded tailnet node must not upload logs to Tailscale's servers. The
+# health check is run by compose (`proxier healthcheck`), not set here.
+ENV TS_NO_LOGS_NO_SUPPORT=true
 VOLUME /data
 EXPOSE 8080
 ENTRYPOINT ["/bin/proxier"]

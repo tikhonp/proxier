@@ -1,0 +1,73 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ tailnetPage(s ui.Shell, pages []ui.SettingsPage, v tailnetView) {
+	@ui.SettingsLayout(s, pages, "integrations") {
+		<div class="set-head">
+			<h2>Tailnet</h2>
+			<p>{ i18n.T(ctx, "tailnet.note") }</p>
+		</div>
+		if v.Saved {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "tailnet.reauth.done") }
+				}
+			</div>
+		}
+		<div class="form">
+			<div class="ro">
+				<span class="lbl">{ i18n.T(ctx, "tailnet.state") }</span>
+				<span class="v">
+					@ui.Status(tailnetStatusKind(v.Status.State), i18n.T(ctx, "tailnet.state."+string(v.Status.State)))
+				</span>
+			</div>
+			if v.Status.Err != "" {
+				@ui.Alert("gold", "alert") {
+					{ v.Status.Err }
+				}
+			}
+			<div class="ro">
+				<span class="lbl">{ i18n.T(ctx, "tailnet.name") }</span>
+				<span class="v">{ v.Status.Name }</span>
+			</div>
+			if v.Status.IP.IsValid() {
+				<div class="ro">
+					<span class="lbl">{ i18n.T(ctx, "tailnet.ip") }</span>
+					<span class="v">{ v.Status.IP.String() }</span>
+				</div>
+			}
+			if !v.Status.KeyExpiry.IsZero() {
+				<div class="ro">
+					<span class="lbl">{ i18n.T(ctx, "tailnet.expiry") }</span>
+					<span class="v">
+						{ i18n.From(ctx).Time(v.Status.KeyExpiry) }
+						<span class="muted"> · @ui.Time(v.Status.KeyExpiry)</span>
+					</span>
+				</div>
+			}
+			<div class="ro">
+				<span class="lbl">{ i18n.T(ctx, "tailnet.control") }</span>
+				<span class="v">{ v.Status.ControlURL }</span>
+			</div>
+		</div>
+		<form method="post" action="/settings/integrations/tailnet/reauth" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="ts-authkey" class="lbl">{ i18n.T(ctx, "tailnet.authkey") }</label>
+				<input id="ts-authkey" name="authkey" type="password" class="pc-inp" autocomplete="off" aria-invalid?={ v.Err != "" }/>
+				if v.Err != "" {
+					<div class="err" role="alert">{ v.Err }</div>
+				} else {
+					<div class="help">{ i18n.T(ctx, "tailnet.authkey.help") }</div>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "tailnet.reauth") }</button>
+			</div>
+		</form>
+	}
+}

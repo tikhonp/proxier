@@ -8,7 +8,7 @@ Phase 0 ([roadmap](../roadmap.md#phase-0-platform-skeleton)) is built in sub-pha
 | 0b Sign-in + UI shell | [0b.md](./0b.md) | done 2026-10-07 |
 | 0c Jobs + events dispatch | [0c.md](./0c.md) | done 2026-10-07 |
 | 0d Telegram notifications | [0d.md](./0d.md) | done 2026-10-07 |
-| 0e SSH, tailnet, backups, deploy | [0e.md](./0e.md) | next |
+| 0e SSH, tailnet, backups, deploy | [0e.md](./0e.md) | done 2026-10-07 (the exit demo on the real deployment is the user's) |
 
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
@@ -68,9 +68,9 @@ Not in [events.md](../events.md) yet; each sub-phase adds its own rows there in 
 | `auth.signed_out` | 0b | admin | session (id), by (`self` / `settings`) | off |
 | `schedule.enabled_changed` | 0c | schedule (`schedule:<name>`) | name, enabled | off |
 | `notification.failed` | 0d | event (`event:<id>`) | channel, error | off, and never notifiable |
-| `ssh.key_generated` | 0e | ssh identity | fingerprint, regenerated | **on** when regenerated |
-| `ssh.host_key_pinned` | 0e | known host | address, fingerprint | off |
-| `ssh.host_forgotten` | 0e | known host | address, fingerprint | off |
+| `ssh.key_generated` | 0e | ssh identity (`ssh:identity`) | fingerprint, regenerated | **on** when regenerated |
+| `ssh.host_key_pinned` | 0e | known host (`ssh_host:<address>`) | address, fingerprint | off |
+| `ssh.host_forgotten` | 0e | known host (`ssh_host:<address>`) | address, fingerprint | off |
 
 ## Built in 0a
 

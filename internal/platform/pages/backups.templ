@@ -1,0 +1,48 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ backupsPage(s ui.Shell, pages []ui.SettingsPage, v backupsView) {
+	@ui.SettingsLayout(s, pages, "backups") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.backups") }</h2>
+			<p>{ i18n.T(ctx, "settings.backups.note") }</p>
+		</div>
+		if v.Saved {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "ui.saved") }
+				}
+			</div>
+		}
+		@ui.SettingsForm(v.Section, v.Values, v.Errs, "/settings/backups")
+		<section class="set-section" aria-labelledby="bk-h">
+			<div class="pc-title">
+				<h2 id="bk-h">{ i18n.T(ctx, "backups.files") }</h2>
+				<span class="note">{ i18n.N(ctx, "backups.count", int64(len(v.List))) }</span>
+				<span class="flex1"></span>
+				@ui.ActionButton(ui.Action{ID: "backups.run", Label: "backups.run", Method: "POST", Href: "/settings/backups/run", Small: true, Kind: ui.Primary})
+				if len(v.List) > 0 {
+					@ui.ActionButton(ui.Action{ID: "backups.download", Label: "backups.download", Method: "GET", Href: "/settings/backups/latest", Small: true})
+				}
+			</div>
+			if len(v.List) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "backups.none"), i18n.T(ctx, "backups.none_next"))
+			}
+			for _, b := range v.List {
+				<div class="row bk" data-row={ b.Name }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="bold">{ b.Name }</span>
+					<span class="subtle">{ backupSize(b.Size) }</span>
+					<span class="subtle">
+						@ui.Time(b.ModTime)
+					</span>
+				</div>
+			}
+			<div class="form"><div class="help">{ i18n.T(ctx, "backups.restore_help") }</div></div>
+		</section>
+	}
+}

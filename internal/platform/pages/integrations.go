@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/tailnet"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
@@ -31,6 +32,12 @@ func (h *handler) integrationsPage(c *echo.Context) error {
 		state = i18n.T(ctx, "integrations.telegram.state", i18n.Args{"bot": "@" + tg.Username, "chat": tg.chatLabel()})
 	}
 	rows := []integrationRow{{Name: "Telegram", Href: "/settings/integrations/telegram", State: state, On: tg.Configured}}
+	ts := h.Tailnet.Status(ctx)
+	tsState := i18n.T(ctx, "tailnet.state."+string(ts.State))
+	if ts.State == tailnet.Running && ts.IP.IsValid() {
+		tsState += " · " + ts.IP.String()
+	}
+	rows = append(rows, integrationRow{Name: "Tailnet", Href: "/settings/integrations/tailnet", State: tsState, On: ts.State == tailnet.Running})
 	s := h.shell(c, i18n.T(ctx, "settings.integrations"), "/settings")
 	return web.Render(c, http.StatusOK, integrationsPage(s, h.sortedPages(), rows))
 }

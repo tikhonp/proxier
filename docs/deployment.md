@@ -1,6 +1,6 @@
 # Deployment
 
-Proxier is deployed like the other self-hosted services: an image built by GitHub Actions, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.github/workflows/ci.yaml`). The compose file and the gateway block don't exist yet; this document describes what they will contain.
+Proxier is deployed like the other self-hosted services: an image built by GitHub Actions, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.github/workflows/ci.yaml`). The compose file (`sh-blackberry/proxier.yaml`) and the gateway block (`sh-main/nginx/conf.d/proxier.conf`) were drafted in 0e; this document describes what they contain.
 
 ## Topology
 
@@ -14,14 +14,16 @@ flowchart LR
 ```
 
 - **blackberry** (home, Russia) runs the `proxier` and `chromium` containers. Its compose file is `sh-blackberry/proxier.yaml`, with env from the `secrets/` submodule.
-- **sh-main** terminates TLS for `proxier.tikhonnnnn.com` and forwards everything through the existing SSH reverse tunnel, like `files.tikhonnnnn.com`. It sends `X-Real-IP` and `X-Forwarded-For`, and its body size limit fits uploads up to 10 MB (template imports).
+- **sh-main** terminates TLS for `proxier.tikhonnnnn.com` and forwards everything through the existing SSH reverse tunnel, like `files.tikhonnnnn.com`: the sidecar `ssht-proxier` forwards `ssh-server:10005` to `proxier:8080`. nginx sends `X-Real-IP` and `X-Forwarded-For`, its body size limit fits uploads up to 10 MB (template imports), and it does not buffer responses and waits up to an hour on one, because the live job log is a server-sent event stream.
+- **The trusted proxy.** Proxier takes the client address from `X-Real-IP` only when the TCP peer is in `PROXIER_TRUSTED_PROXIES`. The compose file gives the `proxier` network a fixed subnet (`10.89.250.0/29`); its only other member is the tunnel sidecar, so that subnet is the value. Without it every client would look like the tunnel, and the sign-in lockout and the "new IP" check would be useless.
 - **headscale** (on sh-main) gets a new node, `proxier`, joined with a pre-auth key ([ADR 0008](./adr/0008-tsnet-node-for-router-reachability.md)). headscale ACLs decide which jump hosts and routers that node may reach.
 
 ## Containers
 
 | Container | Image | Notes |
 |---|---|---|
-| `proxier` | `ghcr.io/tikhonp/proxier` | `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root user, `/data` volume, no published ports (the tunnel reaches it on the compose network). No Docker socket ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)). |
+| `proxier` | `ghcr.io/tikhonp/proxier` | `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root user (65532), `/data` bind mount owned by that user, `tmpfs /tmp`, no published ports (the tunnel reaches it on the compose network). No Docker socket ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)). Healthy when `proxier healthcheck` (the image has no curl) gets 200 from its own `/healthz`. |
+| `ssht-proxier` | `jnovack/autossh` | The reverse tunnel to sh-main, like every other service's. |
 | `chromium` | `chromedp/headless-shell` (pinned tag) | Internal network only, no volume, memory limit (1 GB). It reaches the internet directly or through Proxier's discovery SOCKS listener. Optional: without it, discovery runs catalog lookup only. |
 
 The image bundles what the file validators need besides the Go libraries: an `nginx` binary for `nginx -t` and `bash` for `bash -n`. Both run on files in a temporary directory ([template authoring](./processes/servers/template-authoring.md#validation)).
@@ -32,7 +34,17 @@ Same pattern as vk2tg and alcs:
 
 - `ci.yml` on every push and PR: `go build`, `go vet`, `go test -race`, golangci-lint, govulncheck. A failure withholds the image.
 - `docker.yml` (or an `image` job after tests) on `main` and tags: buildx, `linux/amd64` (blackberry is x86-64), pushed to `ghcr.io/tikhonp/proxier` as `:<sha>`, `:<branch>`, `:latest` for `main` and `:<tag>` for releases. `APP_VERSION` is set to `<ref>-<sha>`.
-- Watchtower on blackberry updates the container, as it does for the other services.
+- Dozzle's nightly update (04:00, label `dev.dozzle.update=auto`) updates the container, as it does for the other services.
+
+## The `/data` volume
+
+```
+/data/proxier.db (+ -wal, -shm)   the database
+/data/backups/                    nightly snapshots, proxier-YYYY-MM-DD.db, the newest 14
+/data/tailnet/                    the tailnet node's state (only once the tailnet is on)
+```
+
+The directory is created by the image owned by uid 65532; a bind mount on the host must be made the same way (`sudo install -d -o 65532 -g 65532 -m 700 ~/.local/share/proxier`). The tailnet state is not in the database or its snapshots.
 
 ## First start
 
@@ -42,10 +54,12 @@ Same pattern as vk2tg and alcs:
 4. Sign in, then in Settings: the Cloudflare API token and zones, the Telegram bot (token + detected chat), your personal SSH public keys (installed on every new server), the hostname pattern (default `{location}-{number}.hosts.tikhonnnnn.com`), check-host nodes, and the time zone and languages.
 5. Copy Proxier's public SSH key (Settings → SSH) onto the jump hosts and routers you want to sync.
 
+What the admin does by hand, once: create the DNS record for `proxier.tikhonnnnn.com` and issue its certificate (`make proxier.tikhonnnnn.com` in sh-main); create the data directory with the right owner; put `PROXIER_MASTER_KEY` (and a headscale pre-auth key for the node `proxier`, `PROXIER_TS_AUTHKEY`) into `secrets/blackberry/proxier.env` and the master key into Vaultwarden; allow the node `proxier` to reach the jump hosts and routers in headscale's ACL (stored in its database: edit it in Headplane); commit both infra repos; push the image.
+
 ## Backups
 
-- Every night at 03:30 Proxier writes a consistent snapshot of the database (`VACUUM INTO`) to `/data/backups/proxier-YYYY-MM-DD.db` and keeps 14. blackberry's existing backup then copies `/data` to the backup disk and to sh-apple.
-- Settings → Backups → **Download backup** gives the latest snapshot. Its secrets are still encrypted: restoring needs the same master key.
+- Every night at 03:30 (Settings → Backups changes the time and the count) Proxier writes a consistent snapshot of the database (`VACUUM INTO`, on a connection of its own, so writes go on meanwhile) to `/data/backups/proxier-YYYY-MM-DD.db` and keeps 14. A file appears only when whole: it is written under a temporary name and renamed. blackberry's existing backup rsyncs `/data/backups` (not the live database, whose copy would not be consistent) to the backup disk at 03:45, and from there to sh-apple.
+- Settings → Backups → **Back up now** queues a snapshot at once; **Download latest** gives the newest. Its secrets are still encrypted: restoring needs the same master key.
 - Restoring means stopping the container, putting the snapshot in place as `proxier.db`, and starting it.
 
 ## Operating notes

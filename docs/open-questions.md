@@ -24,5 +24,5 @@ Settled on 2026-10-07:
 4. **iplist custom export**: whether `format=custom` can emit the domain itself (for the reverse index), beyond the `{group}|{site}` template mtvpn uses.
 5. **RouterOS**: SFTP vs SCP upload on the target versions, and the exact command to add an SSH public key from a string (shown to the admin in the router dialog).
 6. **xray-core as a library**: the binary size impact, and the XHTTP `stream-up` client mode working through nginx `grpc_pass` exactly as the template's links expect.
-7. **tsnet with headscale**: node expiry and re-authentication, and whether the node needs a non-expiring key.
+7. **tsnet with headscale**: whether the node joins headscale 0.29 with a pre-auth key, and whether it needs a non-expiring key. Built in 0e: the key is used only while the node has no login (the state in `/data/tailnet` keeps it across restarts), Settings → Integrations → Tailnet shows the key expiry and takes a new pre-auth key (never stored), and a node with saved state starts without `PROXIER_TS_AUTHKEY`. Not yet tried against the real headscale: join, restart, and what happens at expiry.
 8. **Russian throttling of foreign hosting networks** (stalling after the first ~16–20 KB) as it applies to the chosen test payload size.

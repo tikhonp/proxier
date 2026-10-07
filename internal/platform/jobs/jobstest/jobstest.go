@@ -78,6 +78,7 @@ func New(t testing.TB) *Harness {
 		t.Fatal(err)
 	}
 	if err := st.Register(settings.Section{Name: "general", Module: "platform", Fields: []settings.Field{
+		{Key: "general.instance_name", Kind: settings.String, Default: "Proxier", MaxLen: 64},
 		{Key: "general.time_zone", Kind: settings.String, Default: "UTC", MaxLen: 64},
 		{Key: "general.language", Kind: settings.Enum, Default: "en", Options: []string{"en", "ru"}},
 	}}, settings.Section{Name: "test", Module: "platform", Fields: []settings.Field{

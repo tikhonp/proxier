@@ -26,6 +26,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/sshx"
+	"github.com/tikhonp/proxier/internal/platform/tailnet"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -88,6 +90,10 @@ type Deps struct {
 	Dispatcher *events.Dispatcher
 	// Notify is for modules that read or change notification rules.
 	Notify *notify.Service
+	// SSH connects to servers, jump hosts and routers; Tailnet is the node it
+	// dials routers through.
+	SSH     *sshx.SSH
+	Tailnet *tailnet.Node
 }
 
 // Initializer is called by platform.Open after the platform services exist.

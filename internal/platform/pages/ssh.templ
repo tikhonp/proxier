@@ -1,0 +1,142 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ sshPage(s ui.Shell, pages []ui.SettingsPage, v sshView) {
+	@ui.SettingsLayout(s, pages, "ssh") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.ssh") }</h2>
+			<p>{ i18n.T(ctx, "settings.ssh.note") }</p>
+		</div>
+		if v.Saved != "" {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "ssh.saved."+v.Saved) }
+				}
+			</div>
+		}
+		<section class="set-section" aria-labelledby="ssh-key-h">
+			<div class="pc-title">
+				<h2 id="ssh-key-h">{ i18n.T(ctx, "ssh.key") }</h2>
+				<span class="flex1"></span>
+				@ui.ActionButton(ui.Action{
+					ID: "ssh.regenerate", Label: "ssh.regenerate", Method: "POST", Href: "/settings/ssh/regenerate", Kind: ui.Danger, Small: true,
+					Confirm: &ui.Confirm{
+						Strength: 3, Name: "regenerate",
+						Title: i18n.T(ctx, "ssh.regenerate.title"),
+						Body:  i18n.T(ctx, "ssh.regenerate.body"),
+						Consequences: []string{
+							i18n.T(ctx, "ssh.regenerate.c1"),
+							i18n.T(ctx, "ssh.regenerate.c2", i18n.Args{"hosts": hostCount(ctx, len(v.Hosts))}),
+						},
+					},
+				})
+			</div>
+			<div class="form">
+				<div class="ro">
+					<span class="lbl">{ i18n.T(ctx, "ssh.key.public") }</span>
+					<code class="keybox" id="ssh-public-key">{ v.Line }</code>
+				</div>
+				<div class="form-actions">
+					<button type="button" class="pc-btn pc-sm" data-action="ssh.copy" data-copy={ v.Line }>{ i18n.T(ctx, "ssh.copy") }</button>
+					<span class="muted">{ i18n.T(ctx, "ssh.fingerprint") } <span class="subtle">{ v.Fingerprint }</span></span>
+				</div>
+				<div class="help">{ i18n.T(ctx, "ssh.key.help") }</div>
+			</div>
+		</section>
+		<section class="set-section" aria-labelledby="ssh-personal-h">
+			<div class="pc-title"><h2 id="ssh-personal-h">{ i18n.T(ctx, "ssh.personal") }</h2></div>
+			<form method="post" action="/settings/ssh/personal-keys" class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="field">
+					<label for="ssh-keys" class="lbl">
+						<span class={ templ.KV("changed", v.KeysChanged) }>{ i18n.T(ctx, "ssh.personal.label") }</span>
+						if v.KeysChanged {
+							<span class="changed" title={ i18n.T(ctx, "ui.changed_hint") }>●</span>
+						}
+					</label>
+					<textarea id="ssh-keys" name="keys" class="pc-inp pc-ta" rows="5" spellcheck="false" autocomplete="off" aria-invalid?={ v.KeysErr != "" }>{ v.Keys }</textarea>
+					if v.KeysErr != "" {
+						<div class="err" role="alert">{ v.KeysErr }</div>
+					} else {
+						<div class="help">{ i18n.T(ctx, "ssh.personal.help") }</div>
+					}
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+				</div>
+			</form>
+		</section>
+		<section class="set-section" id="hosts" aria-labelledby="ssh-hosts-h">
+			<div class="pc-title">
+				<h2 id="ssh-hosts-h">{ i18n.T(ctx, "ssh.hosts") }</h2>
+				<span class="note">{ hostCount(ctx, len(v.Hosts)) }</span>
+			</div>
+			if len(v.Hosts) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "ssh.hosts.none"), i18n.T(ctx, "ssh.hosts.none_next"))
+			}
+			for _, k := range v.Hosts {
+				if k.PendingFingerprint != "" {
+					@ui.Band("gold") {
+						<div class="host-change">
+							<div class="bold">{ i18n.T(ctx, "ssh.changed", i18n.Args{"address": k.Address}) }</div>
+							<div class="subtle">{ i18n.T(ctx, "ssh.changed.help") }</div>
+							<div class="fp"><span class="subtle">{ i18n.T(ctx, "ssh.changed.old") }</span> <code>{ k.Fingerprint }</code></div>
+							<div class="fp"><span class="subtle">{ i18n.T(ctx, "ssh.changed.new") }</span> <code>{ k.PendingFingerprint }</code></div>
+						</div>
+						<span class="flex1"></span>
+						@ui.ActionButton(ui.Action{
+							ID: "ssh.accept." + strconv.FormatInt(k.ID, 10), Label: "ssh.accept", Method: "POST",
+							Href: "/settings/ssh/hosts/" + strconv.FormatInt(k.ID, 10) + "/accept", Kind: ui.Primary, Small: true,
+							Confirm: &ui.Confirm{
+								Strength: 2,
+								Title:    i18n.T(ctx, "ssh.accept.title", i18n.Args{"address": k.Address}),
+								Body:     i18n.T(ctx, "ssh.accept.body"),
+								Consequences: []string{
+									i18n.T(ctx, "ssh.changed.old") + " " + k.Fingerprint,
+									i18n.T(ctx, "ssh.changed.new") + " " + k.PendingFingerprint,
+								},
+							},
+						})
+					}
+				}
+				<div class="row host" data-row={ strconv.FormatInt(k.ID, 10) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span>
+						<span class="bold">{ k.Address }</span>
+						if k.Subject != "" {
+							<span class="subtle"> · { k.Subject }</span>
+						}
+					</span>
+					<span class="subtle fp-cell">{ k.KeyType } <code>{ k.Fingerprint }</code></span>
+					<span class="subtle">
+						{ i18n.T(ctx, "ssh.first_seen") }
+						@ui.Time(k.FirstSeenAt.Time)
+					</span>
+					<span class="subtle">
+						{ i18n.T(ctx, "ssh.last_used") }
+						if k.LastUsedAt.IsZero() {
+							{ i18n.T(ctx, "ssh.never") }
+						} else {
+							@ui.Time(k.LastUsedAt.Time)
+						}
+					</span>
+					@ui.ActionButton(ui.Action{
+						ID: "ssh.forget." + strconv.FormatInt(k.ID, 10), Label: "ssh.forget", Method: "POST",
+						Href: "/settings/ssh/hosts/" + strconv.FormatInt(k.ID, 10) + "/forget", Small: true, Kind: ui.Danger,
+						Confirm: &ui.Confirm{
+							Strength: 2,
+							Title:    i18n.T(ctx, "ssh.forget.title", i18n.Args{"address": k.Address}),
+							Body:     i18n.T(ctx, "ssh.forget.body"),
+						},
+					})
+				</div>
+			}
+		</section>
+	}
+}
