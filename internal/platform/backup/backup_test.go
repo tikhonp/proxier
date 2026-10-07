@@ -357,7 +357,9 @@ func TestBackupDoesNotBlockWrites(t *testing.T) {
 	stop := make(chan struct{})
 	var during atomic.Int64
 	written := make(chan struct{}, 1)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
 		for i := 0; ; i++ {
 			select {
 			case <-stop:
@@ -389,6 +391,7 @@ func TestBackupDoesNotBlockWrites(t *testing.T) {
 	r.backUp()
 	snapshotting.Store(false)
 	close(stop)
+	<-done // the writer must be gone before the rig closes the database
 	t.Logf("the backup took %s; %d writes completed meanwhile", time.Since(start), during.Load())
 
 	if during.Load() == 0 {
