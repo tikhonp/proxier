@@ -15,6 +15,16 @@ COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 CMD ["air", "-c", ".air.toml"]
 
+# lint: `make lint` builds this stage. The module and golangci-lint caches are
+# BuildKit cache mounts, so dependencies are fetched once and only changed
+# packages are analyzed again. Keep the version equal to the CI action's.
+FROM golangci/golangci-lint:v2.14.0 AS lint
+WORKDIR /src
+RUN --mount=type=cache,target=/go/pkg/mod/ \
+    --mount=type=cache,target=/root/.cache \
+    --mount=type=bind,target=. \
+    golangci-lint run
+
 # build: one static binary from a bind-mounted source that never lands in an
 # image. /out/data becomes /data, owned by the runtime user, so a fresh named
 # volume is writable.

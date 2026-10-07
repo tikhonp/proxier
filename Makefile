@@ -53,8 +53,10 @@ check: templ check-editor
 	git diff --exit-code -- '*_templ.go'
 	$(MAKE) test
 
+# The stage's RUN has BuildKit cache mounts (Dockerfile); an unchanged tree that
+# passed once is a cache hit, a changed one re-lints only what changed.
 lint:
-	docker run --rm -v "$$PWD":/app -w /app golangci/golangci-lint:latest golangci-lint run
+	docker build --target lint --progress=plain .
 
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@$(GOVULNCHECK_VERSION) ./...
