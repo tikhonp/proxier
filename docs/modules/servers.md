@@ -208,7 +208,7 @@ Columns: name with flag, health badge and since when, lifecycle state (when not 
 
 The first endpoint type is `vless-xhttp-tls`. Given an endpoint, it builds the connection URI exactly as `setup.sh` printed it ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), and it runs the proxy test.
 
-The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {location name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. Translations of location names follow the link's language.
+The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {location name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. Until Phase 2 the location name is the one the admin entered (one language); translations of location names will follow the link's language once links have one.
 
 ## DNS
 
@@ -216,7 +216,7 @@ DNS is a driver; the first one is Cloudflare ([Cloudflare integration](../integr
 
 - Provisioning creates an **A record** for the management hostname (and for the proxy hostname, once they differ) pointing to the server's IP. It is **DNS-only, never proxied**: clients and Let's Encrypt must reach the server directly. TTL is 60 s, and the record carries the comment `proxier:<server name>`.
 - Proxier only ever changes or deletes records that carry its comment. A different record already at that name stops provisioning with a conflict, unless the admin confirms an overwrite.
-- After writing, Proxier waits until 1.1.1.1 and 8.8.8.8 both return the IP (timeout 10 min) before anything needs the name, for example the certificate.
+- After writing, Proxier waits until 1.1.1.1 and 8.8.8.8 both return the IP (timeout 10 min) before anything needs the name, for example the certificate. It asks them over DNS-over-HTTPS, and over plain UDP port 53 only when DoH cannot be reached, because the home router may intercept port 53.
 - Retirement deletes the records, if they still point to the server's IP.
 - **Accepted risk in the first version:** each server's certificate names its hostname, and every certificate is published in certificate-transparency logs. Anyone, including a censor, can list `*.hosts.tikhonnnnn.com` on crt.sh. The planned fix is to issue wildcard certificates centrally through Cloudflare DNS-01 and upload them to servers, optionally with proxy hostnames on unlinked cover domains ([roadmap](../roadmap.md#later)). Management and proxy hostnames are already separate fields, so no data migration is needed.
 

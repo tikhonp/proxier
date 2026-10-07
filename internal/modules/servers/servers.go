@@ -12,11 +12,16 @@ import (
 	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/modules/servers/dns"
+	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
+	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/migrations"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
+	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/seed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/modules/servers/validate"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/module"
@@ -33,6 +38,13 @@ type Module struct {
 	deps      module.Deps
 	Store     *store.Store
 	Templates *templates.Service
+	// DNS writes and removes servers' A records; Waiter waits for resolvers to
+	// show them (1d composes both into provisioning).
+	DNS    dns.Driver
+	Waiter dns.Waiter
+	// CloudflareClient makes the API client for a token; tests point it at
+	// cloudflaretest.
+	CloudflareClient func(token string) *cloudflare.Client
 }
 
 // New returns the module; Init gives it the platform's services.
@@ -46,6 +58,11 @@ func (m *Module) Init(d module.Deps) error {
 	m.deps = d
 	m.Store = store.New(d.DB, d.Events)
 	m.Templates = templates.New(d.DB, d.Events, d.Log)
+	m.CloudflareClient = cloudflare.New
+	m.DNS = cloudflare.NewDriver(d.Settings, func(token string) *cloudflare.Client { return m.CloudflareClient(token) })
+	m.Waiter = dns.NewWaiter()
+	// The validators that need the embedded xray and the endpoint types.
+	validate.XrayConfig, validate.EndpointFields = proxy.ValidateConfig, endpoint.Check
 	return nil
 }
 
@@ -67,7 +84,30 @@ func (m *Module) AfterMigrate(ctx context.Context) error {
 
 func (*Module) EventTypes() []events.Type { return Events }
 
-func (*Module) SettingsSections() []settings.Section { return []settings.Section{Section} }
+func (*Module) SettingsSections() []settings.Section {
+	return []settings.Section{Section, cloudflare.Section}
+}
+
+// SettingsPages: Settings → Servers (Cloudflare lives under Integrations).
+func (*Module) SettingsPages() []ui.SettingsPage {
+	return []ui.SettingsPage{{Slug: "servers", Title: "settings.servers", Order: 35}}
+}
+
+// Integrations adds the Cloudflare row to Settings → Integrations.
+func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
+	row := ui.IntegrationRow{Name: "Cloudflare", Href: "/settings/integrations/cloudflare", State: i18n.T(ctx, "integrations.not_configured")}
+	token, err := m.deps.Settings.Get(ctx, cloudflare.TokenKey)
+	if err != nil {
+		m.deps.Log.Error("servers: cloudflare settings", "error", err)
+		return []ui.IntegrationRow{row}
+	}
+	if token != "" {
+		zones, _ := m.deps.Settings.Get(ctx, cloudflare.ZonesKey)
+		row.On = true
+		row.State = i18n.T(ctx, "servers.cloudflare.state", i18n.Args{"n": len(dns.SplitZones(zones))})
+	}
+	return []ui.IntegrationRow{row}
+}
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
@@ -82,7 +122,10 @@ func (*Module) Messages() i18n.Messages {
 }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Store: m.Store, Templates: m.Templates, Log: m.deps.Log})
+	pages.Register(r, pages.Deps{
+		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
+		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
+	})
 }
 
 // Nav adds the module's entries; each sub-phase adds its own with its page.
@@ -168,14 +211,16 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 }
 
 var (
-	_ module.Module           = (*Module)(nil)
-	_ module.Initializer      = (*Module)(nil)
-	_ module.Migrated         = (*Module)(nil)
-	_ module.EventDeclarer    = (*Module)(nil)
-	_ module.SettingsDeclarer = (*Module)(nil)
-	_ module.MessagesDeclarer = (*Module)(nil)
-	_ module.RouteDeclarer    = (*Module)(nil)
-	_ module.NavDeclarer      = (*Module)(nil)
-	_ module.SubjectNamer     = (*Module)(nil)
-	_ module.Searcher         = (*Module)(nil)
+	_ module.Module               = (*Module)(nil)
+	_ module.Initializer          = (*Module)(nil)
+	_ module.Migrated             = (*Module)(nil)
+	_ module.EventDeclarer        = (*Module)(nil)
+	_ module.SettingsDeclarer     = (*Module)(nil)
+	_ module.SettingsPageDeclarer = (*Module)(nil)
+	_ module.IntegrationDeclarer  = (*Module)(nil)
+	_ module.MessagesDeclarer     = (*Module)(nil)
+	_ module.RouteDeclarer        = (*Module)(nil)
+	_ module.NavDeclarer          = (*Module)(nil)
+	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.Searcher             = (*Module)(nil)
 )

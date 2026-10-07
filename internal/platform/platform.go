@@ -221,6 +221,9 @@ func (a *App) HTTP() *echo.Echo {
 		if sp, ok := m.(module.SettingsPageDeclarer); ok {
 			pd.SettingsPages = append(pd.SettingsPages, sp.SettingsPages()...)
 		}
+		if ig, ok := m.(module.IntegrationDeclarer); ok {
+			pd.Integrators = append(pd.Integrators, ig)
+		}
 		if s, ok := m.(module.Searcher); ok {
 			pd.Searchers = append(pd.Searchers, s)
 		}
@@ -229,6 +232,7 @@ func (a *App) HTTP() *echo.Echo {
 		}
 	}
 	r.Shell = pages.Register(r, pd)
+	r.SettingsPages = func() []ui.SettingsPage { return pd.SettingsPages }
 	for _, m := range a.Modules {
 		if rd, ok := m.(module.RouteDeclarer); ok {
 			rd.Routes(r)

@@ -29,6 +29,11 @@ type Searcher interface {
 	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)
 }
 
+// Integrator is a module with rows on Settings → Integrations.
+type Integrator interface {
+	Integrations(ctx context.Context) []ui.IntegrationRow
+}
+
 // Deps is what the handlers need. Nav, SettingsPages and Searchers are
 // collected from every module.
 type Deps struct {
@@ -40,15 +45,17 @@ type Deps struct {
 	Nav           []ui.NavItem
 	SettingsPages []ui.SettingsPage
 	Searchers     []Searcher
-	Jobs          *jobs.System
-	Query         sqlx.QueryerContext // the read pool, for Activity
-	Events        *events.Catalog
-	Notify        *notify.Service
-	Telegram      *telegram.Channel
-	SSH           *sshx.SSH
-	Tailnet       *tailnet.Node
-	Backup        *backup.Service
-	Namers        []Namer
+	// Integrators add rows to Settings → Integrations after the platform's own.
+	Integrators []Integrator
+	Jobs        *jobs.System
+	Query       sqlx.QueryerContext // the read pool, for Activity
+	Events      *events.Catalog
+	Notify      *notify.Service
+	Telegram    *telegram.Channel
+	SSH         *sshx.SSH
+	Tailnet     *tailnet.Node
+	Backup      *backup.Service
+	Namers      []Namer
 	// Closing is closed when the server starts shutting down; live streams
 	// end then.
 	Closing <-chan struct{}

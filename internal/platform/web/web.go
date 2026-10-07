@@ -45,6 +45,9 @@ type Routes struct {
 	// path) for a page of a module; the platform fills it in before the
 	// modules' routes are declared.
 	Shell func(c *echo.Context, title, path string) ui.Shell
+	// SettingsPages lists every module's pages of Settings, for the side menu
+	// of a module's own settings page (ui.SettingsLayout sorts them).
+	SettingsPages func() []ui.SettingsPage
 }
 
 // Request is what the middleware knows about the current request.

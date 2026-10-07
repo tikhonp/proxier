@@ -50,6 +50,65 @@ var messages = i18n.Messages{
 	// Settings
 	"settings.servers":                        {EN: "Servers", RU: "Серверы"},
 	"settings.field.servers.hostname_pattern": {EN: "Hostname pattern", RU: "Шаблон имени хоста"},
+	"settings.field.servers.hostname_pattern.help": {
+		EN: "{location} and {number} are replaced for each server. The domain must be in a zone allowed under Integrations → Cloudflare.",
+		RU: "{location} и {number} подставляются для каждого сервера. Домен должен быть в зоне, разрешённой в Интеграции → Cloudflare.",
+	},
+	"settings.field.servers.ip_country_url": {EN: "IP → country lookup", RU: "Страна по IP"},
+	"settings.field.servers.ip_country_url.help": {
+		EN: "An https address with {ip}; it must answer a two-letter country code. Only the new server's address is sent, and the answer only preselects the location. Empty turns it off.",
+		RU: "Адрес https с {ip}; в ответ должен прийти двухбуквенный код страны. Отправляется только адрес нового сервера, ответ лишь предлагает локацию. Пусто — выключено.",
+	},
+	"settings.field.servers.proxy_test_url": {EN: "Proxy test object", RU: "Файл для проверки прокси"},
+	"settings.field.servers.proxy_test_url.help": {
+		EN: "Downloaded through each endpoint. Keep it above 64 KB: throttling that stops data after ~20 KB would not show on a smaller one. A template can set its own.",
+		RU: "Скачивается через каждый узел. Берите больше 64 КБ: ограничение, обрывающее данные после ~20 КБ, на меньшем файле не видно. Шаблон может задать свой.",
+	},
+	"settings.field.servers.proxy_test_timeout": {EN: "Proxy test timeout", RU: "Тайм-аут проверки прокси"},
+	"settings.field.servers.proxy_test_timeout.help": {
+		EN: "For the whole download, 5 s to 2 min.",
+		RU: "На всё скачивание, от 5 с до 2 мин.",
+	},
+	"settings.field.servers.proxy_test_stall": {EN: "Proxy test stall", RU: "Остановка данных при проверке"},
+	"settings.field.servers.proxy_test_stall.help": {
+		EN: "How long no data may arrive before the test counts it as stalled, 1 s to 1 min.",
+		RU: "Сколько могут не приходить данные, пока проверка не сочтёт передачу остановившейся, от 1 с до 1 мин.",
+	},
+	"settings.field.cloudflare.api_token": {EN: "API token", RU: "API-токен"},
+	"settings.field.cloudflare.zones":     {EN: "Allowed zones", RU: "Разрешённые зоны"},
+
+	"servers.settings.note": {
+		EN: "How servers are named, and how the proxy test reaches them.",
+		RU: "Как называются серверы и как к ним ходит проверка прокси.",
+	},
+	"servers.settings.zone_warning": {
+		EN: "The hostname pattern gives {host}, which is in no zone allowed for Cloudflare, so no server can be built yet.",
+		RU: "По шаблону получается {host}, а этого домена нет ни в одной зоне, разрешённой для Cloudflare, — сервер пока не построить.",
+	},
+	"servers.settings.zone_warning_link": {EN: "Allow a zone", RU: "Разрешить зону"},
+
+	// Cloudflare
+	"servers.cloudflare.note": {
+		EN: "Proxier writes a server's A record here and removes it at retirement. It never touches a record it did not create, unless you choose Overwrite.",
+		RU: "Proxier записывает здесь A-запись сервера и удаляет её при выводе из работы. Чужие записи он не трогает, пока вы сами не выберете «Перезаписать».",
+	},
+	"servers.cloudflare.token":       {EN: "API token", RU: "API-токен"},
+	"servers.cloudflare.token_help":  {EN: "Needs Zone → DNS → Edit and Zone → Zone → Read on the zones Proxier may use.", RU: "Нужны права Zone → DNS → Edit и Zone → Zone → Read на зоны, которые разрешено использовать."},
+	"servers.cloudflare.token_set":   {EN: "A token is saved. Paste a new one to replace it; it is never shown.", RU: "Токен сохранён. Вставьте новый, чтобы заменить; сам токен не показывается."},
+	"servers.cloudflare.token_save":  {EN: "Check and save", RU: "Проверить и сохранить"},
+	"servers.cloudflare.token_empty": {EN: "Paste an API token.", RU: "Вставьте API-токен."},
+	"servers.cloudflare.no_token":    {EN: "Save an API token first.", RU: "Сначала сохраните API-токен."},
+	"servers.cloudflare.refused":     {EN: "Cloudflare refused this token.", RU: "Cloudflare отклонил этот токен."},
+	"servers.cloudflare.unreachable": {EN: "Cloudflare could not be reached. Nothing was saved.", RU: "Cloudflare не отвечает. Ничего не сохранено."},
+	"servers.cloudflare.zones":       {EN: "Zones Proxier may use", RU: "Зоны, которые можно использовать"},
+	"servers.cloudflare.zones_none":  {EN: "The token sees no zones.", RU: "Токен не видит ни одной зоны."},
+	"servers.cloudflare.zones_help":  {EN: "The hostname pattern in Settings → Servers must end in a ticked zone.", RU: "Шаблон имени хоста в Настройки → Серверы должен оканчиваться на отмеченную зону."},
+	"servers.cloudflare.zones_save":  {EN: "Save zones", RU: "Сохранить зоны"},
+	"servers.cloudflare.test":        {EN: "Test", RU: "Проверить"},
+	"servers.cloudflare.test_ok":     {EN: "The token works. Zones it sees: {n}.", RU: "Токен работает. Видно зон: {n}."},
+	"servers.cloudflare.saved.token": {EN: "Token saved.", RU: "Токен сохранён."},
+	"servers.cloudflare.saved.zones": {EN: "Zones saved.", RU: "Зоны сохранены."},
+	"servers.cloudflare.state":       {EN: "Token saved · allowed zones: {n}", RU: "Токен сохранён · разрешённых зон: {n}"},
 
 	// Subjects
 	"subject.home": {EN: "Home internet", RU: "Домашний интернет"},

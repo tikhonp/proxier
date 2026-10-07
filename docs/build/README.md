@@ -16,7 +16,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 |---|---|---|
 | 1a Servers module, tables, templates core | [1a.md](./1a.md) | done 2026-10-07 |
 | 1b Template UI, versions, import/export | [1b.md](./1b.md) | done 2026-10-07 |
-| 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | planned |
+| 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | done 2026-10-07 |
 | 1d Provisioning and the server page | [1d.md](./1d.md) | planned |
 | 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | planned |
 | 1f Health and stats | [1f.md](./1f.md) | planned |
@@ -156,6 +156,7 @@ One module, `servers` (`internal/modules/servers`), enabled in `modules()` in `c
 | `sshx.Hop.Password` (root's password, first login only) | 1d |
 | `sshxtest.Server`: `HandleFunc(match, fn)`, per-user keys and passwords, absolute SFTP paths | 1d |
 | `jobs.System.Busy(ctx, key) (bool, error)`: whether a job in state `running` holds the resource key | 1f |
+| `module.IntegrationDeclarer` (a module's row on Settings → Integrations) and `web.Routes.SettingsPages` (the side menu for a module's own settings page) | 1c (done) |
 
 `/jobs?subject=<type>:<id>` and `/activity?subject=…&actor=…` already exist (0c); the server page's Jobs and Activity tabs link to them.
 

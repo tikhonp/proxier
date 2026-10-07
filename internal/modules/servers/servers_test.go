@@ -1,6 +1,7 @@
 package servers_test
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/modules/servers/seed"
+	"github.com/tikhonp/proxier/internal/modules/servers/validate"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
@@ -223,5 +226,25 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 		if !s.App.I18n.Has("locations." + k) {
 			t.Errorf("locations.%s is missing", k)
 		}
+	}
+}
+
+// Init wires the validators that need the embedded xray and the endpoint types:
+// without them a template with a config xray refuses would publish.
+func TestModuleWiresValidators(t *testing.T) {
+	validate.XrayConfig, validate.EndpointFields = nil, nil
+	site(t)
+	if validate.XrayConfig == nil || validate.EndpointFields == nil {
+		t.Fatal("the validators are not wired")
+	}
+	files := seed.Files()
+	files["xray-config.json"] = bytes.Replace(files["xray-config.json"], []byte(`"network": "xhttp"`), []byte(`"network": "nope"`), 1)
+	rep := validate.Validate(t.Context(), validate.Input{Slug: seed.Slug, Files: files})
+	var xray bool
+	for _, f := range rep.Findings {
+		xray = xray || f.Check == "xray"
+	}
+	if !xray || rep.OK() {
+		t.Errorf("a config xray refuses must be an error: %v", rep.Findings)
 	}
 }

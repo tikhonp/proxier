@@ -10,9 +10,12 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/modules/servers/dns"
+	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -22,16 +25,29 @@ type Deps struct {
 	Store     *store.Store
 	Templates *templates.Service
 	Log       *slog.Logger
+	Settings  *settings.Store
+	// DNS answers whether a hostname is in an allowed zone; CloudflareClient
+	// makes the client of Settings → Integrations → Cloudflare (tests point it
+	// at cloudflaretest).
+	DNS              dns.Driver
+	CloudflareClient func(token string) *cloudflare.Client
 }
 
 type handler struct {
 	Deps
-	shell func(c *echo.Context, title, path string) ui.Shell
+	shell         func(c *echo.Context, title, path string) ui.Shell
+	SettingsPages func() []ui.SettingsPage
 }
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
-	h := &handler{Deps: d, shell: r.Shell}
+	h := &handler{Deps: d, shell: r.Shell, SettingsPages: r.SettingsPages}
+	r.Admin.GET("/settings/servers", h.serversSettings)
+	r.Admin.POST("/settings/servers", h.saveServersSettings)
+	r.Admin.GET("/settings/integrations/cloudflare", h.cloudflarePage)
+	r.Admin.POST("/settings/integrations/cloudflare/token", h.cloudflareToken)
+	r.Admin.POST("/settings/integrations/cloudflare/zones", h.cloudflareZones)
+	r.Admin.POST("/settings/integrations/cloudflare/test", h.cloudflareTest)
 	r.Admin.GET("/locations", h.locations)
 	r.Admin.POST("/locations", h.createLocation)
 	r.Admin.POST("/locations/:id", h.updateLocation)

@@ -97,6 +97,12 @@ type SettingsPage struct {
 	Order int    // General 10, Security 20, SSH 30, Integrations 40, Notifications 50, … About 900
 }
 
+// IntegrationRow is one line of Settings → Integrations.
+type IntegrationRow struct {
+	Name, Href, State string // State is already translated
+	On                bool
+}
+
 // SubjectRef names a subject of an event or job and links to it.
 type SubjectRef struct {
 	Label string

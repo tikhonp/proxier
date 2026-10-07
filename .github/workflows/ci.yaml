@@ -36,8 +36,10 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      # make test: -race everywhere except the packages that run real XHTTP
+      # traffic through the embedded xray (its client has a race of its own).
       - name: Test
-        run: go test -race -count=1 ./...
+        run: make test
 
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9

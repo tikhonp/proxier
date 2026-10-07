@@ -118,6 +118,12 @@ type NavDeclarer interface{ Nav() []ui.NavItem }
 // SettingsPageDeclarer is a module with its own pages in Settings.
 type SettingsPageDeclarer interface{ SettingsPages() []ui.SettingsPage }
 
+// IntegrationDeclarer is a module with a row on Settings → Integrations (the
+// page behind Href is the module's own). State is translated for the request.
+type IntegrationDeclarer interface {
+	Integrations(ctx context.Context) []ui.IntegrationRow
+}
+
 // Searcher is a module whose things appear in the search pop-up's "Go to".
 type Searcher interface {
 	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)

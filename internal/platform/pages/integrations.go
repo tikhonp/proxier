@@ -12,14 +12,11 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/tailnet"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
-// integrationRow is one line of Settings → Integrations.
-type integrationRow struct {
-	Name, Href, State string // State is already translated
-	On                bool
-}
+type integrationRow = ui.IntegrationRow
 
 func (h *handler) integrationsPage(c *echo.Context) error {
 	ctx := c.Request().Context()
@@ -38,6 +35,9 @@ func (h *handler) integrationsPage(c *echo.Context) error {
 		tsState += " · " + ts.IP.String()
 	}
 	rows = append(rows, integrationRow{Name: "Tailnet", Href: "/settings/integrations/tailnet", State: tsState, On: ts.State == tailnet.Running})
+	for _, m := range h.Integrators {
+		rows = append(rows, m.Integrations(ctx)...)
+	}
 	s := h.shell(c, i18n.T(ctx, "settings.integrations"), "/settings")
 	return web.Render(c, http.StatusOK, integrationsPage(s, h.sortedPages(), rows))
 }

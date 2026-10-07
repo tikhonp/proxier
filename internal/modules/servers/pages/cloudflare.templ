@@ -1,0 +1,105 @@
+package pages
+
+import (
+	"slices"
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ cloudflarePage(s ui.Shell, pages []ui.SettingsPage, v cfView) {
+	@ui.SettingsLayout(s, pages, "integrations") {
+		<div class="set-head">
+			<h2>Cloudflare</h2>
+			<p>{ i18n.T(ctx, "servers.cloudflare.note") }</p>
+		</div>
+		switch v.Saved {
+			case "token":
+				<div class="form">
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "servers.cloudflare.saved.token") }
+					}
+				</div>
+			case "zones":
+				<div class="form">
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "servers.cloudflare.saved.zones") }
+					}
+				</div>
+		}
+		<form method="post" action="/settings/integrations/cloudflare/token" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="cf-token" class="lbl">{ i18n.T(ctx, "servers.cloudflare.token") }</label>
+				<input id="cf-token" name="token" type="password" class="pc-inp" autocomplete="off" aria-invalid?={ v.TokenErr != "" }/>
+				if v.TokenErr != "" {
+					<div class="err" role="alert">{ v.TokenErr }</div>
+				} else if v.TokenSet {
+					<div class="help">{ i18n.T(ctx, "servers.cloudflare.token_set") }</div>
+				} else {
+					<div class="help">{ i18n.T(ctx, "servers.cloudflare.token_help") }</div>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "servers.cloudflare.token_save") }</button>
+			</div>
+		</form>
+		if v.TokenSet {
+			<form method="post" action="/settings/integrations/cloudflare/zones" class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="field">
+					<span class="lbl">{ i18n.T(ctx, "servers.cloudflare.zones") }</span>
+					if v.ListErr != "" {
+						<div class="err" role="alert">{ v.ListErr }</div>
+					}
+					if len(v.Listed) == 0 && v.ListErr == "" {
+						<div class="help">{ i18n.T(ctx, "servers.cloudflare.zones_none") }</div>
+					}
+					for _, z := range v.Listed {
+						<label class="check">
+							<input type="checkbox" name="zone" value={ z.Name } checked?={ slices.Contains(v.Allowed, z.Name) }/>
+							<span>{ z.Name }</span>
+						</label>
+					}
+					if len(v.Listed) > 0 {
+						<div class="help">{ i18n.T(ctx, "servers.cloudflare.zones_help") }</div>
+					}
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn" disabled?={ len(v.Listed) == 0 }>{ i18n.T(ctx, "servers.cloudflare.zones_save") }</button>
+				</div>
+			</form>
+		}
+		<div class="form">
+			<div class="form-actions">
+				<button
+					type="button"
+					class="pc-btn"
+					data-action="cloudflare.test"
+					hx-post="/settings/integrations/cloudflare/test"
+					hx-target="#cf-test"
+					hx-swap="innerHTML"
+					disabled?={ !v.TokenSet }
+				>{ i18n.T(ctx, "servers.cloudflare.test") }</button>
+			</div>
+			<div id="cf-test" aria-live="polite"></div>
+		</div>
+	}
+}
+
+// cloudflareTestFragment shows what Test found.
+templ cloudflareTestFragment(v cfTestView) {
+	if v.Err != "" {
+		@ui.Alert("gold", "alert") {
+			{ v.Err }
+		}
+	} else {
+		@ui.Alert("pine", "status") {
+			{ i18n.T(ctx, "servers.cloudflare.test_ok", i18n.Args{"n": zoneCount(v.Zones)}) }
+		}
+	}
+}
+
+func zoneCount(zs []cloudflare.Zone) string { return strconv.Itoa(len(zs)) }

@@ -58,7 +58,12 @@ vless://{uuid}@{host}:443?encryption=none&security=tls&sni={host}&fp=chrome&host
 ## Checks for this template
 
 - **Self-check**: `compose-running` (nginx, xray, certbot running), `http-local` (the decoy site returns `200` when asked for the proxy hostname on the server itself), `cert-expiry` on `certbot/conf/live/<host>/fullchain.pem`, `disk-free`.
-- **Proxy test**: the embedded xray client builds an outbound from the connection URI (XHTTP, `stream-up`, TLS with `fp=chrome`, `alpn=h2`), then downloads the test object through it ([health](../processes/servers/server-health.md#checks)). Failures are classified: TCP timeout or refusal to `host:443` → `tcp-*`; TLS reset or handshake failure → `tls-failed`; data stops after N KB → `stalled`.
+- **Proxy test**: three steps ([health](../processes/servers/server-health.md#checks)). xray's own errors are opaque, so two direct probes make the class of a network failure certain before xray is involved:
+  1. a plain TCP connection to `host:443` (5 s): no answer in time → `tcp-timeout`, a refusal → `tcp-refused`;
+  2. a TLS handshake with the endpoint's SNI, ALPN and **fingerprint** (the same ClientHello a real client sends, so a network that treats a Go handshake differently from Chrome's does not mislead the probe), checking the certificate (5 s) → `tls-failed`;
+  3. the test object downloaded through the embedded xray client, which builds an outbound from the endpoint (XHTTP in the endpoint's mode, TLS with `fp` and `alpn`), with a 15 s overall timeout and a 5 s stall timer that restarts whenever data arrives: the stall timer fires → `stalled` (with the bytes received), the overall one → `timeout`, a non-2xx answer or any other failure of the request (a refused credential shows as a connection closed with no answer) → `http-error` (the error text says which).
+
+  A failing probe ends the test: step 3 would only repeat it less clearly. Success records the connect and TLS times of the probes, the time to the first byte and the throughput of step 3, and the bytes received; a body under 64 KiB carries a "small object" warning, because throttling after ~20 KB cannot be seen on it.
 
 ## Ports and firewall
 

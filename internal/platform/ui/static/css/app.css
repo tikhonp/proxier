@@ -105,6 +105,8 @@ textarea.pc-ta { height: auto; min-height: 112px; padding: 8px 10px; width: 100%
 .field .help { margin-top: 4px; font-size: var(--fs-sm); color: var(--muted); }
 .field .err { margin-top: 4px; font-size: var(--fs-sm); color: var(--love); }
 .field .changed { color: var(--rose); }
+.field label.check { display: flex; align-items: center; gap: 10px; margin: 0; padding: 6px 0; color: var(--text); font-size: var(--fs); cursor: pointer; }
+.field .check input { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
 .field.row-h { display: flex; align-items: center; gap: 12px; }
 .pc-inp.tall { height: 36px; }
 .pc-inp[readonly] { color: var(--subtle); }
