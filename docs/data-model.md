@@ -11,14 +11,14 @@ This is the logical model: entities, their important fields and relations. The e
 | **Sign-in attempt** | IP, time, success | Feeds the lockout and the "new IP" notification. Kept 30 days. |
 | **Setting** | key, value (🔒 when secret), updated | Typed, grouped by module. |
 | **Known host** | address (`host:port`), key type, public key, fingerprint, first seen, accepted, subject (`server:12`, `router:3`, `jump:…`) | Pinned SSH host keys. |
-| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (admin / schedule / event), retry of, started, finished, error | |
+| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (admin / schedule / event), retry of, quiet, started, finished, error | Coalescing key is unique per type. A clean quiet job (check rounds) is deleted after 24 h. |
 | **Job step** | job, index, name, state, started, finished, error | Progress and resume. |
 | **Job log line** | job, sequence, time, level, step, text (already redacted) | |
 | **Event** | id, time, module, type, subject type + id, actor, payload | Append-only. |
 | **Subscriber cursor** | subscriber name, last delivered event id | At-least-once delivery. |
 | **Notification rule** | event type, enabled | Defaults come from [events.md](./events.md). |
 | **Notification** | event, channel, text, state (queued / sent / failed), attempts, last error, sent at | |
-| **Schedule** | name, interval or time of day, enabled, last run, next run | Defaults declared by modules. |
+| **Schedule** | name, enabled, next run, last run, last job, skips | Run-time state only. The interval or time of day is declared in code (a setting may override it), so it isn't stored. |
 
 ## Servers
 

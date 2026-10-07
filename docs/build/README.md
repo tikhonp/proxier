@@ -12,6 +12,10 @@ Phase 0 ([roadmap](../roadmap.md#phase-0-platform-skeleton)) is built in sub-pha
 
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
+## Tables are already built
+
+On 2026-10-07 the four Phase 0 migrations were written ahead of their sub-phases, with every table decision settled in the contracts: `00002_auth.sql` (0b), `00003_jobs.sql` (0c), `00004_notifications.sql` (0d), `00005_ssh.sql` (0e), and `internal/platform/migrations/migrations_test.go` for their constraints. A sub-phase does **not** create its migration again; it builds on the table. Until the first production deploy (0e) nothing depends on them, so a sub-phase that needs a change edits its migration in place (and the contract's **Tables** and `migrations_test.go` with it). After that deploy, changes go only into **new** migrations (`00006_…`). Their contract's **Tables** section is the description of what is there.
+
 ## How to use a contract
 
 1. Read the contract, then the docs it names. The contract wins over the docs where they differ; the docs are updated in the same commit (each contract has a **Doc changes** list).
@@ -62,6 +66,7 @@ Not in [events.md](../events.md) yet; each sub-phase adds its own rows there in 
 |---|---|---|---|---|
 | `admin.language_changed` | 0b | admin | from, to | off |
 | `auth.signed_out` | 0b | admin | session (id), by (`self` / `settings`) | off |
+| `schedule.enabled_changed` | 0c | schedule (`schedule:<name>`) | name, enabled | off |
 | `notification.failed` | 0d | event (`event:<id>`) | channel, error | off, and never notifiable |
 | `ssh.key_generated` | 0e | ssh identity | fingerprint, regenerated | **on** when regenerated |
 | `ssh.host_key_pinned` | 0e | known host | address, fingerprint | off |
