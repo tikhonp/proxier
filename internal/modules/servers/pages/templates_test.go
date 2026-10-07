@@ -308,10 +308,10 @@ func TestPreviewUsesPostedFiles(t *testing.T) {
 	bad := string(d.Files["compose.yaml"]) + "# {{ .Gen.nope }}\n"
 	rec = e.hx(fmt.Sprintf("/templates/%d/draft/preview", id), form(1, map[string]string{"manifest.yaml": string(d.Files["manifest.yaml"]), "compose.yaml": bad}))
 	contains(t, "preview with an error", rec.Body.String(), "compose.yaml", "nope")
-	// a real server is not available yet
+	// a server that is not an active server of this template is refused
 	f := form(1, map[string]string{"manifest.yaml": string(d.Files["manifest.yaml"])})
 	f.Set("server", "7")
-	contains(t, "preview for a server", e.hx(fmt.Sprintf("/templates/%d/draft/preview", id), f).Body.String(), "arrives with servers")
+	contains(t, "preview for a server", e.hx(fmt.Sprintf("/templates/%d/draft/preview", id), f).Body.String(), "not an active server of this template")
 }
 
 func TestPublishFlow(t *testing.T) {

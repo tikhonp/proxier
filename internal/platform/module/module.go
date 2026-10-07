@@ -152,3 +152,9 @@ type SubjectNamer interface {
 type NotificationRenderer interface {
 	RenderNotification(ctx context.Context, e events.Event, loc *i18n.Localizer) (notify.Message, bool, error)
 }
+
+// DashboardDeclarer is a module with areas on the dashboard: what needs
+// attention in it. An area that returns nothing to show returns no entry.
+type DashboardDeclarer interface {
+	Dashboard(ctx context.Context) ([]ui.DashboardArea, error)
+}

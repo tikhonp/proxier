@@ -46,6 +46,11 @@ const (
 type Hop struct {
 	Address string // "host:port"; the port defaults to 22
 	User    string
+	// Password, when set, is offered (as a password and as the answer to a
+	// keyboard-interactive prompt) instead of Proxier's key: root's password at
+	// the first login of a new server, before the deploy user has the key
+	// (ADR 0012). It is never logged or stored by sshx.
+	Password string
 	// Subject names who the host belongs to: "server:12", "router:3",
 	// "jump:parents-pi". ForgetSubject uses it.
 	Subject string

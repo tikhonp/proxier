@@ -1,0 +1,550 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ serversPage(s ui.Shell, v serversView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "servers.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.note") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "servers.new", Label: "servers.new", Method: "GET", Href: "/servers/new", Kind: ui.Primary, Key: "n"})
+			</div>
+		</div>
+		@ui.FilterBar(v.Chips, nil, "")
+		if len(v.Rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "servers.empty"), i18n.T(ctx, "servers.empty_next"))
+		} else {
+			<div class="colhead srv" aria-hidden="true">
+				<span></span>
+				<span>{ i18n.T(ctx, "servers.col.name") }</span>
+				<span>{ i18n.T(ctx, "servers.col.status") }</span>
+				<span>{ i18n.T(ctx, "servers.col.ip") }</span>
+				<span>{ i18n.T(ctx, "servers.col.host") }</span>
+				<span>{ i18n.T(ctx, "servers.col.template") }</span>
+			</div>
+			for _, r := range v.Rows {
+				<a href={ templ.SafeURL(r.Href) } class="row srv pc-row" data-href={ r.Href } data-hint={ r.Hint }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="bold">{ r.Flag } { r.Name }</span>
+					<span class="col">
+						@ui.Status(r.Kind, r.Word)
+						if r.Since != "" {
+							<span class="sm subtle">{ r.Since }</span>
+						}
+					</span>
+					<span class="subtle">{ r.IP }</span>
+					<span class="subtle">{ r.Proxy }</span>
+					<span class="subtle">{ r.Template }</span>
+				</a>
+			}
+		}
+	}
+}
+
+// ---------------------------------------------------------- new server
+
+templ newServerPage(s ui.Shell, v newView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.new") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.new") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.new.note") }</p>
+			</div>
+		</div>
+		if v.NoTemplates {
+			@ui.EmptyState(i18n.T(ctx, "servers.new.no_templates"), i18n.T(ctx, "servers.new.no_templates_next"))
+		} else {
+			<form
+				method="post"
+				action="/servers"
+				class="newcols"
+				hx-post="/servers/new/summary"
+				hx-trigger="input delay:300ms, change"
+				hx-target="#summary"
+				hx-swap="innerHTML"
+				hx-params="not root_password"
+			>
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="newform form">
+					if len(v.Errs) > 0 {
+						@ui.Alert("love", "alert") {
+							{ i18n.T(ctx, "servers.new.refused") }
+						}
+					}
+					<h2 class="grp">{ i18n.T(ctx, "servers.new.access") }</h2>
+					<div class="field">
+						<label for="srv-ip">{ i18n.T(ctx, "servers.new.ip") }</label>
+						<input id="srv-ip" class="pc-inp" name="ip" value={ v.IP } autocomplete="off" spellcheck="false" inputmode="decimal" placeholder="203.0.113.24" aria-invalid?={ v.Errs["ip"] != "" }/>
+						if v.Errs["ip"] != "" {
+							<p class="err" role="alert">{ v.Errs["ip"] }</p>
+						}
+					</div>
+					<div class="field">
+						<label for="srv-pw">{ i18n.T(ctx, "servers.new.password") }</label>
+						<input id="srv-pw" class="pc-inp" type="password" name="root_password" autocomplete="new-password" aria-invalid?={ v.Errs["root_password"] != "" }/>
+						if v.Errs["root_password"] != "" {
+							<p class="err" role="alert">{ v.Errs["root_password"] }</p>
+						} else {
+							<p class="help">{ i18n.T(ctx, "servers.new.password.help") }</p>
+						}
+					</div>
+					<div class="field">
+						<label for="srv-port">{ i18n.T(ctx, "servers.new.port") }</label>
+						<input id="srv-port" class="pc-inp" name="ssh_port" value={ v.Port } placeholder="22" inputmode="numeric" autocomplete="off" aria-invalid?={ v.Errs["ssh_port"] != "" }/>
+						if v.Errs["ssh_port"] != "" {
+							<p class="err" role="alert">{ v.Errs["ssh_port"] }</p>
+						}
+					</div>
+					<h2 class="grp">{ i18n.T(ctx, "servers.new.location") }</h2>
+					@locationField(v)
+					<h2 class="grp">{ i18n.T(ctx, "servers.new.template") }</h2>
+					<div class="field">
+						<label for="srv-tpl">{ i18n.T(ctx, "servers.new.template") }</label>
+						<div class="inline">
+							<select id="srv-tpl" class="pc-inp" name="template">
+								for _, t := range v.Templates {
+									<option value={ strconv.FormatInt(t.ID, 10) } selected?={ t.Selected }>{ t.Name }</option>
+								}
+							</select>
+							<select id="srv-ver" class="pc-inp" name="version" aria-label={ i18n.T(ctx, "servers.new.version") }>
+								for _, ver := range v.Versions {
+									<option value={ strconv.Itoa(ver.Number) } selected?={ ver.Selected }>{ ver.Label }</option>
+								}
+							</select>
+						</div>
+						for _, k := range []string{"template", "version"} {
+							if v.Errs[k] != "" {
+								<p class="err" role="alert">{ v.Errs[k] }</p>
+							}
+						}
+					</div>
+					@paramsArea(v, false)
+					<div class="field">
+						<label for="srv-notes">{ i18n.T(ctx, "servers.new.notes") }</label>
+						<textarea id="srv-notes" class="pc-inp" name="notes" rows="3" placeholder={ i18n.T(ctx, "servers.new.notes.placeholder") }>{ v.Notes }</textarea>
+						if v.Errs["notes"] != "" {
+							<p class="err" role="alert">{ v.Errs["notes"] }</p>
+						}
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-pri">{ v.CreateLabel }</button>
+						<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<span class="sm subtle">{ i18n.T(ctx, "servers.new.create.note") }</span>
+					</div>
+				</div>
+				<aside class="newsum" aria-labelledby="sum-h">
+					<h2 id="sum-h">{ i18n.T(ctx, "servers.new.summary") }</h2>
+					<div id="summary">
+						@summaryBody(v)
+					</div>
+					if v.Errs["dns"] != "" {
+						<p class="err" role="alert">{ v.Errs["dns"] }</p>
+					}
+				</aside>
+			</form>
+		}
+	}
+}
+
+// locationField is the location select with its "New location" mini form. As
+// the answer to the summary it swaps itself out of band (oob).
+templ locationField(v newView) {
+	<div id="loc-field" class="field">
+		<label for="loc">{ i18n.T(ctx, "servers.new.location") }</label>
+		<div class="inline">
+			<select id="loc" class="pc-inp" name="location" aria-invalid?={ v.Errs["location"] != "" }>
+				<option value="0" selected?={ v.LocationID == 0 }>{ i18n.T(ctx, "servers.new.location.choose") }</option>
+				for _, l := range v.Locations {
+					<option value={ strconv.FormatInt(l.ID, 10) } selected?={ l.Selected }>{ l.Label }</option>
+				}
+			</select>
+		</div>
+		<input type="hidden" name="location_auto" value={ strconv.FormatInt(v.Auto, 10) }/>
+		if v.Errs["location"] != "" {
+			<p class="err" role="alert">{ v.Errs["location"] }</p>
+		} else if v.Hint != "" {
+			<p class="help" id="loc-hint">{ v.Hint }</p>
+		} else {
+			<p class="help" id="loc-hint">{ i18n.T(ctx, "servers.new.location.help") }</p>
+		}
+		<details class="newloc" open?={ v.NewLoc.Open }>
+			<summary class="pc-btn pc-sm">{ i18n.T(ctx, "servers.new.location.new") }</summary>
+			<div class="newloc-body">
+				<input class="pc-inp" name="nl_code" value={ v.NewLoc.Code } placeholder="nl" maxlength="5" autocomplete="off" spellcheck="false" aria-label={ i18n.T(ctx, "locations.col.code") } aria-invalid?={ v.NewLoc.Errs["code"] != "" }/>
+				<input class="pc-inp" name="nl_name" value={ v.NewLoc.Name } placeholder="Netherlands" autocomplete="off" aria-label={ i18n.T(ctx, "locations.col.name") } aria-invalid?={ v.NewLoc.Errs["name"] != "" }/>
+				<select class="pc-inp" name="nl_country" aria-label={ i18n.T(ctx, "locations.col.country") }>
+					<option value="">—</option>
+					for _, ct := range v.NewLoc.Countries {
+						<option value={ ct.Code } selected?={ ct.Code == v.NewLoc.Country }>{ ct.Flag } { ct.Name }</option>
+					}
+				</select>
+				<button type="button" class="pc-btn pc-sm" hx-post="/servers/new/location" hx-include="closest form" hx-params="not root_password" hx-target="#loc-field" hx-swap="outerHTML">{ i18n.T(ctx, "locations.add") }</button>
+				for _, k := range []string{"code", "name", "country"} {
+					if v.NewLoc.Errs[k] != "" {
+						<span class="err" role="alert">{ v.NewLoc.Errs[k] }</span>
+					}
+				}
+			</div>
+		</details>
+	</div>
+}
+
+// paramsArea holds the parameters of the chosen version, and the key that says
+// for which version they were made.
+templ paramsArea(v newView, oob bool) {
+	<div id="params" if oob { hx-swap-oob="true" }>
+		<input type="hidden" id="params_for" name="params_for" value={ v.ParamsFor }/>
+		for _, p := range v.Params {
+			<div class="field">
+				<label for={ "p-" + p.Name }>
+					{ p.Label }
+					if !p.Required {
+						<span class="sm subtle">· { i18n.T(ctx, "servers.new.optional") }</span>
+					}
+				</label>
+				switch p.Type {
+					case "bool":
+						<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
+							<option value="false" selected?={ p.Value != "true" }>{ i18n.T(ctx, "servers.no") }</option>
+							<option value="true" selected?={ p.Value == "true" }>{ i18n.T(ctx, "servers.yes") }</option>
+						</select>
+					case "choice":
+						<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
+							for _, o := range p.Options {
+								<option value={ o } selected?={ o == p.Value }>{ o }</option>
+							}
+						</select>
+					case "text":
+						<textarea id={ "p-" + p.Name } class="pc-inp" name={ p.Name } rows="4" aria-invalid?={ p.Err != "" }>{ p.Value }</textarea>
+					default:
+						<input
+							id={ "p-" + p.Name }
+							class="pc-inp"
+							name={ p.Name }
+							value={ p.Value }
+							type={ p.inputType() }
+							inputmode={ p.inputMode() }
+							autocomplete="off"
+							spellcheck="false"
+							aria-invalid?={ p.Err != "" }
+						/>
+				}
+				if p.Err != "" {
+					<p class="err" role="alert">{ p.Err }</p>
+				} else if p.Help != "" {
+					<p class="help">{ p.Help }</p>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ summaryBody(v newView) {
+	if v.Sum.Name == "" {
+		<p class="subtle">{ i18n.T(ctx, "servers.new.summary.empty") }</p>
+	} else {
+		<dl class="kv">
+			<dt>{ i18n.T(ctx, "servers.new.sum.name") }</dt>
+			<dd>
+				<span class="bold">{ v.Sum.Name }</span>
+				<div class="sm subtle">{ i18n.T(ctx, "servers.new.sum.name.note") }</div>
+			</dd>
+			<dt>{ i18n.T(ctx, "servers.new.sum.host") }</dt>
+			<dd>
+				{ v.Sum.ManagementHostname }
+				<div class="sm subtle">{ i18n.T(ctx, "servers.new.sum.host.note") }</div>
+			</dd>
+			<dt>{ i18n.T(ctx, "servers.new.sum.dns") }</dt>
+			<dd>
+				{ v.Sum.DNSRecord }
+				<div class="sm subtle">proxier:{ v.Sum.Name }</div>
+			</dd>
+			<dt>{ i18n.T(ctx, "servers.new.sum.endpoints") }</dt>
+			<dd>
+				for _, e := range v.Sum.Endpoints {
+					<div>{ i18n.T(ctx, "servers.new.sum.shown_as") } “{ e }”</div>
+				}
+			</dd>
+		</dl>
+	}
+	if len(v.SumErrors) > 0 {
+		<h3 class="grp">{ i18n.T(ctx, "servers.new.sum.look") }</h3>
+		<ul class="warnlist">
+			for _, e := range v.SumErrors {
+				<li>{ e }</li>
+			}
+		</ul>
+	}
+}
+
+// summaryFragment is the live summary's answer: the panel, and, out of band,
+// the fields the new state changes.
+templ summaryFragment(v newView, params, location bool) {
+	@summaryBody(v)
+	if location {
+		<div id="loc-field" class="field" hx-swap-oob="outerHTML">
+			@locationFieldInner(v)
+		</div>
+	}
+	if params {
+		@paramsArea(v, true)
+	}
+}
+
+templ locationFieldInner(v newView) {
+	<label for="loc">{ i18n.T(ctx, "servers.new.location") }</label>
+	<div class="inline">
+		<select id="loc" class="pc-inp" name="location">
+			<option value="0" selected?={ v.LocationID == 0 }>{ i18n.T(ctx, "servers.new.location.choose") }</option>
+			for _, l := range v.Locations {
+				<option value={ strconv.FormatInt(l.ID, 10) } selected?={ l.Selected }>{ l.Label }</option>
+			}
+		</select>
+	</div>
+	<input type="hidden" name="location_auto" value={ strconv.FormatInt(v.Auto, 10) }/>
+	if v.Hint != "" {
+		<p class="help" id="loc-hint">{ v.Hint }</p>
+	} else {
+		<p class="help" id="loc-hint">{ i18n.T(ctx, "servers.new.location.help") }</p>
+	}
+}
+
+// --------------------------------------------------------- the server page
+
+templ serverTabs(v serverView) {
+	<nav class="tabs" aria-label={ i18n.T(ctx, "servers.tabs") }>
+		<a href={ templ.SafeURL(serverHref(v.S.ID)) } aria-current="page">{ i18n.T(ctx, "servers.tab.overview") }</a>
+		<a href={ templ.SafeURL("/jobs?subject=server:" + strconv.FormatInt(v.S.ID, 10)) }>{ i18n.T(ctx, "servers.tab.jobs") }</a>
+		<a href={ templ.SafeURL("/activity?subject=server:" + strconv.FormatInt(v.S.ID, 10)) }>{ i18n.T(ctx, "servers.tab.activity") }</a>
+	</nav>
+}
+
+templ serverOverviewPage(s ui.Shell, v serverView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ v.S.Name }</span></nav>
+				<div class="jobtitle">
+					<h1>{ v.Flag } { v.S.Name }</h1>
+					@ui.Status(v.Kind, v.Word)
+					if v.Reason != "" {
+						<span class="sm subtle">{ v.Reason }</span>
+					}
+				</div>
+				<p class="subtle">{ v.S.LocationName } · { v.S.IP } · { v.S.ManagementHostname }</p>
+			</div>
+			<div class="actions">
+				if v.CanCancel {
+					@ui.ActionButton(ui.Action{
+						ID: "server.cancel", Label: "servers.cancel", Method: "POST", Href: serverHref(v.S.ID) + "/cancel",
+						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "servers.cancel"), Body: i18n.T(ctx, "servers.cancel.body")},
+					})
+				}
+				if v.CanRetry {
+					@ui.ActionButton(ui.Action{ID: "server.retry", Label: "servers.retry", Method: "GET", Href: serverHref(v.S.ID) + "/retry", Kind: ui.Primary, Key: "r"})
+				}
+				if v.CanActivateAnyway {
+					@ui.ActionButton(ui.Action{
+						ID: "server.activate", Label: "servers.activate", Method: "POST", Href: serverHref(v.S.ID) + "/activate",
+						Confirm: &ui.Confirm{
+							Strength: 2, Title: i18n.T(ctx, "servers.activate.title", i18n.Args{"name": v.S.Name}), Body: v.S.FailedError,
+							Consequences: []string{i18n.T(ctx, "servers.activate.c1"), i18n.T(ctx, "servers.activate.c2")},
+						},
+					})
+				}
+				if v.S.State == "provisioning" || v.S.State == "failed" || v.S.State == "active" {
+					<button type="button" class="pc-btn" disabled title={ i18n.T(ctx, "servers.retire.soon") }>{ i18n.T(ctx, "servers.retire") }</button>
+				}
+			</div>
+		</div>
+		@serverTabs(v)
+		if v.Saved {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "servers.notes.saved") }
+			}
+		}
+		if v.S.State == "failed" {
+			@ui.Band("love") {
+				<span class="bold">{ i18n.T(ctx, "servers.failed.at", i18n.Args{"step": i18n.T(ctx, "job.servers.provision.step."+v.S.FailedStep)}) }</span>
+				<span>{ v.S.FailedError }</span>
+			}
+		}
+		if v.Job != nil {
+			<div class="jobcols">
+				<aside class="jobside">
+					<section>
+						<div class="pc-title"><h2>{ i18n.T(ctx, "servers.provision.steps") }</h2></div>
+						@ui.JobSteps(v.Job.Steps)
+					</section>
+				</aside>
+				<section class="jobmain" aria-labelledby="srv-log-h">
+					<div class="pc-title">
+						<h2 id="srv-log-h">{ i18n.T(ctx, "job.log") }</h2>
+						<span class="flex1"></span>
+						<a class="pc-btn pc-sm" href={ templ.SafeURL(v.Job.Href) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
+					</div>
+					@ui.JobLog(v.Job.Stream, v.Job.Reload, v.Job.Lines)
+				</section>
+			</div>
+		}
+		@ui.Area(i18n.T(ctx, "servers.area.identity"), "") {
+			<dl class="kv area-body">
+				<dt>{ i18n.T(ctx, "servers.kv.location") }</dt>
+				<dd>{ v.Flag } { v.S.LocationCode } · { v.S.LocationName }</dd>
+				<dt>{ i18n.T(ctx, "servers.kv.ip") }</dt>
+				<dd>{ v.S.IP }:{ strconv.Itoa(v.S.SSHPort) }</dd>
+				<dt>{ i18n.T(ctx, "servers.kv.hosts") }</dt>
+				<dd>
+					{ v.S.ManagementHostname }
+					if v.S.ProxyHostname != v.S.ManagementHostname {
+						· { v.S.ProxyHostname }
+					}
+				</dd>
+				<dt>{ i18n.T(ctx, "servers.kv.template") }</dt>
+				<dd><a href={ templ.SafeURL(tplHref(v.S.TemplateID)) }>{ v.S.TemplateName }</a> { vlabel(v.S.TemplateVersion) }</dd>
+				<dt>{ i18n.T(ctx, "servers.kv.subscriptions") }</dt>
+				<dd>{ v.Usage }</dd>
+				<dt>{ i18n.T(ctx, "servers.kv.created") }</dt>
+				<dd>{ v.Created }</dd>
+				if v.Active != "" {
+					<dt>{ i18n.T(ctx, "servers.kv.activated") }</dt>
+					<dd>{ v.Active }</dd>
+				}
+			</dl>
+		}
+		if len(v.Endpoints) > 0 {
+			@ui.Area(i18n.T(ctx, "servers.area.endpoints"), i18n.T(ctx, "servers.area.endpoints.note")) {
+				for _, e := range v.Endpoints {
+					<div class="row ep" id={ "ep-" + e.Key }>
+						<span class="bold">{ e.Display }</span>
+						<span class="subtle">{ e.Key } · { e.Type } · { e.Address }</span>
+						<span class="uri" id={ "uri-" + e.Key }>
+							<code class="masked">vless://••••••••@{ e.Address }</code>
+							<button type="button" class="pc-btn pc-sm" hx-get={ e.URIHref } hx-target={ "#uri-" + e.Key } hx-swap="innerHTML">{ i18n.T(ctx, "servers.ep.reveal") }</button>
+							<button type="button" class="pc-btn pc-sm" hx-get={ e.QRHref } hx-target="#qr-slot" hx-swap="innerHTML">{ i18n.T(ctx, "servers.ep.qr") }</button>
+						</span>
+					</div>
+				}
+				<div id="qr-slot"></div>
+			}
+		}
+		@ui.Area(i18n.T(ctx, "servers.area.notes"), "") {
+			<form method="post" action={ serverHref(v.S.ID) + "/notes" } class="form area-body">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="field">
+					<textarea class="pc-inp" name="notes" rows="3" aria-label={ i18n.T(ctx, "servers.area.notes") } placeholder={ i18n.T(ctx, "servers.new.notes.placeholder") }>{ v.S.Notes }</textarea>
+					if v.Err != "" {
+						<p class="err" role="alert">{ v.Err }</p>
+					}
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.notes.save") }</button>
+				</div>
+			</form>
+		}
+		@ui.Area(i18n.T(ctx, "servers.area.events"), "") {
+			if len(v.Events) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "servers.events.none") }</p>
+			}
+			for _, e := range v.Events {
+				<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+			}
+		}
+	}
+}
+
+// uriRevealed replaces the masked URI after Reveal: the URI, a copy button
+// holding it and the QR button. The answer is never cached.
+templ uriRevealed(v uriView) {
+	<code class="uri-full" id={ "uri-text-" + v.Key }>{ v.URI }</code>
+	<button type="button" class="pc-btn pc-sm" data-copy={ v.URI }>{ i18n.T(ctx, "servers.copy") }</button>
+	<button type="button" class="pc-btn pc-sm" hx-get={ v.QRHref } hx-target="#qr-slot" hx-swap="innerHTML">{ i18n.T(ctx, "servers.ep.qr") }</button>
+}
+
+// qrDialog is the QR code of an endpoint's URI in a dialog that opens itself.
+templ qrDialog(name, uri string) {
+	<dialog id="qr-dialog" class="pc-dialog" data-autoopen="true" aria-labelledby="qr-dialog-h">
+		<div class="dlg-title">
+			<h2 id="qr-dialog-h">{ name }</h2>
+			<button type="button" class="pc-seg pc-close" data-dialog-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+		</div>
+		<div class="dlg-body">
+			@ui.QR(uri, i18n.T(ctx, "servers.ep.qr.label", i18n.Args{"name": name}))
+			<p class="sm subtle">{ i18n.T(ctx, "servers.ep.qr.note") }</p>
+		</div>
+	</dialog>
+}
+
+// -------------------------------------------------------------------- retry
+
+templ retryPage(s ui.Shell, v retryView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.retry") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.retry.title", i18n.Args{"name": v.S.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.retry.note", i18n.Args{"step": i18n.T(ctx, "job.servers.provision.step."+v.S.FailedStep)}) }</p>
+			</div>
+		</div>
+		@ui.Band("love") {
+			<span class="bold">{ i18n.T(ctx, "servers.failed.at", i18n.Args{"step": i18n.T(ctx, "job.servers.provision.step."+v.S.FailedStep)}) }</span>
+			<span>{ v.S.FailedError }</span>
+		}
+		<form method="post" action={ serverHref(v.S.ID) + "/retry" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if v.NeedsPassword {
+				<div class="field">
+					<label for="rt-pw">{ i18n.T(ctx, "servers.new.password") }</label>
+					<input id="rt-pw" class="pc-inp" type="password" name="root_password" autocomplete="new-password" autofocus aria-invalid?={ v.Errs["root_password"] != "" }/>
+					if v.Errs["root_password"] != "" {
+						<p class="err" role="alert">{ v.Errs["root_password"] }</p>
+					} else {
+						<p class="help">{ i18n.T(ctx, "servers.retry.password.help") }</p>
+					}
+				</div>
+			}
+			if v.Conflict {
+				<div class="field">
+					<label class="check"><input type="checkbox" name="overwrite_dns" value="1"/> { i18n.T(ctx, "servers.retry.overwrite") }</label>
+					<p class="help">{ i18n.T(ctx, "servers.retry.overwrite.help") }</p>
+				</div>
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "servers.retry") }</button>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<span class="sm subtle">{ i18n.T(ctx, "servers.retry.keeps_version", i18n.Args{"version": v.S.TemplateVersion}) }</span>
+			</div>
+		</form>
+	}
+}
+
+// dashboardServers is the servers area of the dashboard.
+templ dashboardServers(counts map[string]int, failed []store.Server) {
+	<div class="row dashsrv">
+		for _, st := range []string{"active", "provisioning", "failed"} {
+			<span>
+				<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(counts[st]) }</a>
+				<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
+			</span>
+		}
+		<span class="flex1"></span>
+		<a href="/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.dash.all") }</a>
+	</div>
+	for _, s := range failed {
+		<a href={ templ.SafeURL(serverHref(s.ID)) } class="row dashfail pc-row">
+			@ui.Status("broken", i18n.T(ctx, "servers.state.failed"))
+			<span class="bold">{ s.Name }</span>
+			<span class="subtle">{ i18n.T(ctx, "job.servers.provision.step."+s.FailedStep) } · { s.FailedError }</span>
+		</a>
+	}
+}

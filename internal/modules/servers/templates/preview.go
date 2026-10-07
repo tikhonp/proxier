@@ -37,6 +37,29 @@ func (s *Service) PreviewFiles(ctx context.Context, templateID int64, files map[
 	return Preview{Server: c.Server, Files: rendered.Files, Findings: append(fs, rf...)}, nil
 }
 
+// PreviewFor renders files like PreviewFiles, with the context ctxFor builds
+// from the draft's manifest and the template's slug: a real server's. A
+// context that cannot be built is the error.
+func (s *Service) PreviewFor(ctx context.Context, templateID int64, files map[string][]byte, ctxFor func(m *manifest.Manifest, slug string) (render.Context, error)) (Preview, error) {
+	t, err := store.GetTemplate(ctx, s.d.R, templateID)
+	if err != nil {
+		return Preview{}, err
+	}
+	m, fs := manifest.Parse(files[manifest.Name])
+	if m == nil || !(finding.Report{Findings: fs}).OK() {
+		if len(fs) == 0 {
+			fs = append(fs, finding.Errorf("manifest", manifest.Name, 0, "%s is missing", manifest.Name))
+		}
+		return Preview{Findings: fs}, nil
+	}
+	c, err := ctxFor(m, t.Slug)
+	if err != nil {
+		return Preview{}, err
+	}
+	rendered, rf := render.Render(m, files, c)
+	return Preview{Server: c.Server, Files: rendered.Files, Findings: append(fs, rf...)}, nil
+}
+
 // Report validates the saved draft like ValidateDraft but records nothing:
 // the publish screen shows it on every visit.
 func (s *Service) Report(ctx context.Context, templateID int64) (finding.Report, error) {

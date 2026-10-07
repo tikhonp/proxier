@@ -309,6 +309,14 @@ func ActiveServers(ctx context.Context, q sqlx.QueryerContext) ([]ServerRef, err
 	return out, err
 }
 
+// ActiveServersOf lists the active servers built from a template: the ones
+// its draft can be previewed for.
+func ActiveServersOf(ctx context.Context, q sqlx.QueryerContext, templateID int64) ([]ServerRef, error) {
+	var out []ServerRef
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT id, name FROM servers_servers WHERE state = 'active' AND template_id = ? ORDER BY name`, templateID)
+	return out, err
+}
+
 // ResetDraft makes these files, base and source the template's draft: a new
 // one at revision 1, or the existing one at its next revision (so another tab
 // sees that the draft changed).

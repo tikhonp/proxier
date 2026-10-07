@@ -9,7 +9,7 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 	@ui.Layout(s) {
 		@ui.TitleBlock(i18n.T(ctx, "nav.dashboard")) {
 			<div class="status">
-				if !v.NotConfigured && len(v.Failed) == 0 {
+				if !v.NotConfigured && len(v.Failed) == 0 && len(v.Areas) == 0 {
 					<span>{ i18n.T(ctx, "dash.quiet") }</span>
 				}
 			</div>
@@ -46,7 +46,12 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 				}
 			</div>
 		}
-		if !v.NotConfigured && len(v.Failed) == 0 {
+		for _, a := range v.Areas {
+			@ui.Area(a.Title, "") {
+				@a.Body
+			}
+		}
+		if !v.NotConfigured && len(v.Failed) == 0 && len(v.Areas) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "dash.empty"), i18n.T(ctx, "dash.empty_next"))
 		}
 	}

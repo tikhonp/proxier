@@ -26,10 +26,12 @@ migrate-status:
 
 # Tests use temporary SQLite files: no services needed. The packages that push
 # real XHTTP traffic through an embedded xray run without -race: xray's own
-# client has a data race (splithttp.WaitReadCloser.Set), which is not ours to fix.
-XRAY_TESTS = ./internal/modules/servers/proxy/...
+# client has a data race (splithttp.WaitReadCloser.Set), which is not ours to fix:
+# the proxy test's own packages and provisioning, whose smoke test pushes real
+# XHTTP traffic through the in-process xray server.
+XRAY_TESTS = ./internal/modules/servers/proxy/... ./internal/modules/servers/provision/...
 test:
-	go test -race -count=1 $$(go list ./... | grep -v '/servers/proxy')
+	go test -race -count=1 $$(go list ./... | grep -Ev '/servers/(proxy|provision)')
 	go test -count=1 $(XRAY_TESTS)
 
 templ:

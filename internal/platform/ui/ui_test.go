@@ -3,6 +3,7 @@ package ui_test
 import (
 	"bytes"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -112,5 +113,38 @@ func TestParseUnifiedAndSplitRows(t *testing.T) {
 		if split != strings.Contains(out, `class="drow"`) {
 			t.Errorf("split=%v drow mismatch", split)
 		}
+	}
+}
+
+func TestQRIsAnSVGWithAQuietZone(t *testing.T) {
+	var b bytes.Buffer
+	if err := ui.QR("vless://uuid@host:443?type=xhttp#🇳🇱 Netherlands 1", "Connection QR code").Render(t.Context(), &b); err != nil {
+		t.Fatal(err)
+	}
+	out := b.String()
+	for _, want := range []string{"<svg", `class="qr"`, `aria-label="Connection QR code"`, `class="qr-fg"`, `class="qr-bg"`, "shape-rendering"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in %s", want, out)
+		}
+	}
+	// The quiet zone: no module is drawn in the first 4 rows or columns.
+	m := regexp.MustCompile(`viewBox="0 0 (\d+) (\d+)"`).FindStringSubmatch(out)
+	if m == nil || m[1] != m[2] {
+		t.Fatalf("viewBox: %v", m)
+	}
+	cells := regexp.MustCompile(`M(\d+) (\d+)h`).FindAllStringSubmatch(out, -1)
+	if len(cells) == 0 {
+		t.Fatal("no modules drawn")
+	}
+	for _, cell := range cells {
+		x, _ := strconv.Atoi(cell[1])
+		y, _ := strconv.Atoi(cell[2])
+		if x < 4 || y < 4 {
+			t.Fatalf("a module inside the quiet zone: %v", cell)
+		}
+	}
+	// Nothing script-like or styled inline: the CSP forbids it.
+	if strings.Contains(out, "style=") || strings.Contains(out, "<script") {
+		t.Error("inline style or script in the QR")
 	}
 }

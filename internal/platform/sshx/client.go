@@ -94,7 +94,7 @@ func (s *SSH) dialHop(ctx context.Context, h Hop, network Network, via *ssh.Clie
 	}
 	check := &hostCheck{address: address, known: known, mode: mode}
 	cfg := &ssh.ClientConfig{
-		User: h.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(signer)},
+		User: h.User, Auth: authMethods(h, signer),
 		HostKeyCallback: check.callback, HostKeyAlgorithms: algos,
 	}
 	dial := func() (net.Conn, error) { return s.dial(ctx, address, network, via) }
@@ -120,6 +120,24 @@ func (s *SSH) dialHop(ctx context.Context, h Hop, network Network, via *ssh.Clie
 		s.touch(ctx, address)
 	}
 	return client, nil
+}
+
+// authMethods is the key, or the password when the hop has one.
+func authMethods(h Hop, signer ssh.Signer) []ssh.AuthMethod {
+	if h.Password == "" {
+		return []ssh.AuthMethod{ssh.PublicKeys(signer)}
+	}
+	pw := h.Password
+	return []ssh.AuthMethod{
+		ssh.Password(pw),
+		ssh.KeyboardInteractive(func(_, _ string, questions []string, _ []bool) ([]string, error) {
+			answers := make([]string, len(questions))
+			for i := range answers {
+				answers[i] = pw
+			}
+			return answers, nil
+		}),
+	}
 }
 
 // explain turns a failed handshake into the error the caller should see,

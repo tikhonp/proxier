@@ -1,0 +1,60 @@
+package ui
+
+import "strconv"
+
+// JobStep is one line of a job's step list.
+type JobStep struct {
+	Name  string // already translated
+	Kind  string // status marker kind
+	State string
+	Time  string
+	Error string
+}
+
+// LogLine is one line of a job's log.
+type LogLine struct {
+	ID    int64
+	Time  string
+	Level string
+	Text  string
+}
+
+// JobSteps is the step list of a job. The job page and the pages that embed a
+// job (a server being provisioned) share it: the live stream replaces the
+// element with this id.
+templ JobSteps(steps []JobStep) {
+	<ol id="job-steps" class="steps">
+		for _, s := range steps {
+			<li class="step" data-state={ s.State }>
+				<span class="mk"><span class={ "st", "st-" + s.Kind } aria-hidden="true"></span></span>
+				<span class="nm">{ s.Name }</span>
+				<span class="sm subtle">{ s.Time }</span>
+			</li>
+		}
+	</ol>
+}
+
+// JobLogLine is one line of the log, also what the live stream sends.
+templ JobLogLine(l LogLine) {
+	<div class={ "ll", "ll-" + l.Level } data-id={ strconv.FormatInt(l.ID, 10) }><span class="subtle">{ l.Time }</span><span class="tx">{ l.Text }</span></div>
+}
+
+// JobLog is the log box. With a stream address the script follows it live
+// (the page script finds #log[data-stream]); reload makes the page reload
+// when the job ends, for pages whose other parts depend on its outcome.
+templ JobLog(stream string, reload bool, lines []LogLine) {
+	<div
+		id="log"
+		class="log"
+		if stream != "" {
+			data-stream={ stream }
+		}
+		if reload {
+			data-reload-on-done="true"
+		}
+	>
+		for _, l := range lines {
+			@JobLogLine(l)
+		}
+	</div>
+}

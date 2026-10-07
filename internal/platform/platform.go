@@ -115,6 +115,25 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		if md, ok := m.(module.MessagesDeclarer); ok {
 			errs = append(errs, a.I18n.Add(m.Name(), md.Messages()))
 		}
+	}
+	if err := errors.Join(errs...); err != nil {
+		_ = d.Close()
+		return nil, err
+	}
+	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth,
+		Jobs: a.Jobs, Dispatcher: a.Dispatcher, Notify: a.Notify, SSH: a.SSH, Tailnet: a.Tailnet}
+	for _, m := range all {
+		if in, ok := m.(module.Initializer); ok {
+			if err := in.Init(deps); err != nil {
+				_ = d.Close()
+				return nil, fmt.Errorf("init %s: %w", m.Name(), err)
+			}
+		}
+	}
+	// What a module declares as code (job types, subscribers, renderers) is
+	// asked for after Init: the services it builds there are what the
+	// declarations point at.
+	for _, m := range all {
 		if jd, ok := m.(module.JobDeclarer); ok {
 			errs = append(errs, a.Jobs.Register(m.Name(), jd.JobTypes()...), a.Jobs.RegisterSchedules(m.Name(), jd.Schedules()...))
 		}
@@ -138,16 +157,6 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	if err := errors.Join(errs...); err != nil {
 		_ = d.Close()
 		return nil, err
-	}
-	deps := module.Deps{Cfg: cfg, Log: log, DB: d, Vault: v, Events: a.Events, Settings: a.Settings, I18n: a.I18n, Auth: a.Auth,
-		Jobs: a.Jobs, Dispatcher: a.Dispatcher, Notify: a.Notify, SSH: a.SSH, Tailnet: a.Tailnet}
-	for _, m := range all {
-		if in, ok := m.(module.Initializer); ok {
-			if err := in.Init(deps); err != nil {
-				_ = d.Close()
-				return nil, fmt.Errorf("init %s: %w", m.Name(), err)
-			}
-		}
 	}
 	return a, nil
 }
@@ -223,6 +232,9 @@ func (a *App) HTTP() *echo.Echo {
 		}
 		if ig, ok := m.(module.IntegrationDeclarer); ok {
 			pd.Integrators = append(pd.Integrators, ig)
+		}
+		if dd, ok := m.(module.DashboardDeclarer); ok {
+			pd.Dashboards = append(pd.Dashboards, dd)
 		}
 		if s, ok := m.(module.Searcher); ok {
 			pd.Searchers = append(pd.Searchers, s)

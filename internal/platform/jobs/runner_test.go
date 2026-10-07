@@ -495,3 +495,73 @@ func TestRegisterRefusesBadTypes(t *testing.T) {
 		t.Error("duplicate accepted")
 	}
 }
+
+func TestRetryWithPatchesPayloadAndSecrets(t *testing.T) {
+	h := newH(t)
+	var seen sync.Map
+	fail := atomic.Bool{}
+	fail.Store(true)
+	reg(t, h.Sys, jobs.Type{Name: "test.provision", Queue: jobs.Provisioning, MaxAttempts: 1, Steps: []jobs.Step{
+		{Name: "run", Run: func(_ context.Context, r *jobs.Run) error {
+			var p struct {
+				A string `json:"a"`
+				B bool   `json:"b"`
+			}
+			if err := r.Payload(&p); err != nil {
+				return err
+			}
+			pw, _, _ := r.Secret("root_password")
+			other, _, _ := r.Secret("other")
+			seen.Store(r.Info().ID, p.A+"|"+boolString(p.B)+"|"+pw+"|"+other)
+			if fail.Load() {
+				return errors.New("no")
+			}
+			return nil
+		}},
+	}})
+	h.Start(h.Sys)
+	e := enq(t, h, jobs.Request{Type: "test.provision", ResourceKey: "server:1", Payload: map[string]any{"a": "kept", "b": false},
+		Secrets: map[string]string{"root_password": "old", "other": "stays"}})
+	h.Drain()
+
+	// a retry that fails to commit leaves no job behind
+	boom := errors.New("boom")
+	before := count(t, h, `SELECT count(*) FROM jobs`)
+	err := h.DB.Write(bg, func(tx *sqlx.Tx) error {
+		if _, err := h.Sys.RetryWithTx(bg, tx, e.ID, "admin", jobs.RetryOptions{}); err != nil {
+			return err
+		}
+		return boom
+	})
+	if !errors.Is(err, boom) || count(t, h, `SELECT count(*) FROM jobs`) != before {
+		t.Fatalf("a rolled-back retry left a job: %v", err)
+	}
+
+	fail.Store(false)
+	var id int64
+	err = h.DB.Write(bg, func(tx *sqlx.Tx) (err error) {
+		id, err = h.Sys.RetryWithTx(bg, tx, e.ID, "admin", jobs.RetryOptions{
+			Payload: map[string]any{"b": true}, Secrets: map[string]string{"root_password": "new"},
+		})
+		return err
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.Sys.Kick()
+	h.Drain()
+	if st := h.State(id); st != jobs.Succeeded {
+		t.Fatalf("state %s", st)
+	}
+	got, _ := seen.Load(id)
+	if got != "kept|true|new|stays" {
+		t.Fatalf("the retry saw %q, want the patched payload and the replaced secret", got)
+	}
+}
+
+func boolString(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}

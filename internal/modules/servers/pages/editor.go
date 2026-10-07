@@ -16,6 +16,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/finding"
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
+	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -60,9 +61,10 @@ type editorView struct {
 	Source    templates.Source
 	Next      int // the number a publish would make
 	Saved     bool
-	Stale     bool   // the draft changed under this editor: Save is off, Copy my version is the way out
-	Error     string // translated
-	Message   string // translated, shown in #ed-msg
+	Stale     bool              // the draft changed under this editor: Save is off, Copy my version is the way out
+	Error     string            // translated
+	Message   string            // translated, shown in #ed-msg
+	Servers   []store.ServerRef // active servers of the template, for the preview picker
 }
 
 func newEditorFiles(files map[string][]byte) ([]edFile, []edRow) {
@@ -183,6 +185,9 @@ func (h *handler) renderEditor(c *echo.Context, status int, id int64, files map[
 	}
 	v.T = info
 	v.Next = info.Latest + 1
+	if v.Servers, err = store.ActiveServersOf(ctx, h.Store.DB.R, id); err != nil {
+		return err
+	}
 	v.Files, v.Rows = newEditorFiles(files)
 	if _, ok := files[v.Active]; !ok {
 		v.Active = manifest.Name
@@ -317,10 +322,14 @@ func (h *handler) draftValidate(c *echo.Context) error {
 }
 
 type previewView struct {
-	Server   string
-	IP       string
-	Files    []previewFile
-	Findings []finding.Finding
+	Server     string
+	IP         string
+	ForReal    bool // rendered for a real server
+	Reveal     bool // with its secrets
+	ServerID   int64
+	TemplateID int64
+	Files      []previewFile
+	Findings   []finding.Finding
 }
 
 type previewFile struct {
@@ -339,14 +348,28 @@ func (h *handler) draftPreview(c *echo.Context) error {
 	if bad != "" {
 		return web.Render(c, http.StatusOK, messageFragment(i18n.T(ctx, bad)))
 	}
-	if c.FormValue("server") != "" {
-		return web.Render(c, http.StatusOK, messageFragment(i18n.T(ctx, "templates.preview.no_server")))
-	}
-	pv, err := h.Templates.PreviewFiles(ctx, id, p.Files)
-	if err != nil {
+	var pv templates.Preview
+	v := previewView{TemplateID: id}
+	if raw := c.FormValue("server"); raw != "" {
+		serverID, perr := strconv.ParseInt(raw, 10, 64)
+		srv, serr := store.GetServer(ctx, h.Store.DB.R, serverID)
+		if perr != nil || serr != nil || srv.State != "active" || srv.TemplateID != id {
+			return web.Render(c, http.StatusOK, messageFragment(i18n.T(ctx, "templates.preview.no_server")))
+		}
+		v.ForReal, v.Reveal, v.ServerID = true, c.FormValue("reveal") == "1", srv.ID
+		build, berr := h.Provision.PreviewContext(ctx, srv.ID, v.Reveal)
+		if berr != nil {
+			return berr
+		}
+		if pv, err = h.Templates.PreviewFor(ctx, id, p.Files, build); err != nil {
+			return notFound(err)
+		}
+		// Revealed or not, a preview of a real server is never kept by a cache.
+		c.Response().Header().Set("Cache-Control", "no-store")
+	} else if pv, err = h.Templates.PreviewFiles(ctx, id, p.Files); err != nil {
 		return notFound(err)
 	}
-	v := previewView{Server: pv.Server.Name, IP: pv.Server.IP, Findings: pv.Findings}
+	v.Server, v.IP, v.Findings = pv.Server.Name, pv.Server.IP, pv.Findings
 	for i, f := range pv.Files {
 		v.Files = append(v.Files, previewFile{Path: f.Path, Mode: strconv.FormatUint(uint64(f.Mode.Perm()), 8), Lines: previewLines(f.Path, f.Content, i)})
 	}

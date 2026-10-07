@@ -3,6 +3,7 @@ package sshx
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"os"
@@ -298,4 +299,63 @@ func TestKeepAliveClosesADeadConnection(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 	t.Fatal("a dead connection kept working")
+}
+
+func TestPasswordLoginForFirstContact(t *testing.T) {
+	e := newEnv(t)
+	srv := sshxtest.NewServer(t, nil) // no key is accepted yet, as on a new VPS
+	srv.AllowPassword("root", "s3cret-root-pw")
+	srv.Handle("whoami", func(_ io.Reader, out, _ io.Writer) int { _, _ = io.WriteString(out, "root\n"); return 0 })
+	tg := Target{Hop: Hop{Address: srv.Addr, User: "root", Subject: "server:7", Password: "s3cret-root-pw"}}
+
+	// The key is not offered, so a server that knows only the password lets us in.
+	c := e.mustConnect(tg)
+	res, err := c.Run(context.Background(), "whoami", RunOptions{})
+	if err != nil || string(res.Stdout) != "root\n" {
+		t.Fatalf("run: %+v %v", res, err)
+	}
+	if h := e.hosts(); len(h) != 1 || h[0].Subject != "server:7" {
+		t.Fatalf("the host key must be pinned on the password login: %+v", h)
+	}
+
+	// A wrong password is the same permanent authentication failure as a refused key.
+	bad := tg
+	bad.Password = "not-the-password"
+	_, err = e.connect(bad)
+	if !errors.Is(err, ErrAuth) || !jobs.IsPermanent(err) {
+		t.Fatalf("want a permanent auth failure, got %v", err)
+	}
+	if strings.Contains(err.Error(), "not-the-password") || strings.Contains(err.Error(), "s3cret-root-pw") {
+		t.Fatalf("the error leaks a password: %v", err)
+	}
+
+	// Nothing the client stores holds the password.
+	var dump []string
+	for _, k := range e.hosts() {
+		dump = append(dump, k.Address, k.Subject, k.Fingerprint)
+	}
+	for _, ev := range e.events("ssh.host_key_pinned") {
+		dump = append(dump, string(mustJSON(t, ev.Payload)))
+	}
+	if strings.Contains(strings.Join(dump, "\n"), "s3cret-root-pw") {
+		t.Fatal("the password reached the known hosts or an event")
+	}
+
+	// Once the password is switched off (sshd's PasswordAuthentication no), only the key works.
+	srv.AllowPassword("root", "")
+	srv.AuthorizeKey("root", e.pub)
+	if _, err := e.connect(tg); !errors.Is(err, ErrAuth) {
+		t.Fatalf("the password must stop working: %v", err)
+	}
+	tg.Password = ""
+	e.mustConnect(tg)
+}
+
+func mustJSON(t *testing.T, v any) []byte {
+	t.Helper()
+	b, err := json.Marshal(v)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return b
 }

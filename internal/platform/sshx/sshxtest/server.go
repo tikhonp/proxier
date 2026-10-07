@@ -10,6 +10,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/subtle"
 	"io"
 	"net"
 	"strconv"
@@ -24,26 +25,43 @@ import (
 // returns the exit code.
 type Handler func(stdin io.Reader, stdout, stderr io.Writer) int
 
+// Session is one command a client asked for, with who asked.
+type Session struct {
+	User    string
+	Command string
+	Stdin   io.Reader
+	Stdout  io.Writer
+	Stderr  io.Writer
+}
+
+type matcher struct {
+	match func(user, cmd string) bool
+	fn    func(*Session) int
+}
+
 // Server is an SSH server on 127.0.0.1.
 type Server struct {
 	// Addr is "127.0.0.1:port".
 	Addr string
 
-	t          testing.TB
-	ln         net.Listener
-	dir        string
-	authorized ssh.PublicKey
+	t   testing.TB
+	ln  net.Listener
+	dir string
 
 	mu         sync.Mutex
+	keys       map[string][]ssh.PublicKey // by user; "*" is any user
+	passwords  map[string]string
+	blocked    map[string]bool // users whose logins fail ("*": everyone)
 	hostKeys   []ssh.Signer
 	handlers   map[string]Handler
+	matchers   []matcher
 	forwarding bool
 	conns      map[net.Conn]struct{}
 	wg         sync.WaitGroup
 }
 
-// NewServer starts a server that accepts the authorized key and closes with
-// the test. Its host key is a fresh ed25519 key.
+// NewServer starts a server that accepts the authorized key (for any user; nil
+// accepts none) and closes with the test. Its host key is a fresh ed25519 key.
 func NewServer(t testing.TB, authorized ssh.PublicKey) *Server {
 	t.Helper()
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -51,8 +69,12 @@ func NewServer(t testing.TB, authorized ssh.PublicKey) *Server {
 		t.Fatal(err)
 	}
 	s := &Server{
-		Addr: ln.Addr().String(), t: t, ln: ln, dir: t.TempDir(), authorized: authorized,
+		Addr: ln.Addr().String(), t: t, ln: ln, dir: t.TempDir(),
+		keys: map[string][]ssh.PublicKey{}, passwords: map[string]string{}, blocked: map[string]bool{},
 		handlers: map[string]Handler{}, conns: map[net.Conn]struct{}{},
+	}
+	if authorized != nil {
+		s.AuthorizeKey("*", authorized)
 	}
 	s.SetHostKeyTypes("ed25519")
 	s.wg.Add(1)
@@ -66,6 +88,66 @@ func (s *Server) Handle(cmd string, fn func(stdin io.Reader, stdout, stderr io.W
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.handlers[cmd] = fn
+}
+
+// HandleFunc scripts every command match accepts, after the exact ones of
+// Handle, in the order added. match sees the user and the full command.
+func (s *Server) HandleFunc(match func(user, cmd string) bool, fn func(*Session) int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.matchers = append(s.matchers, matcher{match, fn})
+}
+
+// AuthorizeKey lets user log in with key. The user "*" stands for any user.
+func (s *Server) AuthorizeKey(user string, key ssh.PublicKey) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.keys[user] = append(s.keys[user], key)
+}
+
+// AllowPassword lets user log in with a password (also as the answer to a
+// keyboard-interactive prompt), like a freshly issued VPS's root. An empty
+// password turns it off, as sshd's PasswordAuthentication no does.
+func (s *Server) AllowPassword(user, password string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if password == "" {
+		delete(s.passwords, user)
+		return
+	}
+	s.passwords[user] = password
+}
+
+// BlockLogins makes every new login of user ("*": everyone) fail, whatever
+// credential it offers; open connections go on. It simulates a server whose
+// key login broke.
+func (s *Server) BlockLogins(user string, blocked bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.blocked[user] = blocked
+}
+
+func (s *Server) keyOK(user string, key ssh.PublicKey) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.blocked[user] || s.blocked["*"] {
+		return false
+	}
+	for _, u := range []string{user, "*"} {
+		for _, k := range s.keys[u] {
+			if bytes.Equal(k.Marshal(), key.Marshal()) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (s *Server) passwordOK(user, password string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	want, ok := s.passwords[user]
+	return ok && !s.blocked[user] && !s.blocked["*"] && subtle.ConstantTimeCompare([]byte(want), []byte(password)) == 1
 }
 
 // SetHostKeyTypes replaces the host keys with fresh ones of these types
@@ -135,7 +217,8 @@ func (s *Server) HostKey() ssh.PublicKey {
 	return s.hostKeys[0].PublicKey()
 }
 
-// Dir is the SFTP working directory.
+// Dir is the root of the SFTP file system: absolute paths ("/opt/app/x") and
+// relative ones both resolve inside it.
 func (s *Server) Dir() string { return s.dir }
 
 // AllowForwarding lets clients open TCP connections through the server, so it
@@ -180,11 +263,24 @@ func (s *Server) accept() {
 
 func (s *Server) config() *ssh.ServerConfig {
 	cfg := &ssh.ServerConfig{
-		PublicKeyCallback: func(_ ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-			if bytes.Equal(key.Marshal(), s.authorized.Marshal()) {
+		PublicKeyCallback: func(c ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
+			if s.keyOK(c.User(), key) {
 				return &ssh.Permissions{}, nil
 			}
 			return nil, io.ErrUnexpectedEOF
+		},
+		PasswordCallback: func(c ssh.ConnMetadata, pw []byte) (*ssh.Permissions, error) {
+			if s.passwordOK(c.User(), string(pw)) {
+				return &ssh.Permissions{}, nil
+			}
+			return nil, io.ErrUnexpectedEOF
+		},
+		KeyboardInteractiveCallback: func(c ssh.ConnMetadata, ask ssh.KeyboardInteractiveChallenge) (*ssh.Permissions, error) {
+			answers, err := ask(c.User(), "", []string{"Password: "}, []bool{false})
+			if err != nil || len(answers) != 1 || !s.passwordOK(c.User(), answers[0]) {
+				return nil, io.ErrUnexpectedEOF
+			}
+			return &ssh.Permissions{}, nil
 		},
 	}
 	s.mu.Lock()
@@ -209,7 +305,7 @@ func (s *Server) serve(conn net.Conn) {
 		switch nc.ChannelType() {
 		case "session":
 			wg.Add(1)
-			go func() { defer wg.Done(); s.session(nc) }()
+			go func() { defer wg.Done(); s.session(nc, sc.User()) }()
 		case "direct-tcpip":
 			s.mu.Lock()
 			ok := s.forwarding
@@ -226,7 +322,7 @@ func (s *Server) serve(conn net.Conn) {
 	}
 }
 
-func (s *Server) session(nc ssh.NewChannel) {
+func (s *Server) session(nc ssh.NewChannel, user string) {
 	ch, reqs, err := nc.Accept()
 	if err != nil {
 		return
@@ -243,12 +339,24 @@ func (s *Server) session(nc ssh.NewChannel) {
 			_ = req.Reply(true, nil)
 			s.mu.Lock()
 			fn := s.handlers[p.Command]
+			var scripted func(*Session) int
+			if fn == nil {
+				for _, m := range s.matchers {
+					if m.match(user, p.Command) {
+						scripted = m.fn
+						break
+					}
+				}
+			}
 			s.mu.Unlock()
 			code := 127
-			if fn == nil {
-				_, _ = io.WriteString(ch.Stderr(), "sshxtest: no such command: "+p.Command+"\n")
-			} else {
+			switch {
+			case fn != nil:
 				code = fn(ch, ch, ch.Stderr())
+			case scripted != nil:
+				code = scripted(&Session{User: user, Command: p.Command, Stdin: ch, Stdout: ch, Stderr: ch.Stderr()})
+			default:
+				_, _ = io.WriteString(ch.Stderr(), "sshxtest: no such command: "+p.Command+"\n")
 			}
 			_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(code)}))
 			return
@@ -259,10 +367,7 @@ func (s *Server) session(nc ssh.NewChannel) {
 				continue
 			}
 			_ = req.Reply(true, nil)
-			srv, err := sftp.NewServer(ch, sftp.WithServerWorkingDirectory(s.dir))
-			if err != nil {
-				return
-			}
+			srv := sftp.NewRequestServer(ch, newRootFS(s.dir).handlers())
 			_ = srv.Serve()
 			return
 		default:

@@ -313,6 +313,30 @@ type stepView struct {
 
 type kv struct{ Key, Value string }
 
+func (v jobView) stepsUI() []ui.JobStep {
+	out := make([]ui.JobStep, len(v.Steps))
+	for i, s := range v.Steps {
+		out[i] = ui.JobStep(s)
+	}
+	return out
+}
+
+func (v jobView) logLinesUI() []ui.LogLine {
+	out := make([]ui.LogLine, len(v.Lines))
+	for i, l := range v.Lines {
+		out[i] = ui.LogLine(l)
+	}
+	return out
+}
+
+// stream is the live stream's address, empty for a job that has ended.
+func (v jobView) stream() string {
+	if !v.Live {
+		return ""
+	}
+	return "/jobs/" + strconv.FormatInt(v.ID, 10) + "/stream?after=" + strconv.FormatInt(v.LastID, 10)
+}
+
 type jobView struct {
 	ID       int64
 	Title    string

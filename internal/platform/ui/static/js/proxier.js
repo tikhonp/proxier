@@ -338,11 +338,20 @@
     });
     es.addEventListener('steps', function (e) { swap('job-steps', e.data); });
     es.addEventListener('state', function (e) { swap('job-head', e.data); });
-    es.addEventListener('done', function () { es.close(); });
+    es.addEventListener('done', function () {
+      es.close();
+      // a page whose other parts depend on the job's outcome (a server being provisioned)
+      if (log.hasAttribute('data-reload-on-done')) setTimeout(function () { window.location.reload(); }, 600);
+    });
   })();
 
   // htmx swaps leave the cursor pointing at nothing
-  document.addEventListener('htmx:afterSwap', function () { cursor = -1; });
+  document.addEventListener('htmx:afterSwap', function () {
+    cursor = -1;
+    // a dialog that arrives in a swap opens itself (the QR code)
+    var d = $('dialog[data-autoopen]');
+    if (d) { d.removeAttribute('data-autoopen'); if (d.showModal && !d.open) d.showModal(); }
+  });
 
   // dialog: esc closes natively; a click on the backdrop closes too
   document.addEventListener('mousedown', function (e) {

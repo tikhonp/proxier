@@ -103,6 +103,14 @@ type IntegrationRow struct {
 	On                bool
 }
 
+// DashboardArea is a module's block on the dashboard. Areas are sorted by
+// Order after the platform's own.
+type DashboardArea struct {
+	Order int
+	Title string          // already translated
+	Body  templ.Component // rendered inside the area
+}
+
 // SubjectRef names a subject of an event or job and links to it.
 type SubjectRef struct {
 	Label string

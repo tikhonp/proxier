@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"strconv"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -34,6 +35,14 @@ templ editorPage(s ui.Shell, v editorView) {
 					hx-swap="innerHTML"
 					disabled?={ v.Stale }
 				>{ i18n.T(ctx, "templates.validate") }</button>
+				if len(v.Servers) > 0 {
+					<select name="server" form="draft-form" class="pc-inp pc-sm" aria-label={ i18n.T(ctx, "templates.preview.for") }>
+						<option value="">{ i18n.T(ctx, "templates.preview.sample_server") }</option>
+						for _, sv := range v.Servers {
+							<option value={ strconv.FormatInt(sv.ID, 10) }>{ sv.Name }</option>
+						}
+					</select>
+				}
 				<button
 					type="button"
 					class="pc-btn"
@@ -272,6 +281,27 @@ templ previewFragment(v previewView) {
 	</div>
 	if v.Server == "" {
 		<p class="ed-hint sm subtle">{ i18n.T(ctx, "templates.preview.failed") }</p>
+	} else if v.ForReal {
+		<p class="ed-hint sm subtle">
+			if v.Reveal {
+				{ i18n.T(ctx, "templates.preview.real_revealed", i18n.Args{"name": v.Server, "ip": v.IP}) }
+			} else {
+				{ i18n.T(ctx, "templates.preview.real", i18n.Args{"name": v.Server, "ip": v.IP}) }
+			}
+		</p>
+		if !v.Reveal {
+			<div class="ed-hint">
+				<button
+					type="button"
+					class="pc-btn pc-sm"
+					hx-post={ actionHref(v.TemplateID, "/draft/preview") }
+					hx-include="#draft-form"
+					hx-vals='{"reveal":"1"}'
+					hx-target="#ed-side"
+					hx-swap="innerHTML"
+				>{ i18n.T(ctx, "templates.preview.reveal") }</button>
+			</div>
+		}
 	} else {
 		<p class="ed-hint sm subtle">{ i18n.T(ctx, "templates.preview.sample", i18n.Args{"name": v.Server, "ip": v.IP}) }</p>
 	}

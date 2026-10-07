@@ -3,6 +3,7 @@ package jobs
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"runtime/debug"
@@ -505,70 +506,103 @@ func (s *System) Cancel(ctx context.Context, id int64, by string) error {
 	return nil
 }
 
+// RetryOptions change what a retry carries over.
+type RetryOptions struct {
+	// Payload keys replace those of the failed job's payload (a shallow patch).
+	Payload map[string]any
+	// Secrets are added to the carried ones, replacing a secret of the same name.
+	Secrets map[string]string
+}
+
 // Retry creates a new job linked to a failed or cancelled one. It carries the
 // payload and secrets and starts at the step that did not finish.
 func (s *System) Retry(ctx context.Context, id int64, by string) (newID int64, err error) {
 	err = s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		r, err := getRow(ctx, tx, id)
-		if err != nil {
-			return err
-		}
-		if st := State(r.State); st != Failed && st != Cancelled {
-			return ErrNotRetryable
-		}
-		t, ok := s.typeOf(r.Type)
-		if !ok {
-			return fmt.Errorf("%w: %q", ErrUnknownType, r.Type)
-		}
-		secrets, err := s.openSecrets(id, r.Secrets)
-		if err != nil {
-			return err
-		}
-		res, err := tx.ExecContext(ctx, `
-			INSERT INTO jobs (queue, type, resource_key, coalescing_key, subject_type, subject_id, state, payload,
-				quiet, max_attempts, run_after, created_by, retry_of, created_at)
-			SELECT queue, type, resource_key, coalescing_key, subject_type, subject_id, 'queued', payload,
-				quiet, ?, ?, ?, id, ? FROM jobs WHERE id = ?`, t.MaxAttempts, s.now(), by, s.now(), id)
-		if err != nil {
-			return fmt.Errorf("jobs: retry: %w", err)
-		}
-		if newID, err = res.LastInsertId(); err != nil {
-			return err
-		}
-		if blob, err := s.sealSecrets(newID, secrets); err != nil {
-			return err
-		} else if blob != nil {
-			if _, err := tx.ExecContext(ctx, `UPDATE jobs SET secrets = ? WHERE id = ?`, blob, newID); err != nil {
-				return err
-			}
-		}
-		var done []string
-		if err := tx.SelectContext(ctx, &done, `SELECT name FROM job_steps WHERE job_id = ? AND state = 'succeeded'`, id); err != nil {
-			return err
-		}
-		carried := map[string]bool{}
-		for _, n := range done {
-			carried[n] = true
-		}
-		for i, st := range t.Steps {
-			if carried[st.Name] {
-				_, err = tx.ExecContext(ctx, `
-					INSERT INTO job_steps (job_id, idx, name, state, carried_from) VALUES (?, ?, ?, 'succeeded', ?)`,
-					newID, i, st.Name, id)
-			} else {
-				_, err = tx.ExecContext(ctx, `
-					INSERT INTO job_steps (job_id, idx, name, state) VALUES (?, ?, ?, 'pending')`, newID, i, st.Name)
-			}
-			if err != nil {
-				return err
-			}
-		}
-		return s.logSystem(ctx, tx, newID, "info", "", 0, fmt.Sprintf("Retry of job #%d, started by %s", id, by))
+		newID, err = s.RetryWithTx(ctx, tx, id, by, RetryOptions{})
+		return err
 	})
 	if err == nil {
 		s.Kick()
 	}
 	return newID, err
+}
+
+// RetryWithTx is Retry inside the caller's write transaction, so the change
+// that goes with a retry (a server back to provisioning) commits with it. The
+// caller calls Kick after the commit. opts patch the payload and add secrets
+// (the root password a provisioning retry asks for again).
+func (s *System) RetryWithTx(ctx context.Context, tx *sqlx.Tx, id int64, by string, opts RetryOptions) (newID int64, err error) {
+	r, err := getRow(ctx, tx, id)
+	if err != nil {
+		return 0, err
+	}
+	if st := State(r.State); st != Failed && st != Cancelled {
+		return 0, ErrNotRetryable
+	}
+	t, ok := s.typeOf(r.Type)
+	if !ok {
+		return 0, fmt.Errorf("%w: %q", ErrUnknownType, r.Type)
+	}
+	secrets, err := s.openSecrets(id, r.Secrets)
+	if err != nil {
+		return 0, err
+	}
+	for k, v := range opts.Secrets {
+		secrets[k] = v
+	}
+	payload := json.RawMessage(r.Payload)
+	if len(opts.Payload) > 0 {
+		patch, err := marshalObject(opts.Payload)
+		if err != nil {
+			return 0, err
+		}
+		if payload, err = mergeObjects(payload, patch); err != nil {
+			return 0, err
+		}
+		if len(payload) > MaxPayload {
+			return 0, ErrPayloadTooLarge
+		}
+	}
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO jobs (queue, type, resource_key, coalescing_key, subject_type, subject_id, state, payload,
+			quiet, max_attempts, run_after, created_by, retry_of, created_at)
+		SELECT queue, type, resource_key, coalescing_key, subject_type, subject_id, 'queued', ?,
+			quiet, ?, ?, ?, id, ? FROM jobs WHERE id = ?`, string(payload), t.MaxAttempts, s.now(), by, s.now(), id)
+	if err != nil {
+		return 0, fmt.Errorf("jobs: retry: %w", err)
+	}
+	if newID, err = res.LastInsertId(); err != nil {
+		return 0, err
+	}
+	if blob, err := s.sealSecrets(newID, secrets); err != nil {
+		return 0, err
+	} else if blob != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE jobs SET secrets = ? WHERE id = ?`, blob, newID); err != nil {
+			return 0, err
+		}
+	}
+	var done []string
+	if err := tx.SelectContext(ctx, &done, `SELECT name FROM job_steps WHERE job_id = ? AND state = 'succeeded'`, id); err != nil {
+		return 0, err
+	}
+	carried := map[string]bool{}
+	for _, n := range done {
+		carried[n] = true
+	}
+	for i, st := range t.Steps {
+		if carried[st.Name] {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO job_steps (job_id, idx, name, state, carried_from) VALUES (?, ?, ?, 'succeeded', ?)`,
+				newID, i, st.Name, id)
+		} else {
+			_, err = tx.ExecContext(ctx, `
+				INSERT INTO job_steps (job_id, idx, name, state) VALUES (?, ?, ?, 'pending')`, newID, i, st.Name)
+		}
+		if err != nil {
+			return 0, err
+		}
+	}
+	return newID, s.logSystem(ctx, tx, newID, "info", "", 0, fmt.Sprintf("Retry of job #%d, started by %s", id, by))
 }
 
 // flusher writes the job's log every 250 ms or 100 lines and renews its lease.

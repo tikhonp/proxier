@@ -96,19 +96,11 @@ func cancelLabel(v jobView) string {
 }
 
 templ stepList(v jobView) {
-	<ol id="job-steps" class="steps">
-		for _, s := range v.Steps {
-			<li class="step" data-state={ s.State }>
-				<span class="mk"><span class={ "st", "st-" + s.Kind } aria-hidden="true"></span></span>
-				<span class="nm">{ s.Name }</span>
-				<span class="sm subtle">{ s.Time }</span>
-			</li>
-		}
-	</ol>
+	@ui.JobSteps(v.stepsUI())
 }
 
 templ logLine(l logLineView) {
-	<div class={ "ll", "ll-" + l.Level } data-id={ strconv.FormatInt(l.ID, 10) }><span class="subtle">{ l.Time }</span><span class="tx">{ l.Text }</span></div>
+	@ui.JobLogLine(ui.LogLine(l))
 }
 
 templ jobPage(s ui.Shell, v jobView) {
@@ -151,17 +143,7 @@ templ jobPage(s ui.Shell, v jobView) {
 				if v.Earlier != "" {
 					<a class="pager" href={ templ.SafeURL(v.Earlier) }>{ i18n.T(ctx, "job.earlier") }</a>
 				}
-				<div
-					id="log"
-					class="log"
-					if v.Live {
-						data-stream={ "/jobs/" + strconv.FormatInt(v.ID, 10) + "/stream?after=" + strconv.FormatInt(v.LastID, 10) }
-					}
-				>
-					for _, l := range v.Lines {
-						@logLine(l)
-					}
-				</div>
+				@ui.JobLog(v.stream(), false, v.logLinesUI())
 			</section>
 		</div>
 	}

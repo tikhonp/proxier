@@ -2,11 +2,13 @@ package pages
 
 import (
 	"net/http"
+	"sort"
 	"time"
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/notify"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
@@ -14,6 +16,7 @@ import (
 type dashboardView struct {
 	NotConfigured bool
 	Failed        []notify.Notification
+	Areas         []ui.DashboardArea
 }
 
 func (h *handler) dashboard(c *echo.Context) error {
@@ -30,5 +33,15 @@ func (h *handler) dashboard(c *echo.Context) error {
 		h.Log.Error("pages: failed notifications", "error", err)
 	}
 	v.Failed = failed
+	for _, d := range h.Dashboards {
+		// A module's failing query must not take the dashboard down with it.
+		areas, err := d.Dashboard(ctx)
+		if err != nil {
+			h.Log.Error("pages: dashboard area", "error", err)
+			continue
+		}
+		v.Areas = append(v.Areas, areas...)
+	}
+	sort.SliceStable(v.Areas, func(i, j int) bool { return v.Areas[i].Order < v.Areas[j].Order })
 	return web.Render(c, http.StatusOK, dashboardPage(h.shell(c, i18n.T(ctx, "nav.dashboard"), "/"), v))
 }

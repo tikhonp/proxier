@@ -32,7 +32,7 @@ Each step is resumable. A retried job starts at the step that didn't finish.
    - Read `/etc/os-release` and the architecture, and compare them with the template's `requires`.
    - Check that the manifest's TCP ports (e.g. 80, 443) are free (`ss -ltn`).
 2. **Install access.** Proxier never works as root after this step. It uses a deploy user called **`proxier`**.
-   - Create the user `proxier` if it doesn't exist: a home directory, a login shell and a locked password.
+   - Install `sudo` if the image lacks it, then create the user `proxier` if it doesn't exist: a home directory, a login shell and a locked password.
    - Give it passwordless sudo through `/etc/sudoers.d/proxier` (`proxier ALL=(ALL) NOPASSWD:ALL`). Check the file with `visudo -cf` before moving it into place.
    - Append Proxier's public key and your personal keys to `~proxier/.ssh/authorized_keys`, skipping keys already there. The directory gets mode `700` and the file `600`, owned by `proxier`.
    - Open a **new** connection as `proxier` with Proxier's key, and run `sudo -n true`.
@@ -50,12 +50,12 @@ Each step is resumable. A retried job starts at the step that didn't finish.
 10. **Smoke test.** Run the proxy test from home through every endpoint (up to 3 attempts, 20 s apart). Every endpoint must pass.
 11. **Activate.** The server becomes **active**, its health state becomes `unknown`, and the scheduler starts its checks. Subscriptions with "add new servers automatically" append it. → `server.activated{proxy_test}` (notifies "nl-2 is ready")
 
-Any step failing stops the job. The server becomes **failed**, and the page shows the step, the error and the log. → `server.provisioning_failed{step, error}` (notifies)
+The job makes one attempt and never retries by itself: a retry may need input, so it is the admin's. Any step failing stops the job. The server becomes **failed**, and the page shows the step, the error and the log. → `server.provisioning_failed{step, error}` (notifies). **Cancelling** the job ends the same way with the error `cancelled` and `cancelled: true` in the event, which does not notify; DNS records already made stay until retry or retirement.
 
 ## Steps — after a failure
 
 1. **Retry** resumes at the failed step.
-   - If the failed step was preflight or install access (before Proxier's key works), it asks for the root password again.
+   - If the failed step was preflight or install access (before Proxier's key works), it **always** asks for the root password again; the new one replaces any kept one. Later failures ask for nothing.
    - If the template's default version moved on in the meantime, it still uses the version the server was created with.
 2. **Activate anyway** is offered only when every step up to the self-check passed and only the smoke test failed. A typical case is a VPS whose hosting network is already blocked in Russia, which can still be useful to link holders abroad. The dialog shows the proxy test's error and asks for a confirmation.
    - The server becomes **active** and the scheduler starts its checks. Its health state comes from the first check round, usually `blocked` or `down`, never `healthy` by default.

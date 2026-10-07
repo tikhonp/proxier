@@ -12,11 +12,14 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
+	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
+	"github.com/tikhonp/proxier/internal/platform/vault"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
@@ -31,6 +34,13 @@ type Deps struct {
 	// at cloudflaretest).
 	DNS              dns.Driver
 	CloudflareClient func(token string) *cloudflare.Client
+	// Vault opens endpoint credentials; Jobs shows and cancels a server's
+	// provisioning; Provision is the new-server form and its actions.
+	Vault     *vault.Vault
+	Jobs      *jobs.System
+	Provision *provision.Service
+	// Usage is the subscriptions port (Phase 2); it returns nil until then.
+	Usage func() UsageReader
 }
 
 type handler struct {
@@ -53,6 +63,7 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/locations/:id", h.updateLocation)
 	r.Admin.POST("/locations/:id/delete", h.deleteLocation)
 	h.registerTemplates(r)
+	h.registerServers(r)
 }
 
 type locForm struct{ Code, Name, Country string }

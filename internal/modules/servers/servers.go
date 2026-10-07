@@ -17,6 +17,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/migrations"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
+	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/seed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
@@ -24,6 +25,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/validate"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -38,6 +40,8 @@ type Module struct {
 	deps      module.Deps
 	Store     *store.Store
 	Templates *templates.Service
+	// Provision builds servers: the form, Create, the job, Retry, Activate anyway.
+	Provision *provision.Service
 	// DNS writes and removes servers' A records; Waiter waits for resolvers to
 	// show them (1d composes both into provisioning).
 	DNS    dns.Driver
@@ -45,6 +49,8 @@ type Module struct {
 	// CloudflareClient makes the API client for a token; tests point it at
 	// cloudflaretest.
 	CloudflareClient func(token string) *cloudflare.Client
+
+	usage UsageReader
 }
 
 // New returns the module; Init gives it the platform's services.
@@ -61,6 +67,12 @@ func (m *Module) Init(d module.Deps) error {
 	m.CloudflareClient = cloudflare.New
 	m.DNS = cloudflare.NewDriver(d.Settings, func(token string) *cloudflare.Client { return m.CloudflareClient(token) })
 	m.Waiter = dns.NewWaiter()
+	m.Provision = provision.New(provision.Deps{
+		DB: d.DB, Events: d.Events, Vault: d.Vault, Jobs: d.Jobs, SSH: d.SSH, Settings: d.Settings,
+		Store: m.Store, Templates: m.Templates, Log: d.Log,
+		// read at use: tests replace the module's driver and waiter
+		DNS: func() dns.Driver { return m.DNS }, Waiter: func() dns.Waiter { return m.Waiter },
+	})
 	// The validators that need the embedded xray and the endpoint types.
 	validate.XrayConfig, validate.EndpointFields = proxy.ValidateConfig, endpoint.Check
 	return nil
@@ -83,6 +95,11 @@ func (m *Module) AfterMigrate(ctx context.Context) error {
 }
 
 func (*Module) EventTypes() []events.Type { return Events }
+
+// JobTypes: provisioning (1d); the later sub-phases add theirs.
+func (m *Module) JobTypes() []jobs.Type { return []jobs.Type{m.Provision.JobType()} }
+
+func (*Module) Schedules() []jobs.Schedule { return nil }
 
 func (*Module) SettingsSections() []settings.Section {
 	return []settings.Section{Section, cloudflare.Section}
@@ -111,12 +128,11 @@ func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
-	all := make(i18n.Messages, len(messages)+len(templateMessages))
-	for k, v := range messages {
-		all[k] = v
-	}
-	for k, v := range templateMessages {
-		all[k] = v
+	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages))
+	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages} {
+		for k, v := range set {
+			all[k] = v
+		}
 	}
 	return all
 }
@@ -125,12 +141,15 @@ func (m *Module) Routes(r web.Routes) {
 	pages.Register(r, pages.Deps{
 		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
 		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
+		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision,
+		Usage: func() pages.UsageReader { return m.usage },
 	})
 }
 
 // Nav adds the module's entries; each sub-phase adds its own with its page.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
+		{Group: "servers", Label: "servers.nav", Href: "/servers", GoKey: "s", Order: 10},
 		{Group: "servers", Label: "templates.nav", Href: "/templates", GoKey: "t", Order: 20},
 		{Group: "servers", Label: "locations.nav", Href: "/locations", Order: 30},
 	}
@@ -154,6 +173,24 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			meta += " · " + i18n.T(ctx, "templates.archived")
 		}
 		out = append(out, ui.SearchHit{Label: t.Name + " · " + t.Slug, Meta: meta, Href: "/templates/" + strconv.FormatInt(t.ID, 10)})
+		if len(out) == limit {
+			return out, nil
+		}
+	}
+	all, err := store.ListServers(ctx, m.deps.DB.R)
+	if err != nil {
+		return nil, err
+	}
+	for _, sv := range all {
+		if q != "" && !strings.Contains(strings.ToLower(sv.Name), q) && !strings.Contains(sv.IP, q) &&
+			!strings.Contains(strings.ToLower(sv.ProxyHostname), q) && !strings.Contains(strings.ToLower(sv.ManagementHostname), q) {
+			continue
+		}
+		meta := i18n.T(ctx, "servers.search")
+		if sv.State != "active" {
+			meta += " · " + i18n.T(ctx, "servers.state."+sv.State)
+		}
+		out = append(out, ui.SearchHit{Label: country.Flag(sv.Country) + " " + sv.Name + " · " + sv.IP, Meta: meta, Href: "/servers/" + strconv.FormatInt(sv.ID, 10)})
 		if len(out) == limit {
 			return out, nil
 		}
@@ -220,6 +257,9 @@ var (
 	_ module.IntegrationDeclarer  = (*Module)(nil)
 	_ module.MessagesDeclarer     = (*Module)(nil)
 	_ module.RouteDeclarer        = (*Module)(nil)
+	_ module.JobDeclarer          = (*Module)(nil)
+	_ module.DashboardDeclarer    = (*Module)(nil)
+	_ module.NotificationRenderer = (*Module)(nil)
 	_ module.NavDeclarer          = (*Module)(nil)
 	_ module.SubjectNamer         = (*Module)(nil)
 	_ module.Searcher             = (*Module)(nil)
