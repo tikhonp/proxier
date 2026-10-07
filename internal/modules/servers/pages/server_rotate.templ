@@ -1,0 +1,43 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// rotatePageView is the consequences of rotating a server's credentials.
+templ rotatePageView(s ui.Shell, v rotateView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.act.rotate") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.rotate.title", i18n.Args{"name": v.S.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.rotate.note") }</p>
+			</div>
+		</div>
+		if v.Disabled {
+			@ui.Band("gold") {
+				{ i18n.T(ctx, "servers.rotate.none") }
+			}
+		} else {
+			@ui.Area(i18n.T(ctx, "servers.rotate.changes"), "") {
+				<div class="area-body">
+					for _, k := range v.Keys {
+						<div class="row"><span class="bold">{ k }</span></div>
+					}
+				</div>
+			}
+			@ui.Area(i18n.T(ctx, "servers.rotate.links"), "") {
+				<p class="area-body">{ v.Usage }</p>
+			}
+			@ui.Band("gold") {
+				{ v.Warning }
+			}
+			<div class="form-actions plan-actions">
+				@ui.ActionButton(v.Rotate)
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<span class="sm subtle">{ i18n.T(ctx, "servers.rotate.restore_note") }</span>
+			</div>
+		}
+	}
+}

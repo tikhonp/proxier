@@ -49,8 +49,8 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `server.created` | server | IP, template version | off | |
 | `server.provisioning_failed` | server | step, error | **on** | "nl-2: setup failed at 'Issue certificate': …" |
 | `server.activated` | server | proxy test timings, forced | **on** | "nl-2 is ready (🇳🇱 Netherlands 2)"; when forced by **Activate anyway**: "nl-2 is active without a passing proxy test" |
-| `server.redeployed` | server | kind, from version, to version, files changed | off | |
-| `server.redeploy_failed` | server | kind, step, error | **on** | |
+| `server.redeployed` | server | kind (`redeploy` / `upgrade` / `params` / `restore` / `restart` / `images` / `reboot`), from version, to version, files changed; `rollout` (id) when a rolling upgrade ran it; `changed_images` for `images` | off | Rotation records `server.credentials_rotated` instead. |
+| `server.redeploy_failed` | server | kind (also `rotate`), step, error; `rollout` when a rolling upgrade ran it; `restored` (kind `rotate`: whether the old files were put back); `cancelled` | **on**, except when `cancelled` | A cancelled job fails its deployment and records this with `cancelled: true`; the rollout still sees it. |
 | `server.credentials_rotated` | server | keys rotated | **on** | |
 | `server.health_changed` | server | from, to, reason, check summary | **on** for changes to `blocked`, `down`, and back to `healthy`. **off** for `degraded` and `unknown` | "🔴 de-1 is down: unreachable over SSH and from 3/3 nodes abroad" |
 | `server.still_unhealthy` | server | state, since | **on** | Reminder every 24 h while blocked or down. |
@@ -60,8 +60,8 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `server.checks_resumed` | server | — | off | |
 | `server.retired` | server | DNS removed, stack removed | off | |
 | `server.notes_changed` | server | — | off | Only when the notes changed. |
-| `server.rollout_started` | server | servers, to_version | off | A rolling upgrade began. |
-| `server.rollout_finished` | server | state, done, failed, not_started | off | |
+| `server.rollout_started` | rollout (`rollout:<id>`) | servers (names), to_version | off | A rolling upgrade began. |
+| `server.rollout_finished` | rollout | state (`done` / `stopped` / `cancelled`), done, failed, not_started, skipped | off | Recorded once, when the rollout is no longer running and no server of it is. |
 | `health.home_offline` | — | reference check results | off | Telegram is unreachable anyway. It's shown on the dashboard. |
 | `health.foreign_unreachable` | — | reference check results | **on** | "Foreign internet is unreachable from home; server verdicts are on hold" |
 | `health.home_recovered` | — | duration | **on** | |

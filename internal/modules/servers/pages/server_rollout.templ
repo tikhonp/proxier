@@ -1,0 +1,131 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// rolloutPlanPage lists, per server, the version change and what it needs
+// before the rolling upgrade can start.
+templ rolloutPlanPage(s ui.Shell, v rolloutPlanView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.rollout.crumb") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.rollout.plan.title", i18n.Args{"n": len(v.Items), "to": vlabel(v.To)}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.rollout.plan.note") }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		if len(v.Items) > 0 {
+			<form method="post" action="/servers/rollout/plan" class="form" id="rollout-form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				for _, id := range v.ServerIDs {
+					<input type="hidden" name="server" value={ strconv.FormatInt(id, 10) }/>
+				}
+				@ui.Area(i18n.T(ctx, "servers.rollout.servers"), i18n.T(ctx, "servers.rollout.servers.note")) {
+					for i, it := range v.Items {
+						<div class="row rollout-plan">
+							<span class="subtle">{ strconv.Itoa(i + 1) }</span>
+							<span class="bold">{ it.Flag } { it.Name }</span>
+							<span>{ it.From } → { it.To }</span>
+							if it.Skip != "" {
+								<span class="subtle">{ i18n.T(ctx, "servers.rollout.skipped") }: { it.Skip }</span>
+							} else if it.Problem != "" {
+								<span class="err">{ it.Problem }</span>
+							} else {
+								<span class="subtle">{ it.Files }</span>
+							}
+						</div>
+						if len(it.Fields) > 0 {
+							<div class="area-body rollout-params">
+								<p class="sm subtle">{ i18n.T(ctx, "servers.rollout.needs", i18n.Args{"name": it.Name}) }</p>
+								@paramInputs(it.Fields)
+							</div>
+						}
+					}
+				}
+				<div class="form-actions plan-actions">
+					if v.CanStart {
+						<button type="submit" class="pc-btn pc-pri" formaction="/servers/rollout" data-action="rollout.start">{ i18n.T(ctx, "servers.rollout.start") }</button>
+					} else {
+						<button type="button" class="pc-btn pc-pri" disabled data-action="rollout.start">{ i18n.T(ctx, "servers.rollout.start") }</button>
+						<button type="submit" class="pc-btn">{ i18n.T(ctx, "servers.rollout.check") }</button>
+					}
+					<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<span class="sm subtle">{ i18n.T(ctx, "servers.rollout.stops_at_first") }</span>
+				</div>
+			</form>
+		}
+	}
+}
+
+// rolloutProgressPage is the per-server progress table; it re-fetches itself
+// every two seconds while the rollout has not ended.
+templ rolloutProgressPage(s ui.Shell, v rolloutView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.rollout.crumb") }</span></nav>
+				<div class="jobtitle">
+					<h1>{ v.Title }</h1>
+					@ui.Status(v.Kind, v.Word)
+				</div>
+				<p class="subtle">{ v.Note }</p>
+			</div>
+			<div class="actions">
+				if v.Stop != nil {
+					@ui.ActionButton(*v.Stop)
+				}
+			</div>
+		</div>
+		@rolloutTable(v)
+	}
+}
+
+templ rolloutTable(v rolloutView) {
+	<div
+		id="rollout"
+		if v.Running {
+			hx-get={ "/servers/rollouts/" + strconv.FormatInt(v.ID, 10) }
+			hx-trigger="every 2s"
+			hx-select="#rollout"
+			hx-target="#rollout"
+			hx-swap="outerHTML"
+		}
+	>
+		<p class="sm subtle">{ v.Summary }</p>
+		<div class="colhead rollout" aria-hidden="true">
+			<span></span>
+			<span>{ i18n.T(ctx, "servers.col.name") }</span>
+			<span>{ i18n.T(ctx, "servers.col.status") }</span>
+			<span>{ i18n.T(ctx, "servers.rollout.col.version") }</span>
+			<span>{ i18n.T(ctx, "servers.rollout.col.step") }</span>
+		</div>
+		for _, r := range v.Rows {
+			<div class={ "row", "rollout", templ.KV("pc-cur", r.Current) }>
+				<span class="subtle">{ strconv.Itoa(r.Position + 1) }</span>
+				<a href={ templ.SafeURL(r.Href) } class="bold">{ r.Flag } { r.Name }</a>
+				<span>
+					@ui.Status(r.Kind, r.Word)
+				</span>
+				<span>{ r.Version }</span>
+				<span class={ templ.KV("err", r.Error), templ.KV("subtle", !r.Error) }>
+					{ r.Step }
+					if r.JobHref != "" {
+						<a href={ templ.SafeURL(r.JobHref) } class="sm">→</a>
+					}
+				</span>
+			</div>
+		}
+		if v.FinishedN != "" {
+			<p class="sm subtle">{ v.FinishedN }</p>
+		}
+	</div>
+}

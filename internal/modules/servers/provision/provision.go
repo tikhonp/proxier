@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/modules/servers/conf"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/gen"
@@ -487,7 +488,7 @@ func (s *Service) provisionDeployment(ctx context.Context, r *jobs.Run, d *data)
 		if err != nil {
 			return err
 		}
-		if blob := sealed.SealDeploymentParams(s.Vault, id, secret); blob != nil {
+		if blob := sealed.SealDeploymentSecrets(s.Vault, id, sealed.DeploymentSecrets{Params: secret, Gen: d.Gen}); blob != nil {
 			return store.SetDeploymentParamsSecret(ctx, tx, id, blob)
 		}
 		return nil
@@ -525,26 +526,13 @@ func (s *Service) endpointsStep(ctx context.Context, r *jobs.Run, d *data) error
 	if err != nil {
 		return err
 	}
-	if len(rendered.Endpoints) == 0 {
-		return errors.New("the template declares no endpoint")
-	}
 	srv := d.Server
-	many := len(rendered.Endpoints) > 1
-	rows := make([]store.EndpointRow, len(rendered.Endpoints))
-	for i, e := range rendered.Endpoints {
-		t, ok := endpoint.Lookup(e.Type)
-		if !ok {
-			return fmt.Errorf("endpoint %q has the unknown type %q", e.Key, e.Type)
-		}
-		if problems := t.Check(e); len(problems) > 0 {
-			return fmt.Errorf("endpoint %q: %s", e.Key, strings.Join(problems, "; "))
-		}
-		name := endpoint.DisplayName(flagOf(d.Loc.Country), d.Loc.Name, srv.Number, e.Key, many)
-		rows[i] = store.EndpointRow{
-			ServerID: srv.ID, Key: e.Key, Type: e.Type, Host: e.Host, Port: e.Port, DisplayName: name, Position: i,
-			Secret: sealed.SealEndpoint(s.Vault, srv.ID, e.Key, e.Credential, e.Params),
-		}
-		r.Log().Info("Endpoint %s: %s:%d (%s)", e.Key, e.Host, e.Port, name)
+	rows, err := sealed.EndpointRows(s.Vault, srv.ID, rendered.Endpoints, flagOf(d.Loc.Country), d.Loc.Name, srv.Number)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		r.Log().Info("Endpoint %s: %s:%d (%s)", row.Key, row.Host, row.Port, row.DisplayName)
 	}
 	return s.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		return store.ReplaceEndpoints(ctx, tx, srv.ID, rows, db.At(s.now()))
@@ -561,40 +549,13 @@ func (s *Service) selfCheck(ctx context.Context, r *jobs.Run, d *data) error {
 		return err
 	}
 	defer func() { _ = c.Close() }()
-	results, err := remote.SelfCheck(ctx, s.env(r.Log()), c, d.Man.Dir, rendered.Checks, remote.DefaultThresholds)
-	if err != nil {
-		return err
-	}
-	var bad []string
-	for _, res := range results {
-		if res.Pass {
-			r.Log().Info("Check %s passed: %s", res.Kind, res.Message)
-		} else {
-			r.Log().Error("Check %s failed: %s", res.Kind, res.Message)
-			bad = append(bad, res.Kind+": "+res.Message)
-		}
-	}
-	if len(bad) > 0 {
-		return fmt.Errorf("the self-check failed: %s", strings.Join(bad, "; "))
-	}
-	return nil
+	return remote.SelfCheckReport(ctx, s.env(r.Log()), c, d.Man.Dir, rendered.Checks, remote.DefaultThresholds)
 }
 
 // proxyOptions are the options of a proxy test from the settings and the
 // template's own URL.
 func (s *Service) proxyOptions(ctx context.Context, templateURL string) (proxy.Options, error) {
-	url := templateURL
-	if url == "" {
-		var err error
-		if url, err = s.Settings.Get(ctx, "servers.proxy_test_url"); err != nil {
-			return proxy.Options{}, err
-		}
-	}
-	timeout, err := s.Settings.GetDuration(ctx, "servers.proxy_test_timeout")
-	if err != nil {
-		return proxy.Options{}, err
-	}
-	stall, err := s.Settings.GetDuration(ctx, "servers.proxy_test_stall")
+	url, timeout, stall, err := conf.ProxyTest(ctx, s.Settings, templateURL)
 	if err != nil {
 		return proxy.Options{}, err
 	}

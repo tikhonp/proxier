@@ -7,7 +7,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/mail"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -248,45 +247,7 @@ func checkParams(m *manifest.Manifest, given map[string]string, errs FieldErrors
 }
 
 // paramProblem returns the i18n key of why raw is not a valid value of p.
-func paramProblem(p manifest.Parameter, raw string) string {
-	switch p.Type {
-	case "email":
-		// One plain address. The seed's script quotes the email in single
-		// quotes, so nothing that could end the quote or expand may pass.
-		if strings.ContainsAny(raw, `'"$`+"`"+`\ `) || strings.ContainsFunc(raw, func(r rune) bool { return r < 0x20 }) {
-			return "servers.err.param_email"
-		}
-		a, err := mail.ParseAddress(raw)
-		if err != nil || a.Address != raw || a.Name != "" {
-			return "servers.err.param_email"
-		}
-	case "int":
-		if _, err := strconv.ParseInt(raw, 10, 64); err != nil {
-			return "servers.err.param_int"
-		}
-	case "bool":
-		if raw != "true" && raw != "false" {
-			return "servers.err.param_bool"
-		}
-	case "choice":
-		ok := false
-		for _, o := range p.Options {
-			ok = ok || o == raw
-		}
-		if !ok {
-			return "servers.err.param_choice"
-		}
-	case "text":
-		if utf8.RuneCountInString(raw) > 10000 {
-			return "servers.err.param_long"
-		}
-	default: // string
-		if utf8.RuneCountInString(raw) > 1000 {
-			return "servers.err.param_long"
-		}
-	}
-	return ""
-}
+func paramProblem(p manifest.Parameter, raw string) string { return render.ParamProblem(p, raw) }
 
 // Summarize is the live summary: what Create would make, with the form errors
 // that need no network. It never needs the root password. When locationTouched

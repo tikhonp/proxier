@@ -57,13 +57,22 @@ type VPS struct {
 	ComposeUpFails         string // docker compose up prints this and fails
 	CertbotRateLimited     bool   // issue-cert.sh fails with Let's Encrypt's rate limit
 	DockerInstallFails     bool
+	RebootNeverReturns     bool // the machine does not come back after systemctl reboot
 
 	// RunHooks answer `run` steps by their command ("./issue-cert.sh"); the
 	// hook gets the stack directory and returns the exit code.
 	RunHooks map[string]func(v *VPS, dir string, stdout, stderr io.Writer) int
 
+	// RebootDowntime is how long logins fail after a reboot (default 30 ms).
+	RebootDowntime time.Duration
+
 	mu         sync.Mutex
+	images     map[string]string // service → image ID
+	newImages  map[string]bool   // services the registry has a newer image of
+	imageSeq   int
+	reboots    int
 	holds      map[remote.Op]*hold
+	fails      map[remote.Op]*failure
 	rootPass   string
 	users      map[string]*user
 	sudoers    string
@@ -90,10 +99,31 @@ func NewVPS(t testing.TB) *VPS {
 		OS: "debian-12", Arch: "amd64", DiskFreePct: 60, CertDaysLeft: 89,
 		PortsInUse: map[int]string{}, HTTPStatus: map[string]string{}, RunHooks: map[string]func(*VPS, string, io.Writer, io.Writer) int{},
 		rootPass: DefaultRootPassword, users: map[string]*user{"root": {locked: true}}, services: map[string]string{},
+		images: map[string]string{}, newImages: map[string]bool{}, RebootDowntime: 30 * time.Millisecond,
 	}
 	v.AllowPassword("root", v.rootPass)
 	v.HandleFunc(func(string, string) bool { return true }, v.exec)
 	return v
+}
+
+type failure struct {
+	msg   string
+	times int // <0: every time
+}
+
+// Fail makes commands of op print msg and exit 1, the next times of them
+// (every one when times is negative). Fail(op, "", 0) lifts it.
+func (v *VPS) Fail(op remote.Op, msg string, times int) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if v.fails == nil {
+		v.fails = map[remote.Op]*failure{}
+	}
+	if times == 0 {
+		delete(v.fails, op)
+		return
+	}
+	v.fails[op] = &failure{msg: msg, times: times}
 }
 
 type hold struct {
@@ -124,6 +154,20 @@ func (v *VPS) Hold(op remote.Op) (reached <-chan struct{}, release func()) {
 	}
 	v.t.Cleanup(release)
 	return h.reached, release
+}
+
+// Unharden undoes what provisioning did to sshd, so root's password login
+// works again: the machine is provisioned a second time, as a test that needs
+// several servers on one fake VPS does (each with its own address; see
+// Harness.AddServer).
+func (v *VPS) Unharden() {
+	v.mu.Lock()
+	v.dropin = ""
+	v.hardened = false
+	pw := v.rootPass
+	v.mu.Unlock()
+	v.AllowPassword("root", pw)
+	v.BlockLogins("root", false)
 }
 
 // SetRootPassword changes what root's password login accepts.
@@ -230,6 +274,37 @@ func (v *VPS) Services() map[string]string {
 	return out
 }
 
+// NewImage makes the next `docker compose pull` bring a different image for
+// service, as a registry that published a new build would.
+func (v *VPS) NewImage(service string) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	v.newImages[service] = true
+}
+
+// Reboots counts how many times the machine was asked to reboot.
+func (v *VPS) Reboots() int {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.reboots
+}
+
+// AnyFileContains reports whether some file on the server holds s: the fake
+// proxy follows what the stack on the server accepts.
+func (v *VPS) AnyFileContains(s string) bool {
+	found := false
+	_ = filepath.WalkDir(v.Dir(), func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || found {
+			return nil
+		}
+		if b, err := os.ReadFile(p); err == nil && bytes.Contains(b, []byte(s)) {
+			found = true
+		}
+		return nil
+	})
+	return found
+}
+
 // real maps a path of the server to the host's.
 func (v *VPS) real(p string) string {
 	return filepath.Join(v.Dir(), filepath.FromSlash(filepath.Clean("/"+p)))
@@ -285,6 +360,19 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		h.once.Do(func() { close(h.reached) })
 		<-h.gate
 	}
+	v.mu.Lock()
+	if f := v.fails[call.Op]; f != nil {
+		msg := f.msg
+		if f.times > 0 {
+			if f.times--; f.times == 0 {
+				delete(v.fails, call.Op)
+			}
+		}
+		v.mu.Unlock()
+		sayln(s.Stderr, msg)
+		return 1
+	}
+	v.mu.Unlock()
 	root := s.User == "root"
 	if call.Sudo && !root {
 		v.mu.Lock()
@@ -320,6 +408,11 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		default:
 			sayln(s.Stdout, v.Arch)
 		}
+	case remote.OpBootID:
+		v.mu.Lock()
+		n := v.reboots
+		v.mu.Unlock()
+		sayln(s.Stdout, fmt.Sprintf("00000000-0000-4000-8000-%012d", n))
 	case remote.OpListeners:
 		ports := make([]int, 0, len(v.PortsInUse))
 		for p := range v.PortsInUse {
@@ -409,6 +502,32 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 	case remote.OpRun:
 		return v.run(call.Args[0], call.Args[1], s)
 	case remote.OpComposePull:
+		v.mu.Lock()
+		for svc := range v.newImages {
+			v.imageSeq++
+			v.images[svc] = fmt.Sprintf("sha256:%064d", v.imageSeq)
+		}
+		v.newImages = map[string]bool{}
+		v.mu.Unlock()
+	case remote.OpComposeRestart:
+		v.mu.Lock()
+		n := len(v.services)
+		for name := range v.services {
+			v.services[name] = "running"
+		}
+		v.mu.Unlock()
+		if n == 0 {
+			sayln(s.Stderr, "no container to restart")
+			return 1
+		}
+	case remote.OpComposeImages:
+		v.composeImages(s.Stdout)
+	case remote.OpComposeLogs:
+		for i := 1; i <= 200; i++ {
+			say(s.Stdout, "%s-1  | log line %d of %s\n", call.Args[1], i, call.Args[1])
+		}
+	case remote.OpReboot:
+		v.reboot()
 	case remote.OpComposeUp:
 		return v.composeUp(call.Args[0], s)
 	case remote.OpComposeDown:
@@ -561,8 +680,58 @@ func (v *VPS) composeUp(dir string, s *sshxtest.Session) int {
 		if v.services[name] == "" || v.services[name] == "exited" {
 			v.services[name] = "running"
 		}
+		if v.images[name] == "" {
+			v.imageSeq++
+			v.images[name] = fmt.Sprintf("sha256:%064d", v.imageSeq)
+		}
 	}
 	return 0
+}
+
+func (v *VPS) composeImages(w io.Writer) {
+	v.mu.Lock()
+	names := make([]string, 0, len(v.services))
+	for n := range v.services {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	type item struct{ ContainerName, Repository, Tag, ID string }
+	var items []item
+	for _, n := range names {
+		items = append(items, item{ContainerName: "stack-" + n + "-1", Repository: n, Tag: "latest", ID: v.images[n]})
+	}
+	array := v.PSArray
+	v.mu.Unlock()
+	if array {
+		b, _ := json.Marshal(items)
+		sayln(w, string(b))
+		return
+	}
+	for _, it := range items {
+		b, _ := json.Marshal(it)
+		sayln(w, string(b))
+	}
+}
+
+// reboot takes logins away for RebootDowntime, or for good.
+func (v *VPS) reboot() {
+	v.mu.Lock()
+	v.reboots++
+	down, never := v.RebootDowntime, v.RebootNeverReturns
+	v.mu.Unlock()
+	v.BlockLogins(remote.DeployUser, true)
+	if never {
+		return
+	}
+	timer := time.AfterFunc(down, func() { v.BlockLogins(remote.DeployUser, v.hardenedBreak()) })
+	v.t.Cleanup(func() { timer.Stop() })
+}
+
+// hardenedBreak is whether the deploy user's key login is meant to be broken.
+func (v *VPS) hardenedBreak() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.hardened && v.BreakKeyLoginAfterSSHD
 }
 
 func (v *VPS) composePS(w io.Writer) {

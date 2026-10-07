@@ -204,49 +204,54 @@ templ locationField(v newView) {
 templ paramsArea(v newView, oob bool) {
 	<div id="params" if oob { hx-swap-oob="true" }>
 		<input type="hidden" id="params_for" name="params_for" value={ v.ParamsFor }/>
-		for _, p := range v.Params {
-			<div class="field">
-				<label for={ "p-" + p.Name }>
-					{ p.Label }
-					if !p.Required {
-						<span class="sm subtle">· { i18n.T(ctx, "servers.new.optional") }</span>
-					}
-				</label>
-				switch p.Type {
-					case "bool":
-						<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
-							<option value="false" selected?={ p.Value != "true" }>{ i18n.T(ctx, "servers.no") }</option>
-							<option value="true" selected?={ p.Value == "true" }>{ i18n.T(ctx, "servers.yes") }</option>
-						</select>
-					case "choice":
-						<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
-							for _, o := range p.Options {
-								<option value={ o } selected?={ o == p.Value }>{ o }</option>
-							}
-						</select>
-					case "text":
-						<textarea id={ "p-" + p.Name } class="pc-inp" name={ p.Name } rows="4" aria-invalid?={ p.Err != "" }>{ p.Value }</textarea>
-					default:
-						<input
-							id={ "p-" + p.Name }
-							class="pc-inp"
-							name={ p.Name }
-							value={ p.Value }
-							type={ p.inputType() }
-							inputmode={ p.inputMode() }
-							autocomplete="off"
-							spellcheck="false"
-							aria-invalid?={ p.Err != "" }
-						/>
-				}
-				if p.Err != "" {
-					<p class="err" role="alert">{ p.Err }</p>
-				} else if p.Help != "" {
-					<p class="help">{ p.Help }</p>
-				}
-			</div>
-		}
+		@paramInputs(v.Params)
 	</div>
+}
+
+// paramInputs are the fields of a version's parameters.
+templ paramInputs(fields []paramField) {
+	for _, p := range fields {
+		<div class="field">
+			<label for={ "p-" + p.Name }>
+				{ p.Label }
+				if !p.Required {
+					<span class="sm subtle">· { i18n.T(ctx, "servers.new.optional") }</span>
+				}
+			</label>
+			switch p.Type {
+				case "bool":
+					<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
+						<option value="false" selected?={ p.Value != "true" }>{ i18n.T(ctx, "servers.no") }</option>
+						<option value="true" selected?={ p.Value == "true" }>{ i18n.T(ctx, "servers.yes") }</option>
+					</select>
+				case "choice":
+					<select id={ "p-" + p.Name } class="pc-inp" name={ p.Name }>
+						for _, o := range p.Options {
+							<option value={ o } selected?={ o == p.Value }>{ o }</option>
+						}
+					</select>
+				case "text":
+					<textarea id={ "p-" + p.Name } class="pc-inp" name={ p.Name } rows="4" aria-invalid?={ p.Err != "" }>{ p.Value }</textarea>
+				default:
+					<input
+						id={ "p-" + p.Name }
+						class="pc-inp"
+						name={ p.Name }
+						value={ p.Value }
+						type={ p.inputType() }
+						inputmode={ p.inputMode() }
+						autocomplete="off"
+						spellcheck="false"
+						aria-invalid?={ p.Err != "" }
+					/>
+			}
+			if p.Err != "" {
+				<p class="err" role="alert">{ p.Err }</p>
+			} else if p.Help != "" {
+				<p class="help">{ p.Help }</p>
+			}
+		</div>
+	}
 }
 
 templ summaryBody(v newView) {
@@ -321,53 +326,84 @@ templ locationFieldInner(v newView) {
 
 // --------------------------------------------------------- the server page
 
-templ serverTabs(v serverView) {
+templ serverTabs(v serverView, tab string) {
 	<nav class="tabs" aria-label={ i18n.T(ctx, "servers.tabs") }>
-		<a href={ templ.SafeURL(serverHref(v.S.ID)) } aria-current="page">{ i18n.T(ctx, "servers.tab.overview") }</a>
+		<a href={ templ.SafeURL(serverHref(v.S.ID)) } if tab == "overview" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.overview") }</a>
+		if v.S.State != "provisioning" {
+			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/stack") } if tab == "stack" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.stack") }</a>
+		}
 		<a href={ templ.SafeURL("/jobs?subject=server:" + strconv.FormatInt(v.S.ID, 10)) }>{ i18n.T(ctx, "servers.tab.jobs") }</a>
 		<a href={ templ.SafeURL("/activity?subject=server:" + strconv.FormatInt(v.S.ID, 10)) }>{ i18n.T(ctx, "servers.tab.activity") }</a>
 	</nav>
 }
 
+// serverHead is the title block and the tabs every tab of a server shares.
+templ serverHead(v serverView, tab string) {
+	<div class="titleblock">
+		<div class="head">
+			<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ v.S.Name }</span></nav>
+			<div class="jobtitle">
+				<h1>{ v.Flag } { v.S.Name }</h1>
+				@ui.Status(v.Kind, v.Word)
+				if v.Reason != "" {
+					<span class="sm subtle">{ v.Reason }</span>
+				}
+			</div>
+			<p class="subtle">{ v.S.LocationName } · { v.S.IP } · { v.S.ManagementHostname }</p>
+		</div>
+		<div class="actions">
+			if v.CanCancel {
+				@ui.ActionButton(ui.Action{
+					ID: "server.cancel", Label: "servers.cancel", Method: "POST", Href: serverHref(v.S.ID) + "/cancel",
+					Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "servers.cancel"), Body: i18n.T(ctx, "servers.cancel.body")},
+				})
+			}
+			if v.CanRetry {
+				@ui.ActionButton(ui.Action{ID: "server.retry", Label: "servers.retry", Method: "GET", Href: serverHref(v.S.ID) + "/retry", Kind: ui.Primary, Key: "r"})
+			}
+			if v.CanActivateAnyway {
+				@ui.ActionButton(ui.Action{
+					ID: "server.activate", Label: "servers.activate", Method: "POST", Href: serverHref(v.S.ID) + "/activate",
+					Confirm: &ui.Confirm{
+						Strength: 2, Title: i18n.T(ctx, "servers.activate.title", i18n.Args{"name": v.S.Name}), Body: v.S.FailedError,
+						Consequences: []string{i18n.T(ctx, "servers.activate.c1"), i18n.T(ctx, "servers.activate.c2")},
+					},
+				})
+			}
+			if v.S.State == "active" {
+				@ui.ActionButton(ui.Action{ID: "server.redeploy", Label: "servers.act.redeploy", Method: "GET", Href: serverHref(v.S.ID) + "/redeploy", Kind: ui.Primary, Key: "d"})
+			}
+			if v.S.State == "provisioning" || v.S.State == "failed" || v.S.State == "active" {
+				<button type="button" class="pc-btn" disabled title={ i18n.T(ctx, "servers.retire.soon") }>{ i18n.T(ctx, "servers.retire") }</button>
+			}
+		</div>
+	</div>
+	@serverTabs(v, tab)
+}
+
+// jobPanel is the steps and the live log of a job on the server's page.
+templ jobPanel(j *jobSide, title string) {
+	<div class="jobcols">
+		<aside class="jobside">
+			<section>
+				<div class="pc-title"><h2>{ title }</h2></div>
+				@ui.JobSteps(j.Steps)
+			</section>
+		</aside>
+		<section class="jobmain" aria-labelledby="srv-log-h">
+			<div class="pc-title">
+				<h2 id="srv-log-h">{ i18n.T(ctx, "job.log") }</h2>
+				<span class="flex1"></span>
+				<a class="pc-btn pc-sm" href={ templ.SafeURL(j.Href) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
+			</div>
+			@ui.JobLog(j.Stream, j.Reload, j.Lines)
+		</section>
+	</div>
+}
+
 templ serverOverviewPage(s ui.Shell, v serverView) {
 	@ui.Layout(s) {
-		<div class="titleblock">
-			<div class="head">
-				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ v.S.Name }</span></nav>
-				<div class="jobtitle">
-					<h1>{ v.Flag } { v.S.Name }</h1>
-					@ui.Status(v.Kind, v.Word)
-					if v.Reason != "" {
-						<span class="sm subtle">{ v.Reason }</span>
-					}
-				</div>
-				<p class="subtle">{ v.S.LocationName } · { v.S.IP } · { v.S.ManagementHostname }</p>
-			</div>
-			<div class="actions">
-				if v.CanCancel {
-					@ui.ActionButton(ui.Action{
-						ID: "server.cancel", Label: "servers.cancel", Method: "POST", Href: serverHref(v.S.ID) + "/cancel",
-						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "servers.cancel"), Body: i18n.T(ctx, "servers.cancel.body")},
-					})
-				}
-				if v.CanRetry {
-					@ui.ActionButton(ui.Action{ID: "server.retry", Label: "servers.retry", Method: "GET", Href: serverHref(v.S.ID) + "/retry", Kind: ui.Primary, Key: "r"})
-				}
-				if v.CanActivateAnyway {
-					@ui.ActionButton(ui.Action{
-						ID: "server.activate", Label: "servers.activate", Method: "POST", Href: serverHref(v.S.ID) + "/activate",
-						Confirm: &ui.Confirm{
-							Strength: 2, Title: i18n.T(ctx, "servers.activate.title", i18n.Args{"name": v.S.Name}), Body: v.S.FailedError,
-							Consequences: []string{i18n.T(ctx, "servers.activate.c1"), i18n.T(ctx, "servers.activate.c2")},
-						},
-					})
-				}
-				if v.S.State == "provisioning" || v.S.State == "failed" || v.S.State == "active" {
-					<button type="button" class="pc-btn" disabled title={ i18n.T(ctx, "servers.retire.soon") }>{ i18n.T(ctx, "servers.retire") }</button>
-				}
-			</div>
-		</div>
-		@serverTabs(v)
+		@serverHead(v, "overview")
 		if v.Saved {
 			@ui.Alert("pine", "status") {
 				{ i18n.T(ctx, "servers.notes.saved") }
@@ -379,23 +415,27 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 				<span>{ v.S.FailedError }</span>
 			}
 		}
+		if v.Rollback != nil {
+			@ui.Band("gold") {
+				<span class="bold">{ i18n.T(ctx, "servers.rollback.band", i18n.Args{"kind": v.Rollback.Kind}) }</span>
+				<span>{ v.Rollback.Error }</span>
+				<a class="pc-btn pc-sm" href={ templ.SafeURL(v.Rollback.JobHref) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
+			}
+		}
 		if v.Job != nil {
-			<div class="jobcols">
-				<aside class="jobside">
-					<section>
-						<div class="pc-title"><h2>{ i18n.T(ctx, "servers.provision.steps") }</h2></div>
-						@ui.JobSteps(v.Job.Steps)
-					</section>
-				</aside>
-				<section class="jobmain" aria-labelledby="srv-log-h">
-					<div class="pc-title">
-						<h2 id="srv-log-h">{ i18n.T(ctx, "job.log") }</h2>
-						<span class="flex1"></span>
-						<a class="pc-btn pc-sm" href={ templ.SafeURL(v.Job.Href) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
-					</div>
-					@ui.JobLog(v.Job.Stream, v.Job.Reload, v.Job.Lines)
-				</section>
-			</div>
+			@jobPanel(v.Job, i18n.T(ctx, "servers.provision.steps"))
+		}
+		if v.Change != nil {
+			@jobPanel(v.Change, i18n.T(ctx, "servers.change.steps"))
+		}
+		if len(v.Actions) > 0 {
+			@ui.Area(i18n.T(ctx, "servers.area.actions"), "") {
+				<div class="area-body actions-row">
+					for _, a := range v.Actions {
+						@ui.ActionButton(a)
+					}
+				</div>
+			}
 		}
 		@ui.Area(i18n.T(ctx, "servers.area.identity"), "") {
 			<dl class="kv area-body">
@@ -411,7 +451,12 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 					}
 				</dd>
 				<dt>{ i18n.T(ctx, "servers.kv.template") }</dt>
-				<dd><a href={ templ.SafeURL(tplHref(v.S.TemplateID)) }>{ v.S.TemplateName }</a> { vlabel(v.S.TemplateVersion) }</dd>
+				<dd>
+					<a href={ templ.SafeURL(tplHref(v.S.TemplateID)) }>{ v.S.TemplateName }</a> { vlabel(v.S.TemplateVersion) }
+					if v.UpdateTo > 0 {
+						<span class="sm subtle">· <a href={ templ.SafeURL(serverHref(v.S.ID) + "/upgrade?version=" + strconv.Itoa(v.UpdateTo)) }>{ i18n.T(ctx, "servers.update_available", i18n.Args{"version": vlabel(v.UpdateTo)}) }</a></span>
+					}
+				</dd>
 				<dt>{ i18n.T(ctx, "servers.kv.subscriptions") }</dt>
 				<dd>{ v.Usage }</dd>
 				<dt>{ i18n.T(ctx, "servers.kv.created") }</dt>

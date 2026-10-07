@@ -234,3 +234,9 @@ func insertLines(ctx context.Context, tx *sqlx.Tx, jobID int64, rows []pending, 
 func (s *System) logSystem(ctx context.Context, tx *sqlx.Tx, jobID int64, level, step string, attempt int, text string) error {
 	return appendLines(ctx, tx, jobID, []pending{{s.now(), level, step, attempt, text}})
 }
+
+// LogLine appends a line to a job's log inside the caller's transaction: for
+// a callback (OnCancelled) that has something to say after the job ended.
+func (s *System) LogLine(ctx context.Context, tx *sqlx.Tx, jobID int64, level, text string) error {
+	return s.logSystem(ctx, tx, jobID, level, "", 0, text)
+}

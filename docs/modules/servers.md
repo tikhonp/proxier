@@ -191,7 +191,8 @@ Actions:
 | Rotate credentials | active | Replaces the rotatable generated values and redeploys ([rotation](../processes/servers/credential-rotation.md)). |
 | Restart stack | active | `docker compose restart`, then a self-check. |
 | Update images | active | `docker compose pull` + `up -d`, then a self-check and proxy test. |
-| Container logs | active, failed | Shows the last 200 lines of each compose service (a read-only job). |
+| Container logs | active, or failed with an uploaded stack | Shows the last 200 lines of each compose service (a read-only job; the output is its log). |
+| Roll back | active, latest deployment failed after uploading files | Opens the plan for the version and parameters of the current files, forced ([redeploy](../processes/servers/server-redeploy.md)). |
 | Reboot | active | Reboots, waits for SSH, then runs a check round. |
 | Run checks now | active | Runs a full check round right away. |
 | Pause checks / Resume | active | Health becomes `paused` for 1 h, 6 h, 24 h or until resumed. No notifications meanwhile. |

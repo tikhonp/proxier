@@ -260,6 +260,7 @@ CREATE TABLE servers_rollout_items (
     server_id    INTEGER NOT NULL REFERENCES servers_servers(id),
     from_version INTEGER NOT NULL,
     params       TEXT NOT NULL DEFAULT '{}', -- values asked before the start
+    params_secret BLOB,                      -- the secret ones, vault "rollout:<id>:item:<position>:params"
     state        TEXT NOT NULL CHECK (state IN ('waiting','running','done','failed','skipped')),
     job_id       INTEGER,
     error        TEXT,

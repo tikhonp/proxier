@@ -9,31 +9,36 @@ import (
 type Op string
 
 const (
-	OpOSRelease     Op = "os-release"
-	OpArch          Op = "arch"
-	OpListeners     Op = "listeners"
-	OpEnsureUser    Op = "proxier-ensure-user"
-	OpInstallSudoer Op = "proxier-install-sudoers"
-	OpInstallKeys   Op = "proxier-install-keys"
-	OpSudoCheck     Op = "sudo-check"
-	OpSSHDDropin    Op = "proxier-sshd-dropin"
-	OpSSHDReload    Op = "proxier-sshd-reload"
-	OpSSHDRollback  Op = "proxier-sshd-rollback"
-	OpHushlogin     Op = "hushlogin"
-	OpApt           Op = "proxier-apt"
-	OpDockerCheck   Op = "docker-check"
-	OpDockerInstall Op = "proxier-install-docker"
-	OpFirewall      Op = "proxier-ufw"
-	OpPrepareDirs   Op = "prepare-dirs"
-	OpRemove        Op = "remove"
-	OpRun           Op = "run"
-	OpComposePull   Op = "compose-pull"
-	OpComposeUp     Op = "compose-up"
-	OpComposeDown   Op = "compose-down"
-	OpComposePS     Op = "compose-ps"
-	OpHTTP          Op = "http"
-	OpCertExpiry    Op = "proxier-cert-expiry"
-	OpDisk          Op = "disk"
+	OpOSRelease      Op = "os-release"
+	OpArch           Op = "arch"
+	OpListeners      Op = "listeners"
+	OpEnsureUser     Op = "proxier-ensure-user"
+	OpInstallSudoer  Op = "proxier-install-sudoers"
+	OpInstallKeys    Op = "proxier-install-keys"
+	OpSudoCheck      Op = "sudo-check"
+	OpSSHDDropin     Op = "proxier-sshd-dropin"
+	OpSSHDReload     Op = "proxier-sshd-reload"
+	OpSSHDRollback   Op = "proxier-sshd-rollback"
+	OpHushlogin      Op = "hushlogin"
+	OpApt            Op = "proxier-apt"
+	OpDockerCheck    Op = "docker-check"
+	OpDockerInstall  Op = "proxier-install-docker"
+	OpFirewall       Op = "proxier-ufw"
+	OpPrepareDirs    Op = "prepare-dirs"
+	OpRemove         Op = "remove"
+	OpRun            Op = "run"
+	OpComposePull    Op = "compose-pull"
+	OpComposeUp      Op = "compose-up"
+	OpComposeDown    Op = "compose-down"
+	OpComposePS      Op = "compose-ps"
+	OpComposeRestart Op = "compose-restart"
+	OpComposeImages  Op = "compose-images"
+	OpComposeLogs    Op = "compose-logs"
+	OpReboot         Op = "reboot"
+	OpBootID         Op = "boot-id"
+	OpHTTP           Op = "http"
+	OpCertExpiry     Op = "proxier-cert-expiry"
+	OpDisk           Op = "disk"
 )
 
 // DeployUser is the account Proxier works as after the first login.
@@ -196,6 +201,30 @@ func CmdComposePS(dir string) string {
 	return plain(true, "docker", "compose", "--project-directory", dir, "ps", "--all", "--format", "json")
 }
 
+// CmdComposeRestart restarts the stack's containers in place.
+func CmdComposeRestart(dir string) string {
+	return plain(true, "docker", "compose", "--project-directory", dir, "restart")
+}
+
+// CmdComposeImages lists the images of the stack's containers as JSON.
+func CmdComposeImages(dir string) string {
+	return plain(true, "docker", "compose", "--project-directory", dir, "images", "--format", "json")
+}
+
+// CmdComposeLogs prints the last 200 lines of one service.
+func CmdComposeLogs(dir, service string) string {
+	return plain(true, "docker", "compose", "--project-directory", dir, "logs", "--no-color", "--tail", "200", service)
+}
+
+// CmdReboot restarts the machine. The connection drops while it runs, so the
+// caller expects no answer.
+func CmdReboot() string { return plain(true, "systemctl", "reboot") }
+
+// CmdBootID prints the id of the current boot: it differs after a reboot, so
+// a reconnect can tell the machine that came back from the one that has not
+// gone down yet.
+func CmdBootID() string { return "cat /proc/sys/kernel/random/boot_id" }
+
 // CmdHTTP requests url once on the server and prints the status code. With
 // resolve set ("127.0.0.1"), the request goes there instead of to the host in
 // the URL (curl --resolve), whatever DNS says; the port is the URL's, else 443
@@ -279,6 +308,8 @@ func Parse(cmd string) (Call, bool) {
 		return set(OpOSRelease)
 	case !c.Sudo && is("uname", "-m") && len(words) == 2:
 		return set(OpArch)
+	case !c.Sudo && is("cat", "/proc/sys/kernel/random/boot_id") && len(words) == 2:
+		return set(OpBootID)
 	case !c.Sudo && is("ss", "-ltnpH") && len(words) == 2:
 		return set(OpListeners)
 	case c.Sudo && is("true") && len(words) == 1:
@@ -287,6 +318,8 @@ func Parse(cmd string) (Call, bool) {
 		return set(OpHushlogin)
 	case is("df", "-P", "/"):
 		return set(OpDisk)
+	case c.Sudo && is("systemctl", "reboot") && len(words) == 2:
+		return set(OpReboot)
 	case is("docker", "compose", "version"):
 		return set(OpDockerCheck)
 	case is("docker", "compose", "--project-directory") && len(words) >= 5:
@@ -300,6 +333,14 @@ func Parse(cmd string) (Call, bool) {
 			return set(OpComposeDown, dir, boolArg(len(rest) > 1 && rest[1] == "-v"))
 		case "ps":
 			return set(OpComposePS, dir)
+		case "restart":
+			return set(OpComposeRestart, dir)
+		case "images":
+			return set(OpComposeImages, dir)
+		case "logs":
+			if len(rest) >= 5 && rest[1] == "--no-color" && rest[2] == "--tail" {
+				return set(OpComposeLogs, dir, rest[4])
+			}
 		}
 	case is("install", "-d") && indexOf(words, "--") > 0:
 		return set(OpPrepareDirs, words[indexOf(words, "--")+1:]...)

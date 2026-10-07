@@ -62,6 +62,30 @@ func SelfCheck(ctx context.Context, env Env, c Conn, dir string, checks []manife
 	return out, nil
 }
 
+// SelfCheckReport runs the checks, logs each result and returns one error
+// that names every check that failed; nil when all pass.
+func SelfCheckReport(ctx context.Context, env Env, c Conn, dir string, checks []manifest.Check, th Thresholds) error {
+	results, err := SelfCheck(ctx, env, c, dir, checks, th)
+	if err != nil {
+		return err
+	}
+	var bad []string
+	for _, res := range results {
+		if res.Pass {
+			env.info("Check %s passed: %s", res.Kind, res.Message)
+		} else {
+			if env.Log != nil {
+				env.Log.Error("Check %s failed: %s", res.Kind, res.Message)
+			}
+			bad = append(bad, res.Kind+": "+res.Message)
+		}
+	}
+	if len(bad) > 0 {
+		return fmt.Errorf("the self-check failed: %s", strings.Join(bad, "; "))
+	}
+	return nil
+}
+
 func runCheck(ctx context.Context, env Env, c Conn, dir string, ch manifest.Check, th Thresholds) (CheckResult, error) {
 	r := CheckResult{Kind: ch.Kind}
 	switch ch.Kind {
@@ -174,23 +198,9 @@ func runCheck(ctx context.Context, env Env, c Conn, dir string, ch manifest.Chec
 // version). Every service must run, and be healthy when it has a health check.
 func composeRunning(out string) (bool, string) {
 	type item struct{ Service, Name, State, Health string }
-	var items []item
-	out = strings.TrimSpace(out)
-	if strings.HasPrefix(out, "[") {
-		if err := json.Unmarshal([]byte(out), &items); err != nil {
-			return false, "cannot read docker compose ps: " + err.Error()
-		}
-	} else {
-		for _, line := range strings.Split(out, "\n") {
-			if line = strings.TrimSpace(line); line == "" {
-				continue
-			}
-			var it item
-			if err := json.Unmarshal([]byte(line), &it); err != nil {
-				return false, "cannot read docker compose ps: " + err.Error()
-			}
-			items = append(items, it)
-		}
+	items, err := decodeComposeJSON[item](out)
+	if err != nil {
+		return false, "cannot read docker compose ps: " + err.Error()
 	}
 	if len(items) == 0 {
 		return false, "no containers are running"
@@ -244,4 +254,26 @@ func ParseDiskFree(out string) (float64, error) {
 		return 0, fmt.Errorf("cannot read df output")
 	}
 	return avail / (used + avail) * 100, nil
+}
+
+// decodeComposeJSON reads the output of `docker compose … --format json`, in
+// either of its shapes: one JSON array, or one object per line (depending on
+// the Compose version).
+func decodeComposeJSON[T any](out string) ([]T, error) {
+	var items []T
+	out = strings.TrimSpace(out)
+	if strings.HasPrefix(out, "[") {
+		return items, json.Unmarshal([]byte(out), &items)
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if line = strings.TrimSpace(line); line == "" {
+			continue
+		}
+		var it T
+		if err := json.Unmarshal([]byte(line), &it); err != nil {
+			return nil, err
+		}
+		items = append(items, it)
+	}
+	return items, nil
 }

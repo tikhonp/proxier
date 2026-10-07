@@ -18,7 +18,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 | 1b Template UI, versions, import/export | [1b.md](./1b.md) | done 2026-10-07 |
 | 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | done 2026-10-07 |
 | 1d Provisioning and the server page | [1d.md](./1d.md) | done 2026-10-08 (the real-VPS run is the user's) |
-| 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | planned |
+| 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | done 2026-10-08 (real-VPS and browser checks are the user's) |
 | 1f Health and stats | [1f.md](./1f.md) | planned |
 | 1g Retirement, server list, Phase 1 exit | [1g.md](./1g.md) | planned |
 | 1h Agent hand-off | [1h.md](./1h.md) | planned |

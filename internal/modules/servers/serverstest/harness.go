@@ -50,8 +50,10 @@ type Harness struct {
 	mu         sync.Mutex
 	dnsVisible bool
 	stopJobs   func()
+	stopDisp   func()
 	stubbed    bool
 	stallSmoke bool
+	accepts    func(endpoint.Endpoint) bool
 }
 
 // Option changes what NewHarness builds.
@@ -97,11 +99,14 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 	p.SmokeGap = 5 * time.Millisecond
 	p.RemoteEnv = func(log *jobs.Logger) remote.Env { return remote.Env{Log: log, Poll: time.Millisecond} }
 	if h.stubbed {
-		p.ProxyTest = func(context.Context, endpoint.Endpoint, proxy.Options) proxy.Result {
+		p.ProxyTest = func(_ context.Context, e endpoint.Endpoint, _ proxy.Options) proxy.Result {
 			h.mu.Lock()
 			defer h.mu.Unlock()
 			if h.stallSmoke {
 				return proxy.Result{Class: proxy.Stalled, Error: "no data for 5s after 16 KB received"}
+			}
+			if h.accepts != nil && !h.accepts(e) {
+				return proxy.Result{Class: proxy.HTTPError, Error: "EOF"}
 			}
 			return proxy.Result{OK: true, FirstByteMS: 1, ThroughputKbps: 1000}
 		}
@@ -119,12 +124,32 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 			o.Stall, o.Timeout = 400*time.Millisecond, 4*time.Second
 			return o
 		}
+		// A server that does not accept an endpoint's credentials fails the
+		// test at once, as the real one would after its handshake.
+		p.ProxyTest = func(ctx context.Context, e endpoint.Endpoint, o proxy.Options) proxy.Result {
+			h.mu.Lock()
+			ok := h.accepts == nil || h.accepts(e)
+			h.mu.Unlock()
+			if !ok {
+				return proxy.Result{Class: proxy.HTTPError, Error: "EOF"}
+			}
+			return proxy.Test(ctx, e, o)
+		}
 	}
+	mod.Deploy.RebootPoll, mod.Deploy.RebootTimeout, mod.Deploy.CheckGap = time.Millisecond, 3*time.Second, time.Millisecond
 
 	// Jobs: workers poll fast and stop quickly.
+	// Every address reaches the one fake VPS, so a test can have many servers.
+	h.App.SSH.Dial = func(ctx context.Context, network, addr string) (net.Conn, error) {
+		_, port, _ := net.SplitHostPort(addr)
+		return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort("127.0.0.1", port))
+	}
 	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 5*time.Millisecond, 50*time.Millisecond, 300*time.Millisecond
 	h.StartJobs()
 	t.Cleanup(h.StopJobs)
+	h.App.Dispatcher.Poll = func() time.Duration { return 5 * time.Millisecond }
+	h.startDispatcher()
+	t.Cleanup(h.stopDispatcher)
 
 	h.Login = site.SignIn("")
 
@@ -160,6 +185,52 @@ func (h *Harness) StartJobs() {
 	done := make(chan struct{})
 	go func() { defer close(done); _ = h.App.Jobs.Start(ctx) }()
 	h.stopJobs = func() { cancel(); <-done }
+}
+
+// startDispatcher delivers events to the subscribers (rollouts move on them).
+func (h *Harness) startDispatcher() {
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = h.App.Dispatcher.Start(ctx) }()
+	h.mu.Lock()
+	h.stopDisp = func() { cancel(); <-done }
+	h.mu.Unlock()
+}
+
+// StopDispatcher stops delivering events, so a test can hand them to a
+// subscriber itself; it stays stopped.
+func (h *Harness) StopDispatcher() { h.stopDispatcher() }
+
+func (h *Harness) stopDispatcher() {
+	h.mu.Lock()
+	stop := h.stopDisp
+	h.stopDisp = nil
+	h.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
+}
+
+// ProxyAccepts decides which endpoints the proxy tests accept: the others fail
+// at once, as a server that does not know their credentials would. nil
+// accepts everything again.
+func (h *Harness) ProxyAccepts(f func(endpoint.Endpoint) bool) {
+	h.mu.Lock()
+	h.accepts = f
+	h.mu.Unlock()
+}
+
+// FollowVPS makes the proxy tests accept exactly the endpoints whose
+// credential and path are in some file on the fake server: the stack there
+// decides who gets in.
+func (h *Harness) FollowVPS() {
+	h.ProxyAccepts(func(e endpoint.Endpoint) bool {
+		if !h.VPS.AnyFileContains(e.Credential) {
+			return false
+		}
+		path := e.Params["path"]
+		return path == "" || h.VPS.AnyFileContains(path)
+	})
 }
 
 // StopJobs stops the workers as a shutdown does: what runs is interrupted and
@@ -364,5 +435,31 @@ func (h *Harness) Provisioned() int64 {
 	h.T.Helper()
 	id := h.Create(h.Form())
 	h.Drain()
+	return id
+}
+
+// LastJob is the id of the newest job of a type.
+func (h *Harness) LastJob(typ string) int64 {
+	h.T.Helper()
+	var id int64
+	if err := h.App.DB.R.Get(&id, `SELECT COALESCE(MAX(id), 0) FROM jobs WHERE type = ?`, typ); err != nil {
+		h.T.Fatal(err)
+	}
+	return id
+}
+
+// AddServer provisions another server on the same fake VPS under another
+// address (10.77.0.x reaches it too) and returns its id. The machine is
+// "reinstalled" first so root's password works again.
+func (h *Harness) AddServer(ip string) int64 {
+	h.T.Helper()
+	h.VPS.Unharden()
+	f := h.Form()
+	f.IP = ip
+	id := h.Create(f)
+	h.Drain()
+	if s := h.Server(id); s.State != "active" {
+		h.T.Fatalf("server %s on %s: %s %s: %s", s.Name, ip, s.State, s.FailedStep, s.FailedError)
+	}
 	return id
 }

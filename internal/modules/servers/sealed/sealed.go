@@ -7,9 +7,12 @@ package sealed
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
+	"github.com/tikhonp/proxier/internal/modules/servers/render"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 )
@@ -43,6 +46,23 @@ func OpenGenerated(v *vault.Vault, serverID int64, rows []store.GeneratedValue) 
 	return out, nil
 }
 
+// OpenPending opens the pending (not yet committed) values of a rotation by
+// key; keys without one are absent.
+func OpenPending(v *vault.Vault, serverID int64, rows []store.GeneratedValue) (map[string]string, error) {
+	out := map[string]string{}
+	for _, r := range rows {
+		if len(r.Pending) == 0 {
+			continue
+		}
+		s, err := v.OpenString(r.Pending, genAAD(serverID, r.Key))
+		if err != nil {
+			return nil, fmt.Errorf("open pending value %q of server %d: %w", r.Key, serverID, err)
+		}
+		out[r.Key] = s
+	}
+	return out, nil
+}
+
 // SealParams seals a server's secret parameters as one JSON blob; nil for none.
 func SealParams(v *vault.Vault, serverID int64, secret map[string]string) []byte {
 	if len(secret) == 0 {
@@ -65,23 +85,75 @@ func OpenParams(v *vault.Vault, serverID int64, blob []byte) (map[string]string,
 	return out, json.Unmarshal(b, &out)
 }
 
-// SealDeploymentParams and OpenDeploymentParams do the same for a deployment.
-func SealDeploymentParams(v *vault.Vault, deploymentID int64, secret map[string]string) []byte {
-	if len(secret) == 0 {
+// DeploymentSecrets are the secrets a deployment's files were rendered with:
+// its secret parameters and the generated values in force then. Keeping them
+// lets the Stack tab mask an old deployment's files after a rotation or a
+// parameter change replaced the values.
+type DeploymentSecrets struct {
+	Params, Gen map[string]string
+}
+
+type deploymentSecretsJSON struct {
+	V      int               `json:"v"`
+	Params map[string]string `json:"params,omitempty"`
+	Gen    map[string]string `json:"gen,omitempty"`
+}
+
+// SealDeploymentSecrets seals a deployment's secrets as one blob; nil for none.
+func SealDeploymentSecrets(v *vault.Vault, deploymentID int64, s DeploymentSecrets) []byte {
+	if len(s.Params) == 0 && len(s.Gen) == 0 {
 		return nil
 	}
-	b, _ := json.Marshal(secret)
+	b, _ := json.Marshal(deploymentSecretsJSON{V: 2, Params: s.Params, Gen: s.Gen})
 	return v.Seal(b, deploymentParamsAAD(deploymentID))
 }
 
-func OpenDeploymentParams(v *vault.Vault, deploymentID int64, blob []byte) (map[string]string, error) {
-	out := map[string]string{}
+// OpenDeploymentSecrets opens them; empty for none. A blob of the first
+// format (a flat map of secret parameters) opens as Params.
+func OpenDeploymentSecrets(v *vault.Vault, deploymentID int64, blob []byte) (DeploymentSecrets, error) {
+	out := DeploymentSecrets{Params: map[string]string{}, Gen: map[string]string{}}
 	if len(blob) == 0 {
 		return out, nil
 	}
 	b, err := v.Open(blob, deploymentParamsAAD(deploymentID))
 	if err != nil {
-		return nil, fmt.Errorf("open parameters of deployment %d: %w", deploymentID, err)
+		return out, fmt.Errorf("open parameters of deployment %d: %w", deploymentID, err)
+	}
+	var cur deploymentSecretsJSON
+	if err := json.Unmarshal(b, &cur); err == nil && cur.V == 2 {
+		for k, val := range cur.Params {
+			out.Params[k] = val
+		}
+		for k, val := range cur.Gen {
+			out.Gen[k] = val
+		}
+		return out, nil
+	}
+	return out, json.Unmarshal(b, &out.Params)
+}
+
+func rolloutParamsAAD(rolloutID int64, position int) string {
+	return fmt.Sprintf("rollout:%d:item:%d:params", rolloutID, position)
+}
+
+// SealRolloutParams and OpenRolloutParams do the same for the secret
+// parameters asked before a rollout started, one blob per item.
+func SealRolloutParams(v *vault.Vault, rolloutID int64, position int, secret map[string]string) []byte {
+	if len(secret) == 0 {
+		return nil
+	}
+	b, _ := json.Marshal(secret)
+	return v.Seal(b, rolloutParamsAAD(rolloutID, position))
+}
+
+func OpenRolloutParams(v *vault.Vault, rolloutID int64, position int, blob []byte) (map[string]string, error) {
+	out := map[string]string{}
+	if len(blob) == 0 {
+		return out, nil
+	}
+	b, err := v.Open(blob, rolloutParamsAAD(rolloutID, position))
+	if err != nil {
+		return nil, fmt.Errorf("open parameters of rollout %d item %d: %w", rolloutID, position, err)
 	}
 	return out, json.Unmarshal(b, &out)
 }
@@ -122,6 +194,51 @@ func OpenEndpoint(v *vault.Vault, r store.EndpointRow) (endpoint.Endpoint, error
 		return endpoint.Endpoint{}, err
 	}
 	return endpoint.Endpoint{Key: r.Key, Type: r.Type, Host: r.Host, Port: r.Port, Credential: s.Credential, Params: s.Params, DisplayName: r.DisplayName}, nil
+}
+
+// Endpoints checks the rendered endpoints of a version and gives them the
+// display names apps show: flag, locationName and number make the name.
+func Endpoints(rendered []render.RenderedEndpoint, flag, locationName string, number int) ([]endpoint.Endpoint, error) {
+	if len(rendered) == 0 {
+		return nil, errors.New("the template declares no endpoint")
+	}
+	many := len(rendered) > 1
+	out := make([]endpoint.Endpoint, len(rendered))
+	for i, e := range rendered {
+		t, ok := endpoint.Lookup(e.Type)
+		if !ok {
+			return nil, fmt.Errorf("endpoint %q has the unknown type %q", e.Key, e.Type)
+		}
+		if problems := t.Check(e); len(problems) > 0 {
+			return nil, fmt.Errorf("endpoint %q: %s", e.Key, strings.Join(problems, "; "))
+		}
+		out[i] = endpoint.Endpoint{
+			Key: e.Key, Type: e.Type, Host: e.Host, Port: e.Port, Credential: e.Credential, Params: e.Params,
+			DisplayName: endpoint.DisplayName(flag, locationName, number, e.Key, many),
+		}
+	}
+	return out, nil
+}
+
+// SealEndpoints seals endpoints into the rows a server stores, in order.
+func SealEndpoints(v *vault.Vault, serverID int64, eps []endpoint.Endpoint) []store.EndpointRow {
+	rows := make([]store.EndpointRow, len(eps))
+	for i, e := range eps {
+		rows[i] = store.EndpointRow{
+			ServerID: serverID, Key: e.Key, Type: e.Type, Host: e.Host, Port: e.Port, Position: i, DisplayName: e.DisplayName,
+			Secret: SealEndpoint(v, serverID, e.Key, e.Credential, e.Params),
+		}
+	}
+	return rows
+}
+
+// EndpointRows is Endpoints followed by SealEndpoints.
+func EndpointRows(v *vault.Vault, serverID int64, rendered []render.RenderedEndpoint, flag, locationName string, number int) ([]store.EndpointRow, error) {
+	eps, err := Endpoints(rendered, flag, locationName, number)
+	if err != nil {
+		return nil, err
+	}
+	return SealEndpoints(v, serverID, eps), nil
 }
 
 // OpenEndpoints opens all of a server's endpoints.

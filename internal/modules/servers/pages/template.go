@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/finding"
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
+	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -39,6 +40,8 @@ type templateView struct {
 	InUse    bool              // the error is "can't delete": offer Archive
 	Errs     map[string]string // translated, by field of the details form
 	Typed    *detailsForm
+	// Outdated are the active servers on a version older than the default.
+	Outdated []store.Server
 }
 
 func (h *handler) renderTemplate(c *echo.Context, status int, id int64, v templateView) error {
@@ -72,6 +75,18 @@ func (h *handler) renderTemplate(c *echo.Context, status int, id int64, v templa
 			}
 			v.Draft = ds
 		}
+	}
+	if info.DefaultVersion > 0 {
+		all, err := store.ListServers(ctx, h.Store.DB.R)
+		if err != nil {
+			return err
+		}
+		for _, srv := range all {
+			if srv.TemplateID == id && srv.State == "active" && srv.TemplateVersion < info.DefaultVersion {
+				v.Outdated = append(v.Outdated, srv)
+			}
+		}
+		sort.Slice(v.Outdated, func(i, j int) bool { return v.Outdated[i].Name < v.Outdated[j].Name })
 	}
 	s := h.shell(c, info.Name, "/templates")
 	s.PageKeys = "templates.hints.template"

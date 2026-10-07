@@ -1,0 +1,99 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// stackPage is the Stack tab: the files of the current deployment, secrets
+// masked, and the history of every deployment.
+templ stackPage(s ui.Shell, v stackView) {
+	@ui.Layout(s) {
+		@serverHead(v.serverView, "stack")
+		if v.Dep == nil {
+			@ui.EmptyState(i18n.T(ctx, "servers.stack.empty"), i18n.T(ctx, "servers.stack.empty_next"))
+		} else {
+			@ui.Area(i18n.T(ctx, "servers.stack.files"), v.DepNote) {
+				<div class="stack-cols area-body">
+					<nav class="stack-tree" aria-label={ i18n.T(ctx, "servers.stack.files") }>
+						for _, f := range v.Files {
+							if f.Dir {
+								<div class={ "row", "tree-dir", depthClass(f.Depth) }><span class="subtle">{ f.Name }</span></div>
+							} else {
+								<a href={ templ.SafeURL(f.Href) } class={ "row", "pc-row", depthClass(f.Depth), templ.KV("pc-cur", f.Current) }>
+									<span class="bold">{ f.Name }</span>
+									if f.Secrets {
+										<span class="sm subtle">{ i18n.T(ctx, "servers.stack.secrets") }</span>
+									}
+								</a>
+							}
+						}
+					</nav>
+					<div class="stack-file">
+						@stackCode(v.codeView())
+					</div>
+				</div>
+			}
+		}
+		@ui.Area(i18n.T(ctx, "servers.stack.history"), i18n.T(ctx, "servers.stack.history.note")) {
+			if len(v.History) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "servers.stack.history.none") }</p>
+			}
+			for _, d := range v.History {
+				<div class={ "row", "dep", templ.KV("pc-cur", d.Current) }>
+					<span class="subtle">{ d.Time }</span>
+					<span class="bold">{ d.Kind }</span>
+					<span class={ templ.KV("err", d.State == "failed") }>{ d.Result }</span>
+					<span>{ d.Version }</span>
+					<span class="actions">
+						if d.JobHref != "" {
+							<a href={ templ.SafeURL(d.JobHref) } class="pc-btn pc-sm">{ i18n.T(ctx, "servers.stack.job") }</a>
+						}
+						if d.DiffHref != "" {
+							<a href={ templ.SafeURL(d.DiffHref) } class="pc-btn pc-sm">{ i18n.T(ctx, "servers.stack.diff") }</a>
+						}
+					</span>
+					if d.Error != "" {
+						<span class="err sm dep-error">{ d.Error }</span>
+					}
+				</div>
+			}
+			if v.CanRoll {
+				<div class="area-body">
+					<a href={ templ.SafeURL(serverHref(v.S.ID) + "/rollback") } class="pc-btn pc-sm" data-action="server.rollback">{ i18n.T(ctx, "servers.act.rollback") }</a>
+				</div>
+			}
+		}
+	}
+}
+
+// stackCode is one file's code with its header; Reveal swaps it for the real
+// content.
+templ stackCode(v stackCodeView) {
+	<div id="stack-code">
+		<div class="row stack-file-head">
+			<span class="bold">{ v.Path }</span>
+			if v.Masked {
+				<span class="sm subtle">{ i18n.T(ctx, "servers.stack.masked") }</span>
+				<button type="button" class="pc-btn pc-sm" hx-get={ v.RevealHref } hx-target="#stack-code" hx-swap="outerHTML">{ i18n.T(ctx, "servers.stack.reveal") }</button>
+			}
+		</div>
+		@ui.Code("filecode", v.Code)
+	</div>
+}
+
+templ stackDiffPage(s ui.Shell, v stackDiffView) {
+	@ui.Layout(s) {
+		@serverHead(v.serverView, "stack")
+		@ui.Area(i18n.T(ctx, "servers.stack.diff.heading", i18n.Args{"a": v.From, "b": v.To}), i18n.T(ctx, "servers.stack.diff.note")) {
+			if v.Same {
+				<p class="subtle area-body">{ i18n.T(ctx, "servers.stack.diff.same") }</p>
+			} else {
+				@ui.Diff(v.Diff)
+			}
+		}
+		<p class="sm subtle"><a href={ templ.SafeURL(serverHref(v.S.ID) + "/stack") }>{ i18n.T(ctx, "servers.stack.back") }</a> · { strconv.FormatInt(v.Prev.ID, 10) } → { strconv.FormatInt(v.Dep.ID, 10) }</p>
+	}
+}

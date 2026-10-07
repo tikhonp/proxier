@@ -10,7 +10,7 @@ Because Proxier renders every file itself, it can change a server after provisio
    - **Redeploy**: the current version.
    - **Upgrade**: pick a newer (or older) version. The form asks for parameters the target version adds that have no default, and shows ones it removes.
    - **Edit parameters**: the current version with changed values.
-2. Proxier renders the target for this server and compares it with the files of the last successful deployment. It shows the **plan**:
+2. Proxier renders the target for this server and compares it with the server's **current files**: the files of its latest succeeded deployment that uploaded files (a restart, an image update or a reboot uploads nothing, so it does not count). It shows the **plan**:
    - the files that will be added, changed and removed (a diff per file, secrets masked);
    - the generated values that will be created;
    - the endpoints that will change (a changed connection URI is flagged: "links will get new URIs on their next refresh");
@@ -23,15 +23,17 @@ Because Proxier renders every file itself, it can change a server after provisio
    3. Run the version's `redeploy` steps (in the seed template: `compose up`).
    4. Store the new endpoints, then run the self-check, then run the proxy test through every endpoint.
    5. Record the deployment, the server's version and parameters. → `server.redeployed{kind, from_version, to_version, files_changed}`
-6. A failure stops the job. The server stays **active**, at whatever state the remote side reached, and the deployment is recorded as failed. Health checks report the actual effect. → `server.redeploy_failed{kind, step, error}` (notifies)
-7. **Roll back** on a failed deployment opens a redeploy of the previous version with the previous parameters, through the same plan screen.
+6. A failure stops the job. The server stays **active**, at whatever state the remote side reached, and the deployment is recorded as failed. Health checks report the actual effect. → `server.redeploy_failed{kind, step, error}` (notifies). A cancelled job fails its deployment the same way (`error: cancelled`) and records the event with `cancelled: true`, which does not notify.
+7. **Roll back** on the latest deployment, when it failed after putting files on the server, opens a forced redeploy of the version and parameters of the current files through the same plan screen. It is forced because the failed deployment may have changed the server in ways the stored current files do not show.
 
 ## Steps — rolling upgrade
 
 1. The server list → select servers (or "all on older versions") → **Upgrade to default version**.
 2. Proxier shows, per server, the version change and the number of changed files. Servers needing new parameters without defaults are listed and need values first.
-3. **Start rollout** runs the upgrades **one server at a time**, in name order. The next server starts only after the previous one's proxy test passed.
-4. The first failure stops the rollout. The servers after it are untouched, and the rollout shows done / failed / not started per server.
+3. **Start rollout** runs the upgrades **one server at a time**, in name order. The next server starts only after the previous one's proxy test passed. No job waits for another: each server's deploy job ends, and the `servers.rollout` event subscriber starts the next when it sees that job's `server.redeployed`.
+4. The first failure (a cancelled job included) stops the rollout. The servers after it are untouched, and the rollout shows done / failed / not started per server.
+5. **Stop rollout** starts nothing new; the server being upgraded finishes on its own. When the rollout ends, one `server.rollout_finished{state, done, failed, not_started}` is recorded.
+6. A server that is not active, or already at the target version, when its turn comes is **skipped** with the reason shown.
 
 ## Steps — lighter operations
 
@@ -40,11 +42,12 @@ Because Proxier renders every file itself, it can change a server after provisio
 | Restart stack | `docker compose restart` in `dir`, then a self-check | `server.redeployed{kind: restart}` |
 | Update images | `docker compose pull`, `up -d`, self-check, proxy test | `server.redeployed{kind: images, changed_images}` |
 | Reboot | `systemctl reboot`, wait for SSH (timeout 5 min), self-check, proxy test | `server.redeployed{kind: reboot}` |
-| Container logs | `docker compose logs --tail 200` per service. Read-only; the output goes into the job log, which is visible only on the job page | nothing |
+| Container logs | `docker compose logs --tail 200` per service. Read-only; the output goes into the job log, which is visible only on the job page. Also allowed on a **failed** server whose stack was uploaded | nothing |
 
 ## Rules
 
 - Only one mutating job runs per server at a time (resource key `server:<id>`). A redeploy waits for a running rotation, and the reverse.
+- A rotation cancelled after it generated new values is restored by a `servers.restore` job, queued in the cancellation.
 - The plan is computed again when the job starts. If something changed between preview and apply (another deployment finished), the job applies the new difference and logs that the plan was recomputed.
 - `upload-files` only removes files that an earlier deployment of this server created. Runtime data in `dir` (certificates, volumes) is never touched.
 - Changing the template's default version never changes a server. Servers show "update available" until upgraded.

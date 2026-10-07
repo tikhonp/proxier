@@ -248,3 +248,28 @@ func TestModuleWiresValidators(t *testing.T) {
 		t.Errorf("a config xray refuses must be an error: %v", rep.Findings)
 	}
 }
+
+// Every job type of the module has a title, and so has each of its steps: the
+// job pages, the server page's progress and the plan screen show them.
+func TestEveryJobStepHasATitle(t *testing.T) {
+	s := site(t)
+	n := 0
+	for _, name := range s.App.Jobs.Types() {
+		if !strings.HasPrefix(name, "servers.") {
+			continue
+		}
+		typ, _ := s.App.Jobs.TypeInfo(name)
+		if !s.App.I18n.Has("job." + name) {
+			t.Errorf("%s has no job.%s", name, name)
+		}
+		for _, st := range typ.Steps {
+			n++
+			if key := "job." + name + ".step." + st.Name; !s.App.I18n.Has(key) {
+				t.Errorf("%s is missing", key)
+			}
+		}
+	}
+	if n < 30 {
+		t.Errorf("only %d steps found", n)
+	}
+}

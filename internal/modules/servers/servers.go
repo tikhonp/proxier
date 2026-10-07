@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
@@ -42,6 +43,8 @@ type Module struct {
 	Templates *templates.Service
 	// Provision builds servers: the form, Create, the job, Retry, Activate anyway.
 	Provision *provision.Service
+	// Deploy changes active servers: plans, redeploys, rollouts, operations, rotation.
+	Deploy *deploy.Service
 	// DNS writes and removes servers' A records; Waiter waits for resolvers to
 	// show them (1d composes both into provisioning).
 	DNS    dns.Driver
@@ -73,6 +76,15 @@ func (m *Module) Init(d module.Deps) error {
 		// read at use: tests replace the module's driver and waiter
 		DNS: func() dns.Driver { return m.DNS }, Waiter: func() dns.Waiter { return m.Waiter },
 	})
+	m.Deploy = deploy.New(deploy.Deps{
+		DB: d.DB, Events: d.Events, Vault: d.Vault, Jobs: d.Jobs, SSH: d.SSH, Settings: d.Settings,
+		Store: m.Store, Templates: m.Templates, Log: d.Log,
+		// the seams are provisioning's, read at use: a test replaces them once
+		Seams: func() deploy.Seams {
+			p := m.Provision
+			return deploy.Seams{ProxyTest: p.ProxyTest, ProxyOptions: p.ProxyOptions, RemoteEnv: p.RemoteEnv, Attempts: p.SmokeAttempts, Gap: p.SmokeGap}
+		},
+	})
 	// The validators that need the embedded xray and the endpoint types.
 	validate.XrayConfig, validate.EndpointFields = proxy.ValidateConfig, endpoint.Check
 	return nil
@@ -96,8 +108,14 @@ func (m *Module) AfterMigrate(ctx context.Context) error {
 
 func (*Module) EventTypes() []events.Type { return Events }
 
-// JobTypes: provisioning (1d); the later sub-phases add theirs.
-func (m *Module) JobTypes() []jobs.Type { return []jobs.Type{m.Provision.JobType()} }
+// JobTypes: provisioning (1d) and the changes to active servers (1e); the
+// later sub-phases add theirs.
+func (m *Module) JobTypes() []jobs.Type {
+	return append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
+}
+
+// Subscribers: the rollout advances when a deploy job of its running item ends.
+func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Deploy.Subscriber()} }
 
 func (*Module) Schedules() []jobs.Schedule { return nil }
 
@@ -128,8 +146,8 @@ func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
-	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages))
-	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages} {
+	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages)+len(deployMessages))
+	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages, deployMessages} {
 		for k, v := range set {
 			all[k] = v
 		}
@@ -141,7 +159,7 @@ func (m *Module) Routes(r web.Routes) {
 	pages.Register(r, pages.Deps{
 		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
 		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
-		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision,
+		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy,
 		Usage: func() pages.UsageReader { return m.usage },
 	})
 }
@@ -214,7 +232,9 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 }
 
 // SubjectTypes are the subject types of the module's events.
-func (*Module) SubjectTypes() []string { return []string{"server", "template", "location", "home"} }
+func (*Module) SubjectTypes() []string {
+	return []string{"server", "template", "location", "home", "rollout"}
+}
 
 // NameSubjects names subjects for Activity, Jobs and notifications.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
@@ -232,6 +252,8 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 			if err := m.deps.DB.R.GetContext(ctx, &l, `SELECT code, name, country FROM servers_locations WHERE id = ?`, n); err == nil {
 				out[id] = ui.SubjectRef{Label: l.Code + " · " + l.Name, Href: "/locations"}
 			}
+		case "rollout":
+			out[id] = ui.SubjectRef{Label: i18n.T(ctx, "servers.rollout.subject", i18n.Args{"id": id}), Href: "/servers/rollouts/" + id}
 		case "template":
 			var name string
 			if err := m.deps.DB.R.GetContext(ctx, &name, `SELECT name FROM servers_templates WHERE id = ?`, n); err == nil {
@@ -258,6 +280,7 @@ var (
 	_ module.MessagesDeclarer     = (*Module)(nil)
 	_ module.RouteDeclarer        = (*Module)(nil)
 	_ module.JobDeclarer          = (*Module)(nil)
+	_ module.SubscriberDeclarer   = (*Module)(nil)
 	_ module.DashboardDeclarer    = (*Module)(nil)
 	_ module.NotificationRenderer = (*Module)(nil)
 	_ module.NavDeclarer          = (*Module)(nil)

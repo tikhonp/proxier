@@ -1,0 +1,160 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// planPage is the plan screen of a redeploy, an upgrade, a parameter edit or a
+// roll back: what would change, nothing applied yet.
+templ planPage(s ui.Shell, v planView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.plan.crumb."+v.Kind) }</span></nav>
+				<h1>{ v.Title }</h1>
+				<p class="subtle">{ v.Note }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		if v.Form {
+			@planFormArea(v)
+		}
+		if v.Plan != nil && !v.Missing {
+			@planBody(v)
+		}
+	}
+}
+
+templ planFormArea(v planView) {
+	@ui.Area(i18n.T(ctx, "servers.plan.target"), "") {
+		<form method="post" action={ serverHref(v.S.ID) + "/plan" } class="form area-body">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<input type="hidden" name="kind" value={ v.Kind }/>
+			if v.Kind == "upgrade" {
+				<div class="field">
+					<label for="plan-version">{ i18n.T(ctx, "servers.plan.version") }</label>
+					<select id="plan-version" class="pc-inp" name="version">
+						for _, ver := range v.Versions {
+							<option value={ strconv.Itoa(ver.Number) } selected?={ ver.Selected }>{ ver.Label }</option>
+						}
+					</select>
+					<p class="help">{ i18n.T(ctx, "servers.plan.version.help") }</p>
+				</div>
+			} else {
+				<input type="hidden" name="version" value={ strconv.Itoa(v.Version) }/>
+			}
+			if v.Plan != nil && len(v.Plan.MissingParams) > 0 {
+				@ui.Alert("gold", "status") {
+					{ i18n.T(ctx, "servers.plan.missing") }
+				}
+			}
+			if len(v.Fields) == 0 {
+				<p class="subtle">{ i18n.T(ctx, "servers.plan.no_params") }</p>
+			}
+			@paramInputs(v.Fields)
+			<div class="form-actions">
+				<button type="submit" class="pc-btn">{ i18n.T(ctx, "servers.plan.show") }</button>
+			</div>
+		</form>
+	}
+}
+
+templ planBody(v planView) {
+	if len(v.Summary) > 0 {
+		<p class="plan-sum">
+			for i, s := range v.Summary {
+				if i > 0 {
+					<span class="subtle"> · </span>
+				}
+				<span class="bold">{ s }</span>
+			}
+		</p>
+	}
+	if v.Plan.Empty {
+		@ui.Band("pine") {
+			<span class="bold">{ i18n.T(ctx, "servers.plan.nothing") }</span>
+			<span>{ i18n.T(ctx, "servers.plan.nothing.note") }</span>
+		}
+	}
+	if len(v.Warnings) > 0 {
+		@ui.Band("gold") {
+			<ul class="warnlist">
+				for _, w := range v.Warnings {
+					<li>{ w }</li>
+				}
+			</ul>
+		}
+	}
+	if len(v.ParamsAdded) > 0 || len(v.ParamsRemoved) > 0 || len(v.ParamsChanged) > 0 {
+		@ui.Area(i18n.T(ctx, "servers.plan.params"), "") {
+			<div class="area-body">
+				for _, k := range v.ParamsAdded {
+					<div class="row"><span class="bold">{ k }</span><span class="subtle">{ i18n.T(ctx, "servers.plan.param.added") }</span></div>
+				}
+				for _, k := range v.ParamsChanged {
+					<div class="row"><span class="bold">{ k }</span><span class="subtle">{ i18n.T(ctx, "servers.plan.param.changed") }</span></div>
+				}
+				for _, k := range v.ParamsRemoved {
+					<div class="row"><span class="bold">{ k }</span><span class="subtle">{ i18n.T(ctx, "servers.plan.param.removed") }</span></div>
+				}
+			</div>
+		}
+	}
+	if len(v.Diff.Files) > 0 {
+		@ui.Area(i18n.T(ctx, "servers.plan.files"), i18n.T(ctx, "servers.plan.files.note")) {
+			@ui.Diff(v.Diff)
+		}
+	}
+	if len(v.NewGenerated) > 0 {
+		@ui.Area(i18n.T(ctx, "servers.plan.generated"), "") {
+			<div class="area-body">
+				<p class="subtle">{ i18n.T(ctx, "servers.plan.generated.note") }</p>
+				for _, k := range v.NewGenerated {
+					<div class="row"><span class="bold">{ k }</span></div>
+				}
+			</div>
+		}
+	}
+	if len(v.Endpoints) > 0 {
+		@ui.Area(i18n.T(ctx, "servers.plan.endpoints"), "") {
+			<div class="area-body">
+				for _, e := range v.Endpoints {
+					<div class="row">
+						if e.Warn {
+							@ui.Status("look", e.Key)
+						} else {
+							@ui.Status("ok", e.Key)
+						}
+						<span>{ e.Text }</span>
+					</div>
+				}
+			</div>
+		}
+	}
+	@ui.Area(i18n.T(ctx, "servers.plan.steps"), i18n.T(ctx, "servers.plan.steps.note")) {
+		<ol class="area-body plan-steps">
+			for _, st := range v.Steps {
+				<li>{ st }</li>
+			}
+		</ol>
+	}
+	<div class="form-actions plan-actions">
+		if v.Apply != nil {
+			@ui.ActionButton(*v.Apply)
+		}
+		if v.Force != nil {
+			@ui.ActionButton(*v.Force)
+		}
+		<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+		if v.Kind == "rollback" || v.Apply != nil {
+			<span class="sm subtle">{ i18n.T(ctx, "servers.plan.failure_note") }</span>
+		}
+	</div>
+}

@@ -393,3 +393,29 @@ a.row.tpl { text-decoration: none; color: inherit; }
   .row.ep { grid-template-columns: minmax(0, 1fr); }
   .row.evt { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
+
+/* Changing a running server (1e): plan screen, rollouts, Stack tab */
+.actions-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.plan-sum { padding: 12px 16px; border-bottom: 1px solid var(--overlay); }
+.plan-steps { margin: 0; padding: 12px 16px 12px 36px; display: flex; flex-direction: column; gap: 2px; }
+.plan-actions { padding: 16px; }
+.row.rollout, .colhead.rollout { grid-template-columns: 32px minmax(0, 1fr) 150px 110px minmax(0, 1.6fr); align-items: center; }
+.row.rollout-plan { grid-template-columns: 32px minmax(0, 1fr) 110px minmax(0, 1.6fr); }
+.rollout-params { border-top: 1px solid var(--overlay); max-width: 560px; }
+.outdated .row { padding-left: 0; padding-right: 0; display: flex; gap: 16px; }
+.stack-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; padding: 0; }
+.stack-tree { border-right: 1px solid var(--overlay); padding: 8px 0; }
+.stack-tree .row { display: flex; gap: 8px; align-items: center; text-decoration: none; padding: 3px 16px; }
+.stack-tree .row.d1 { padding-left: 30px; }
+.stack-tree .row.d2 { padding-left: 44px; }
+.stack-tree .row.d3 { padding-left: 58px; }
+.stack-file { min-width: 0; }
+.stack-file-head { display: flex; gap: 12px; align-items: center; padding: 8px 16px 0; }
+.row.dep { grid-template-columns: 170px minmax(0, 1fr) minmax(0, 1.3fr) 60px minmax(0, auto); }
+.row.dep .dep-error { grid-column: 2 / -1; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .row.rollout, .row.rollout-plan, .row.dep { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .colhead.rollout { display: none; }
+  .stack-cols { grid-template-columns: minmax(0, 1fr); }
+  .stack-tree { border-right: 0; border-bottom: 1px solid var(--overlay); }
+}

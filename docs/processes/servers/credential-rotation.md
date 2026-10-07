@@ -17,9 +17,12 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
    3. Run the version's `redeploy` steps.
    4. Proxy test through every endpoint **with the new values**.
    5. Commit: the new values replace the old ones, and the endpoints are stored with the new credential and parameters. → `server.credentials_rotated{keys}` (notifies)
-4. If any step fails before the commit, the server's files are restored to the last successful deployment (re-uploaded and redeployed) and the old values stay in force. → `server.redeploy_failed{kind: rotate, step, error}`
+4. If a step fails before the commit, the **restore runs inside the failing step**, before the job reports the failure: the server's current files are uploaded again (a deployment of kind `restore`), the redeploy steps run, the proxy test passes with the old values, and the new values are dropped. The old values stay in force throughout. → `server.redeploy_failed{kind: rotate, step, error, restored}`; `restored` is false when the restore failed too, and the log says what may be on the server.
+5. If the admin cancels after the new values exist, the cancellation queues a `servers.restore` job (the rotation's log says "restore queued as job #N") that does the same.
 
 ## Steps — cut-off (rotating for a link)
+
+Phase 2: the subscriptions module does not exist yet, so only the single-server rotation above is built.
 
 1. Link page → **Cut off**. The dialog lists every server in the link's subscription, each other link that serves any of them, and the warning above.
 2. **Cut off** disables the link at once (it serves the "disabled" stub entry from now on) and queues a rotation per listed server. → `link.disabled`, `link.cut_off{servers}`

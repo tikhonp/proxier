@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -129,6 +130,11 @@ type jobSide struct {
 
 type eventLine struct{ Time, Text string }
 
+// rollbackBand is the notice that the latest change failed and can be rolled back.
+type rollbackBand struct {
+	Kind, Error, JobHref string
+}
+
 type serverView struct {
 	S                 store.Server
 	Flag              string
@@ -144,6 +150,12 @@ type serverView struct {
 	CanCancel         bool
 	Saved             bool
 	Err               string
+	// 1e: the change in progress (or the one the page was opened for), the
+	// actions, the roll back notice and the default version when newer.
+	Change   *jobSide
+	Actions  []ui.Action
+	Rollback *rollbackBand
+	UpdateTo int
 }
 
 func (h *handler) serverID(c *echo.Context) (int64, error) { return h.id(c) }
@@ -165,7 +177,8 @@ func (h *handler) serverPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v, err := h.buildServer(c.Request().Context(), s)
+	job, _ := strconv.ParseInt(c.QueryParam("job"), 10, 64)
+	v, err := h.buildServer(c.Request().Context(), s, job)
 	if err != nil {
 		return err
 	}
@@ -178,7 +191,8 @@ func (h *handler) renderServer(c *echo.Context, status int, v serverView) error 
 	return web.Render(c, status, serverOverviewPage(h.shell(c, v.S.Name+" · "+i18n.T(ctx, "servers.title"), "/servers"), v))
 }
 
-func (h *handler) buildServer(ctx context.Context, s store.Server) (serverView, error) {
+// headView is what the title block of every tab of a server needs.
+func (h *handler) headView(ctx context.Context, s store.Server) serverView {
 	loc := i18n.From(ctx)
 	v := serverView{S: s, Flag: country.Flag(s.Country), Usage: "—", Created: loc.Time(s.CreatedAt.Time)}
 	v.Kind, v.Word = stateKind(ctx, s)
@@ -189,6 +203,12 @@ func (h *handler) buildServer(ctx context.Context, s store.Server) (serverView, 
 	v.CanRetry = s.State == "failed"
 	v.CanActivateAnyway = s.State == "failed" && s.FailedStep == provision.StepSmokeTest
 	v.CanCancel = s.State == "provisioning" && s.ProvisionJobID.Valid
+	return v
+}
+
+func (h *handler) buildServer(ctx context.Context, s store.Server, jobParam int64) (serverView, error) {
+	loc := i18n.From(ctx)
+	v := h.headView(ctx, s)
 
 	if h.Usage != nil {
 		if u := h.Usage(); u != nil {
@@ -205,6 +225,10 @@ func (h *handler) buildServer(ctx context.Context, s store.Server) (serverView, 
 			return v, err
 		}
 		v.Job = job
+	}
+
+	if err := h.changeView(ctx, s, jobParam, &v); err != nil {
+		return v, err
 	}
 
 	rows, err := store.Endpoints(ctx, h.Store.DB.R, s.ID)
@@ -357,7 +381,7 @@ func (h *handler) saveNotes(c *echo.Context) error {
 	ctx := c.Request().Context()
 	err = h.Store.SetServerNotes(ctx, s.ID, strings.ReplaceAll(c.FormValue("notes"), "\r\n", "\n"), "admin")
 	if errs, ok := fieldErrors(c, err); ok {
-		v, berr := h.buildServer(ctx, s)
+		v, berr := h.buildServer(ctx, s, 0)
 		if berr != nil {
 			return berr
 		}

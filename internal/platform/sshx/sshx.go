@@ -123,6 +123,9 @@ type SSH struct {
 	DialTimeout, HandshakeTimeout time.Duration
 	// KeepAlive is how often an idle connection is probed; three misses close it.
 	KeepAlive time.Duration
+	// Dial replaces the direct TCP dial. Tests use it to make several
+	// addresses reach one fake server; nothing in production sets it.
+	Dial Dialer
 
 	d       *db.DB
 	v       *vault.Vault

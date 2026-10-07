@@ -3,6 +3,7 @@
 package conf
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"strings"
@@ -57,4 +58,22 @@ var Section = settings.Section{
 		{Key: ProxyTestTimeout, Kind: settings.Duration, Default: "15s", Min: int64(5 * time.Second), Max: int64(2 * time.Minute)},
 		{Key: ProxyTestStall, Kind: settings.Duration, Default: "5s", Min: int64(time.Second), Max: int64(time.Minute)},
 	},
+}
+
+// ProxyTest reads how a proxy test runs: the URL (the template's own when it
+// has one, else the setting), the overall timeout and the stall limit.
+func ProxyTest(ctx context.Context, st *settings.Store, templateURL string) (url string, timeout, stall time.Duration, err error) {
+	url = templateURL
+	if url == "" {
+		if url, err = st.Get(ctx, ProxyTestURLKey); err != nil {
+			return "", 0, 0, err
+		}
+	}
+	if timeout, err = st.GetDuration(ctx, ProxyTestTimeout); err != nil {
+		return "", 0, 0, err
+	}
+	if stall, err = st.GetDuration(ctx, ProxyTestStall); err != nil {
+		return "", 0, 0, err
+	}
+	return url, timeout, stall, nil
 }

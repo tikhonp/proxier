@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
@@ -39,6 +40,8 @@ type Deps struct {
 	Vault     *vault.Vault
 	Jobs      *jobs.System
 	Provision *provision.Service
+	// Deploy plans and runs changes to active servers (1e).
+	Deploy *deploy.Service
 	// Usage is the subscriptions port (Phase 2); it returns nil until then.
 	Usage func() UsageReader
 }
@@ -64,6 +67,7 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/locations/:id/delete", h.deleteLocation)
 	h.registerTemplates(r)
 	h.registerServers(r)
+	h.registerDeploy(r)
 }
 
 type locForm struct{ Code, Name, Country string }

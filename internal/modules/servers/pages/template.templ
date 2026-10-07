@@ -70,6 +70,20 @@ templ templatePage(s ui.Shell, v templateView) {
 				}
 			}
 		}
+		if len(v.Outdated) > 0 {
+			@ui.Area(i18n.T(ctx, "servers.rollout.template"), i18n.T(ctx, "servers.rollout.template.note")) {
+				<form method="post" action="/servers/rollout/plan" class="area-body outdated">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					for _, srv := range v.Outdated {
+						<input type="hidden" name="server" value={ i64(srv.ID) }/>
+						<div class="row"><a href={ templ.SafeURL(serverHref(srv.ID)) } class="bold">{ srv.Name }</a><span class="subtle">{ vlabel(srv.TemplateVersion) }</span></div>
+					}
+					<div class="form-actions">
+						<button type="submit" class="pc-btn" data-action="tpl.rollout">{ i18n.T(ctx, "servers.rollout.template.go", i18n.Args{"version": vlabel(v.T.DefaultVersion)}) }</button>
+					</div>
+				</form>
+			}
+		}
 		<div class="tgrid">
 			<section class="area" aria-label={ i18n.T(ctx, "templates.versions") }>
 				<div class="pc-title">

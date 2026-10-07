@@ -207,6 +207,9 @@ func (s *SSH) dial(ctx context.Context, address string, network Network, via *ss
 		}
 		return s.tailnet(ctx, "tcp", address)
 	}
+	if s.Dial != nil {
+		return s.Dial(ctx, "tcp", address)
+	}
 	return (&net.Dialer{}).DialContext(ctx, "tcp", address)
 }
 
