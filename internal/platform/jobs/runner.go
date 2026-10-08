@@ -94,6 +94,7 @@ func (s *System) poolLoop(ctx, jobCtx context.Context, work *sync.WaitGroup, q Q
 			work.Add(1)
 			go func() {
 				defer work.Done()
+				defer s.Kick() // a job waiting for this resource key can start now
 				defer func() { <-sem }()
 				s.runJob(jobCtx, id)
 			}()
@@ -102,18 +103,26 @@ func (s *System) poolLoop(ctx, jobCtx context.Context, work *sync.WaitGroup, q Q
 		case <-ctx.Done():
 			return
 		case <-t.C:
-		case <-s.kick():
+		case <-s.kickc[q]:
 		}
 	}
 }
 
-func (s *System) kick() <-chan struct{} { return s.kickc }
+func kickChans() map[Queue]chan struct{} {
+	m := make(map[Queue]chan struct{}, len(Concurrency))
+	for q := range Concurrency {
+		m[q] = make(chan struct{}, 1)
+	}
+	return m
+}
 
 // Kick wakes the pools after an enqueue, so a job doesn't wait for the poll.
 func (s *System) Kick() {
-	select {
-	case s.kickc <- struct{}{}:
-	default:
+	for _, c := range s.kickc {
+		select {
+		case c <- struct{}{}:
+		default:
+		}
 	}
 }
 

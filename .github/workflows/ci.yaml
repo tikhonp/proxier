@@ -41,6 +41,17 @@ jobs:
       - name: Test
         run: make test
 
+  # Lint and govulncheck don't wait for the tests: a runner of their own.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -50,11 +61,11 @@ jobs:
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
 
-  # Images are built only from a commit whose tests passed
+  # Images are built only from a commit whose tests and lint passed
   # (docs/deployment.md#images-and-ci): a push to main tags :<sha>, :main and
   # :latest (Watchtower on blackberry follows :latest); a v* tag tags :<tag>.
   image:
-    needs: test
+    needs: [test, lint]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

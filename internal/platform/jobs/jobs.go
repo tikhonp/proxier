@@ -183,7 +183,7 @@ type System struct {
 	log    *slog.Logger
 	bootID string
 	hub    *hub
-	kickc  chan struct{}
+	kickc  map[Queue]chan struct{} // one per pool: a kick wakes every pool
 
 	mu        sync.Mutex
 	types     map[string]Type
@@ -201,7 +201,7 @@ func New(d *db.DB, v *vault.Vault, ev *events.Catalog, st *settings.Store, log *
 	_, _ = rand.Read(b)
 	return &System{
 		Now: time.Now, Grace: 10 * time.Second, Poll: 500 * time.Millisecond, SchedulerPoll: 5 * time.Second,
-		d: d, v: v, ev: ev, st: st, log: log, bootID: hex.EncodeToString(b), hub: newHub(), kickc: make(chan struct{}, 1),
+		d: d, v: v, ev: ev, st: st, log: log, bootID: hex.EncodeToString(b), hub: newHub(), kickc: kickChans(),
 		types: map[string]Type{}, schedules: map[string]Schedule{}, running: map[int64]*Run{},
 		ticks: map[string]time.Time{},
 		jitter: func(max time.Duration) time.Duration {

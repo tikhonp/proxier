@@ -32,7 +32,7 @@ The image bundles what the file validators need besides the Go libraries: an `ng
 
 Same pattern as vk2tg and alcs:
 
-- `ci.yml` on every push and PR: `go build`, `go vet`, `go test -race`, golangci-lint, govulncheck. A failure withholds the image.
+- `ci.yml` on every push and PR: `go build`, `go vet`, `go test -race` in one job, golangci-lint and govulncheck in a parallel one. A failure of either withholds the image.
 - `docker.yml` (or an `image` job after tests) on `main` and tags: buildx, `linux/amd64` (blackberry is x86-64), pushed to `ghcr.io/tikhonp/proxier` as `:<sha>`, `:<branch>`, `:latest` for `main` and `:<tag>` for releases. `APP_VERSION` is set to `<ref>-<sha>`.
 - Dozzle's nightly update (04:00, label `dev.dozzle.update=auto`) updates the container, as it does for the other services.
 

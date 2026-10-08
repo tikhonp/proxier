@@ -565,3 +565,29 @@ func boolString(b bool) string {
 	}
 	return "false"
 }
+
+// With a poll that never fires, only kicks start jobs: an enqueue must wake
+// the pool of every queue, and a finished job the one waiting for its key.
+func TestKickWakesEveryPoolAndKeyWaiters(t *testing.T) {
+	h := newH(t)
+	h.Sys.Poll = time.Hour
+	reg(t, h.Sys,
+		simple("test.check", func(ctx context.Context, r *jobs.Run) error { time.Sleep(20 * time.Millisecond); return nil }),
+		provisioning("test.provision", func(ctx context.Context, r *jobs.Run) error { return nil }))
+	h.Start(h.Sys)
+	time.Sleep(50 * time.Millisecond) // every pool has had its first look and waits
+	ids := []int64{
+		enq(t, h, jobs.Request{Type: "test.check", ResourceKey: "server:1"}).ID,
+		enq(t, h, jobs.Request{Type: "test.check", ResourceKey: "server:1"}).ID,
+		enq(t, h, jobs.Request{Type: "test.provision"}).ID,
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for _, id := range ids {
+		for h.State(id) != jobs.Succeeded {
+			if time.Now().After(deadline) {
+				t.Fatalf("job %d is %s: nothing woke its pool", id, h.State(id))
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+	}
+}

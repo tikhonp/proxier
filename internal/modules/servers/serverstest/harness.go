@@ -164,10 +164,10 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 		}
 		return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort("127.0.0.1", port))
 	}
-	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 5*time.Millisecond, 50*time.Millisecond, 300*time.Millisecond
+	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 100*time.Millisecond, 50*time.Millisecond, 300*time.Millisecond
 	h.StartJobs()
 	t.Cleanup(h.StopJobs)
-	h.App.Dispatcher.Poll = func() time.Duration { return 5 * time.Millisecond }
+	h.App.Dispatcher.Poll = func() time.Duration { return 25 * time.Millisecond }
 	h.startDispatcher()
 	t.Cleanup(h.stopDispatcher)
 

@@ -178,7 +178,7 @@ func (h *Harness) StartJobs() {
 	if h.stopJobs != nil {
 		return
 	}
-	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 5*time.Millisecond, time.Hour, 300*time.Millisecond
+	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 100*time.Millisecond, time.Hour, 300*time.Millisecond
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() { defer close(done); _ = h.App.Jobs.Start(ctx) }()
