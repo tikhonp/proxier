@@ -62,14 +62,18 @@ erDiagram
     SUBSCRIPTION ||--o{ SUBSCRIPTION_SERVER : includes
     SUBSCRIPTION ||--o{ LINK : "is served by"
     LINK ||--o{ FETCH : records
+    LINK ||--o{ CUTOFF : "is cut off by"
+    CUTOFF ||--o{ CUTOFF_ITEM : rotates
 ```
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Subscription** | name, title (shown in apps), description, default format, allowed formats, update interval (hours), hide unhealthy (on/off, which states, grace minutes), add new servers automatically, created | |
-| **Subscription server** | subscription, server (ID from servers), position | Order is the order apps show. |
-| **Link** | subscription, name, note, token 🔒 + token HMAC (unique), state (active / disabled / deleted), expiry, language, alert thresholds (override), alerts muted, created, disabled at, deleted at, last fetch | Deleted links keep their token for the tombstone period ([link lifecycle](./processes/subscriptions/link-lifecycle.md)). |
-| **Fetch** | link, time, IP, network (IPv4 /24 or IPv6 /48), user agent, app, format, outcome (ok / stub-disabled / stub-expired / stub-deleted / stub-empty) | Retention 90 days. |
+| **Subscription** | name (unique, exact match), title (shown in apps), description, default format, allowed formats, update interval (hours), hide unhealthy (on/off, which states, grace minutes), add new servers automatically + since when it is on, when `all_unhealthy` was last raised, created | |
+| **Subscription server** | subscription, server (ID from servers), server name (a copy made when it was added: names never change or get reused), position (dense 1…n), added | Order is the order apps show. A member the catalog no longer serves stays, "not in service", until its retirement removes it. |
+| **Link** | subscription, name (unique among links that aren't deleted), note, token 🔒 + token HMAC (unique), state (active / disabled / deleted), expiry (the first moment it is expired), language, format override, alert thresholds (override), alerts muted, when it was last alerted / warned of expiry / told it expired, created, disabled at, deleted at, last fetch (time, app, network) | Deleted links keep their token for the tombstone period ([link lifecycle](./processes/subscriptions/link-lifecycle.md)) and hold their subscription until it ends; after that the token is erased and the subscription may be gone (no subscription). |
+| **Fetch** | link, time, IP, network (IPv4 /24 or IPv6 /48), user agent, app, format, outcome (ok / stub-disabled / stub-expired / stub-deleted / stub-empty) | Retention: the `subscriptions.fetch_retention` setting (90 days). |
+| **Network country** | network, country (empty when unknown), looked up | Looked up by the network's first address, once a month. |
+| **Cut-off** / **cut-off item** | link, created, by / position, server (ID + name), state (waiting / running / done / failed / skipped), rotation job, error | One rotation at a time per cut-off. |
 
 ## Routing
 

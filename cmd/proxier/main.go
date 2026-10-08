@@ -23,6 +23,7 @@ import (
 	_ "time/tzdata" // the image has no zoneinfo
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/platform"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -33,7 +34,10 @@ import (
 // modules are the enabled modules, in migration order. Removing one here
 // removes its pages, jobs and tables from use (ADR 0002).
 func modules() []module.Module {
-	return []module.Module{servers.New()}
+	srv := servers.New()
+	subs := subscriptions.New(subscriptions.Ports{Catalog: srv.EndpointCatalog()})
+	srv.SetUsage(subs.Usage())
+	return []module.Module{srv, subs}
 }
 
 const usage = `Usage:

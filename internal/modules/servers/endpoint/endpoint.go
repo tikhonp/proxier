@@ -5,6 +5,8 @@
 package endpoint
 
 import (
+	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -41,6 +43,39 @@ type Type struct {
 	URI func(e Endpoint) string
 	// ProxyConfig is the xray client JSON: one outbound, no inbounds.
 	ProxyConfig func(e Endpoint, o ProxyOptions) ([]byte, error)
+	// Mask returns the endpoint with every secret part replaced by Masked:
+	// the type knows which parts those are.
+	Mask func(e Endpoint) Endpoint
+}
+
+// Masked stands in for a secret on screen.
+const Masked = "••••••••"
+
+// URI is the connection URI of e through its type.
+func URI(e Endpoint) (string, error) {
+	t, ok := Lookup(e.Type)
+	if !ok {
+		return "", fmt.Errorf("endpoint %s: unknown type %q", e.Key, e.Type)
+	}
+	return t.URI(e), nil
+}
+
+// MaskedURI is the URI of the masked endpoint, with the percent-encoded
+// bullets turned back into Masked so it reads as a hidden value.
+func MaskedURI(e Endpoint) (string, error) {
+	t, ok := Lookup(e.Type)
+	if !ok {
+		return "", fmt.Errorf("endpoint %s: unknown type %q", e.Key, e.Type)
+	}
+	m := e
+	if t.Mask != nil {
+		m = t.Mask(e)
+	}
+	u := t.URI(m)
+	for _, enc := range []string{url.QueryEscape(Masked), url.PathEscape(Masked)} {
+		u = strings.ReplaceAll(u, enc, Masked)
+	}
+	return u, nil
 }
 
 var registry = map[string]Type{}
@@ -73,7 +108,7 @@ func Check(e render.RenderedEndpoint) []string {
 
 // DisplayName is "{flag} {location name} {number}", plus " · {key}" when the
 // server has more than one endpoint. The location name is as the admin
-// entered it: per-language names wait for the link language of Phase 2.
+// entered it, whatever the language of the link that serves it.
 func DisplayName(flag, locationName string, number int, key string, many bool) string {
 	var b strings.Builder
 	if flag != "" {

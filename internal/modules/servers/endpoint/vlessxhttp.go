@@ -26,7 +26,21 @@ var (
 )
 
 func init() {
-	register(Type{Name: VlessXHTTPTLS, Check: checkVlessXHTTP, URI: uriVlessXHTTP, ProxyConfig: configVlessXHTTP})
+	register(Type{Name: VlessXHTTPTLS, Check: checkVlessXHTTP, URI: uriVlessXHTTP, ProxyConfig: configVlessXHTTP, Mask: maskVlessXHTTP})
+}
+
+// maskVlessXHTTP hides the UUID and the secret path; the path keeps its
+// leading slash so the URI still reads as one.
+func maskVlessXHTTP(e Endpoint) Endpoint {
+	params := make(map[string]string, len(e.Params))
+	for k, v := range e.Params {
+		params[k] = v
+	}
+	if _, ok := params["path"]; ok {
+		params["path"] = "/" + Masked
+	}
+	e.Params, e.Credential = params, Masked
+	return e
 }
 
 func checkVlessXHTTP(e render.RenderedEndpoint) []string {

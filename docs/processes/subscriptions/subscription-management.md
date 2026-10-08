@@ -7,7 +7,7 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
 ## Steps — creating and editing
 
 1. Subscriptions → **New subscription**: name, title (prefilled with the name), description. → `subscription.created`
-2. **Servers**: **Add servers** lists the active servers that aren't in it yet (flag, name, health), with multi-select. Rows can be dragged to reorder. Each row shows health and whether it is hidden right now, with **Remove**. → `subscription.servers_changed{added, removed, reordered}`
+2. **Servers**: **Add servers** lists the active servers that aren't in it yet (flag, name, health), with multi-select; the ticked ones are appended in name order. Rows are reordered by drag, by `J`/`K` on the selected row, or by their ↑/↓ buttons. Each row shows health and whether it is hidden right now, with **Remove** (a simple confirmation). → `subscription.servers_changed{added, removed, reordered}`
 3. **Settings**:
    - **formats** (allowed and default);
    - **update interval** in hours;
@@ -15,8 +15,8 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
    - **add new servers automatically**.
 
    → `subscription.updated{changes}`
-4. **Preview** shows exactly what a link of this subscription would receive now: the headers and the connection URIs (credentials masked until revealed), with hidden servers listed and the reason.
-5. **Delete** is offered only when no link points to the subscription. Otherwise the dialog lists the links and offers **Move links to…**. → `subscription.deleted`
+4. **Preview** shows exactly what a link of this subscription would receive now: the headers and the connection URIs (credentials masked until revealed), with hidden servers listed and the reason, and members not in service. A preview records nothing.
+5. **Delete** works only when no link points to the subscription, a deleted link counting until its tombstone ends. Otherwise the dialog lists the links (and the day each deleted one stops holding it) and offers **Move links to…**. → `subscription.deleted`
 
 ## Steps — reactions to servers
 

@@ -235,8 +235,7 @@ internal/modules/servers/    templates, provisioning, stack rendering, health, s
     endpointtypes/vlessxhttp/
     dns/cloudflare/
     checkers/checkhost/
-internal/modules/subscriptions/
-    formats/urilist/
+internal/modules/subscriptions/   conf, store, output (formats, hiding, stubs, headers), subs, links, fetch, alerts, pages, substest
 internal/modules/routing/    catalog, services, lists, sync engine, discovery
     sources/{v2fly,iplist,url,custom}/
     targets/{mikrotik,shadowrocket}/

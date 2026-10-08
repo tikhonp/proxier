@@ -609,7 +609,9 @@ func (h *handler) rotatePage(c *echo.Context) error {
 			if err != nil {
 				return err
 			}
-			v.Usage = i18n.T(ctx, "servers.rotate.usage", i18n.Args{"links": links, "subs": len(subs)})
+			if links > 0 || len(subs) > 0 {
+				v.Usage = i18n.T(ctx, "servers.rotate.usage", i18n.Args{"links": links, "subs": len(subs)})
+			}
 		}
 	}
 	v.Warning = i18n.T(ctx, "servers.rotate.warning")

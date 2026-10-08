@@ -71,18 +71,20 @@ The payload lists the fields beyond the subject. Notification texts are given in
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `subscription.created` / `.updated` / `.deleted` | subscription | changes | off | |
-| `subscription.servers_changed` | subscription | added, removed, reordered | off | Includes removals caused by retirement. |
-| `subscription.all_unhealthy` | subscription | servers | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). |
-| `link.created` | link | subscription, expiry | off | |
+| `subscription.created` / `.deleted` | subscription | name | off | |
+| `subscription.updated` | subscription | changes (the changed settings, comma-joined: name, title, description, formats, default format, update interval, hide unhealthy, hidden states, grace, auto add) | off | Nothing is recorded when nothing changed. |
+| `subscription.servers_changed` | subscription | added, removed (names, comma-joined, `""` for none), reordered (bool); `auto: true` for the automatic add; `reason: "retired"` | off | Includes removals caused by retirement, one event per subscription. |
+| `subscription.all_unhealthy` | subscription | servers (names), count | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). At most hourly per subscription. |
+| `link.created` | link | subscription (name), expiry | off | |
+| `link.changed` | link | fields (of name, note, language, format, alert limits, alerts muted) | off | The plain edits of a link. |
 | `link.disabled` / `link.enabled` | link | — | off | |
 | `link.token_regenerated` | link | — | off | |
-| `link.subscription_changed` | link | from, to | off | |
+| `link.subscription_changed` | link | from, to (names) | off | |
 | `link.expiry_changed` | link | from, to | off | |
 | `link.expiring_soon` | link | expiry | **on** | Once, 3 days before (setting). |
 | `link.expired` | link | — | **on** | |
 | `link.deleted` | link | — | off | |
-| `link.cut_off` | link | servers rotated | off | The rotations record their own events. |
+| `link.cut_off` | link | servers, skipped (names) | off | The rotations record their own events. |
 | `link.shared_suspected` | link | networks, apps, window | **on** | "Link 'Alex' was fetched from 6 networks and 3 apps in 24 h" |
 
 ## Routing

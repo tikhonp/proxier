@@ -89,7 +89,7 @@ var deployMessages = i18n.Messages{
 	"servers.rotate.none":         {EN: "This server's template has no value marked rotate: true, so there is nothing to rotate.", RU: "В шаблоне этого сервера нет значений с rotate: true, менять нечего."},
 	"servers.rotate.changes":      {EN: "Values that change", RU: "Какие значения изменятся"},
 	"servers.rotate.links":        {EN: "Links affected", RU: "Затронутые ссылки"},
-	"servers.rotate.usage_none":   {EN: "Subscriptions aren't built yet; no links are affected.", RU: "Подписок пока нет; ни одна ссылка не затронута."},
+	"servers.rotate.usage_none":   {EN: "No link serves this server; no app is affected.", RU: "Ни одна ссылка не отдаёт этот сервер; приложения не затронуты."},
 	"servers.rotate.usage":        {EN: "{links} links in {subs} subscriptions serve this server.", RU: "Этот сервер отдают ссылок: {links}, подписок: {subs}."},
 	"servers.rotate.warning":      {EN: "Apps refresh within their update interval (12 h by default). Until an app refreshes, it can't connect to this server. Anyone using a copied URI or a disabled link loses access.", RU: "Приложения обновляются в пределах своего интервала (по умолчанию 12 ч). Пока приложение не обновилось, оно не подключится к этому серверу. Кто пользуется скопированным адресом или отключённой ссылкой, потеряет доступ."},
 	"servers.rotate.start":        {EN: "Rotate", RU: "Заменить"},

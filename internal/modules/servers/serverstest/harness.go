@@ -54,6 +54,7 @@ type Harness struct {
 	stubbed    bool
 	stallSmoke bool
 	accepts    func(endpoint.Endpoint) bool
+	extra      func(m *servers.Module) []module.Module
 }
 
 // Option changes what NewHarness builds.
@@ -65,15 +66,26 @@ type Option func(*Harness)
 // race, and only the packages the Makefile runs without -race may drive it.
 func StubProxy() Option { return func(h *Harness) { h.stubbed = true } }
 
+// WithModules adds modules built from the servers module (other modules get
+// its ports), registered after it, as main.go does.
+func WithModules(extra func(m *servers.Module) []module.Module) Option {
+	return func(h *Harness) { h.extra = extra }
+}
+
 // NewHarness builds everything and starts the job workers.
 func NewHarness(t *testing.T, opts ...Option) *Harness {
 	t.Helper()
 	mod := servers.New()
-	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}})
-	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, dnsVisible: true}
+	h := &Harness{T: t, Mod: mod, dnsVisible: true}
 	for _, o := range opts {
 		o(h)
 	}
+	mods := []module.Module{mod}
+	if h.extra != nil {
+		mods = append(mods, h.extra(mod)...)
+	}
+	site := sitetest.New(t, sitetest.Options{Modules: mods})
+	h.Site, h.App = site, site.App
 	ctx := context.Background()
 
 	// Cloudflare: a fake account owning tikhonnnnn.com, its token saved.

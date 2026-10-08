@@ -23,7 +23,7 @@ This is the only thing link holders ever touch. An app requests the link's URL a
    1. Take the subscription's servers in order, then each server's endpoints in endpoint order.
    2. If **hide unhealthy** is on, drop the servers whose health state has been a hidden state for at least the grace period.
    3. If that drops every server, keep them all and raise `subscription.all_unhealthy` (at most once an hour per subscription).
-   4. Build each connection URI through the endpoint type, named with the endpoint's display name in the link's language.
+   4. Build each connection URI through the endpoint type, named with the endpoint's display name ("🇳🇱 Netherlands 1": the location as the admin entered it, whatever the link's language; the link's language changes only its stub entries).
 6. Render the format and send `200` with the headers below.
 7. Record the fetch: link, time, client IP, network (IPv4 /24, IPv6 /48), user agent (trimmed to 256 characters), detected app, format, outcome. Update the link's last fetch.
 

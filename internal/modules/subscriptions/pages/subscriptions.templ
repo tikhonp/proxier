@@ -1,0 +1,407 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// ------------------------------------------------------------------ the list
+
+templ listPage(s ui.Shell, rows []rowView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "subs.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "subs.note") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "subs.new", Label: "subs.new", Method: "GET", Href: "/subscriptions/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if len(rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "subs.empty"), i18n.T(ctx, "subs.empty_next"))
+		} else {
+			<div class="colhead sub" aria-hidden="true">
+				<span>{ i18n.T(ctx, "subs.col.subscription") }</span>
+				<span>{ i18n.T(ctx, "subs.col.servers") }</span>
+				<span>{ i18n.T(ctx, "subs.col.links") }</span>
+				<span>{ i18n.T(ctx, "subs.col.formats") }</span>
+				<span>{ i18n.T(ctx, "subs.col.hide") }</span>
+			</div>
+			for _, r := range rows {
+				<a href={ templ.SafeURL(subHref(r.ID)) } class="row sub pc-row" data-row={ i64(r.ID) } data-href={ subHref(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold">{ r.Name }</span>
+						<span class="sm subtle">{ i18n.T(ctx, "subs.shown_as", i18n.Args{"title": r.Title}) }</span>
+					</span>
+					<span class="col">
+						if len(r.Servers) == 0 {
+							<span class="muted">{ i18n.T(ctx, "subs.servers.none") }</span>
+						} else {
+							<span class="sub-servers">
+								for _, c := range r.Servers {
+									<span class="stat" title={ c.Word }>
+										<span class={ "st", "st-" + c.Kind } aria-hidden="true"></span>
+										<span>{ c.Name }</span>
+									</span>
+								}
+							</span>
+						}
+						for _, n := range r.HiddenNow {
+							<span class="sm gold">{ i18n.T(ctx, "subs.hidden_now", i18n.Args{"name": n}) }</span>
+						}
+					</span>
+					<span class="subtle">{ strconv.Itoa(r.Links) }</span>
+					<span class="sm subtle">{ r.Formats }</span>
+					<span class="sm subtle">{ r.Hide }</span>
+				</a>
+			}
+		}
+	}
+}
+
+// ------------------------------------------------------------------- create
+
+templ newPage(s ui.Shell, v newView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/subscriptions">{ i18n.T(ctx, "subs.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "subs.new") }</span></nav>
+				<h1>{ i18n.T(ctx, "subs.new") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "subs.new.note") }</p>
+			</div>
+		</div>
+		<form method="post" action="/subscriptions" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			@nameFields(v.Name, v.Title, v.Description, v.Errs, true)
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "subs.create") }</button>
+				<a href="/subscriptions" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ fieldErr(errs map[string]string, key string) {
+	if errs[key] != "" {
+		<p class="err" role="alert">{ errs[key] }</p>
+	}
+}
+
+templ nameFields(name, title, description string, errs map[string]string, autofocus bool) {
+	<div class="field">
+		<label for="sub-name">{ i18n.T(ctx, "subs.field.name") }</label>
+		<input id="sub-name" class="pc-inp" name="name" value={ name } maxlength="60" autocomplete="off" autofocus?={ autofocus } aria-invalid?={ errs["name"] != "" }/>
+		@fieldErr(errs, "name")
+	</div>
+	<div class="field">
+		<label for="sub-title">{ i18n.T(ctx, "subs.field.title") }</label>
+		<input id="sub-title" class="pc-inp" name="title" value={ title } maxlength="60" autocomplete="off" placeholder={ name } aria-invalid?={ errs["title"] != "" }/>
+		if errs["title"] != "" {
+			@fieldErr(errs, "title")
+		} else {
+			<p class="help">{ i18n.T(ctx, "subs.field.title.help") }</p>
+		}
+	</div>
+	<div class="field">
+		<label for="sub-desc">{ i18n.T(ctx, "subs.field.description") }</label>
+		<textarea id="sub-desc" class="pc-inp" name="description" rows="2" aria-invalid?={ errs["description"] != "" }>{ description }</textarea>
+		@fieldErr(errs, "description")
+	</div>
+}
+
+// ----------------------------------------------------------------- the page
+
+templ subscriptionPage(s ui.Shell, v pageView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/subscriptions">{ i18n.T(ctx, "subs.title") }</a><span aria-hidden="true">/</span><span>{ v.S.Name }</span></nav>
+				<h1>{ v.S.Name }</h1>
+				<p class="subtle">{ v.Status }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true})
+			</div>
+		</div>
+		switch v.Saved {
+			case "1":
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "subs.saved") }
+				}
+			case "0":
+				@ui.Alert("", "status") {
+					{ i18n.T(ctx, "subs.saved.none") }
+				}
+		}
+		<div class="subcols">
+			<div class="col-l">
+				@serversArea(v.Servers)
+				@settingsArea(v)
+			</div>
+			<div class="col-r">
+				@ui.Area(i18n.T(ctx, "subs.area.preview"), i18n.T(ctx, "subs.area.preview.note")) {
+					<form class="area-body inline-fields" hx-get={ subHref(v.S.ID) + "/preview" } hx-target="#preview-body" hx-swap="outerHTML" hx-trigger="change, submit">
+						<select class="pc-inp" name="format" aria-label={ i18n.T(ctx, "subs.preview.format") }>
+							for _, f := range v.Preview.Formats {
+								<option value={ f } selected?={ f == v.Preview.Format }>{ f }</option>
+							}
+						</select>
+						<button type="submit" class="pc-btn pc-sm" name="reveal" value="1" data-action="subs.preview.reveal">{ i18n.T(ctx, "subs.preview.reveal") }</button>
+						<button type="submit" class="pc-btn pc-sm pc-ghost" name="reveal" value="0">{ i18n.T(ctx, "subs.preview.hide") }</button>
+					</form>
+					@previewBody(v.Preview)
+				}
+				@ui.Area(i18n.T(ctx, "subs.area.links", i18n.Args{"n": v.Links}), "") {
+					<p class="subtle area-body">{ i18n.T(ctx, "subs.links.none") }</p>
+				}
+				@ui.Area(i18n.T(ctx, "subs.area.activity"), "") {
+					if len(v.Activity) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "subs.activity.none") }</p>
+					}
+					for _, e := range v.Activity {
+						<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+					}
+					<p class="area-body"><a href={ templ.SafeURL("/activity?subject=subscription:" + i64(v.S.ID)) }>{ i18n.T(ctx, "subs.activity.all") }</a></p>
+				}
+			</div>
+		</div>
+	}
+}
+
+// serversArea is the Servers area; htmx answers replace it whole.
+templ serversArea(v serversView) {
+	<section class="area" id="servers-area" aria-label={ i18n.T(ctx, "subs.area.servers") }>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "subs.area.servers.n", i18n.Args{"n": len(v.Rows)}) }</h2>
+			<span class="flex1"></span>
+			if v.ShowAdd {
+				if v.CanAdd {
+					@ui.ActionButton(ui.Action{ID: "subs.add", Label: "subs.add", Method: "GET", Href: subHref(v.SubID) + "/servers/add", Key: "a", Small: true})
+				} else {
+					<button type="button" class="pc-btn pc-sm" disabled title={ v.AddWhy }>{ i18n.T(ctx, "subs.add") }</button>
+				}
+			}
+		</div>
+		if v.Stale {
+			@ui.Alert("gold", "alert") {
+				{ i18n.T(ctx, "subs.order.stale") }
+			}
+		}
+		if len(v.Rows) == 0 {
+			<p class="subtle area-body">{ i18n.T(ctx, "subs.servers.empty") }</p>
+		} else {
+			<div data-sortable>
+				for _, r := range v.Rows {
+					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.member", i18n.Args{"name": r.Name}) } data-href={ "/servers/" + i64(r.ID) } data-cursor?={ r.Cursor }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "subs.drag") }>⋮⋮</span>
+						<span class="subtle">{ strconv.Itoa(r.Pos) }</span>
+						<span>
+							if r.Flag != "" {
+								{ r.Flag }
+							}
+							<a href={ templ.SafeURL("/servers/" + i64(r.ID)) }>{ r.Name }</a>
+						</span>
+						<span class="hl">
+							@ui.Status(r.Kind, r.Word)
+						</span>
+						<span class={ "out", "sm", r.OutClass }>{ r.Out }</span>
+						<span class="acts">
+							@moveButton(v.SubID, r, "up")
+							@moveButton(v.SubID, r, "down")
+							@ui.ActionButton(ui.Action{
+								ID: "subs.remove." + i64(r.ID), Label: "subs.remove", Method: "POST", Small: true, Kind: ui.Ghost,
+								Href: subHref(v.SubID) + "/servers/" + i64(r.ID) + "/remove",
+								Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "subs.remove.title", i18n.Args{"server": r.Name, "name": v.Name}), Body: i18n.T(ctx, "subs.remove.body")},
+							})
+						</span>
+					</div>
+				}
+			</div>
+			<form method="post" action={ subHref(v.SubID) + "/servers/order" } data-sortable-form hx-post={ subHref(v.SubID) + "/servers/order" } hx-target="#servers-area" hx-swap="outerHTML" class="hidden">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<input type="hidden" name="order" value={ v.OrderCSV }/>
+			</form>
+			<p class="sm subtle area-body">{ i18n.T(ctx, "subs.servers.note") }</p>
+		}
+	</section>
+}
+
+// moveButton is ↑ (K) or ↓ (J) of a row: keys act on the row under the cursor only.
+templ moveButton(sub int64, r memberRow, dir string) {
+	<form method="post" action={ subHref(sub) + "/servers/" + i64(r.ID) + "/move" } hx-post={ subHref(sub) + "/servers/" + i64(r.ID) + "/move" } hx-target="#servers-area" hx-swap="outerHTML" class="inline">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<input type="hidden" name="dir" value={ dir }/>
+		if dir == "up" {
+			<button type="submit" class="pc-btn pc-sm" data-key="K" data-row-only disabled?={ r.First } aria-label={ i18n.T(ctx, "subs.move.up", i18n.Args{"name": r.Name}) }>↑</button>
+		} else {
+			<button type="submit" class="pc-btn pc-sm" data-key="J" data-row-only disabled?={ r.Last } aria-label={ i18n.T(ctx, "subs.move.down", i18n.Args{"name": r.Name}) }>↓</button>
+		}
+	</form>
+}
+
+templ settingsArea(v pageView) {
+	@ui.Area(i18n.T(ctx, "subs.area.settings"), "") {
+		<form method="post" action={ subHref(v.S.ID) } class="form area-body">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Errs) > 0 {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, "subs.refused") }
+				}
+			}
+			@nameFields(v.Form.Name, v.Form.Title, v.Form.Description, v.Errs, false)
+			<fieldset class="field">
+				<legend>{ i18n.T(ctx, "subs.field.formats") }</legend>
+				for _, f := range output.Names() {
+					<div class="inline-fields">
+						<label class="check"><input type="checkbox" name="format" value={ f } checked?={ v.Form.Formats[f] }/>{ f }</label>
+						<label class="check sm subtle"><input type="radio" name="default_format" value={ f } checked?={ v.Form.Default == f }/>{ i18n.T(ctx, "subs.field.default") }</label>
+					</div>
+				}
+				@fieldErr(v.Errs, "formats")
+				@fieldErr(v.Errs, "default_format")
+			</fieldset>
+			<div class="field">
+				<label for="sub-hours">{ i18n.T(ctx, "subs.field.update") }</label>
+				<div class="inline-fields">
+					<input id="sub-hours" class="pc-inp num" name="update_hours" value={ v.Form.UpdateHours } inputmode="numeric" aria-invalid?={ v.Errs["update_hours"] != "" }/>
+					<span class="sm subtle">{ i18n.T(ctx, "subs.field.update.help") }</span>
+				</div>
+				@fieldErr(v.Errs, "update_hours")
+			</div>
+			<fieldset class="field">
+				<legend>{ i18n.T(ctx, "subs.field.hide") }</legend>
+				<label class="check"><input type="checkbox" name="hide" value="1" checked?={ v.Form.HideOn }/>{ i18n.T(ctx, "subs.field.hide.on") }</label>
+				<div class="inline-fields">
+					<span class="sm subtle">{ i18n.T(ctx, "subs.field.hide.when") }</span>
+					for _, st := range output.HideStates {
+						<label class="check"><input type="checkbox" name="hide_state" value={ st } checked?={ v.Form.States[st] }/>{ i18n.T(ctx, "subs.state."+st) }</label>
+					}
+				</div>
+				@fieldErr(v.Errs, "hide_states")
+				<div class="inline-fields">
+					<label for="sub-grace" class="sm subtle">{ i18n.T(ctx, "subs.field.grace") }</label>
+					<input id="sub-grace" class="pc-inp num" name="grace" value={ v.Form.Grace } inputmode="numeric" aria-invalid?={ v.Errs["grace"] != "" }/>
+					<span class="sm subtle">{ i18n.T(ctx, "subs.field.grace.unit") }</span>
+				</div>
+				@fieldErr(v.Errs, "grace")
+				<p class="help">{ i18n.T(ctx, "subs.field.hide.help") }</p>
+			</fieldset>
+			<fieldset class="field">
+				<legend>{ i18n.T(ctx, "subs.field.auto") }</legend>
+				<label class="check"><input type="checkbox" name="auto_add" value="1" checked?={ v.Form.AutoAdd }/>{ i18n.T(ctx, "subs.field.auto.on") }</label>
+			</fieldset>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="subs.save">{ i18n.T(ctx, "subs.save") }</button>
+			</div>
+		</form>
+	}
+}
+
+// previewBody is what a link gets now; the format select and Reveal swap it.
+templ previewBody(v previewView) {
+	<div id="preview-body">
+		<pre class="preview-out">{ v.Text }</pre>
+		<div class="preview-notes">
+			if v.Base64 {
+				<span class="sm subtle">{ i18n.T(ctx, "subs.preview.base64") }</span>
+			}
+			if !v.Revealed {
+				<span class="sm subtle">{ i18n.T(ctx, "subs.preview.masked") }</span>
+			}
+			for _, n := range v.Notes {
+				<span class="sm gold">{ n }</span>
+			}
+			if v.AllHidden {
+				<span class="sm gold">{ i18n.T(ctx, "subs.preview.all_hidden") }</span>
+			}
+		</div>
+	</div>
+}
+
+// --------------------------------------------------------------- add servers
+
+templ addPage(s ui.Shell, v addView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/subscriptions">{ i18n.T(ctx, "subs.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(subHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "subs.add") }</span></nav>
+				<h1>{ i18n.T(ctx, "subs.add.title", i18n.Args{"name": v.S.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "subs.add.note") }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="post" action={ subHref(v.S.ID) + "/servers" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Rows) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "subs.add.nothing"), "")
+			}
+			for _, r := range v.Rows {
+				<label class="row addsrv">
+					<input type="checkbox" name="server" value={ i64(r.ID) } checked?={ v.Checked[r.ID] }/>
+					<span>{ r.Flag } { r.Name }</span>
+					@ui.Status(r.Kind, r.Word)
+				</label>
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" disabled?={ len(v.Rows) == 0 }>{ i18n.T(ctx, "subs.add.submit") }</button>
+				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+// -------------------------------------------------------------------- delete
+
+templ deletePage(s ui.Shell, v deleteView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/subscriptions">{ i18n.T(ctx, "subs.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(subHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "subs.delete") }</span></nav>
+				<h1>{ i18n.T(ctx, "subs.delete.title", i18n.Args{"name": v.S.Name}) }</h1>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="post" action={ subHref(v.S.ID) + "/delete" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Live) == 0 && len(v.Tombs) == 0 {
+				<p>{ i18n.T(ctx, "subs.delete.body", i18n.Args{"name": v.S.Name, "n": v.Servers}) }</p>
+			} else {
+				@ui.Band("gold") {
+					{ i18n.T(ctx, "subs.delete.held") }
+				}
+				if len(v.Live) > 0 {
+					@ui.Area(i18n.T(ctx, "subs.delete.live"), "") {
+						for _, n := range v.Live {
+							<div class="row"><span class="bold">{ n }</span></div>
+						}
+					}
+				}
+				if len(v.Tombs) > 0 {
+					@ui.Area(i18n.T(ctx, "subs.delete.tombs"), "") {
+						for _, n := range v.Tombs {
+							<div class="row"><span>{ n }</span></div>
+						}
+					}
+				}
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" disabled?={ len(v.Live) > 0 || len(v.Tombs) > 0 }>{ i18n.T(ctx, "subs.delete") }</button>
+				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

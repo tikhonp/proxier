@@ -209,7 +209,7 @@ Columns: name with flag, health badge and since when, lifecycle state (when not 
 
 The first endpoint type is `vless-xhttp-tls`. Given an endpoint, it builds the connection URI exactly as `setup.sh` printed it ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), and it runs the proxy test.
 
-The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {location name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. Until Phase 2 the location name is the one the admin entered (one language); translations of location names will follow the link's language once links have one.
+The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {location name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. The location name is the one the admin entered, in every link whatever its language (a link's language changes only its stub entries). The `EndpointCatalog` port also carries each server's location flag, and `endpoint.MaskedURI` gives a URI with the credential and the secret path shown as `••••••••` (previews).
 
 ## DNS
 

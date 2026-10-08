@@ -1,12 +1,14 @@
 package pages_test
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
@@ -244,13 +246,28 @@ func TestRolloutPage(t *testing.T) {
 	h.Drain()
 }
 
-func TestRotateDialogWithoutSubscriptions(t *testing.T) {
+type usage struct {
+	subs  []string
+	links int
+}
+
+func (u usage) Usage(context.Context, int64) ([]string, int, error) { return u.subs, u.links, nil }
+
+func TestRotateDialogWithoutLinks(t *testing.T) {
 	h, id := provisioned(t)
 	base := "/servers/" + sid(id)
-	body := page(t, h, base+"/rotate")
-	mustContain(t, body, "Rotate the credentials of nl-1", "client_uuid", "xhttp_path", "Subscriptions aren&#39;t built yet; no links are affected.",
-		"Apps refresh within their update interval", "Rotate")
-	mustNotContain(t, body, "container_postfix")
+	none := "No link serves this server; no app is affected."
+	// without the subscriptions module, and with one that serves the server nowhere
+	for _, u := range []servers.UsageReader{nil, usage{}} {
+		h.Mod.SetUsage(u)
+		body := page(t, h, base+"/rotate")
+		mustContain(t, body, "Rotate the credentials of nl-1", "client_uuid", "xhttp_path", none,
+			"Apps refresh within their update interval", "Rotate")
+		mustNotContain(t, body, "container_postfix", "0 links")
+	}
+	h.Mod.SetUsage(usage{subs: []string{"Family"}, links: 3})
+	mustContain(t, page(t, h, base+"/rotate"), "3 links in 1 subscriptions serve this server.")
+	h.Mod.SetUsage(nil)
 	rec := h.Login.Post(base+"/rotate", nil)
 	if rec.Code != 303 || !strings.HasPrefix(rec.Header().Get("Location"), base+"?job=") {
 		t.Fatalf("rotate: %d %s", rec.Code, rec.Header().Get("Location"))

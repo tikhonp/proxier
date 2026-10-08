@@ -182,8 +182,12 @@ func (h *handler) buildServer(ctx context.Context, s store.Server, jobParam int6
 	if h.Usage != nil {
 		if u := h.Usage(); u != nil {
 			subs, links, err := u.Usage(ctx, s.ID)
-			if err == nil {
-				v.Usage = i18n.T(ctx, "servers.usage", i18n.Args{"subs": len(subs), "links": links})
+			switch {
+			case err != nil:
+			case len(subs) == 0:
+				v.Usage = i18n.T(ctx, "servers.usage.none")
+			default:
+				v.Usage = i18n.T(ctx, "servers.usage", i18n.Args{"subs": strings.Join(subs, ", "), "links": links})
 			}
 		}
 	}

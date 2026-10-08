@@ -377,6 +377,9 @@
   // htmx swaps leave the cursor pointing at nothing
   document.addEventListener('htmx:afterSwap', function () {
     cursor = -1;
+    // the answer marks the row the cursor belongs on (a row moved with J K)
+    var c = $('[data-cursor]');
+    if (c) { var at = rows().indexOf(c); if (at >= 0) setCursor(at); }
     // a dialog that arrives in a swap opens itself (the QR code)
     var d = $('dialog[data-autoopen]');
     if (d) { d.removeAttribute('data-autoopen'); if (d.showModal && !d.open) d.showModal(); }
@@ -386,6 +389,49 @@
       for (var i = 0; i < off.length; i++) off[i].disabled = true;
     }
   });
+
+  // ---- sortable lists: drag a row by its handle; the new order is posted
+  // as order=<id>,<id>,… by the list's form (an htmx form, so the area swaps)
+  var dragged = null, startOrder = '';
+  function sortOrder(list) {
+    return $$('[data-sort-id]', list).map(function (r) { return r.getAttribute('data-sort-id'); }).join(',');
+  }
+  document.addEventListener('mousedown', function (e) {
+    var h = e.target.closest && e.target.closest('[data-sort-handle]');
+    if (h) { var r = h.closest('[data-sort-id]'); if (r) r.setAttribute('draggable', 'true'); }
+  });
+  document.addEventListener('dragstart', function (e) {
+    var r = e.target.closest && e.target.closest('[data-sortable] [data-sort-id][draggable]');
+    if (!r) return;
+    dragged = r;
+    startOrder = sortOrder(r.closest('[data-sortable]'));
+    r.classList.add('dragging');
+    if (e.dataTransfer) { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.getAttribute('data-sort-id')); }
+  });
+  document.addEventListener('dragover', function (e) {
+    if (!dragged) return;
+    var over = e.target.closest && e.target.closest('[data-sort-id]');
+    if (!over || over === dragged || over.parentNode !== dragged.parentNode) return;
+    e.preventDefault();
+    var b = over.getBoundingClientRect();
+    over.parentNode.insertBefore(dragged, e.clientY > b.top + b.height / 2 ? over.nextSibling : over);
+  });
+  function dropped() {
+    if (!dragged) return;
+    var r = dragged, list = r.closest('[data-sortable]');
+    dragged = null;
+    r.classList.remove('dragging');
+    r.removeAttribute('draggable');
+    if (!list) return;
+    var order = sortOrder(list);
+    if (order === startOrder) return;
+    var form = $('form[data-sortable-form]', list.parentNode) || $('form[data-sortable-form]');
+    if (!form) return;
+    form.querySelector('input[name="order"]').value = order;
+    if (form.requestSubmit) form.requestSubmit(); else form.submit();
+  }
+  document.addEventListener('drop', function (e) { if (dragged) { e.preventDefault(); dropped(); } });
+  document.addEventListener('dragend', dropped);
 
   // dialog: esc closes natively; a click on the backdrop closes too
   document.addEventListener('mousedown', function (e) {

@@ -19,7 +19,7 @@ var retireMessages = i18n.Messages{
 	"servers.retire.note":          {EN: "It leaves every subscription, its checks stop and its DNS records go. The VPS itself you cancel at the hosting provider.", RU: "Он исчезнет из всех подписок, проверки прекратятся, DNS-записи будут удалены. Сам VPS вы отменяете у хостинг-провайдера."},
 	"servers.retire.links":         {EN: "Subscriptions and links", RU: "Подписки и ссылки"},
 	"servers.retire.usage":         {EN: "{links} links in {subs} subscriptions will stop showing this server on their next refresh.", RU: "Ссылок: {links}, подписок: {subs}. Они перестанут показывать этот сервер при следующем обновлении."},
-	"servers.retire.usage_unknown": {EN: "Subscriptions aren't built yet; no links are affected.", RU: "Подписок пока нет; ни одна ссылка не затронута."},
+	"servers.retire.usage_unknown": {EN: "No link serves this server; no app is affected.", RU: "Ни одна ссылка не отдаёт этот сервер; приложения не затронуты."},
 	"servers.retire.dns":           {EN: "DNS records that will be deleted", RU: "DNS-записи, которые будут удалены"},
 	"servers.retire.dns_none":      {EN: "Proxier made no DNS records for this server.", RU: "Proxier не создавал DNS-записей для этого сервера."},
 	"servers.retire.stack":         {EN: "Remove the stack from the server", RU: "Удалить стек с сервера"},

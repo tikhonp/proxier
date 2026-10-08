@@ -153,3 +153,33 @@ func TestProxyConfigShape(t *testing.T) {
 		t.Error("a broken endpoint built a config")
 	}
 }
+
+func TestMaskedURI(t *testing.T) {
+	e := seedEndpoint()
+	full, err := endpoint.URI(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := endpoint.MaskedURI(e)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := strings.NewReplacer(uuid1, "••••••••", "%2F0123456789abcdef", "%2F••••••••").Replace(full)
+	if got != want {
+		t.Errorf("masked\n got %s\nwant %s", got, want)
+	}
+	if strings.Contains(got, uuid1) || strings.Contains(got, "0123456789abcdef") {
+		t.Errorf("a secret is left: %s", got)
+	}
+	// masking leaves the endpoint itself alone
+	if e.Credential != uuid1 || e.Params["path"] != "/0123456789abcdef" {
+		t.Errorf("the endpoint changed: %+v", e)
+	}
+	e.Type = "wireguard"
+	if _, err := endpoint.URI(e); err == nil {
+		t.Error("an unknown type has a URI")
+	}
+	if _, err := endpoint.MaskedURI(e); err == nil {
+		t.Error("an unknown type has a masked URI")
+	}
+}

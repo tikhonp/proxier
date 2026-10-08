@@ -37,7 +37,7 @@ func (h *handler) retireView(c *echo.Context, s store.Server) (retireView, error
 	}
 	v := retireView{S: s, Flag: country.Flag(s.Country), StackPossible: cons.StackPossible, RemoveStack: cons.StackDefault}
 	v.Usage = i18n.T(ctx, "servers.retire.usage_unknown")
-	if cons.UsageKnown {
+	if cons.UsageKnown && (cons.Links > 0 || len(cons.Subscriptions) > 0) {
 		v.Usage = i18n.T(ctx, "servers.retire.usage", i18n.Args{"links": cons.Links, "subs": len(cons.Subscriptions)})
 	}
 	for _, r := range cons.DNS {

@@ -251,6 +251,30 @@ func (l *Localizer) Clock(t time.Time) string { return t.In(l.TZ).Format("15:04:
 // Day renders the date in the display zone: "2026-10-07".
 func (l *Localizer) Day(t time.Time) string { return t.In(l.TZ).Format("2006-01-02") }
 
+var (
+	monthsEN = [12]string{"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"}
+	monthsRU = [12]string{"янв", "фев", "мар", "апр", "мая", "июн", "июл", "авг", "сен", "окт", "ноя", "дек"}
+)
+
+func (l *Localizer) month(t time.Time) string {
+	if l.Lang == RU {
+		return monthsRU[t.Month()-1]
+	}
+	return monthsEN[t.Month()-1]
+}
+
+// Date renders the day in the display zone for people: "1 Dec 2026" / "1 дек 2026".
+func (l *Localizer) Date(t time.Time) string {
+	t = t.In(l.TZ)
+	return fmt.Sprintf("%d %s %d", t.Day(), l.month(t), t.Year())
+}
+
+// ShortDate is Date without the year: "1 Dec" / "1 дек".
+func (l *Localizer) ShortDate(t time.Time) string {
+	t = t.In(l.TZ)
+	return fmt.Sprintf("%d %s", t.Day(), l.month(t))
+}
+
 // Duration renders a short span: "21 s", "1 min 52 s", "2 h 5 min" (RU: с, мин, ч).
 func (l *Localizer) Duration(d time.Duration) string {
 	sec, min, hour := "s", "min", "h"

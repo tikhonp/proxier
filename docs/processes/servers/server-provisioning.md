@@ -88,7 +88,7 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 - The sudoers file fails `visudo -cf` → install access fails. The original sudoers configuration is untouched, and the password is kept for retry.
 - `sudo -n true` fails as `proxier` (for example, `requiretty` set by the image) → install access fails with sudo's message.
 - Self-check passes but every smoke-test attempt stalls after 16 KB → **failed**, with **Retry**, **Activate anyway** and **Retire** offered.
-- **Activate anyway** → active. The first round gives `blocked`. A subscription with "hide unhealthy" doesn't serve it.
+- **Activate anyway** → active. The first round gives `blocked`. A subscription that hides `blocked` servers hides it like any other, once it has been blocked for that subscription's grace period.
 - A failure at step 7 → **Activate anyway** isn't offered.
 - A conflicting A record at `nl-2.hosts.tikhonnnnn.com` (not created by Proxier) → DNS step fails, naming its value. **Retry → Overwrite** replaces it.
 - DNS still not visible on 8.8.8.8 after 10 min → DNS step fails. **Retry** resumes at DNS and doesn't recreate the record.

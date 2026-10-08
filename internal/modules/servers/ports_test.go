@@ -72,3 +72,17 @@ func TestServerHostnames(t *testing.T) {
 		t.Fatalf("after retiring nl-2: %v %v %v", names, ips, err)
 	}
 }
+
+func TestCatalogCarriesFlag(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	id := h.Provisioned()
+	ctx := context.Background()
+	list, err := h.Mod.EndpointCatalog().Active(ctx)
+	if err != nil || len(list) != 1 || list[0].Flag != "🇳🇱" {
+		t.Fatalf("active: %+v %v", list, err)
+	}
+	one, ok, err := h.Mod.EndpointCatalog().Server(ctx, id)
+	if err != nil || !ok || one.Flag != "🇳🇱" {
+		t.Fatalf("server: %+v %v %v", one, ok, err)
+	}
+}

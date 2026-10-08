@@ -117,3 +117,20 @@ func TestClockDayAndDuration(t *testing.T) {
 		}
 	}
 }
+
+func TestDates(t *testing.T) {
+	tz, _ := time.LoadLocation("Europe/Moscow")
+	last := time.Date(2026, 12, 1, 20, 59, 59, 0, time.UTC) // 23:59:59 in Moscow
+	en, ru := NewCatalog().Localizer(EN, tz), NewCatalog().Localizer(RU, tz)
+	for _, c := range []struct{ got, want string }{
+		{en.Date(last), "1 Dec 2026"}, {ru.Date(last), "1 дек 2026"},
+		{en.ShortDate(last), "1 Dec"}, {ru.ShortDate(last), "1 дек"},
+		{en.Date(last.Add(time.Second)), "2 Dec 2026"},
+		{NewCatalog().Localizer(EN, nil).Date(last), "1 Dec 2026"},
+		{ru.Date(time.Date(2026, 5, 9, 12, 0, 0, 0, time.UTC)), "9 мая 2026"},
+	} {
+		if c.got != c.want {
+			t.Errorf("%q, want %q", c.got, c.want)
+		}
+	}
+}

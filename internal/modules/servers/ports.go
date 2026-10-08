@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
@@ -20,8 +21,10 @@ import (
 
 // ServerEndpoints is an active server with what a client needs to connect.
 type ServerEndpoints struct {
-	ServerID    int64
-	Name        string
+	ServerID int64
+	Name     string
+	// Flag is the country flag of the server's location, for pages.
+	Flag        string
 	Health      string
 	HealthSince time.Time
 	// Endpoints carry their credentials: callers must not log them.
@@ -110,7 +113,7 @@ func (c catalog) build(ctx context.Context, s store.Server) (ServerEndpoints, er
 	if err != nil {
 		return ServerEndpoints{}, err
 	}
-	return ServerEndpoints{ServerID: s.ID, Name: s.Name, Health: s.Health, HealthSince: s.HealthSince.Time, Endpoints: eps}, nil
+	return ServerEndpoints{ServerID: s.ID, Name: s.Name, Flag: country.Flag(s.Country), Health: s.Health, HealthSince: s.HealthSince.Time, Endpoints: eps}, nil
 }
 
 type hostnames struct{ m *Module }

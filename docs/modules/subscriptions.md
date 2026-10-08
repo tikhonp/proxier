@@ -8,20 +8,22 @@ The module uses the servers module through its `EndpointCatalog` port and never 
 
 | Field | Meaning | Default |
 |---|---|---|
-| Name | Admin-facing, unique. | — |
-| Title | What apps show as the subscription's name (`profile-title`). | the name |
+| Name | Admin-facing, unique (exact match), at most 60 characters. | — |
+| Title | What apps show as the subscription's name (`profile-title`), at most 60 characters. | the name |
 | Description | Admin-facing note. | — |
 | Servers | Ordered list of active servers. Every endpoint of each server is served, in that order. | empty |
 | Formats | Which formats links may be served in, and the default. First version: `uri-plain`, `uri-base64` ([subscription format](../integrations/subscription-format.md)). | both allowed, `uri-plain` default |
-| Update interval | Hours suggested to apps between refreshes (`profile-update-interval`). | 12 |
-| Hide unhealthy servers | Off, or on with the states to hide (default `blocked`, `down`) and a grace period (default 30 min). | off |
+| Update interval | Whole hours suggested to apps between refreshes (`profile-update-interval`), 1–168. | 12 |
+| Hide unhealthy servers | Off, or on with the states to hide, chosen from `blocked`, `down`, `degraded`, `unknown` (default `blocked`, `down`; `paused` never hides), and a grace period of 0–10 080 min (default 30). | off |
 | Add new servers automatically | Every server that becomes active is appended to this subscription. | off |
 
 Rules:
 
 - A server can be in any number of subscriptions. Only **active** servers can be added. A server that is retired is removed from every subscription by the module's reaction to `server.retired`.
 - **Hide unhealthy**: a server whose health state has been one of the hidden states for at least the grace period is left out of the output, and comes back as soon as it leaves those states. If hiding would leave the output with no servers, nothing is hidden and `subscription.all_unhealthy` is raised. A subscription never serves an empty list because of health ([fetch](../processes/subscriptions/subscription-fetch.md)).
-- A subscription with links can't be deleted. Its links must be moved to another subscription or deleted first.
+- A server's display name in the output is its location as the admin entered it ("🇳🇱 Netherlands 1"), whatever the link's language: a link's language changes only its stub entries.
+- A member the servers module no longer serves (retiring, or without endpoints) stays in the list, shown "not in service", and is never served; its retirement removes it.
+- A subscription with links can't be deleted. Its links must be moved to another subscription or deleted first. A deleted link holds its subscription until its tombstone ends.
 
 Flows: [subscription management](../processes/subscriptions/subscription-management.md).
 
@@ -47,7 +49,7 @@ Flows: [subscription management](../processes/subscriptions/subscription-managem
 | active, but the subscription has no servers | One stub entry: "⚠️ No servers yet". |
 | active, past expiry | One stub entry: "⏳ Expired on 2026-12-01 · contact @tikhonp". |
 | disabled | One stub entry: "⛔ Link disabled · contact @tikhonp". |
-| deleted, within the tombstone period (30 days) | One stub entry: "⛔ Link removed". |
+| deleted, within the tombstone period (`subscriptions.tombstone`, 30 days) | One stub entry: "⛔ Link removed". |
 | deleted, after the tombstone period, or a token that never existed | `404`. |
 
 Headers, formats and rate limits: [fetch](../processes/subscriptions/subscription-fetch.md).
@@ -90,11 +92,25 @@ A link fetched from more networks or apps than one person's devices explain rais
 - **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the fetch log, alerts, actions, activity.
 - **New link**: a small dialog (name, subscription, optional expiry, language). It ends on the link page with the URL and QR ready to share.
 
+## Settings
+
+Section `subscriptions` (its page arrives with the expiry and alert settings):
+
+| Key | Default | Meaning |
+|---|---|---|
+| `subscriptions.link_language` | `ru` | Language of new links' stub entries. |
+| `subscriptions.expiry_warning` | 72 h | `link.expiring_soon` this long before an expiry (1–720 h). |
+| `subscriptions.alert_networks` | 4 | Shared-link alert above this many networks in 24 h. |
+| `subscriptions.alert_apps` | 3 | The same for apps. |
+| `subscriptions.network_country_url` | `https://ipinfo.io/{ip}/country` | Country lookup of a network's first address; empty turns it off. |
+| `subscriptions.tombstone` | 30 days | How long a deleted link serves "⛔ Link removed" (and holds its subscription) before it answers `404` (1–365 days). |
+| `subscriptions.fetch_retention` | 90 days | Fetches older than this are deleted (at least 7 days). |
+
 ## Ports for other modules
 
 | Port | Used by | Contract |
 |---|---|---|
-| `LinkIssuer` | router scripts | Create a link with a given name in a given subscription, and return its URL. Used for a new router's mihomo subscription. |
+| `LinkIssuer` (Phase 4: its consumer decides its shape) | router scripts | Create a link with a given name in a given subscription, and return its URL. Used for a new router's mihomo subscription. |
 
 ## Events
 
