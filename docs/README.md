@@ -23,7 +23,7 @@ Proxier is a self-hosted control panel for one person's proxy setup. It builds V
 | [integrations/](./integrations/) | Contracts with the outside world: VLESS/XHTTP, Cloudflare, check-host.net, Telegram, RouterOS, domain sources, Shadowrocket, subscription format. |
 | [ui/README.md](./ui/README.md) | Screen inventory, navigation and shared components: what each screen does. |
 | [ui/design/](./ui/design/README.md) | The final visual design: rules, `tokens.css`, and the source of every screen. |
-| [build/](./build/README.md) | Build contracts, one per sub-phase (Phases 0–2), and what each one built. |
+| [build/](./build/README.md) | Build contracts, one per sub-phase (Phases 0–3), and what each one built. |
 | [adr/](./adr/) | Decisions that are hard to reverse, each with the reason it was taken. |
 
 ## Reading order

@@ -59,7 +59,7 @@ A tag is never empty: an empty tag is what untagged router entries carry. It nev
 - **`wildcard=1` is mandatory.** `wildcard=0` returns every hostname ever seen (15,000+ for youtube). The wildcard set is the apex list, exactly what `match-subdomain=yes` means.
 - **A miss is `200` with an empty body**, not `404`. So an unreachable portal must never count as a miss: "not found" requires every portal in scope to answer empty.
 - The output is a plain list of suffix domains. The domain-name check drops the scraped junk it sometimes carries.
-- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}` per portal. It prints one line per domain, so lines are deduplicated into (portal, group, site) triples. Whether the custom template can also print the domain (for the reverse index) is to be verified. Until then, site names, which are domains, are indexed.
+- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}|{data}` per portal. It prints one line per domain (`{data}` is the selected data, the domain itself: verified 2026-10-08), so each line gives a (portal, group, site) triple and a domain of that site for the reverse index.
 
 ## URL
 

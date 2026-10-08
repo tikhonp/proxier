@@ -34,6 +34,20 @@ Phase 2 ([roadmap](../roadmap.md#phase-2-subscriptions)) is built the same way. 
 | 2c Expiry, shared-link alerts, dashboard | [2c.md](./2c.md) | done 2026-10-08 (real apps, real ipinfo and Telegram delivery are the user's) |
 | 2d Cut-off, Phase 2 exit | [2d.md](./2d.md) | done 2026-10-08 (the exit demo, open questions 1 and 2 and the gateway deploy are the user's) |
 
+Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cross-cutting decisions are in [Phase 3](#phase-3-routing) below.
+
+| Sub-phase | Contract | State |
+|---|---|---|
+| 3a Routing module, schema, sources, services | [3a.md](./3a.md) | contract written 2026-10-08 |
+| 3b Routing lists, ownership, server-hostname guard | [3b.md](./3b.md) | contract written 2026-10-08 |
+| 3c Upstream refresh, catalog, search | [3c.md](./3c.md) | contract written 2026-10-08 |
+| 3d Shadowrocket config, mtvpn import | [3d.md](./3d.md) | contract written 2026-10-08 |
+| 3e Router sync | [3e.md](./3e.md) | contract written 2026-10-08 |
+| 3f Drift, unmanaged tags, router lifecycle, dashboard | [3f.md](./3f.md) | contract written 2026-10-08 |
+| 3g Discovery, Phase 3 exit | [3g.md](./3g.md) | contract written 2026-10-08 |
+
+3d (Shadowrocket and the import) comes before router sync on purpose: neither has a remote side, so after 3d the admin can import `mtvpn.yaml` and move the phone off copyparty before the riskiest part, RouterOS, is built.
+
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
 ## Tables are already built
@@ -253,3 +267,104 @@ Claude proposed each of these; the user answered them all on 2026-10-08.
 - **Reordering** works by drag, `J`/`K` and ↑/↓ buttons; actions that need fields are **pages styled as dialogs**; no design extras in Phase 2 (operator names, nav badges, "More ▾" menus).
 - **The gateway's access log** is fixed by a drafted, uncommitted change in `sh-main` (2d).
 - **Four sub-phases**, 2a–2d.
+
+## Phase 3: Routing
+
+Decided once for every Phase 3 contract (2026-10-08). A contract may narrow these; it may not contradict them without writing the change here. Read the Phase 1 and Phase 2 sections above too: their rules on tests, secrets, cancellation, ports and pages still hold.
+
+### Layout
+
+One module, `routing` (`internal/modules/routing`), enabled in `modules()` in `cmd/proxier/main.go` **after** `subscriptions` from 3a. Tables are prefixed `routing_`; the migration version table is `routing_goose_db_version`. Its packages:
+
+| Package | What | From |
+|---|---|---|
+| `routing` | the `module.Module`, every optional interface, `New(Ports)`, `Guard()`; wiring only | 3a |
+| `routing/conf` | the settings section and its keys (a leaf) | 3a |
+| `routing/migrations` | `00001_routing.sql`: every Phase 3 table, and the default list "Main" | 3a |
+| `routing/store` | every SQL statement of the module, `FieldErrors`, retention constants | 3a, grows |
+| `routing/change` | `Change`, `Marker`, `None`: the seam through which a change marks targets for sync (a leaf) | 3a |
+| `routing/domain` | pure: normalising what the admin types, the domain-name check, covering, IDN, the registrable domain | 3a |
+| `routing/selector` | pure: the selector grammar, tags, portals | 3a |
+| `routing/snapshot` | pure: a service's names (`Set`), its canonical text and hash, diffs | 3a |
+| `routing/sources` | resolving a selector into a `Set`: v2fly (includes, attribute filters), iplist (portals, miss vs unreachable), URL lists; the one HTTP client; `sourcestest` (fake v2fly, GitHub, codeload, iplist portals and URL hosts) | 3a, 3c (catalog downloads) |
+| `routing/services` | services: add, switch source, custom services and their editor, rename, remove; snapshots and history | 3a, grows |
+| `routing/own` | pure: ownership within a list (ADR 0013), the server-hostname guard, "covered by" | 3b |
+| `routing/lists` | routing lists: lists, their services in order, the effective view targets get, warnings, the guard port | 3b |
+| `routing/refresh` | the daily round, Refresh now, safety checks, accept anyway / dismiss, the digest | 3c |
+| `routing/catalog` | the catalog refresh, generations, search, the reverse lookup | 3c |
+| `routing/shadowrocket` | pure rendering, configs and their base versions, the public `/r/{token}/{name}.conf`, the fetch log | 3d |
+| `routing/mtvpn` | the import: mtvpn's file rules, the preview, the import job | 3d |
+| `routing/routeros` | pure: every RouterOS command and script, the read-output parsers, the `/import` output scan, and `Parse`/`ParseScript`, their inverses | 3e |
+| `routing/routerostest` | a fake RouterOS router (and jump host) on `sshxtest.Server` that answers what `routeros` builds | 3e |
+| `routing/routers` | routers: add and test, the plan (pure), sync, preview, triggers, history (3e); drift, unmanaged tags, awaiting setup, pause, removal (3f) | 3e, 3f |
+| `routing/discovery` | discovery runs, classification, the save actions; `Browser`; `discovery/cdp` (Chromium over CDP with chromedp); `discovery/socks` (the per-run SOCKS listener through a server) | 3g |
+| `routing/pages` | handlers and templ files | 3a onward |
+| `routing/routingtest` | test harness: the app with the module on fake servers ports and `sourcestest` upstreams; a builder with the real servers module | 3a |
+
+### Rules
+
+- **Tables are written ahead.** 3a writes `internal/modules/routing/migrations/00001_routing.sql` from [3a.md#tables](./3a.md#tables) (every Phase 3 table) with `migrations_test.go`. A later sub-phase that needs a change edits `00001` in place (and 3a.md's **Tables** with it) **only if no Phase 3 build has been deployed**; when that isn't certain, it adds `00002_….sql` instead. Never both.
+- **Ports only.** The module's non-test files import from `internal/modules/servers` only the root package: `ServerHostnames` (the guard), `EndpointCatalog` (discovery's server picker), `ProxyDialer` (discovery through a server). `TestImportsOnlyServersPorts` enforces it, as in subscriptions. It never reads a `servers_` table; a server is known by its id and its name.
+- **Absent ports hide features** (ADR 0002): a nil `Hostnames` means there is nothing to guard (every list is allowed); a nil `Catalog` or `Dialer` means discovery visits **Direct** only. Servers' `RoutingGuard` (3b) is nil without this module, and provisioning then checks nothing.
+- **The sync seam.** Every change that can alter what a target gets (a list's services or order, an accepted snapshot, a custom save, a tag rename, a router's list) calls `change.Marker.Mark(ctx, tx, change.Change{…})` **inside its own transaction**. Until 3e the marker is `change.None`; 3e's `routers.Marker` turns it into a coalesced sync of every router following the affected lists, 30 s later. A Shadowrocket config needs no mark: it is rendered on every fetch.
+- **Remote commands live in one place.** Every RouterOS command and script is built by a function in `routing/routeros`; `routerostest` answers exactly what `routeros.Parse` and `routeros.ParseScript` recognise. No other package writes RouterOS text (servers' rule for `remote`, Phase 1).
+- **Outbound HTTP** goes through `sources.Fetcher`: one client, user agent `proxier/<version>`, `http`/`https` only, a body cap per call, every base URL in `sources.Endpoints` (so tests point them at `httptest` servers). Interactive calls made inside an admin request (add a service, preview, switch source, import preview, a base config from a URL) have a 45 s overall deadline and 15 s per request; jobs use 30 s per request. Nothing remote ever runs inside a transaction.
+- **No real network in tests**, as before: v2fly, GitHub, codeload, the iplist portals and URL hosts are `sourcestest`; routers and jump hosts are `routerostest`; Chromium is a fake `discovery.Browser` (the real one runs only behind an environment variable and in the exit demo); servers' ports are fakes from `routingtest`, or the real servers module through `serverstest` with `StubProxy()`. No routing test pushes XHTTP traffic, so every package of the module runs under `-race`.
+- **Snapshots are text.** A snapshot holds its suffix and exact names sorted and newline-joined, with a SHA-256 hash of that canonical form; never one row per name. Each service has exactly one **accepted** snapshot (a partial unique index); that is the only thing targets ever get.
+- **Ownership is computed, never stored.** `own.Compute` runs over a list's services in order whenever a page, a sync, a preview or a fetch needs it. Nothing is cached (Phase 2's rule).
+- **Secrets.** A Shadowrocket token is `vault.NewToken()`, sealed with AAD `shadowrocket:<id>:token` and found by `vault.Lookup`; it appears only on its config page (masked, **Reveal**, **Copy**, **QR**), never in an event, a notification, a log, a job payload, a list, search or the dashboard; `httpx.MaskPath` already masks `/r/`. `routing.github_token` is a secret setting. The text of an imported `mtvpn.yaml` is never stored anywhere: only `services`, `service_lists` and `shadowrocket_base` are read from it (3d).
+- **Clock.** `routing.Module.Now` (default `time.Now`) is the clock of every service of the module, read through a function set in `Init`, so a test sets `mod.Now` once.
+- **Actors.** Admin actions `admin`; a public fetch `system`; jobs `job:<id>`; jobs created by a schedule have `CreatedBy: "schedule:<name>"`, by a change the actor of the change.
+- **Events** carry names, not ids, for other things (`list: "Main"`, `service: "anthropic"`), lists as one comma-joined string, times as `db.Time` strings, `""` for none (Phase 2's rule). Subjects: `service:<id>`, `routing_list:<id>`, `router:<id>`, `shadowrocket:<id>`, `discovery:<id>`, and `routing:refresh` / `routing:catalog` for the daily round and the catalog (named "Upstream refresh" → `/routing/services`, "Catalog" → `/routing/search`).
+- **Resource keys.** `router:<id>` for every job that connects to a saved router (test, sync, preview, drift check, probe, removal): one at a time per router. `service:<id>` for one service's refresh. None for the daily round, the catalog, the import and discovery (their queues' concurrency is enough).
+- **i18n prefixes** of the module: `routing.`, `services.`, `lists.`, `catalog.`, `refresh.`, `routers.`, `shadowrocket.`, `mtvpn.`, `discovery.`, plus `event.<type>`, `notify.<type>` (+ `.body`), `job.routing.<what>` (+ `.step.<name>`), `settings.routing`, `settings.field.routing.<name>` (+ `.help`), as the platform's tests require.
+- **Tests.** Most use `routingtest.New(t)`: the full app (`sitetest`) with the module on fake servers ports and a `sourcestest` upstream, no job workers until `StartJobs`, the module's clock in the test's hands. Router tests add `routerostest` routers (`h.Router(…)`). Test files that use `routingtest` are external test packages (`package services_test`, …), as in Phase 2.
+- **Pages** live under `/routing/…` and follow the Phase 2 patterns: `r.Shell` + `ui.Layout`, every button a `ui.Action`, confirmations through `ui.Confirm`, an action that needs fields is a **page styled as a dialog**, secondary actions in an **Actions** area (no "More ▾" menu), no inline `style` or `script` (CSP), shared classes in the platform's `app.css`, sortable lists through `proxier.js` (2a). The designs (`RP-Lists`, `RP-List`, `RP-Services`, `RP-Service`, `RP-Custom-service`, `RP-Search`, `RP-Import`, `RP-Shadowrocket`, `RP-Shadowrocket-config`, `RP-Routers`, `RP-Router`, `RP-Router-add`, `RP-Phone-router`, `RP-Discover`, the dashboard boards) are references. Built although the docs don't require them (the user's choice): the list page's **Undo** (3b), a rejected snapshot's "likely cause" (3c), the per-hop status table (3f). Not built in Phase 3: nav counters, network operator names in fetch logs, **Generate a router script…** (Phase 4).
+- **Nav**: group `routing`: **Lists** `/routing/lists` (order 10, 3b), **Services** `/routing/services` (20, 3a), **Search** `/routing/search` (30, 3c), **Discover** `/routing/discover` (40, 3g), **Routers** `/routing/routers` (50, `g r`, 3e), **Shadowrocket** `/routing/shadowrocket` (60, 3d). Only Routers has a go-to key (the design's `RP-Keys`); the rest are one `/` away.
+
+### Platform and servers changes in Phase 3
+
+| Change | Sub-phase |
+|---|---|
+| servers: `ServerHostnames` becomes `Servers(ctx) ([]ServerHostname, error)` (id, name, hostnames, IP per non-retired server), so the guard names the server | 3b |
+| servers: the `RoutingGuard` port (`Covering(ctx, hostnames)`), set by `srv.SetRouting(rt.Guard())`; the new-server form refuses hostnames a routing list covers, naming the list and the service | 3b |
+| sshx: `Client.Put(ctx, path, data)`: a plain SFTP write (no temporary file, `chmod`, `fsync` or rename), for RouterOS's minimal SFTP server; `SSH.SetSubject(ctx, address, subject)`; `sshxtest` takes relative SFTP paths | 3e |
+| sshx: `Target.JumpFirstContact`, so a probe can pin a router's key on first contact while its jump host must already be confirmed | 3f |
+| servers: `ProxyDialer.Dial` returns `servers.DialFunc` (a func type in the root package) instead of `proxy.DialFunc`, so routing imports no other servers package | 3g |
+| `httpx.MaskPath`, the public limiter on `/r/`, `PROXIER_CHROMIUM_URL` | already built (2b, 0a) |
+
+### Phase 3 decisions taken with the user (2026-10-08)
+
+Claude proposed each of these; the user answered them all on 2026-10-08 (the first four before the contracts were written, the rest after). Where the user chose otherwise than proposed, the line says so.
+
+- **Seven sub-phases**, 3a–3g, with the Shadowrocket config and the mtvpn import (3d) **before** router sync (3e, 3f).
+- **Discovery's headless visit is built** (3g): a Chromium sidecar (`chromedp/headless-shell`) on blackberry, driven over CDP with `github.com/chromedp/chromedp`; tests use a fake browser, the real one runs in the exit demo.
+- **Awaiting setup is built in Phase 3** (3f): the state, the probe every 10 minutes for 7 days and "never connected", behind an internal `routers.Register`. Phase 4 only wraps it as the `RouterRegistrar` port.
+- **v2fly include filters are honoured**: `include:x @a` takes only x's entries tagged `@a`, `include:x @-a` drops them, as v2fly defines it (mtvpn included the whole list). Attributes on plain entries are still dropped from the names, and affiliations (`&list`) are ignored (the data had none on 2026-10-08).
+- **Redundancy inside one upstream service is kept** (mtvpn compatibility, so the first sync of a router mtvpn manages changes as little as possible): a name in both forms becomes suffix only, nothing else. A **custom** service absorbs both exact and suffix rows under its own suffixes when saved (with a note). Ownership works across services (ADR 0013). The Shadowrocket output additionally drops any rule another of its rules covers, as mtvpn's `shadowrocket_rules` did.
+- **An unpinned iplist selector is stored pinned** to the portal it was found on when that portal isn't the first (`iplist:youtube.com` found on main stays unpinned; found only on beta, it becomes `iplist:beta:<sel>`), so a later refresh can't silently switch portals.
+- **Switch source** accepts the new source's snapshot at once, without the safety checks.
+- **Adding a service resolves it inside the request** (45 s overall, 15 s per request), not in a background job.
+- **A selector that resolves to no usable name can't be added.**
+- **The guard** refuses every save that would put a covering name into a list (adding a service, saving a custom service, creating one from discovery, adoption or the import). An upstream snapshot that comes to contain such a name is still accepted, but the name is left out of what targets get and the list shows a warning.
+- **The shrink check** rejects when a snapshot of at least 20 names loses more than 50 % of them (the process doc), not the design's 30 %. Both are settings.
+- **The digest** is a new event, `routing.refresh_digest`, recorded after every daily round and notifying only with news: a service changed, a snapshot was held back, or a service started failing (a service failing for days counts as news on its first day only; `refresh_failing` still notifies at the third failure). `routing.snapshot_accepted` never notifies by itself; `routing.snapshot_rejected` notifies by itself only outside the round.
+- **"Unchanged" is strict**: a tag is unchanged only when the router's DNS entries for it (name and `match-subdomain`, `type=FWD` to the forwarder) and its address-list names all equal the desired ones.
+- **Blocks are packed into files** of at most 2 000 names (the user's choice; Claude proposed one tag per file). After a failed file the router is read again, and each of its tags that landed is recorded as applied.
+- **A router sync failure notifies only when the job gives up** (the user's choice; Claude proposed the 2nd consecutive attempt, or at once for **Sync now**): every failed attempt is recorded with `consecutive`, only the final one (the last attempt, or an error no retry fixes) notifies, and `routing.router_recovered` notifies only after such a notified failure.
+- **A sync re-reads the router and re-plans on every attempt and every resume**, so a retry never pushes a stale plan; a tag's applied state is recorded as soon as its file succeeded.
+- **Upload** is SFTP with a plain write, no SCP fallback: mtvpn's `scp` on macOS speaks SFTP since OpenSSH 9.0, so the user's router already accepts it (open question "to verify" 5 is answered by the exit demo).
+- **Proxier logs in as its own `proxier` user in a restricted group** (the user's choice; Claude proposed group `full`): `/user group add name=proxier policy=read,write,ftp,ssh`, to verify on the first real router; Test connection checks an SFTP upload, and the import scan recognises "not enough permissions".
+- **A router can be saved untested** (the user's choice; Claude proposed saving only after a passing test): it then waits, getting no sync from changes, until its first passing Test connection, which records `router_connected` and queues the initial sync.
+- **Routers and jump hosts are confirmed by the admin** (`ConfirmFirstContact`), except an awaiting-setup router's own key, which its probe pins on first contact: nobody can confirm it, and its jump host must already be pinned.
+- **The first hop** defaults to the tailnet when the node is running, else direct.
+- **Drift auto-repair and the drift interval** are global settings; with repair off, drift notifies once per new set of drifted tags; a drift check that can't reach the router counts no failure and notifies nothing.
+- **Removing a router keeps its pinned host keys** (Settings → SSH can forget them).
+- **Shadowrocket configs can be deleted** (`routing.shadowrocket_deleted`); the header line's time is the render time.
+- **The Shadowrocket base config is edited in CodeMirror** (the user's choice; Claude proposed a plain text area): a second entry point of the editor bundle with a small Shadowrocket mode, the textarea underneath so the form works without JS.
+- **The import** puts every service into one routing list chosen at the top (default "Main"), and reuses an existing service with the same tag as it is, even when its selector differs.
+- **A dotless search query** that finds nothing suggests discovering `<query>.com`; a query with a dot is suggested as typed.
+- **The catalog** takes v2fly's list names from the repository archive it downloads anyway (one GitHub API request for the commit, one archive download), not from the trees API, and indexes every iplist domain through the custom export `{group}|{site}|{data}` (verified against the live service on 2026-10-08). Each source's catalog is written as a new generation in batches and switched in one short transaction.
+- **Discovery's screenshots** are files under `PROXIER_DATA_DIR/discovery/<run>/`, not database rows (backups stay small), deleted with their run after 30 days. Its CDN and tracker lists are built into the code.
+- **The Chromium sidecar gets its own Docker network** (`discovery`, shared only with `proxier`): the `proxier` network's subnet is the trusted-proxy range.
+- **Three design extras are built** (the user's choice; Claude proposed none, as in Phase 2): **Undo** after reordering a list (3b), a rejected snapshot's **likely cause** from the catalog with **Add <selector>…** (3c), and the **per-hop status** table of a connect failure (3f). Nav counters are not built.
