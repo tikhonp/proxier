@@ -39,6 +39,8 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - The public `/s/{token}` endpoint with headers and stub entries ([fetch](./processes/subscriptions/subscription-fetch.md)).
 - Fetch log and shared-link alerts ([shared-link alerts](./processes/subscriptions/shared-link-alerts.md)).
 
+**Status (2026-10-08):** planned in four sub-phases, 2a–2d, each with a contract in [build/](./build/README.md#phase-2-subscriptions); nothing built yet.
+
 **Exit:** your phone and one family member use links from Proxier. Disabling a link turns that app's list into the stub entry on refresh. A link opened from many networks raises an alert.
 
 ## Phase 3: Routing

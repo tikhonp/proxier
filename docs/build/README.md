@@ -25,6 +25,15 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 
 The order is a dependency order: each builds only on finished ones. 1h was not needed for the Phase 1 exit demo (1g) and came after it.
 
+Phase 2 ([roadmap](../roadmap.md#phase-2-subscriptions)) is built the same way. Its cross-cutting decisions are in [Phase 2](#phase-2-subscriptions) below.
+
+| Sub-phase | Contract | State |
+|---|---|---|
+| 2a Subscriptions module, schema, subscriptions | [2a.md](./2a.md) | planned |
+| 2b Links and the public fetch | [2b.md](./2b.md) | planned |
+| 2c Expiry, shared-link alerts, dashboard | [2c.md](./2c.md) | planned |
+| 2d Cut-off, Phase 2 exit | [2d.md](./2d.md) | planned |
+
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
 ## Tables are already built
@@ -174,3 +183,73 @@ One module, `servers` (`internal/modules/servers`), enabled in `modules()` in `c
 - **Cert expiring / disk low** notify once per crossing, not daily.
 - **Verdict gaps and flap counting** (from the contract review, same day; defaults the user can still change): an evaluation counts toward flap protection only when it is the first to see a new proxy-test result; proxy works but SSH is unreachable → `degraded`; proxy fails, the stack runs, and no node abroad connects → `down`; anything the rules still don't match → `unknown` ("not enough data"). Details in [1f](./1f.md#verdict-rules).
 - **IP → country**: `https://ipinfo.io/{ip}/country` by default, a setting the admin can change or clear (`servers.ip_country_url`; empty turns the lookup off). The result only preselects the location; the admin can always pick another.
+
+## Phase 2: Subscriptions
+
+Decided once for every Phase 2 contract (2026-10-08). A contract may narrow these; it may not contradict them without writing the change here. Read the Phase 1 section above too: its rules on tests, secrets, cancellation and pages still hold.
+
+### Layout
+
+One module, `subscriptions` (`internal/modules/subscriptions`), enabled in `modules()` in `cmd/proxier/main.go` **after** `servers` from 2a. Tables are prefixed `subs_`; the migration version table is `subscriptions_goose_db_version`. Its packages:
+
+| Package | What | From |
+|---|---|---|
+| `subscriptions` | the `module.Module`, every optional interface, `New(Ports)`, `Usage()`; wiring only | 2a |
+| `subscriptions/conf` | the settings section and its keys (a leaf, so services and pages read the same names) | 2a |
+| `subscriptions/migrations` | `00001_subscriptions.sql`: every Phase 2 table | 2a |
+| `subscriptions/store` | every SQL statement of the module, `FieldErrors`, retention constants | 2a, grows |
+| `subscriptions/output` | what a link serves: formats, hiding, headers, stub entries, `Build`. Pure: no database, no clock of its own | 2a |
+| `subscriptions/subs` | subscriptions: create, settings, servers and their order, preview, delete, the reactions to servers' events, usage | 2a |
+| `subscriptions/links` | links: create, every action, the token, what a link serves now (`Serve`); the expiry scan (2c); cut-off (2d) | 2b |
+| `subscriptions/fetch` | the public `GET`/`HEAD /s/{token}`, recording fetches, app detection, networks | 2b |
+| `subscriptions/alerts` | fetch counts per link, the shared-link scan, network countries | 2c |
+| `subscriptions/pages` | handlers and templ files | 2a onward |
+| `subscriptions/substest` | test harness: the module on a fake `EndpointCatalog` (and a fake `Rotator` from 2d); a builder for the real-servers harness | 2a |
+
+### Rules
+
+- **Tables are written ahead.** 2a writes `internal/modules/subscriptions/migrations/00001_subscriptions.sql` from [2a.md#tables](./2a.md#tables) (every Phase 2 table) with `migrations_test.go`. A later sub-phase that needs a change edits `00001` in place (and 2a.md's **Tables** with it) **only if no Phase 2 build has been deployed**; when that isn't certain, it adds `00002_….sql` instead. Never both.
+- **Ports only.** The module talks to servers through `servers.EndpointCatalog` (active servers, their endpoints, health and "since"), `servers.Rotator` (2d) and the endpoint values of `servers/endpoint` (`endpoint.Endpoint`, `endpoint.URI`, `endpoint.MaskedURI`). Its non-test files import **no other package** of `internal/modules/servers` (2a's `TestImportsOnlyServersPorts` enforces it). Tests may also import `servers/serverstest` and `servers/remote` (for `VPS.Hold`). It never reads a `servers_` table; a server is known by its id plus the name copied when it was added (names never change and are never reused).
+- **Absent ports hide features** (ADR 0002): a nil `Catalog` means every subscription has no server in service (links serve "⚠️ No servers yet") and **Add servers** is hidden; a nil `Rotator` hides **Cut off**.
+- **Nothing is cached.** Every fetch and every preview asks the catalog. Health hiding is decided at that moment from the state and its "since".
+- **Secrets.** A link's token is sealed with AAD `link:<id>:token` and found by `vault.Lookup(token)` only. It appears only on its link page (masked text, **Reveal**, **Copy URL**, **QR**). Never in an event, a notification, a log line, a job payload, a list, search or the dashboard. Proxier's request log masks the token part of `/s/`, `/r/`, `/f/` paths (2b).
+- **Clock.** `subscriptions.Module.Now` (default `time.Now`) is the clock of every service of the module; services read it through a function set in `Init`, so a test sets `mod.Now` once. The public rate limiter has its own clock (`App.PublicLimit.Now`).
+- **Actors.** Admin actions `admin`; reactions to other modules' events and events raised by a public fetch `system`; jobs `job:<id>`; jobs created by an event subscriber have `CreatedBy: "event:<id>"`.
+- **Events** carry names, not ids, for other things (`subscription: "Family"`), and list fields as one comma-joined string (`added: "nl-1, de-1"`), like `template.changed{fields}`: Activity renders payload fields as text. Times in payloads are `db.Time` strings, `""` for none.
+- **i18n prefixes** of the module: `subs.`, `links.`, `alerts.`, `cutoff.`, plus `event.<type>`, `notify.<type>` (+ `.body`), `job.subscriptions.<what>` (+ `.step.<name>`), `settings.subscriptions`, `settings.field.subscriptions.<name>` (+ `.help`), as the platform's tests require.
+- **Tests.** Most use `substest.New(t)`: the full app (`sitetest`) with the module on a fake catalog, no job workers, the module's clock in the test's hands. The cross-module edge cases (activation, retirement, rotation, cut-off) use the real servers module through `substest.WithServers(t)` (`serverstest.NewHarness(t, serverstest.StubProxy(), serverstest.WithModules(…))`): no XHTTP traffic, so every package of the module runs under `-race`. A test file that uses `substest` is an external test package (`package subs_test`, `links_test`, …): `substest` imports the module root, which imports every service, so an internal test package would make an import cycle.
+- **Pages** follow the servers module's patterns: `r.Shell` + `ui.Layout`, every button a `ui.Action`, confirmation dialogs through `ui.Confirm`, and an action that needs fields is a **page styled as a dialog** (1g's retire page), not a `<dialog>`. Secondary actions live in an **Actions** area (as on the server page), not a "More ▾" menu (not built in Phase 1). No inline `style` or `script` (CSP); shared classes go into the platform's `app.css`. The designs (`RP-Subscriptions`, `RP-Subscription`, `RP-Links`, `RP-Link-new`, `RP-Link`, `RP-Phone-link`) are references: their formats column, network names ("MTS") and nav counters are not in Phase 2.
+
+### Platform and servers changes in Phase 2
+
+| Change | Sub-phase |
+|---|---|
+| `i18n.Localizer.Date` ("1 Dec 2026" / "1 дек 2026") and `ShortDate` ("1 Dec" / "1 дек") | 2a |
+| `proxier.js`: sortable lists (`[data-sortable]`, drag by a handle, posts the order) and `[data-cursor]` (the row the cursor lands on after an htmx swap) | 2a |
+| servers: `ServerEndpoints.Flag`; `endpoint.URI`, `endpoint.MaskedURI` and `endpoint.Type.Mask`; `serverstest.WithModules` (options applied before the site is built); the rotate dialog says "no links" when usage is empty | 2a |
+| `web.Limiter` on the public chain: 60 requests per minute per client IP for `/s/`, `/r/`, `/f/` (not `/agent/`, which limits per session); `App.PublicLimit` | 2b |
+| `httpx.MaskPath`: the request log and the 5xx error log write `/s/•••` instead of the token | 2b |
+| `servers/geoip` moves to `internal/platform/geoip` (both modules look up countries) | 2c |
+| servers: the `Rotator` port (`RotationRequest`), `ErrNotActive` / `ErrNothingToRotate` re-exported | 2d |
+
+### Phase 2 decisions taken with the user (2026-10-08)
+
+Claude proposed each of these; the user answered them all on 2026-10-08.
+
+- **Display names stay as the admin entered the location** ("🇳🇱 Netherlands 1"). A link's language changes only its stub entries, not server names. (The fetch doc said "in the link's language"; the design already shows English names in a Russian link.)
+- **Cut-off rotates one server at a time**, as the docs say: an event subscriber starts the next rotation when the previous one ends (the rollout pattern of 1e). A failure doesn't stop the rest; **Retry** queues that server again.
+- **Network countries, on by default**: each network seen in fetches is looked up once a month by its **first address** (`198.51.100.0`, never the client's own), through `subscriptions.network_country_url` (default `https://ipinfo.io/{ip}/country`, empty turns it off).
+- **Copy URL is one tap**: the link page carries the URL in the Copy button (the page is `no-store`; on screen it stays masked until **Reveal**).
+- **New links default to Russian** stub texts (`subscriptions.link_language`).
+- **Tokens are 256-bit** (`vault.NewToken`, 43 characters), like every other token in Proxier.
+- **A subscription can't be deleted while any link points to it, a deleted one inside its tombstone included.** **Move links to…** moves the live ones; the tombstones keep the subscription until they end. A tombstone therefore always has its subscription.
+- **The tombstone period and the fetch-log retention are settings**: `subscriptions.tombstone` (default 30 days) and `subscriptions.fetch_retention` (default 90 days).
+- **`LinkIssuer` is Phase 4's**: its consumer (router scripts) decides its shape, including whether it runs inside the caller's transaction.
+- **Hide unhealthy** offers blocked, down, degraded and unknown (paused never hides).
+- **Confirmations** for Cut off, Delete link and Delete subscription are consequence dialogs (strength 2), not type-the-name.
+- **An unknown or ended token gets the platform's plain public `404`** ("Not Found", like any unknown public path), not an empty body.
+- **The rate limit** (60 requests a minute per IP) covers `/s/`, `/r/`, `/f/`; `/agent/` keeps its per-session limits.
+- **Names** of links and subscriptions are unique by exact match (letter case counts).
+- **Reordering** works by drag, `J`/`K` and ↑/↓ buttons; actions that need fields are **pages styled as dialogs**; no design extras in Phase 2 (operator names, nav badges, "More ▾" menus).
+- **The gateway's access log** is fixed by a drafted, uncommitted change in `sh-main` (2d).
+- **Four sub-phases**, 2a–2d.
