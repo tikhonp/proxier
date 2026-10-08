@@ -31,11 +31,22 @@ type Harness struct {
 	Mod     *subscriptions.Module
 	Login   *sitetest.Login
 	Catalog *Catalog
+	// Rotator is the fake servers.Rotator (nil with NoRotator).
+	Rotator *Rotator
 	Now     time.Time // the module's clock (starts 2026-10-07 12:00 UTC); Advance moves it
 
 	mu       sync.Mutex
 	stopJobs func()
+	fed      int64
 }
+
+// Option changes New.
+type Option func(*options)
+
+type options struct{ noRotator bool }
+
+// NoRotator builds the module without a Rotator: Cut off is hidden.
+func NoRotator() Option { return func(o *options) { o.noRotator = true } }
 
 // Tunnel is the trusted proxy's address: requests from it carry the client's
 // X-Real-IP.
@@ -43,16 +54,30 @@ const Tunnel = "127.0.0.1:41000"
 
 // New: the app with the module on a fake catalog holding nl-1 (🇳🇱 Netherlands 1,
 // id 1) and de-1 (🇩🇪 Germany 1, id 2), general.admin_contact "@tikhonp", the
-// tunnel (127.0.0.1) trusted. No job workers run. The public rate limiter
-// runs on the harness clock.
-func New(t *testing.T) *Harness {
+// tunnel (127.0.0.1) trusted, and a fake Rotator whose job type FakeRotate is
+// registered. No job workers run. The public rate limiter runs on the harness
+// clock.
+func New(t *testing.T, opts ...Option) *Harness {
 	t.Helper()
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
 	cat := NewCatalog()
 	cat.Put(Server(1, "nl-1", "🇳🇱", "Netherlands", 1))
 	cat.Put(Server(2, "de-1", "🇩🇪", "Germany", 1))
-	mod := subscriptions.New(subscriptions.Ports{Catalog: cat})
+	ports := subscriptions.Ports{Catalog: cat}
+	var rot *Rotator
+	if !o.noRotator {
+		rot = &Rotator{}
+		ports.Rotator = rot
+	}
+	mod := subscriptions.New(ports)
 	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}, TrustedProxies: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}})
-	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Catalog: cat, Now: time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)}
+	if err := site.App.Jobs.Register("fake", fakeRotateType()); err != nil {
+		t.Fatal(err)
+	}
+	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Catalog: cat, Rotator: rot, Now: time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)}
 	mod.Now = func() time.Time { return h.Now }
 	h.App.PublicLimit.Now = func() time.Time { return h.Now }
 	if err := h.App.Settings.Set(context.Background(), "admin", "general", map[string]string{"general.admin_contact": "@tikhonp"}); err != nil {
@@ -138,7 +163,7 @@ func WithServers(t *testing.T) (*serverstest.Harness, *subscriptions.Module) {
 	t.Helper()
 	var sm *subscriptions.Module
 	h := serverstest.NewHarness(t, serverstest.StubProxy(), serverstest.WithModules(func(m *servers.Module) []module.Module {
-		sm = subscriptions.New(subscriptions.Ports{Catalog: m.EndpointCatalog()})
+		sm = subscriptions.New(subscriptions.Ports{Catalog: m.EndpointCatalog(), Rotator: m.Rotator()})
 		m.SetUsage(sm.Usage())
 		return []module.Module{sm}
 	}))

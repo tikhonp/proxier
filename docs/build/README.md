@@ -32,7 +32,7 @@ Phase 2 ([roadmap](../roadmap.md#phase-2-subscriptions)) is built the same way. 
 | 2a Subscriptions module, schema, subscriptions | [2a.md](./2a.md) | done 2026-10-08 (real phones and apps are the user's) |
 | 2b Links and the public fetch | [2b.md](./2b.md) | done 2026-10-08 (real phones and apps are the user's) |
 | 2c Expiry, shared-link alerts, dashboard | [2c.md](./2c.md) | done 2026-10-08 (real apps, real ipinfo and Telegram delivery are the user's) |
-| 2d Cut-off, Phase 2 exit | [2d.md](./2d.md) | planned |
+| 2d Cut-off, Phase 2 exit | [2d.md](./2d.md) | done 2026-10-08 (the exit demo, open questions 1 and 2 and the gateway deploy are the user's) |
 
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
@@ -230,7 +230,7 @@ One module, `subscriptions` (`internal/modules/subscriptions`), enabled in `modu
 | `web.Limiter` on the public chain: 60 requests per minute per client IP for `/s/`, `/r/`, `/f/` (not `/agent/`, which limits per session); `App.PublicLimit` | 2b |
 | `httpx.MaskPath`: the request log and the 5xx error log write `/s/•••` instead of the token | 2b |
 | `servers/geoip` moves to `internal/platform/geoip` (both modules look up countries) | 2c (done) |
-| servers: the `Rotator` port (`RotationRequest`), `ErrNotActive` / `ErrNothingToRotate` re-exported | 2d |
+| servers: the `Rotator` port (`RotationRequest`), `ErrNotActive` / `ErrNothingToRotate` re-exported | 2d (done) |
 
 ### Phase 2 decisions taken with the user (2026-10-08)
 

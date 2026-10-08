@@ -579,3 +579,10 @@ a.pc-sb { display: inline-flex; align-items: center; text-decoration: none; }
   .row.lnk, .row.fetch, .row.act, .row.sublink { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .filter-form { flex-wrap: wrap; }
 }
+
+/* Cut-off (2d): the plan's servers, the link page's progress */
+.row.cutoff { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); }
+.row.cutoff-item { grid-template-columns: 120px minmax(0, 1fr) auto; gap: 4px 12px; }
+.row.cutoff-item > span:nth-child(2) { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.row.cutoff-item .detail { grid-column: 1 / -1; overflow-wrap: anywhere; }
+.row.cutoff-item form { grid-column: 3; grid-row: 1; }

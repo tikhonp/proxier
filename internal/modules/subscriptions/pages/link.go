@@ -50,6 +50,12 @@ type linkView struct {
 	Activity   []eventLine
 	Deleted    bool
 	Who        whoView
+	// CanCutOff: the servers module rotates; CutOffBand is the alert band's
+	// line about it, CutOff the latest cut-off (HasCutOff).
+	CanCutOff  bool
+	CutOffBand string
+	CutOff     cutoffView
+	HasCutOff  bool
 }
 
 func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
@@ -130,6 +136,17 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 	}
 	if v.Deleted {
 		v.Who.Alert = false
+	}
+	v.CanCutOff = h.Links.CanCutOff() && !v.Deleted
+	if v.CanCutOff && v.Who.Alert {
+		if v.CutOffBand, err = h.cutoffBand(ctx, l); err != nil {
+			return v, err
+		}
+	}
+	if h.Links.CanCutOff() {
+		if v.CutOff, v.HasCutOff, err = h.cutoffView(ctx, l.ID); err != nil {
+			return v, err
+		}
 	}
 
 	retention, err := h.Settings.GetDuration(ctx, conf.FetchRetention)

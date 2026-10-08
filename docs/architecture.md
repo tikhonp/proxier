@@ -65,6 +65,7 @@ Each module registers, at startup:
 | Port | Provided by | Used by | What it does |
 |---|---|---|---|
 | `EndpointCatalog` | servers | subscriptions | List active servers, their endpoints, connection URI parts and current health state. |
+| `Rotator` | servers | subscriptions | The rotation job of a server, for a cut-off to queue in its own transaction (one server at a time). |
 | `ServerHostnames` | servers | routing | All management and proxy hostnames and IPs of non-retired servers, which must never be routed. |
 | `ProxyDialer` | servers | routing (discovery) | Open connections through a chosen server's endpoint, or a local SOCKS listener that does so. |
 | `LinkIssuer` | subscriptions | router scripts | Create a link in a subscription and return its URL. |

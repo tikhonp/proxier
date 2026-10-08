@@ -24,7 +24,7 @@ A link is what you hand to one person or device: a name and a secret URL serving
 | **Regenerate token** | A new token at once. The old URL returns `404` from now on. The link page shows a band "New URL ready: copy it and send it." with **Copy URL** holding the new one. | `link.token_regenerated` |
 | **Change subscription** | The next fetch serves the new subscription. | `link.subscription_changed{from, to}` |
 | **Set / extend / clear expiry** | Changes the expiry. Extending an expired link makes it serve the real output again. Any change re-arms the warning and the expired notification for the new expiry. | `link.expiry_changed{from, to}` |
-| **Cut off** | Disable, plus rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers}` |
+| **Cut off** | Disable, plus rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers, skipped}` |
 | **Delete** | The dialog explains the tombstone. Confirm → state `deleted`. The link leaves the lists, and its URL serves "⛔ Link removed" for 30 days, then `404`. | `link.deleted` |
 | **Rename, edit note, change language, format override** | Plain edits. Nothing changed records nothing. | `link.changed{fields}` |
 
@@ -66,6 +66,6 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - Extend an expired link's expiry → the next fetch serves the real output.
 - A disabled link that also expired → serves "disabled" (disabled wins).
 - Delete → gone from the Links list. Its URL serves "⛔ Link removed" for 30 days, then `404`.
-- Cut off → disabled at once, and the rotations are queued for every server in its subscription.
+- Cut off → disabled at once, the first rotation is queued at once and the others follow one at a time.
 - Change the subscription from "Family" to "Friends" → the next fetch serves Friends' servers.
 - The link's language is Russian → the stub entry names are in Russian.

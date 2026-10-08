@@ -78,6 +78,9 @@ templ linkPage(s ui.Shell, v linkView) {
 				}
 			</div>
 			<div class="col-r">
+				if v.HasCutOff {
+					@cutoffArea(v.CutOff)
+				}
 				@ui.Area(i18n.T(ctx, "links.area.link"), "") {
 					<dl class="kv area-body">
 						<dt>{ i18n.T(ctx, "links.kv.subscription") }</dt>
@@ -152,6 +155,9 @@ templ linkPage(s ui.Shell, v linkView) {
 							ID: "links.regenerate", Label: "links.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate", Small: true,
 							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
 						}, i18n.T(ctx, "links.regenerate.what"))
+						if v.CanCutOff {
+							@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, i18n.T(ctx, "cutoff.action.what"))
+						}
 						@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
 						@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
 						@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
@@ -235,6 +241,9 @@ templ alertBand(v linkView) {
 					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.disable.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.disable.body")},
 				})
 			}
+			if v.CanCutOff {
+				<a href={ templ.SafeURL(linkHref(v.L.ID) + "/cutoff") } class="pc-btn pc-dng" data-action="cutoff.band.what">{ i18n.T(ctx, "cutoff.band", i18n.Args{"name": v.L.Name}) }</a>
+			}
 			<span class="flex1"></span>
 			@ui.ActionButton(ui.Action{ID: "alerts.raise", Label: "alerts.raise", Method: "GET", Href: linkHref(v.L.ID) + "/alerts"})
 			@ui.ActionButton(ui.Action{ID: "alerts.mute", Label: "alerts.mute", Method: "POST", Href: linkHref(v.L.ID) + "/alerts", Fields: map[string]string{"action": "mute"}})
@@ -245,6 +254,10 @@ templ alertBand(v linkView) {
 			if v.L.State == "active" {
 				<dt>{ i18n.T(ctx, "alerts.what.disable") }</dt>
 				<dd>{ i18n.T(ctx, "alerts.what.disable.text") }</dd>
+			}
+			if v.CanCutOff {
+				<dt>{ i18n.T(ctx, "cutoff.band.what") }</dt>
+				<dd>{ v.CutOffBand }</dd>
 			}
 			<dt>{ i18n.T(ctx, "alerts.what.raise") }</dt>
 			<dd>{ i18n.T(ctx, "alerts.what.raise.text") }</dd>

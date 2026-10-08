@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
 
@@ -54,6 +55,7 @@ type Harness struct {
 	stubbed    bool
 	stallSmoke bool
 	accepts    func(endpoint.Endpoint) bool
+	refused    map[string]bool // IPs whose SSH dial is refused (Unreachable)
 	extra      func(m *servers.Module) []module.Module
 }
 
@@ -153,7 +155,13 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 	// Jobs: workers poll fast and stop quickly.
 	// Every address reaches the one fake VPS, so a test can have many servers.
 	h.App.SSH.Dial = func(ctx context.Context, network, addr string) (net.Conn, error) {
-		_, port, _ := net.SplitHostPort(addr)
+		host, port, _ := net.SplitHostPort(addr)
+		h.mu.Lock()
+		refused := h.refused[host]
+		h.mu.Unlock()
+		if refused {
+			return nil, &net.OpError{Op: "dial", Net: network, Err: syscall.ECONNREFUSED}
+		}
 		return (&net.Dialer{}).DialContext(ctx, network, net.JoinHostPort("127.0.0.1", port))
 	}
 	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 5*time.Millisecond, 50*time.Millisecond, 300*time.Millisecond
@@ -458,6 +466,16 @@ func (h *Harness) LastJob(typ string) int64 {
 		h.T.Fatal(err)
 	}
 	return id
+}
+
+// Unreachable makes SSH connections to the IP fail as refused (or work again).
+func (h *Harness) Unreachable(ip string, refused bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.refused == nil {
+		h.refused = map[string]bool{}
+	}
+	h.refused[ip] = refused
 }
 
 // AddServer provisions another server on the same fake VPS under another

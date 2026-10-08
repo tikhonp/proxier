@@ -39,7 +39,7 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - The public `/s/{token}` endpoint with headers and stub entries ([fetch](./processes/subscriptions/subscription-fetch.md)).
 - Fetch log and shared-link alerts ([shared-link alerts](./processes/subscriptions/shared-link-alerts.md)).
 
-**Status (2026-10-08):** planned in four sub-phases, 2a–2d, each with a contract in [build/](./build/README.md#phase-2-subscriptions); nothing built yet.
+**Status (2026-10-08):** built in four sub-phases, 2a–2d (contracts and **As built** notes in [build/](./build/README.md#phase-2-subscriptions)). Left for the user: the exit demo below with real phones and apps on `proxier.tikhonnnnn.com` (steps in [2d](./build/2d.md#phase-2-exit-demo)), the answers to open questions "to verify" 1 and 2 from it, and committing and deploying the gateway's access-log change in sh-main.
 
 **Exit:** your phone and one family member use links from Proxier. Disabling a link turns that app's list into the stub entry on refresh. A link opened from many networks raises an alert.
 

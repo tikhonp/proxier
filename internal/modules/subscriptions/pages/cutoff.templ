@@ -1,0 +1,98 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// cutoffPlanPage is what Cut off will do, as a page styled as a strength-2
+// dialog: the link at once, then each server's rotation one at a time.
+templ cutoffPlanPage(s ui.Shell, v cutoffPlanView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(linkHref(v.L.ID)) }>{ v.L.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "cutoff.crumb") }</span></nav>
+				<h1>{ i18n.T(ctx, "cutoff.title", i18n.Args{"name": v.L.Name}) }</h1>
+				if v.L.State == "disabled" {
+					<p class="subtle">{ i18n.T(ctx, "cutoff.note.disabled") }</p>
+				} else {
+					<p class="subtle">{ i18n.T(ctx, "cutoff.note") }</p>
+				}
+			</div>
+		</div>
+		<form method="post" action={ linkHref(v.L.ID) + "/cutoff" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			@ui.Area(i18n.T(ctx, "cutoff.rotate"), i18n.T(ctx, "cutoff.rotate.note")) {
+				if len(v.Rotate) == 0 {
+					<p class="area-body">{ i18n.T(ctx, "cutoff.rotate.none") }</p>
+				}
+				for _, srv := range v.Rotate {
+					<div class="row cutoff">
+						<span class="bold">{ srv.Name }</span>
+						@ui.Status(srv.Kind, srv.Word)
+					</div>
+				}
+			}
+			if len(v.Skip) > 0 {
+				@ui.Area(i18n.T(ctx, "cutoff.skip"), i18n.T(ctx, "cutoff.skip.note")) {
+					for _, srv := range v.Skip {
+						<div class="row cutoff">
+							<span class="bold">{ srv.Name }</span>
+							@ui.Status(srv.Kind, srv.Word)
+						</div>
+					}
+				}
+			}
+			if v.Others != "" {
+				@ui.Area(i18n.T(ctx, "cutoff.others.title"), "") {
+					<p class="area-body">{ v.Others }</p>
+				}
+			}
+			if len(v.Rotate) > 0 {
+				@ui.Band("gold") {
+					{ i18n.T(ctx, "cutoff.warning") }
+				}
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" data-action="cutoff.start">{ i18n.T(ctx, "cutoff.start") }</button>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+// cutoffArea is the link's latest cut-off. While a rotation waits or runs it
+// polls itself every two seconds; the answer without them drops the trigger.
+templ cutoffArea(v cutoffView) {
+	<div
+		id="cutoff"
+		if v.Poll {
+			hx-get={ linkHref(v.LinkID) + "/cutoff/status" }
+			hx-trigger="every 2s"
+			hx-target="#cutoff"
+			hx-swap="outerHTML"
+		}
+	>
+		@ui.Area(i18n.T(ctx, "cutoff.area"), v.Started) {
+			for _, it := range v.Items {
+				<div class="row cutoff-item">
+					<span class="bold">{ it.Name }</span>
+					<span>
+						@ui.Status(it.Kind, it.Word)
+						if it.JobHref != "" {
+							<a class="sm" href={ templ.SafeURL(it.JobHref) }>{ i18n.T(ctx, "cutoff.job") }</a>
+						}
+					</span>
+					if it.Detail != "" {
+						<span class="sm subtle detail">{ it.Detail }</span>
+					}
+					if it.RetryHref != "" {
+						@ui.ActionButton(ui.Action{ID: "cutoff.retry-" + strconv.Itoa(it.Position), Label: "cutoff.retry", Method: "POST", Href: it.RetryHref, Small: true})
+					}
+				</div>
+			}
+		}
+	</div>
+}

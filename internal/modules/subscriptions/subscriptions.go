@@ -32,6 +32,8 @@ import (
 // Ports are what the module uses of other modules. A nil one hides its features.
 type Ports struct {
 	Catalog servers.EndpointCatalog
+	// Rotator runs cut-offs; nil hides Cut off.
+	Rotator servers.Rotator
 }
 
 // Module is the subscriptions module.
@@ -62,7 +64,7 @@ func (m *Module) Init(d module.Deps) error {
 	})
 	m.Links = links.NewService(links.Deps{
 		DB: d.DB, Vault: d.Vault, Events: d.Events, Settings: d.Settings, I18n: d.I18n, Subs: m.Subs, Now: now,
-		BaseURL: d.Cfg.BaseURL, Log: d.Log,
+		BaseURL: d.Cfg.BaseURL, Log: d.Log, Jobs: d.Jobs, Rotator: m.ports.Rotator,
 	})
 	m.Alerts = alerts.New(alerts.Deps{DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, Now: now, Log: d.Log})
 	m.Fetch = fetch.New(fetch.Deps{Links: m.Links, DB: d.DB, Events: d.Events, Alerts: m.Alerts, Log: d.Log, Now: now})
@@ -99,8 +101,15 @@ func (*Module) Messages() i18n.Messages {
 	return all
 }
 
-// Subscribers: subscriptions follow servers being activated and retired.
-func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Subs.Subscriber()} }
+// Subscribers: subscriptions follow servers being activated and retired;
+// cut-offs follow their rotations.
+func (m *Module) Subscribers() []events.Subscriber {
+	out := []events.Subscriber{m.Subs.Subscriber()}
+	if m.ports.Rotator != nil {
+		out = append(out, m.Links.CutOffSubscriber())
+	}
+	return out
+}
 
 func (m *Module) Routes(r web.Routes) {
 	m.Fetch.Register(r.Public)

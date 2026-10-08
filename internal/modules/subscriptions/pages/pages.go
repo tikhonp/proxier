@@ -73,6 +73,10 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/links/:id/edit", h.formPage("edit"))
 	r.Admin.POST("/links/:id/edit", h.editLink)
 	r.Admin.POST("/links/:id/delete", h.deleteLink)
+	r.Admin.GET("/links/:id/cutoff", h.cutoffPlan)
+	r.Admin.POST("/links/:id/cutoff", h.cutoffStart)
+	r.Admin.GET("/links/:id/cutoff/status", h.cutoffStatus)
+	r.Admin.POST("/links/:id/cutoff/:position/retry", h.cutoffRetry)
 	r.Admin.GET("/links/:id/alerts", h.alertsPage)
 	r.Admin.POST("/links/:id/alerts", h.saveAlerts)
 

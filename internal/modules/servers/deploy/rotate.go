@@ -40,17 +40,29 @@ func (s *Service) RotatableKeys(ctx context.Context, serverID int64) ([]string, 
 // Rotate queues a rotation: new rotatable values are generated, deployed and
 // proxy-tested before they replace the old ones.
 func (s *Service) Rotate(ctx context.Context, serverID int64, actor string) (int64, error) {
-	keys, err := s.RotatableKeys(ctx, serverID)
+	req, err := s.RotationRequest(ctx, serverID, actor)
 	if err != nil {
 		return 0, err
 	}
-	if len(keys) == 0 {
-		return 0, ErrNothingToRotate
-	}
-	e, err := s.Jobs.EnqueueNow(ctx, jobs.Request{
-		Type: JobRotate, Payload: base{ServerID: serverID, Kind: "rotate"}, ResourceKey: serverKey(serverID), CreatedBy: actor,
-	})
+	e, err := s.Jobs.EnqueueNow(ctx, req)
 	return e.ID, err
+}
+
+// RotationRequest is the rotation job of the server without enqueuing it, so
+// a caller can queue it in its own transaction (subscriptions' cut-off).
+// ErrNotActive: not active, or retiring. ErrNothingToRotate: its version marks
+// no generated value rotate: true.
+func (s *Service) RotationRequest(ctx context.Context, serverID int64, actor string) (jobs.Request, error) {
+	keys, err := s.RotatableKeys(ctx, serverID)
+	if err != nil {
+		return jobs.Request{}, err
+	}
+	if len(keys) == 0 {
+		return jobs.Request{}, ErrNothingToRotate
+	}
+	return jobs.Request{
+		Type: JobRotate, Payload: base{ServerID: serverID, Kind: "rotate"}, ResourceKey: serverKey(serverID), CreatedBy: actor,
+	}, nil
 }
 
 // loadRotation renders the version in force with the pending values over the

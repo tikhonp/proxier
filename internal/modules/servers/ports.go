@@ -9,11 +9,13 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
+	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
 // The ports other modules use (docs/modules/servers.md#ports-for-other-modules).
@@ -51,6 +53,20 @@ type ProxyDialer interface {
 	Dial(ctx context.Context, serverID int64) (proxy.DialFunc, io.Closer, error)
 }
 
+// Rotator is what subscriptions' cut-off uses to rotate servers one at a time.
+type Rotator interface {
+	// RotationRequest is the job that rotates the server, for the caller to
+	// enqueue in its own transaction. ErrNotActive: not active, retiring or
+	// gone. ErrNothingToRotate: its version marks no generated value rotate: true.
+	RotationRequest(ctx context.Context, serverID int64, actor string) (jobs.Request, error)
+}
+
+// The errors of Rotator.
+var (
+	ErrNotActive       = deploy.ErrNotActive
+	ErrNothingToRotate = deploy.ErrNothingToRotate
+)
+
 // UsageReader names the subscriptions and links that serve a server. Phase 2
 // implements it; until then the module shows "—".
 type UsageReader = pages.UsageReader
@@ -63,6 +79,9 @@ func (m *Module) ServerHostnames() ServerHostnames { return hostnames{m} }
 
 // ProxyDialer returns the module's dialer port.
 func (m *Module) ProxyDialer() ProxyDialer { return dialer{m} }
+
+// Rotator returns the module's rotation port.
+func (m *Module) Rotator() Rotator { return rotator{m} }
 
 // SetUsage gives the module the subscriptions port; nil (the default in
 // Phase 1) makes its pages show "—".
@@ -114,6 +133,16 @@ func (c catalog) build(ctx context.Context, s store.Server) (ServerEndpoints, er
 		return ServerEndpoints{}, err
 	}
 	return ServerEndpoints{ServerID: s.ID, Name: s.Name, Flag: country.Flag(s.Country), Health: s.Health, HealthSince: s.HealthSince.Time, Endpoints: eps}, nil
+}
+
+type rotator struct{ m *Module }
+
+func (r rotator) RotationRequest(ctx context.Context, serverID int64, actor string) (jobs.Request, error) {
+	req, err := r.m.Deploy.RotationRequest(ctx, serverID, actor)
+	if errors.Is(err, store.ErrNotFound) {
+		return req, ErrNotActive
+	}
+	return req, err
 }
 
 type hostnames struct{ m *Module }

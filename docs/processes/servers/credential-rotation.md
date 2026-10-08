@@ -22,11 +22,10 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
 
 ## Steps — cut-off (rotating for a link)
 
-Phase 2: the subscriptions module does not exist yet, so only the single-server rotation above is built.
-
-1. Link page → **Cut off**. The dialog lists every server in the link's subscription, each other link that serves any of them, and the warning above.
-2. **Cut off** disables the link at once (it serves the "disabled" stub entry from now on) and queues a rotation per listed server. → `link.disabled`, `link.cut_off{servers}`
-3. The rotations run like the single case, one server at a time, and each records its own events. The link page shows their progress.
+1. Link page → **Cut off…** (in the Actions area, and in the shared-link alert band). The page lists every server of the link's subscription in order with its health, the ones that can't be rotated with why ("not in service", "its template has no rotatable values"), how many other active links in how many subscriptions get new URIs, and the warning above. A subscription with nothing to rotate says so: Cut off only disables the link.
+2. **Cut off** disables the link at once (it serves the "disabled" stub entry from now on; an already disabled link stays as it is), skips and names the servers that can't be rotated, and queues the first rotation, all in one transaction. → `link.disabled` (when it was active), `link.cut_off{servers, skipped}`
+3. The rotations run like the single case, one server at a time: an event subscriber (`subscriptions.cutoff`) starts the next one when the previous one records `server.credentials_rotated` or `server.redeploy_failed`. A failure doesn't stop the rest. A server that stops being rotatable while it waits is skipped when its turn comes. The link page's **Cut-off** area shows their progress (waiting, rotating with its job, rotated, failed or skipped with "still has the old credential") and polls every 2 s while one waits or runs.
+4. **Retry** on a failed server queues it again: at once when nothing runs, else after the running one.
 
 ## Rules
 
@@ -34,7 +33,8 @@ Phase 2: the subscriptions module does not exist yet, so only the single-server 
 - The old values stay in force until the new ones pass the proxy test, so a failed rotation never leaves a server unusable for everyone.
 - A rotation is a deployment: it records a deployment and holds the server's resource key, so it never runs alongside a redeploy.
 - Connection URIs are never cached anywhere in Proxier, so the next fetch of every link already carries the new credential.
-- A cut-off disables the link even if a rotation then fails. The page shows which servers still have the old credential, each with **Retry**.
+- A cut-off disables the link even if a rotation then fails. The page shows which servers still have the old credential, each failed one with **Retry** (a skipped one has none).
+- A second cut-off while one runs is allowed; each has its own servers and the page shows the newest. Two rotations of one server queue behind each other on its resource key.
 
 ## Edge cases (each is a test)
 

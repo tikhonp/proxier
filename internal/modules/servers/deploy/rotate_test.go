@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
@@ -367,5 +368,51 @@ func TestRotationThatCannotBeRestoredSaysSo(t *testing.T) {
 	}
 	if h.Server(id).State != "active" {
 		t.Error("the server left the active state")
+	}
+}
+
+func TestRotationRequest(t *testing.T) {
+	h, id := stubbed(t)
+	before := jobCount(t, h, deploy.JobRotate)
+	req, err := h.Mod.Deploy.RotationRequest(bg, id, "event:7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if req.Type != deploy.JobRotate || req.ResourceKey != "server:"+strconv.FormatInt(id, 10) || req.CreatedBy != "event:7" {
+		t.Errorf("request: %+v", req)
+	}
+	if n := jobCount(t, h, deploy.JobRotate); n != before {
+		t.Errorf("RotationRequest enqueued: %d rotation jobs, want %d", n, before)
+	}
+	// The port answers the same, and a server that doesn't exist is not active.
+	if _, err := h.Mod.Rotator().RotationRequest(bg, id, "admin"); err != nil {
+		t.Errorf("port: %v", err)
+	}
+	if _, err := h.Mod.Rotator().RotationRequest(bg, 9999, "admin"); err != servers.ErrNotActive {
+		t.Errorf("a missing server through the port: %v", err)
+	}
+
+	// A retiring server, then a failed one, is not active.
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET retire_job_id = 1 WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Mod.Deploy.RotationRequest(bg, id, "admin"); err != deploy.ErrNotActive {
+		t.Errorf("retiring: %v", err)
+	}
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET retire_job_id = NULL, state = 'failed', health = NULL WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Mod.Deploy.RotationRequest(bg, id, "admin"); err != deploy.ErrNotActive {
+		t.Errorf("failed: %v", err)
+	}
+
+	// A template without rotatable values has nothing to rotate.
+	h2 := serverstest.NewHarness(t, serverstest.StubProxy())
+	h2.PublishVersion(func(files map[string][]byte) {
+		files["manifest.yaml"] = []byte(strings.NewReplacer("rotate: true", "rotate: false").Replace(string(files["manifest.yaml"])))
+	}, true)
+	id2 := h2.Provisioned()
+	if _, err := h2.Mod.Deploy.RotationRequest(bg, id2, "admin"); err != deploy.ErrNothingToRotate {
+		t.Errorf("nothing to rotate: %v", err)
 	}
 }

@@ -234,6 +234,7 @@ Summarised here, defined in the process docs:
 | Port | Used by | Contract |
 |---|---|---|
 | `EndpointCatalog` | subscriptions | Active servers with their endpoints (display name, type, host, port, credential, params), health state and "since". Changes arrive as events (`server.activated`, `server.redeployed`, `server.credentials_rotated`, `server.health_changed`, `server.retired`). |
+| `Rotator` | subscriptions (cut-off) | `RotationRequest(serverID, actor)`: the `servers.rotate` job (resource key `server:<id>`) for the caller to enqueue in its own transaction; nothing is enqueued. `ErrNotActive` for a server that isn't active, is retiring or is gone; `ErrNothingToRotate` when its version marks no generated value `rotate: true`. Every way the job ends records `server.credentials_rotated` or `server.redeploy_failed{kind: rotate}` with actor `job:<id>`. |
 | `ServerHostnames` | routing | Every management and proxy hostname and IP of every non-retired server. Routing refuses to route them. |
 | `ProxyDialer` | routing (discovery) | A local SOCKS listener (or a dial function) that sends traffic through a chosen active server's endpoint. |
 

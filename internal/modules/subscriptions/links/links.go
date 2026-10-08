@@ -18,12 +18,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 )
@@ -109,6 +111,9 @@ type Deps struct {
 	Now      func() time.Time
 	BaseURL  *url.URL
 	Log      *slog.Logger
+	// Jobs and Rotator run cut-offs; a nil Rotator hides Cut off.
+	Jobs    *jobs.System
+	Rotator servers.Rotator
 }
 
 // Service runs links.

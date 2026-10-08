@@ -35,7 +35,7 @@ import (
 // removes its pages, jobs and tables from use (ADR 0002).
 func modules() []module.Module {
 	srv := servers.New()
-	subs := subscriptions.New(subscriptions.Ports{Catalog: srv.EndpointCatalog()})
+	subs := subscriptions.New(subscriptions.Ports{Catalog: srv.EndpointCatalog(), Rotator: srv.Rotator()})
 	srv.SetUsage(subs.Usage())
 	return []module.Module{srv, subs}
 }
