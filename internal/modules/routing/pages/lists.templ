@@ -1,0 +1,272 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ listCrumbs(id int64, name, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(listsPath) }>{ i18n.T(ctx, "lists.title") }</a>
+		<span aria-hidden="true">/</span>
+		if last == "" {
+			<span>{ name }</span>
+		} else {
+			if id != 0 {
+				<a href={ templ.SafeURL(listHref(id)) }>{ name }</a>
+				<span aria-hidden="true">/</span>
+			}
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ targetsCell(ts []targetView) {
+	if len(ts) == 0 {
+		<span class="sm muted">{ i18n.T(ctx, "lists.none") }</span>
+	} else {
+		<span class="col">
+			for _, t := range ts {
+				<span class="sm">
+					@ui.Status(t.Kind, t.Name)
+					<span class="subtle">{ t.Word }</span>
+				</span>
+			}
+		</span>
+	}
+}
+
+templ listsPage(s ui.Shell, v listsView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "lists.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "lists.intro") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "lists.new", Label: "lists.new", Method: "GET", Href: listsPath + "/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		<div class="colhead rlist" aria-hidden="true">
+			<span>{ i18n.T(ctx, "lists.col.list") }</span>
+			<span>{ i18n.T(ctx, "lists.col.services") }</span>
+			<span>{ i18n.T(ctx, "lists.col.domains") }</span>
+			<span>{ i18n.T(ctx, "lists.col.targets") }</span>
+			<span>{ i18n.T(ctx, "lists.col.warnings") }</span>
+		</div>
+		for _, r := range v.Rows {
+			<a href={ templ.SafeURL(listHref(r.ID)) } class="row rlist pc-row" data-row={ i64(r.ID) } data-href={ listHref(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}) }>
+				<span class="caret" aria-hidden="true">›</span>
+				<span class="col">
+					<span class="bold">{ r.Name }</span>
+					if r.Sub != "" {
+						<span class="sm subtle">{ r.Sub }</span>
+					}
+				</span>
+				<span class="subtle">{ r.Services }</span>
+				<span class="subtle">{ r.Domains }</span>
+				@targetsCell(r.Targets)
+				if r.Warn != "" {
+					<span class="sm gold">▲ { r.Warn }</span>
+				} else {
+					<span class="sm muted">{ i18n.T(ctx, "lists.none") }</span>
+				}
+			</a>
+		}
+		<p class="pager">{ v.Line }</p>
+	}
+}
+
+templ listFormPage(s ui.Shell, v listFormView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				if v.L.ID == 0 {
+					@listCrumbs(0, "", i18n.T(ctx, "lists.new"))
+				} else {
+					@listCrumbs(v.L.ID, v.L.Name, i18n.T(ctx, "lists.rename"))
+				}
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(listFormAction(v)) } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="list-name">{ i18n.T(ctx, "lists.field.name") }</label>
+				<input id="list-name" class="pc-inp" name="name" value={ v.Name } maxlength="60" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+				if v.Errs["name"] != "" {
+					<p class="err" role="alert">{ v.Errs["name"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="list-description">{ i18n.T(ctx, "lists.field.description") }</label>
+				<textarea id="list-description" class="pc-inp" name="description" rows="3" maxlength="1000" aria-invalid?={ v.Errs["description"] != "" }>{ v.Description }</textarea>
+				if v.Errs["description"] != "" {
+					<p class="err" role="alert">{ v.Errs["description"] }</p>
+				}
+			</div>
+			<div class="form-actions">
+				if v.L.ID == 0 {
+					<button type="submit" class="pc-btn pc-pri" data-action="lists.create">{ i18n.T(ctx, "lists.create") }</button>
+					<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				} else {
+					<button type="submit" class="pc-btn pc-pri" data-action="lists.save">{ i18n.T(ctx, "lists.save") }</button>
+					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				}
+			</div>
+		</form>
+	}
+}
+
+func listFormAction(v listFormView) string {
+	if v.L.ID == 0 {
+		return listsPath
+	}
+	return listHref(v.L.ID) + "/edit"
+}
+
+templ addToListPage(s ui.Shell, v addToListView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@listCrumbs(v.L.ID, v.L.Name, i18n.T(ctx, "lists.add"))
+				<h1>{ i18n.T(ctx, "lists.add.title", i18n.Args{"name": v.L.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "lists.add.note") }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="get" action={ templ.SafeURL(listHref(v.L.ID) + "/add") } class="inline-fields area-body" hx-get={ listHref(v.L.ID) + "/add" } hx-target="#pick-rows" hx-select="#pick-rows" hx-swap="outerHTML" hx-trigger="input changed delay:250ms from:find input, submit">
+			<input class="pc-inp" type="search" name="q" value={ v.Q } placeholder={ i18n.T(ctx, "lists.add.filter") } aria-label={ i18n.T(ctx, "lists.add.filter") } autocomplete="off" autofocus/>
+			<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "services.domains.apply") }</button>
+		</form>
+		<form method="post" action={ templ.SafeURL(listHref(v.L.ID) + "/services") } class="form wide">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div id="pick-rows">
+				if len(v.Rows) == 0 {
+					<p class="subtle">{ i18n.T(ctx, "lists.add.none") }</p>
+				}
+				for _, r := range v.Rows {
+					<label class="row pick">
+						<input type="checkbox" name="service" value={ i64(r.ID) } checked?={ r.Checked }/>
+						<span class="col">
+							<span class="bold">{ r.Tag }</span>
+							<span class="sm subtle seltext">{ r.Selector }</span>
+						</span>
+						<span class="sm subtle">{ r.Source }</span>
+						<span class="sm subtle">{ i18n.T(ctx, "lists.add.domains", i18n.Args{"n": r.Domains}) }</span>
+					</label>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="lists.add.submit">{ i18n.T(ctx, "lists.add.submit") }</button>
+				<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+		@ui.Area(i18n.T(ctx, "lists.add.new"), "") {
+			<form method="post" action={ templ.SafeURL(listPath) } class="form area-body">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<input type="hidden" name="lists" value={ i64(v.L.ID) }/>
+				<input type="hidden" name="from_list" value="1"/>
+				<div class="field">
+					<label for="svc-selector">{ i18n.T(ctx, "services.field.selector") }</label>
+					<input id="svc-selector" class="pc-inp" name="selector" placeholder="v2fly:anthropic" autocomplete="off" autocapitalize="off" spellcheck="false"/>
+					<p class="help">{ i18n.T(ctx, "services.field.selector.help") }</p>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn" data-action="lists.add.new_submit">{ i18n.T(ctx, "lists.add.new_submit", i18n.Args{"name": v.L.Name}) }</button>
+				</div>
+			</form>
+		}
+	}
+}
+
+templ deleteListPage(s ui.Shell, v deleteListView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@listCrumbs(v.L.ID, v.L.Name, i18n.T(ctx, "lists.delete"))
+				<h1>{ i18n.T(ctx, "lists.delete.title", i18n.Args{"name": v.L.Name}) }</h1>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		if v.L.Default {
+			<p>{ i18n.T(ctx, "lists.delete.default") }</p>
+			<div class="form-actions">
+				<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		} else {
+			<form method="post" action={ templ.SafeURL(listHref(v.L.ID) + "/delete") } class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				if len(v.Targets) > 0 {
+					@ui.Band("gold") {
+						{ i18n.N(ctx, "lists.delete.has_targets", int64(len(v.Targets)), i18n.Args{"name": v.L.Name}) }
+					}
+					for _, t := range v.Targets {
+						<div class="row">
+							@ui.Status(t.Kind, t.Name)
+							<span class="sm subtle">{ t.Word }</span>
+						</div>
+					}
+					<div class="field">
+						<label for="move-to">{ i18n.T(ctx, "lists.delete.move_to_field") }</label>
+						<select id="move-to" class="pc-inp" name="move_to">
+							for _, o := range v.Others {
+								<option value={ i64(o.ID) } selected?={ o.ID == v.MoveTo }>{ o.Name }</option>
+							}
+						</select>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-dng" data-action="lists.delete.move">{ i18n.T(ctx, "lists.delete.move_submit", i18n.Args{"name": v.L.Name}) }</button>
+						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					</div>
+				} else {
+					<p>{ i18n.N(ctx, "lists.delete.body", int64(v.Size), i18n.Args{"name": v.L.Name}) }</p>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-dng" data-action="lists.delete.submit">{ i18n.T(ctx, "lists.delete.submit", i18n.Args{"name": v.L.Name}) }</button>
+						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					</div>
+				}
+			</form>
+		}
+	}
+}
+
+templ serviceListsPage(s ui.Shell, v serviceListsView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.ID, v.Tag, i18n.T(ctx, "lists.to_lists"))
+				<h1>{ i18n.T(ctx, "lists.to_lists.title", i18n.Args{"tag": v.Tag}) }</h1>
+				<p class="subtle">{ v.In }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="post" action={ templ.SafeURL(svcHref(v.ID) + "/lists") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Lists) == 0 {
+				<p class="subtle">{ i18n.T(ctx, "lists.to_lists.none") }</p>
+			}
+			<div class="field">
+				for _, l := range v.Lists {
+					<label class="check"><input type="checkbox" name="list" value={ i64(l.ID) }/>{ l.Name }</label>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" disabled?={ len(v.Lists) == 0 } data-action="lists.to_lists.submit">{ i18n.T(ctx, "lists.to_lists.submit") }</button>
+				<a href={ templ.SafeURL(svcHref(v.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

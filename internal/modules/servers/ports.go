@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
-	"net/netip"
+	"slices"
 	"sort"
 	"time"
 
@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
+	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
@@ -41,12 +42,29 @@ type EndpointCatalog interface {
 	Server(ctx context.Context, id int64) (se ServerEndpoints, ok bool, err error)
 }
 
+// ServerHostname is a non-retired server with its hostnames, for routing's
+// server-hostname guard.
+type ServerHostname struct {
+	ServerID  int64
+	Name      string
+	Hostnames []string // management and proxy, without empty or duplicate ones
+	IP        string
+}
+
 // ServerHostnames is what routing reads.
 type ServerHostnames interface {
-	// Hostnames lists every management and proxy hostname and every IP of every
-	// non-retired server.
-	Hostnames(ctx context.Context) (names []string, ips []netip.Addr, err error)
+	// Servers lists every server whose state isn't retired (a retiring one
+	// included: its DNS still points at it), by id.
+	Servers(ctx context.Context) ([]ServerHostname, error)
 }
+
+// RoutedName is a hostname a routing list covers: the list's domain and the
+// service that holds it.
+type RoutedName = provision.RoutedName
+
+// RoutingGuard is what provisioning asks routing (set by SetRouting): which
+// of a new server's hostnames a routing list covers. Nil: nothing is checked.
+type RoutingGuard = provision.RoutingGuard
 
 // ProxyDialer sends traffic through a chosen active server's endpoint.
 type ProxyDialer interface {
@@ -82,6 +100,10 @@ func (m *Module) ProxyDialer() ProxyDialer { return dialer{m} }
 
 // Rotator returns the module's rotation port.
 func (m *Module) Rotator() Rotator { return rotator{m} }
+
+// SetRouting gives the module routing's guard; nil (no routing module)
+// makes provisioning check nothing.
+func (m *Module) SetRouting(g RoutingGuard) { m.routing = g }
 
 // SetUsage gives the module the subscriptions port; nil (the default in
 // Phase 1) makes its pages show "—".
@@ -147,34 +169,26 @@ func (r rotator) RotationRequest(ctx context.Context, serverID int64, actor stri
 
 type hostnames struct{ m *Module }
 
-func (h hostnames) Hostnames(ctx context.Context) ([]string, []netip.Addr, error) {
+func (h hostnames) Servers(ctx context.Context) ([]ServerHostname, error) {
 	all, err := store.ListServers(ctx, h.m.deps.DB.R)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	seen := map[string]bool{}
-	var names []string
-	var ips []netip.Addr
-	add := func(n string) {
-		if n != "" && !seen[n] {
-			seen[n] = true
-			names = append(names, n)
-		}
-	}
+	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
+	var out []ServerHostname
 	for _, s := range all {
 		if s.State == "retired" {
 			continue
 		}
-		add(s.ManagementHostname)
-		add(s.ProxyHostname)
-		if ip, err := netip.ParseAddr(s.IP); err == nil && !seen[s.IP] {
-			seen[s.IP] = true
-			ips = append(ips, ip)
+		sh := ServerHostname{ServerID: s.ID, Name: s.Name, IP: s.IP}
+		for _, n := range []string{s.ManagementHostname, s.ProxyHostname} {
+			if n != "" && !slices.Contains(sh.Hostnames, n) {
+				sh.Hostnames = append(sh.Hostnames, n)
+			}
 		}
+		out = append(out, sh)
 	}
-	sort.Strings(names)
-	sort.Slice(ips, func(i, j int) bool { return ips[i].Less(ips[j]) })
-	return names, ips, nil
+	return out, nil
 }
 
 type dialer struct{ m *Module }

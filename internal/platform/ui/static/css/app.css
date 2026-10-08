@@ -609,8 +609,21 @@ a.row.svc { text-decoration: none; color: inherit; }
 .form.wide { max-width: none; padding: 12px 16px; }
 .form.wide textarea { width: 100%; }
 .paste-report { display: flex; flex-direction: column; gap: 2px; }
+/* Routing lists (3b) */
+.row.rlist, .colhead.rlist { grid-template-columns: minmax(0, 1.4fr) 90px 90px minmax(0, 1.2fr) 140px; align-items: start; }
+a.row.rlist { text-decoration: none; color: inherit; }
+.row.pick { grid-template-columns: 20px minmax(0, 1fr) 70px 110px; align-items: start; border-top: 1px solid var(--overlay); padding-left: 0; padding-right: 0; cursor: pointer; }
+.row.pick input { accent-color: var(--rose); width: 16px; height: 16px; margin: 3px 0 0; }
+.row.warn { grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 8px; }
+.row.warn a { overflow-wrap: anywhere; }
+.band.undo { justify-content: space-between; border-top: 1px solid var(--pine-border); }
+.dropped { padding: 4px 16px 10px; }
+.dropped .row.dom { padding-left: 0; padding-right: 0; }
+.cover-hint { color: var(--gold); }
 @media (max-width: 760px) {
-  .colhead.svc, .colhead.edrow { display: none; }
+  .colhead.svc, .colhead.edrow, .colhead.rlist { display: none; }
+  .row.rlist { grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; padding: 10px 16px; }
+  .row.rlist > :nth-child(n+5) { grid-column: 1 / -1; }
   .row.svc, .row.dom, .row.skip, .row.snap { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .row.edrow { grid-template-columns: 16px minmax(0, 1fr) 40px; }
   .row.edrow > .inline-fields, .row.edrow > input.pc-inp { grid-column: 2 / 3; }

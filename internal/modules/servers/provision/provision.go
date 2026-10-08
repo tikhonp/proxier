@@ -69,7 +69,19 @@ type Deps struct {
 	// DNS and Waiter are read at use, because tests replace the module's.
 	DNS    func() dns.Driver
 	Waiter func() dns.Waiter
-	Log    *slog.Logger
+	// Routing is routing's guard, read at use (set after Init); nil or a nil
+	// result checks nothing.
+	Routing func() RoutingGuard
+	Log     *slog.Logger
+}
+
+// RoutedName is a hostname a routing list covers.
+type RoutedName struct{ Hostname, Domain, Service, List string }
+
+// RoutingGuard tells which hostnames a routing list covers: Proxier's own
+// checks of such a server would go into the router's tunnel.
+type RoutingGuard interface {
+	Covering(ctx context.Context, hostnames []string) ([]RoutedName, error)
 }
 
 // Service provisions servers.

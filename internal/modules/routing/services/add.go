@@ -11,46 +11,80 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 )
 
-// Add adds an upstream service: the tag is computed without the network; a
-// taken tag is a *TagTakenError and nothing is resolved; otherwise the
-// selector is resolved (outside any transaction) and its first snapshot is
-// accepted with the service.
-func (s *Service) Add(ctx context.Context, raw string, actor string) (int64, error) {
+// Prepared is a parsed and resolved new upstream service, not yet written.
+type Prepared struct {
+	Selector selector.Selector // as it will be stored (pinned when found off main)
+	Tag      string
+	Resolved sources.Resolved
+}
+
+// Stored is the selector's stored spelling.
+func (p Prepared) Stored() string { return p.Selector.String() }
+
+// Prepare parses a selector, checks its tag is free (a *TagTakenError
+// resolves nothing) and resolves it, outside any transaction. Nothing is
+// written.
+func (s *Service) Prepare(ctx context.Context, raw string) (Prepared, error) {
 	sel, err := selector.Parse(raw)
 	if err != nil {
-		return 0, err
+		return Prepared{}, err
 	}
 	tag, err := sel.Tag()
 	if err != nil {
-		return 0, err
+		return Prepared{}, err
 	}
 	if err := s.tagFree(ctx, s.d.DB.R, tag); err != nil {
-		return 0, err
+		return Prepared{}, err
 	}
 	res, stored, err := s.resolve(ctx, sel)
+	if err != nil {
+		return Prepared{}, err
+	}
+	pinned, err := selector.Parse(stored)
+	if err != nil {
+		return Prepared{}, err
+	}
+	return Prepared{Selector: pinned, Tag: tag, Resolved: res}, nil
+}
+
+// CreateTx writes a prepared service with its first, accepted snapshot and
+// records service_added, in the caller's transaction. The tag is checked
+// again: another add may have taken it meanwhile.
+func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, p Prepared, actor string) (int64, error) {
+	if err := s.tagFree(ctx, tx, p.Tag); err != nil {
+		return 0, err
+	}
+	stored := p.Stored()
+	id, err := store.InsertService(ctx, tx, store.Service{Tag: p.Tag, Source: string(p.Selector.Source), Selector: stored, CreatedAt: nowAt(s)})
+	if err != nil {
+		return 0, err
+	}
+	snap, err := s.newSnapshot(id, stored, p.Resolved.Portal, p.Resolved.Kind, p.Resolved.Set, nil)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := store.InsertSnapshot(ctx, tx, snap); err != nil {
+		return 0, err
+	}
+	return id, s.record(ctx, tx, "routing.service_added", id, actor, map[string]any{
+		"selector": stored, "tag": p.Tag, "source": string(p.Selector.Source), "origin": "",
+	})
+}
+
+// Add adds an upstream service: the tag is computed without the network; a
+// taken tag is a *TagTakenError and nothing is resolved; otherwise the
+// selector is resolved (outside any transaction) and its first snapshot is
+// accepted with the service. It is Prepare, then CreateTx in its own Write.
+func (s *Service) Add(ctx context.Context, raw string, actor string) (int64, error) {
+	p, err := s.Prepare(ctx, raw)
 	if err != nil {
 		return 0, err
 	}
 	var id int64
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if err := s.tagFree(ctx, tx, tag); err != nil {
-			return err
-		}
 		var err error
-		id, err = store.InsertService(ctx, tx, store.Service{Tag: tag, Source: string(sel.Source), Selector: stored, CreatedAt: nowAt(s)})
-		if err != nil {
-			return err
-		}
-		snap, err := s.newSnapshot(id, stored, res.Portal, res.Kind, res.Set, nil)
-		if err != nil {
-			return err
-		}
-		if _, err := store.InsertSnapshot(ctx, tx, snap); err != nil {
-			return err
-		}
-		return s.record(ctx, tx, "routing.service_added", id, actor, map[string]any{
-			"selector": stored, "tag": tag, "source": string(sel.Source), "origin": "",
-		})
+		id, err = s.CreateTx(ctx, tx, p, actor)
+		return err
 	})
 	return id, err
 }

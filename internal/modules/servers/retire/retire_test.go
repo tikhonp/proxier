@@ -535,9 +535,9 @@ func TestRetiringServerStopsChecks(t *testing.T) {
 		t.Error("Restart works on a retiring server")
 	}
 	// Its DNS still points at it until the end, so routing must still refuse the names.
-	names, ips, err := h.Mod.ServerHostnames().Hostnames(bg)
-	if err != nil || len(names) != 1 || len(ips) != 1 {
-		t.Errorf("hostnames while retiring: %v %v %v", names, ips, err)
+	list, err := h.Mod.ServerHostnames().Servers(bg)
+	if err != nil || len(list) != 1 || len(list[0].Hostnames) != 1 {
+		t.Errorf("hostnames while retiring: %+v %v", list, err)
 	}
 	if _, err := h.Mod.Retire.Retire(bg, id, "nl-1", false, "admin"); !errors.Is(err, retire.ErrNotAllowed) {
 		t.Errorf("retiring twice: %v", err)
@@ -545,9 +545,9 @@ func TestRetiringServerStopsChecks(t *testing.T) {
 
 	h.StartJobs()
 	h.Drain()
-	names, ips, _ = h.Mod.ServerHostnames().Hostnames(bg)
-	if len(names) != 0 || len(ips) != 0 {
-		t.Errorf("hostnames after retirement: %v %v", names, ips)
+	list, _ = h.Mod.ServerHostnames().Servers(bg)
+	if len(list) != 0 {
+		t.Errorf("hostnames after retirement: %+v", list)
 	}
 }
 

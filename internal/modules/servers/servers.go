@@ -67,7 +67,8 @@ type Module struct {
 	// cloudflaretest.
 	CloudflareClient func(token string) *cloudflare.Client
 
-	usage UsageReader
+	usage   UsageReader
+	routing RoutingGuard
 }
 
 // New returns the module; Init gives it the platform's services.
@@ -89,6 +90,7 @@ func (m *Module) Init(d module.Deps) error {
 		Store: m.Store, Templates: m.Templates, Log: d.Log,
 		// read at use: tests replace the module's driver and waiter
 		DNS: func() dns.Driver { return m.DNS }, Waiter: func() dns.Waiter { return m.Waiter },
+		Routing: func() provision.RoutingGuard { return m.routing },
 	})
 	m.Deploy = deploy.New(deploy.Deps{
 		DB: d.DB, Events: d.Events, Vault: d.Vault, Jobs: d.Jobs, SSH: d.SSH, Settings: d.Settings,

@@ -155,6 +155,7 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 	name, tag, desc := strings.TrimSpace(e.Name), strings.ToLower(strings.TrimSpace(e.Tag)), strings.TrimSpace(e.Description)
 	set := rowSet(rows)
 	saved := Saved{Report: rep}
+	refused := false
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		cur, err := store.GetService(ctx, tx, id)
 		if errors.Is(err, store.ErrNotFound) {
@@ -174,6 +175,7 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 		}
 		if s.d.Check != nil {
 			if err := s.d.Check(ctx, tx, id, set); err != nil {
+				refused = true
 				return err
 			}
 		}
@@ -236,6 +238,9 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 		return s.record(ctx, tx, "routing.service_updated", id, actor, payload)
 	})
 	if err != nil {
+		if refused && s.d.Refused != nil {
+			s.d.Refused(ctx, err, actor)
+		}
 		return Saved{}, err
 	}
 	return saved, nil

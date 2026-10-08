@@ -9,6 +9,8 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/domain"
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
@@ -24,6 +26,7 @@ type edRow struct {
 	Note            string
 	New             bool
 	Err             string
+	Hint            string // "covered by openai in Main"
 }
 
 type reportView struct {
@@ -41,7 +44,9 @@ type editorView struct {
 	Report                 *reportView
 	Errs                   map[string]string
 	Status                 string
-	Saved                  int // names after save
+	Saved                  int    // names after save
+	Footer                 string // "Saving changes what the targets of Main get."
+	Guard                  string // a guard refusal
 }
 
 // editorRows turns service rows into the table, marking rows not saved yet.
@@ -99,6 +104,9 @@ func (h *handler) renderEditor(c *echo.Context, status int, v editorView) error 
 			unsaved++
 		}
 	}
+	if err := h.coverHints(ctx, &v); err != nil {
+		return err
+	}
 	v.Status = i18n.T(ctx, "services.custom") + " · " + i18n.N(ctx, "services.editor.rows", int64(len(v.Rows)))
 	if unsaved > 0 {
 		v.Status += " · " + i18n.N(ctx, "services.editor.unsaved", int64(unsaved))
@@ -108,6 +116,38 @@ func (h *handler) renderEditor(c *echo.Context, status int, v editorView) error 
 		return web.Render(c, http.StatusOK, editorForm(v))
 	}
 	return web.Render(c, status, editorPage(h.shell(c, i18n.T(ctx, "services.editor.title", i18n.Args{"tag": v.It.Tag}), listPath), v))
+}
+
+// coverHints marks the rows that another service of a list holding this one
+// has, or covers with a suffix above, and words the footer.
+func (h *handler) coverHints(ctx context.Context, v *editorView) error {
+	ms, err := h.Lists.Memberships(ctx, v.It.ID)
+	if err != nil || len(ms) == 0 {
+		return err
+	}
+	var names []string
+	for _, m := range ms {
+		names = append(names, m.List.Name)
+		view, err := h.Lists.View(ctx, m.List.ID, nil)
+		if err != nil {
+			return err
+		}
+		members := make([]own.Member, 0, len(view.Members))
+		for _, mem := range view.Members {
+			members = append(members, own.Member{ServiceID: mem.Service.ID, Tag: mem.Service.Tag, Set: mem.Snapshot.Set})
+		}
+		for i := range v.Rows {
+			r := &v.Rows[i]
+			if r.Hint != "" || r.Domain == "" {
+				continue
+			}
+			if cs := own.CoveredBy(strings.ToLower(r.Domain), r.Exact, members, v.It.ID); len(cs) > 0 {
+				r.Hint = i18n.T(ctx, "lists.editor.covered", i18n.Args{"tag": cs[0].Tag, "list": m.List.Name})
+			}
+		}
+	}
+	v.Footer = i18n.T(ctx, "lists.editor.footer", i18n.Args{"lists": andList(ctx, names)})
+	return nil
 }
 
 // formRows reads the table as the form sent it: domain.<n>, match.<n>, note.<n>.
@@ -155,6 +195,12 @@ func (h *handler) edit(c *echo.Context) error {
 		}
 	default: // save, also ⌘↵ (no button)
 		res, err := h.Services.SaveCustom(ctx, it.ID, services.Edit{Name: v.Name, Tag: v.Tag, Description: v.Description, Rows: rows}, events.ActorAdmin)
+		var ge *lists.GuardError
+		if errors.As(err, &ge) {
+			v.Rows = editorRows(rows, saved)
+			v.Guard = guardText(ctx, ge)
+			return h.renderEditor(c, http.StatusUnprocessableEntity, v)
+		}
 		var fe store.FieldErrors
 		if errors.As(err, &fe) {
 			v.Rows = editorRows(rows, saved)

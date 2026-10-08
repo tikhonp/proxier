@@ -1,13 +1,16 @@
 package pages
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
@@ -51,7 +54,16 @@ func (h *handler) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	rows, err := h.Services.List(ctx, services.Filter{Source: src})
+	f := services.Filter{Source: src}
+	listParam := c.QueryParam("list")
+	if listParam == "none" {
+		f.NoList = true
+	} else if n, err := strconv.ParseInt(listParam, 10, 64); err == nil && n > 0 {
+		f.List = n
+	} else {
+		listParam = ""
+	}
+	rows, err := h.Services.List(ctx, f)
 	if err != nil {
 		return err
 	}
@@ -59,15 +71,48 @@ func (h *handler) list(c *echo.Context) error {
 		Empty:  all == 0,
 		Status: loc.N("services.status.services", int64(all)) + " · " + loc.N("services.status.custom", int64(custom)),
 	}
+	query := func(source, list string) string {
+		q := url.Values{}
+		if source != "" {
+			q.Set("source", source)
+		}
+		if list != "" {
+			q.Set("list", list)
+		}
+		if len(q) == 0 {
+			return listPath
+		}
+		return listPath + "?" + q.Encode()
+	}
 	for _, s := range sourceFilters {
-		href := listPath
 		label := i18n.T(ctx, "services.filter.all")
 		if s != "" {
-			href += "?source=" + s
 			label = s
 		}
-		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "services.filter.source", i18n.Args{"source": label}), Href: href, On: s == src})
+		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "services.filter.source", i18n.Args{"source": label}), Href: query(s, listParam), On: s == src})
 	}
+	// List chips: pressing the pressed one clears it.
+	rls, err := h.Lists.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, l := range rls {
+		id := i64(l.ID)
+		href := query(src, id)
+		if listParam == id {
+			href = query(src, "")
+		}
+		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "lists.filter.list", i18n.Args{"name": l.Name}), Href: href, On: listParam == id})
+	}
+	free, err := h.Services.List(ctx, services.Filter{NoList: true})
+	if err != nil {
+		return err
+	}
+	href := query(src, "none")
+	if listParam == "none" {
+		href = query(src, "")
+	}
+	v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "lists.filter.none", i18n.Args{"n": len(free)}), Href: href, On: listParam == "none"})
 	p := pageOf(c)
 	from, to := window(len(rows), p)
 	for _, r := range rows[from:to] {
@@ -91,6 +136,9 @@ func (h *handler) list(c *echo.Context) error {
 		q := url.Values{"page": {strconv.Itoa(n)}}
 		if src != "" {
 			q.Set("source", src)
+		}
+		if listParam != "" {
+			q.Set("list", listParam)
 		}
 		return listPath + "?" + q.Encode()
 	}
@@ -123,14 +171,39 @@ type takenView struct {
 	Suggest               string // for a URL: "<tag>-2=<url>"
 }
 
+type listCheck struct {
+	ID      int64
+	Name    string
+	Checked bool
+}
+
 type addView struct {
 	Selector string
 	Err      string
 	Taken    *takenView
+	Lists    []listCheck // Add to routing lists
+	FromList bool        // posted from a list's Add services page
+}
+
+// listChecks are the lists to tick: the default one on a first visit.
+func (h *handler) listChecks(ctx context.Context, checked []int64, first bool) ([]listCheck, error) {
+	all, err := h.Lists.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]listCheck, 0, len(all))
+	for _, l := range all {
+		out = append(out, listCheck{ID: l.ID, Name: l.Name, Checked: first && l.Default || slices.Contains(checked, l.ID)})
+	}
+	return out, nil
 }
 
 func (h *handler) addPage(c *echo.Context) error {
-	return h.renderAdd(c, http.StatusOK, addView{Selector: c.QueryParam("selector")})
+	ls, err := h.listChecks(c.Request().Context(), nil, true)
+	if err != nil {
+		return err
+	}
+	return h.renderAdd(c, http.StatusOK, addView{Selector: c.QueryParam("selector"), Lists: ls})
 }
 
 func (h *handler) renderAdd(c *echo.Context, status int, v addView) error {
@@ -138,26 +211,52 @@ func (h *handler) renderAdd(c *echo.Context, status int, v addView) error {
 	return web.Render(c, status, addPage(h.shell(c, i18n.T(ctx, "services.add.title"), listPath), v))
 }
 
+// add adds an upstream service, and with lists ticked puts it into them in
+// the same step (the guard checked first).
 func (h *handler) add(c *echo.Context) error {
 	ctx := c.Request().Context()
 	raw := strings.TrimSpace(c.FormValue("selector"))
-	id, err := h.Services.Add(ctx, raw, events.ActorAdmin)
-	var taken *services.TagTakenError
-	switch {
-	case err == nil:
+	listIDs := formIDs(c, "lists")
+	fromList := c.FormValue("from_list") == "1"
+	var id int64
+	var err error
+	if len(listIDs) > 0 {
+		id, err = h.Lists.AddNew(ctx, raw, listIDs, events.ActorAdmin)
+	} else {
+		id, err = h.Services.Add(ctx, raw, events.ActorAdmin)
+	}
+	if err == nil {
+		if fromList && len(listIDs) == 1 {
+			return web.Redirect(c, listHref(listIDs[0])+"?added=1")
+		}
 		return web.Redirect(c, svcHref(id)+"?added=1")
+	}
+	ls, lerr := h.listChecks(ctx, listIDs, false)
+	if lerr != nil {
+		return lerr
+	}
+	v := addView{Selector: raw, Lists: ls, FromList: fromList}
+	var taken *services.TagTakenError
+	var ge *lists.GuardError
+	switch {
 	case errors.As(err, &taken):
-		tv, err := h.takenView(c, raw, taken)
-		if err != nil {
+		if v.Taken, err = h.takenView(c, raw, taken); err != nil {
 			return err
 		}
-		return h.renderAdd(c, http.StatusOK, addView{Selector: raw, Taken: tv})
+		return h.renderAdd(c, http.StatusOK, v)
+	case errors.As(err, &ge):
+		v.Err = guardText(ctx, ge)
+		return h.renderAdd(c, http.StatusUnprocessableEntity, v)
+	case errors.Is(err, lists.ErrNotFound):
+		v.Err = i18n.T(ctx, "lists.err.gone")
+		return h.renderAdd(c, http.StatusUnprocessableEntity, v)
 	}
 	msg, ok := selectorError(ctx, raw, err)
 	if !ok {
 		return err
 	}
-	return h.renderAdd(c, http.StatusUnprocessableEntity, addView{Selector: raw, Err: msg})
+	v.Err = msg
+	return h.renderAdd(c, http.StatusUnprocessableEntity, v)
 }
 
 // takenView shows the service that has the tag, and what can be done.

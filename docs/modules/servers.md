@@ -235,8 +235,10 @@ Summarised here, defined in the process docs:
 |---|---|---|
 | `EndpointCatalog` | subscriptions | Active servers with their endpoints (display name, type, host, port, credential, params), health state and "since". Changes arrive as events (`server.activated`, `server.redeployed`, `server.credentials_rotated`, `server.health_changed`, `server.retired`). |
 | `Rotator` | subscriptions (cut-off) | `RotationRequest(serverID, actor)`: the `servers.rotate` job (resource key `server:<id>`) for the caller to enqueue in its own transaction; nothing is enqueued. `ErrNotActive` for a server that isn't active, is retiring or is gone; `ErrNothingToRotate` when its version marks no generated value `rotate: true`. Every way the job ends records `server.credentials_rotated` or `server.redeploy_failed{kind: rotate}` with actor `job:<id>`. |
-| `ServerHostnames` | routing | Every management and proxy hostname and IP of every non-retired server. Routing refuses to route them. |
+| `ServerHostnames` | routing | `Servers(ctx)`: every server whose state isn't `retired` (a retiring one included: its DNS still points at it), by id, with its name, IP and management and proxy hostnames (no empty or duplicate ones). Routing refuses to route the hostnames and names the server; services hold no IPs, so it doesn't use them. |
 | `ProxyDialer` | routing (discovery) | A local SOCKS listener (or a dial function) that sends traffic through a chosen active server's endpoint. |
+
+It consumes one port from routing: `RoutingGuard` (`Covering(ctx, hostnames)`, set by `SetRouting`), which the new-server form asks before creating anything; a hostname a routing list covers is a form error naming the list and the service. Without the routing module it is nil and nothing is checked.
 
 ## Events
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
@@ -22,6 +23,7 @@ import (
 // Deps are what the pages use.
 type Deps struct {
 	Services *services.Service
+	Lists    *lists.Service
 	DB       *db.DB
 	Now      func() time.Time
 }
@@ -48,6 +50,7 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/routing/services/:id/snapshots/:snap", h.diff)
 	r.Admin.GET("/routing/services/:id/remove", h.removePage)
 	r.Admin.POST("/routing/services/:id/remove", h.removePost)
+	h.registerLists(r)
 }
 
 const listPath = "/routing/services"

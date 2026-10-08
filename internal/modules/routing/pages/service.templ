@@ -54,6 +54,23 @@ templ servicePage(s ui.Shell, v pageView) {
 						<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "services.domains.apply") }</button>
 					</form>
 					@domainsList(v.Domains)
+					for _, d := range v.Dropped {
+						<div class="dropped">
+							<p class="sm"><a href={ templ.SafeURL(d.Href) }>{ i18n.N(ctx, "lists.dropped_in", int64(len(d.Rows)), i18n.Args{"list": d.List}) }</a></p>
+							for _, r := range d.Rows {
+								<div class="row dom">
+									<span class="col">
+										<span>{ r.Name }</span>
+										if r.Unicode != "" {
+											<span class="sm subtle">{ r.Unicode }</span>
+										}
+									</span>
+									<span class="sm subtle">{ r.Kind }</span>
+									<span class="sm subtle">{ r.Note }</span>
+								</div>
+							}
+						</div>
+					}
 				</section>
 				if len(v.Skipped) > 0 {
 					@ui.Area(i18n.T(ctx, "services.area.skipped", i18n.Args{"n": len(v.Skipped)}), "") {
@@ -94,6 +111,10 @@ templ servicePage(s ui.Shell, v pageView) {
 							<span class="sm subtle">{ i18n.T(ctx, "services.switch.note") }</span>
 						</div>
 					}
+					<div class="row act">
+						@ui.ActionButton(ui.Action{ID: "lists.to_lists", Label: "lists.to_lists", Method: "GET", Href: svcHref(v.It.ID) + "/lists", Small: true})
+						<span class="sm subtle">{ i18n.T(ctx, "lists.to_lists.note") }</span>
+					</div>
 					<div class="row act">
 						@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger})
 						<span class="sm subtle">{ i18n.T(ctx, "services.remove.note") }</span>
@@ -242,7 +263,7 @@ templ removePage(s ui.Shell, v removeView) {
 					{ i18n.T(ctx, "services.remove.held") }
 				}
 				for _, l := range v.Lists {
-					<div class="row"><span class="bold">{ i18n.T(ctx, "services.remove.take_out", i18n.Args{"list": l}) }</span></div>
+					<div class="row"><a href={ templ.SafeURL(l.Href) } class="bold">{ i18n.T(ctx, "services.remove.take_out", i18n.Args{"list": l.Name}) }</a></div>
 				}
 			}
 			<div class="form-actions">

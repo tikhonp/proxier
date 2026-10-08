@@ -66,7 +66,8 @@ Each module registers, at startup:
 |---|---|---|---|
 | `EndpointCatalog` | servers | subscriptions | List active servers, their endpoints, connection URI parts and current health state. |
 | `Rotator` | servers | subscriptions | The rotation job of a server, for a cut-off to queue in its own transaction (one server at a time). |
-| `ServerHostnames` | servers | routing | All management and proxy hostnames and IPs of non-retired servers, which must never be routed. |
+| `ServerHostnames` | servers | routing | Every non-retired server with its name and management and proxy hostnames, which must never be routed (the guard names the server). |
+| `RoutingGuard` | routing | servers (provisioning) | Which of a new server's hostnames a routing list covers, naming the list and the service, so the form refuses them. |
 | `ProxyDialer` | servers | routing (discovery) | Open connections through a chosen server's endpoint, or a local SOCKS listener that does so. |
 | `LinkIssuer` | subscriptions | router scripts | Create a link in a subscription and return its URL. |
 | `RouterRegistrar` | routing | router scripts | Register a router (in "awaiting setup") with a routing list, a connection and names. Return the address-list and DoH-forwarder names. |
@@ -239,7 +240,7 @@ internal/modules/servers/    templates, provisioning, stack rendering, health, s
     checkers/checkhost/
 internal/modules/subscriptions/   conf, store, output (formats, hiding, stubs, headers), subs, links, fetch, alerts, pages, substest
 internal/modules/routing/         conf, store, change (the sync seam), domain, selector, snapshot (pure), sources (+ sourcestest),
-                                  services, pages, routingtest; later own, lists, refresh, catalog, shadowrocket, mtvpn,
+                                  services, own (ownership and the guard, pure), lists, pages, routingtest; later refresh, catalog, shadowrocket, mtvpn,
                                   routeros (+ routerostest), routers, discovery
 internal/modules/routerscripts/
 ```

@@ -119,8 +119,8 @@ type Row struct {
 // Filter narrows the services list. Pages slice it into pages.
 type Filter struct {
 	Source string // "" any
-	List   int64  // 3b: services in that list
-	NoList bool   // 3b: in no list
+	List   int64  // services in that list
+	NoList bool   // in no list
 	State  string // 3c: ok, waiting, failing
 	Page   int
 }
@@ -133,8 +133,12 @@ type Deps struct {
 	Marker   change.Marker
 	Now      func() time.Time
 	Log      *slog.Logger
-	// Check refuses a custom service's names; nil in 3a, the guard from 3b.
+	// Check refuses a custom service's names inside its save's transaction:
+	// the server-hostname guard of the lists holding it (lists.CheckService).
 	Check func(ctx context.Context, tx *sqlx.Tx, serviceID int64, s snapshot.Set) error
+	// Refused is told about a save Check refused, after its transaction rolled
+	// back, so the refusal can be recorded (lists.Refused).
+	Refused func(ctx context.Context, err error, actor string)
 }
 
 // Service manages services.
@@ -195,11 +199,23 @@ func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
 	if err != nil {
 		return nil, err
 	}
+	var in map[int64]bool
+	if f.List != 0 {
+		if in, err = store.ServicesInList(ctx, s.d.DB.R, f.List); err != nil {
+			return nil, err
+		}
+	}
 	out := make([]Row, 0, len(rows))
 	for _, r := range rows {
+		if in != nil && !in[r.ID] {
+			continue
+		}
 		lists, err := store.ListsOf(ctx, s.d.DB.R, r.ID)
 		if err != nil {
 			return nil, err
+		}
+		if f.NoList && len(lists) > 0 {
+			continue
 		}
 		out = append(out, Row{
 			Item: item(r.Service), Count: r.SuffixCount + r.ExactCount, Suffix: r.SuffixCount, Exact: r.ExactCount,

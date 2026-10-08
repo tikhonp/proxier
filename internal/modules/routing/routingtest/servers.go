@@ -41,17 +41,23 @@ func (s *Servers) sorted() []int64 {
 	return ids
 }
 
-// Hostnames lists every hostname and IP.
-func (s *Servers) Hostnames(context.Context) ([]string, []netip.Addr, error) {
+// Servers lists every server with its hostnames, by id.
+func (s *Servers) Servers(context.Context) ([]servers.ServerHostname, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	var names []string
-	var ips []netip.Addr
+	var out []servers.ServerHostname
 	for _, id := range s.sorted() {
-		names = append(names, s.list[id].hostnames...)
-		ips = append(ips, s.list[id].ip)
+		f := s.list[id]
+		out = append(out, servers.ServerHostname{ServerID: id, Name: f.name, Hostnames: append([]string(nil), f.hostnames...), IP: f.ip.String()})
 	}
-	return names, ips, nil
+	return out, nil
+}
+
+// Remove takes a server away (retired).
+func (s *Servers) Remove(id int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.list, id)
 }
 
 // Active lists every server as healthy, without endpoints.

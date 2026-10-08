@@ -27,7 +27,7 @@ type Harness struct {
 	Mod     *routing.Module
 	Login   *sitetest.Login
 	Up      *sourcestest.Upstream
-	Servers *Servers         // fake servers ports (3b, 3g)
+	Servers *Servers         // fake servers ports (the guard, 3g)
 	Marks   *change.Recorder // the marker until 3e
 	Now     time.Time        // the module's clock, starting 2026-10-08 12:00 UTC
 }
@@ -115,7 +115,32 @@ func (h *Harness) Custom(tag string, names ...string) int64 {
 	return id
 }
 
-// Exec runs SQL on the write connection (list memberships before 3b).
+// List creates a list with these services in order and returns its id;
+// "Main" is the list made by the migration, reused (its services are added
+// after any it has).
+func (h *Harness) List(name string, serviceIDs ...int64) int64 {
+	h.T.Helper()
+	ctx := context.Background()
+	var id int64
+	if err := h.App.DB.R.Get(&id, `SELECT coalesce(max(id), 0) FROM routing_lists WHERE name = ?`, name); err != nil {
+		h.T.Fatal(err)
+	}
+	if id == 0 {
+		var err error
+		if id, err = h.Mod.Lists.Create(ctx, name, "", "admin"); err != nil {
+			h.T.Fatalf("create list %s: %v", name, err)
+		}
+	}
+	// one at a time: Add sorts what it adds by tag
+	for _, sid := range serviceIDs {
+		if err := h.Mod.Lists.Add(ctx, id, []int64{sid}, "admin"); err != nil {
+			h.T.Fatalf("add %d to %s: %v", sid, name, err)
+		}
+	}
+	return id
+}
+
+// Exec runs SQL on the write connection.
 func (h *Harness) Exec(q string, args ...any) {
 	h.T.Helper()
 	if _, err := h.App.DB.W.ExecContext(context.Background(), q, args...); err != nil {

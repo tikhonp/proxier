@@ -2,7 +2,6 @@ package servers_test
 
 import (
 	"context"
-	"net/netip"
 	"strings"
 	"testing"
 
@@ -43,33 +42,31 @@ func TestEndpointCatalog(t *testing.T) {
 	}
 }
 
-func TestServerHostnames(t *testing.T) {
+func TestServerHostnamesNameTheServer(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
-	h.Provisioned()
+	first := h.Provisioned()
 	h.StopJobs()
 	f := h.Form()
 	f.IP = "127.0.0.2"
-	second := h.Create(f)
+	second := h.Create(f) // still provisioning: listed too
 
 	ctx := context.Background()
-	names, ips, err := h.Mod.ServerHostnames().Hostnames(ctx)
+	list, err := h.Mod.ServerHostnames().Servers(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Join(names, " ") != "nl-1.hosts.tikhonnnnn.com nl-2.hosts.tikhonnnnn.com" {
-		t.Fatalf("names: %v", names)
+	if len(list) != 2 || list[0].ServerID != first || list[0].Name != "nl-1" || list[0].IP != "127.0.0.1" ||
+		strings.Join(list[0].Hostnames, " ") != "nl-1.hosts.tikhonnnnn.com" ||
+		list[1].ServerID != second || list[1].Name != "nl-2" || strings.Join(list[1].Hostnames, " ") != "nl-2.hosts.tikhonnnnn.com" {
+		t.Fatalf("servers: %+v", list)
 	}
-	want := []netip.Addr{netip.MustParseAddr("127.0.0.1"), netip.MustParseAddr("127.0.0.2")}
-	if len(ips) != 2 || ips[0] != want[0] || ips[1] != want[1] {
-		t.Fatalf("ips: %v", ips)
-	}
-	// A retired server's names and address are free to use again.
+	// A retired server's names are free to use again.
 	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET state = 'retired' WHERE id = ?`, second); err != nil {
 		t.Fatal(err)
 	}
-	names, ips, err = h.Mod.ServerHostnames().Hostnames(ctx)
-	if err != nil || strings.Join(names, " ") != "nl-1.hosts.tikhonnnnn.com" || len(ips) != 1 || ips[0] != want[0] {
-		t.Fatalf("after retiring nl-2: %v %v %v", names, ips, err)
+	list, err = h.Mod.ServerHostnames().Servers(ctx)
+	if err != nil || len(list) != 1 || list[0].Name != "nl-1" {
+		t.Fatalf("after retiring nl-2: %+v %v", list, err)
 	}
 }
 

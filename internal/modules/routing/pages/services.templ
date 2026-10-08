@@ -87,18 +87,30 @@ templ addPage(s ui.Shell, v addView) {
 				}
 				<p class="help">{ i18n.T(ctx, "services.field.selector.help") }</p>
 			</div>
+			if len(v.Lists) > 0 {
+				<fieldset class="field">
+					<legend>{ i18n.T(ctx, "lists.add_to") }</legend>
+					for _, l := range v.Lists {
+						<label class="check"><input type="checkbox" name="lists" value={ i64(l.ID) } checked?={ l.Checked }/>{ l.Name }</label>
+					}
+					<p class="help">{ i18n.T(ctx, "lists.add_to.help") }</p>
+				</fieldset>
+			}
+			if v.FromList {
+				<input type="hidden" name="from_list" value="1"/>
+			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="services.add.submit">{ i18n.T(ctx, "services.add.submit") }</button>
 				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 		if v.Taken != nil {
-			@takenArea(*v.Taken)
+			@takenArea(*v.Taken, v.Lists)
 		}
 	}
 }
 
-templ takenArea(t takenView) {
+templ takenArea(t takenView, ls []listCheck) {
 	@ui.Area(i18n.T(ctx, "services.taken.title", i18n.Args{"tag": t.Tag}), "") {
 		<div class="area-body">
 			<dl class="kv">
@@ -128,6 +140,11 @@ templ takenArea(t takenView) {
 		if t.Suggest != "" {
 			<form method="post" action={ templ.SafeURL(listPath) } class="form">
 				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				for _, l := range ls {
+					if l.Checked {
+						<input type="hidden" name="lists" value={ i64(l.ID) }/>
+					}
+				}
 				<div class="field">
 					<label for="svc-other">{ i18n.T(ctx, "services.taken.name_it") }</label>
 					<input id="svc-other" class="pc-inp" name="selector" value={ t.Suggest } autocomplete="off" spellcheck="false"/>

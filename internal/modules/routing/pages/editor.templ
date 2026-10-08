@@ -34,6 +34,11 @@ templ editorForm(v editorView) {
 				{ i18n.T(ctx, "services.editor.refused") }
 			}
 		}
+		if v.Guard != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Guard }
+			}
+		}
 		<div class="form">
 			@customFields(v.Name, v.Tag, v.Description, v.Errs, false)
 		</div>
@@ -72,6 +77,9 @@ templ editorForm(v editorView) {
 						if r.Err != "" {
 							<span class="err sm" role="alert">{ r.Err }</span>
 						}
+						if r.Hint != "" {
+							<span class="sm cover-hint">{ r.Hint }</span>
+						}
 					</span>
 					<span class="inline-fields" role="radiogroup" aria-label={ i18n.T(ctx, "services.editor.col.match") }>
 						<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="suffix" checked?={ !r.Exact }/>{ i18n.T(ctx, "services.kind.suffix") }</label>
@@ -106,6 +114,9 @@ templ editorForm(v editorView) {
 					}
 				</div>
 			</div>
+		}
+		if v.Footer != "" {
+			<p class="sm subtle area-body">{ v.Footer }</p>
 		}
 		<div class="form-actions area-body">
 			<button type="submit" name="op" value="save" class="pc-btn pc-pri" data-action="services.editor.save">{ i18n.N(ctx, "services.editor.save", int64(len(v.Rows))) } <span class="k">⌘↵</span></button>

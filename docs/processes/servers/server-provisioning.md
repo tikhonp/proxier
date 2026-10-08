@@ -17,7 +17,8 @@ Provisioning turns a freshly issued VPS (an IP and a root password) into an **ac
    - no non-retired server has this IP;
    - the location and template version exist and the template isn't archived;
    - parameters pass validation;
-   - Cloudflare is configured and a configured zone covers the hostname.
+   - Cloudflare is configured and a configured zone covers the hostname;
+   - no routing list covers the hostname (when the routing module is enabled): a list holding `tikhonnnnn.com`, or the hostname itself, would send Proxier's checks of the server into the router's tunnel. Any name listed in any list counts, even one the list doesn't install. The live summary says it too: "nl-3.hosts.tikhonnnnn.com is covered by tikhonnnnn.com (my-sites) in Main: Proxier's checks would go into the tunnel. Take it out of the list first."
 
    Failures are shown on the form and nothing is created.
 4. The server is created in **provisioning** with its name reserved, the root password goes encrypted into the job payload, and the job is queued. The browser goes to the server page, which shows the steps and the live log. → `server.created{ip, template_version}`
@@ -77,6 +78,7 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 ## Edge cases (each is a test)
 
 - IP already used by active `nl-1` → refused on the form, nothing created.
+- "Main" holds a custom service with suffix `tikhonnnnn.com`; the new server would be `nl-3.hosts.tikhonnnnn.com` → refused on the form, naming the list and the service, nothing created.
 - Wrong root password → fails at preflight with "authentication failed". The password stays encrypted for retry. **Retry** asks for it again.
 - IP unreachable (timeout) → fails at preflight. The DNS is untouched.
 - Port 443 already in use on the VPS → fails at preflight, naming the process from `ss`.

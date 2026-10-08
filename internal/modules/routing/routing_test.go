@@ -104,14 +104,15 @@ func TestModuleIsWired(t *testing.T) {
 		t.Errorf("valid values: %v", err)
 	}
 
-	// nav: Services in the routing group, no go-to key
+	// nav: Lists and Services in the routing group, no go-to key
 	nav := h.Mod.Nav()
-	if len(nav) != 1 || nav[0].Href != "/routing/services" || nav[0].Group != "routing" || nav[0].Order != 20 || nav[0].GoKey != "" {
+	if len(nav) != 2 || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
+		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "" || nav[1].GoKey != "" {
 		t.Errorf("nav: %+v", nav)
 	}
 	body := h.Login.Get("/").Body.String()
-	if !strings.Contains(body, `href="/routing/services"`) {
-		t.Error("the nav has no Services")
+	if !strings.Contains(body, `href="/routing/services"`) || !strings.Contains(body, `href="/routing/lists"`) {
+		t.Error("the nav has no Lists or Services")
 	}
 	// "Main" exists after the module's migration
 	var main string
@@ -155,6 +156,11 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 	}
 	if hits, _ := h.Mod.Search(ctx, "zzz", 10); len(hits) != 0 {
 		t.Errorf("nothing: %+v", hits)
+	}
+	// lists by name
+	h.List("Main", 1, 3)
+	if hits, _ := h.Mod.Search(ctx, "mai", 10); len(hits) != 1 || hits[0].Label != "Main" || hits[0].Meta != "routing list · 2 services" || hits[0].Href != "/routing/lists/1" {
+		t.Errorf("lists: %+v", hits)
 	}
 	body := h.Login.Get("/activity?subject=service:1").Body.String()
 	if !strings.Contains(body, `href="/routing/services/1"`) {
@@ -210,6 +216,13 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 	for _, s := range []string{"source", "tag", "domains", "fields"} {
 		built = append(built, "services.event.updated."+s)
 	}
+	for _, s := range []string{"covered", "owned", "guarded", "pinned"} {
+		built = append(built, "lists.drop."+s)
+	}
+	for _, s := range []string{"added", "removed", "reordered", "default", "fields"} {
+		built = append(built, "lists.event."+s)
+	}
+	built = append(built, "lists.target.router", "lists.target.shadowrocket", "lists.err.name", "lists.err.name_taken", "lists.err.description")
 	built = append(built, "services.state.ok", "services.kind.site", "services.kind.group",
 		"services.paste.ip", "services.paste.invalid", "services.paste.unsupported", "services.skip.unsupported", "services.skip.invalid",
 		"services.err.name", "services.err.name_taken", "services.err.tag_empty", "services.err.tag", "services.err.tag_taken",

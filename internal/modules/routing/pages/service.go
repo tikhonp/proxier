@@ -11,6 +11,8 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/domain"
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
@@ -55,8 +57,15 @@ type pageView struct {
 	Domains  domainsView
 	Skipped  []skipRow
 	Source   []kv
+	Dropped  []droppedView
 	History  []histRow
 	Activity []eventLine
+}
+
+// droppedView is what a service lists but doesn't install in one list.
+type droppedView struct {
+	List, Href string
+	Rows       []domRow
 }
 
 func (h *handler) page(c *echo.Context) error {
@@ -71,6 +80,10 @@ func (h *handler) page(c *echo.Context) error {
 		return err
 	}
 	lists, err := h.Services.ListsOf(ctx, it.ID)
+	if err != nil {
+		return err
+	}
+	ms, err := h.Lists.Memberships(ctx, it.ID)
 	if err != nil {
 		return err
 	}
@@ -96,7 +109,10 @@ func (h *handler) page(c *echo.Context) error {
 	for _, s := range acc.Set.Skipped {
 		v.Skipped = append(v.Skipped, skipRow{Entry: s.Entry, Reason: i18n.T(ctx, s.Reason)})
 	}
-	v.Source = sourceRows(ctx, it, acc, lists)
+	v.Source = sourceRows(ctx, it, acc, ms)
+	if v.Dropped, err = h.droppedViews(ctx, it, ms); err != nil {
+		return err
+	}
 	hist, err := h.Services.Snapshots(ctx, it.ID)
 	if err != nil {
 		return err
@@ -125,7 +141,7 @@ func snapKind(status string) string {
 	return "off"
 }
 
-func sourceRows(ctx context.Context, it services.Item, acc services.Snapshot, lists []string) []kv {
+func sourceRows(ctx context.Context, it services.Item, acc services.Snapshot, ms []lists.Membership) []kv {
 	loc := i18n.From(ctx)
 	var out []kv
 	if it.Source == selector.Custom {
@@ -145,10 +161,51 @@ func sourceRows(ctx context.Context, it services.Item, acc services.Snapshot, li
 		kv{i18n.T(ctx, "services.source.accepted"), loc.Time(acc.AcceptedAt) + " · " + loc.Number(int64(acc.Count()))},
 	)
 	l := i18n.T(ctx, "services.none")
-	if len(lists) > 0 {
-		l = strings.Join(lists, ", ")
+	if len(ms) > 0 {
+		var parts []string
+		for _, m := range ms {
+			parts = append(parts, m.List.Name+" #"+strconv.Itoa(m.Position))
+		}
+		l = strings.Join(parts, " · ")
 	}
 	return append(out, kv{i18n.T(ctx, "services.source.lists"), l})
+}
+
+// droppedViews are the names the service doesn't install, per list holding
+// it, and why: ADR 0013's "owned elsewhere".
+func (h *handler) droppedViews(ctx context.Context, it services.Item, ms []lists.Membership) ([]droppedView, error) {
+	var out []droppedView
+	for _, m := range ms {
+		v, err := h.Lists.View(ctx, m.List.ID, nil)
+		if err != nil {
+			return nil, err
+		}
+		for _, mem := range v.Members {
+			if mem.Service.ID != it.ID || len(mem.Owned.Dropped) == 0 {
+				continue
+			}
+			dv := droppedView{List: m.List.Name, Href: listHref(m.List.ID)}
+			for _, d := range mem.Owned.Dropped {
+				if len(dv.Rows) == diffMax {
+					break
+				}
+				r := domRow{Name: d.Name, Unicode: domain.Unicode(d.Name), Kind: i18n.T(ctx, "services.kind.suffix"), Note: dropReason(ctx, d, m.List.Name)}
+				if d.Exact {
+					r.Kind = i18n.T(ctx, "services.kind.exact")
+				}
+				dv.Rows = append(dv.Rows, r)
+			}
+			out = append(out, dv)
+		}
+	}
+	return out, nil
+}
+
+// dropReason says why a name isn't installed: "covered by anthropic.com
+// (anthropic)", "owned by anthropic (first in Main)", "left out: covers
+// nl-1.hosts.tikhonnnnn.com (nl-1)".
+func dropReason(ctx context.Context, d own.Drop, list string) string {
+	return i18n.T(ctx, "lists.drop."+d.Reason, i18n.Args{"by": d.By, "via": d.Via, "list": list})
 }
 
 func (h *handler) activity(ctx context.Context, it services.Item) ([]eventLine, error) {
@@ -416,20 +473,34 @@ func diffLines(ctx context.Context, suffix, exact []string) ([]diffLine, string)
 
 type removeView struct {
 	It    services.Item
-	Lists []string
+	Lists []listLink
 	Err   string
 }
+
+type listLink struct{ Name, Href string }
 
 func (h *handler) removePage(c *echo.Context) error {
 	it, err := h.load(c)
 	if err != nil {
 		return err
 	}
-	lists, err := h.Services.ListsOf(c.Request().Context(), it.ID)
+	links, err := h.listLinks(c.Request().Context(), it.ID)
 	if err != nil {
 		return err
 	}
-	return h.renderRemove(c, http.StatusOK, removeView{It: it, Lists: lists})
+	return h.renderRemove(c, http.StatusOK, removeView{It: it, Lists: links})
+}
+
+func (h *handler) listLinks(ctx context.Context, id int64) ([]listLink, error) {
+	ms, err := h.Lists.Memberships(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	var out []listLink
+	for _, m := range ms {
+		out = append(out, listLink{Name: m.List.Name, Href: listHref(m.List.ID)})
+	}
+	return out, nil
 }
 
 func (h *handler) renderRemove(c *echo.Context, status int, v removeView) error {
@@ -446,7 +517,11 @@ func (h *handler) removePost(c *echo.Context) error {
 	err = h.Services.Remove(ctx, it.ID, events.ActorAdmin)
 	var in *services.InListsError
 	if errors.As(err, &in) {
-		return h.renderRemove(c, http.StatusConflict, removeView{It: it, Lists: in.Lists, Err: i18n.T(ctx, "services.remove.in_lists")})
+		links, lerr := h.listLinks(ctx, it.ID)
+		if lerr != nil {
+			return lerr
+		}
+		return h.renderRemove(c, http.StatusConflict, removeView{It: it, Lists: links, Err: i18n.T(ctx, "services.remove.in_lists")})
 	}
 	if errors.Is(err, services.ErrNotFound) {
 		return echo.ErrNotFound

@@ -202,6 +202,9 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 			}
 		}
 	}
+	if c.hostname != "" {
+		s.checkRouting(ctx, c.hostname, errs)
+	}
 	if token, err := s.Settings.Get(ctx, cloudflare.TokenKey); err == nil && token == "" {
 		fe(errs, "dns", "servers.err.no_cloudflare")
 	} else if c.hostname != "" {
@@ -215,6 +218,27 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 		}
 	}
 	return c, errs
+}
+
+// checkRouting refuses a hostname a routing list covers: the router would send
+// Proxier's checks of the server, and its own connection to it, into the
+// tunnel (docs/processes/routing/routing-lists.md#rules).
+func (s *Service) checkRouting(ctx context.Context, hostname string, errs FieldErrors) {
+	if s.Routing == nil {
+		return
+	}
+	g := s.Routing()
+	if g == nil {
+		return
+	}
+	hits, err := g.Covering(ctx, []string{hostname})
+	switch {
+	case err != nil:
+		fe(errs, "routing", "servers.err.routing_check", "error", err.Error())
+	case len(hits) > 0:
+		r := hits[0]
+		fe(errs, "routing", "servers.err.routed", "host", r.Hostname, "domain", r.Domain, "service", r.Service, "list", r.List)
+	}
 }
 
 // checkParams validates each declared parameter and splits the values into the

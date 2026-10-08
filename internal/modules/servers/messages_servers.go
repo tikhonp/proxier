@@ -105,6 +105,8 @@ var serverMessages = i18n.Messages{
 	"servers.err.no_cloudflare":     {EN: "Cloudflare is not configured. Save an API token under Settings → Integrations → Cloudflare.", RU: "Cloudflare не настроен. Сохраните API-токен в Настройки → Интеграции → Cloudflare."},
 	"servers.err.not_covered":       {EN: "{host} is in none of the zones Proxier may use. Allow its zone under Integrations → Cloudflare.", RU: "{host} не входит ни в одну разрешённую зону. Разрешите зону в Интеграции → Cloudflare."},
 	"servers.err.dns_check":         {EN: "Cannot check the DNS zone: {error}", RU: "Не удалось проверить DNS-зону: {error}"},
+	"servers.err.routed":            {EN: "{host} is covered by {domain} ({service}) in {list}: Proxier's checks would go into the tunnel. Take it out of the list first.", RU: "{host} охвачен доменом {domain} ({service}) в списке {list}: проверки Proxier пошли бы в туннель. Сначала уберите его из списка."},
+	"servers.err.routing_check":     {EN: "Cannot check the routing lists: {error}", RU: "Не удалось проверить списки маршрутизации: {error}"},
 
 	// the server page
 	"servers.tabs":                {EN: "Server", RU: "Сервер"},

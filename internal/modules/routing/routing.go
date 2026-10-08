@@ -14,9 +14,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/migrations"
 	"github.com/tikhonp/proxier/internal/modules/routing/pages"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/modules/servers"
@@ -45,6 +47,7 @@ type Module struct {
 	// Services hold the module itself, which forwards to it at call time.
 	Marker   change.Marker
 	Services *services.Service
+	Lists    *lists.Service
 
 	ports Ports
 	deps  module.Deps
@@ -68,7 +71,18 @@ func (m *Module) Init(d module.Deps) error {
 	m.deps = d
 	now := func() time.Time { return m.Now() }
 	resolver := &sources.Resolver{Endpoints: m.Endpoints, Fetch: &sources.Fetcher{Timeout: interactiveRequest}}
-	m.Services = services.New(services.Deps{DB: d.DB, Events: d.Events, Resolver: resolver, Marker: m, Now: now, Log: d.Log})
+	// The guard of custom saves is the lists', built right after: the
+	// closures read m.Lists at call time.
+	m.Services = services.New(services.Deps{
+		DB: d.DB, Events: d.Events, Resolver: resolver, Marker: m, Now: now, Log: d.Log,
+		Check: func(ctx context.Context, tx *sqlx.Tx, id int64, set snapshot.Set) error {
+			return m.Lists.CheckService(ctx, tx, id, set)
+		},
+		Refused: func(ctx context.Context, err error, actor string) { m.Lists.Refused(ctx, err, actor) },
+	})
+	m.Lists = lists.New(lists.Deps{
+		DB: d.DB, Events: d.Events, Services: m.Services, Hostnames: m.ports.Hostnames, Marker: m, Now: now, Log: d.Log,
+	})
 	return nil
 }
 
@@ -84,22 +98,42 @@ func (*Module) SettingsSections() []settings.Section { return []settings.Section
 func (*Module) Messages() i18n.Messages { return messages }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Services: m.Services, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
+	pages.Register(r, pages.Deps{Services: m.Services, Lists: m.Lists, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
 }
 
-// Nav adds Services; Lists, Search, Discover, Routers and Shadowrocket come later.
+// Nav adds Lists and Services; Search, Discover, Routers and Shadowrocket come later.
 func (*Module) Nav() []ui.NavItem {
-	return []ui.NavItem{{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20}}
+	return []ui.NavItem{
+		{Group: "routing", Label: "lists.nav", Href: "/routing/lists", Order: 10},
+		{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20},
+	}
 }
 
-// Search finds services by tag, selector or name.
+// Search finds routing lists by name, and services by tag, selector or name.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
+	var out []ui.SearchHit
+	all, err := m.Lists.All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, l := range all {
+		if q != "" && !strings.Contains(strings.ToLower(l.Name), q) {
+			continue
+		}
+		n, err := m.Lists.Size(ctx, l.ID)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, ui.SearchHit{Label: l.Name, Href: "/routing/lists/" + strconv.FormatInt(l.ID, 10), Meta: i18n.N(ctx, "lists.search", int64(n))})
+		if len(out) == limit {
+			return out, nil
+		}
+	}
 	rows, err := m.Services.List(ctx, services.Filter{})
 	if err != nil {
 		return nil, err
 	}
-	var out []ui.SearchHit
 	for _, r := range rows {
 		if q != "" && !strings.Contains(r.Tag, q) && !strings.Contains(strings.ToLower(r.Selector), q) &&
 			!strings.Contains(strings.ToLower(r.Name), q) {

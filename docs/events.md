@@ -104,9 +104,9 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 | `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | 3c |
 | `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 days of failures 🔴 | 3c |
 | `routing.list_created` | routing list | name | off | 3b |
-| `routing.list_updated` | routing list | added, removed (tags), reordered, changes (of name, description, default) | off | 3b |
-| `routing.list_deleted` | routing list | name, moved (target names) | off | 3b |
-| `routing.list_refused_server_hostname` | routing list | domain, server, hostname, service | off | 3b. Shown in the UI at once. |
+| `routing.list_updated` | routing list | changes (`services`, `order`, `default`, or the fields: `name`, `description`); added or removed (tags, comma-joined), reordered (true), from, to (old and new name) | off | 3b. Nothing when nothing changed. |
+| `routing.list_deleted` | routing list | name, moved (the targets moved to another list, comma-joined) | off | 3b. Each moved router records `router_updated{changes: list, from, to}`, each config `shadowrocket_updated{changes: list, from, to}`. |
+| `routing.list_refused_server_hostname` | routing list | domain, server, hostname, service | off | 3b. Shown in the UI at once; one per list the refused change would have broken, recorded after its transaction rolled back. A refresh that brings such a name records nothing (the list shows a warning while it lasts). |
 | `routing.shadowrocket_created` / `.updated` / `.deleted` | Shadowrocket config | name, list / changes (of base, list, policy, token, disabled, enabled), version / name | off | 3d |
 | `routing.router_added` | router | list, host, by (admin / routerscripts) | off | 3e |
 | `routing.router_updated` | router | changes (of name, connection, names, list), from, to (list names) | off | 3e |

@@ -39,6 +39,7 @@ func modules() []module.Module {
 	subs := subscriptions.New(subscriptions.Ports{Catalog: srv.EndpointCatalog(), Rotator: srv.Rotator()})
 	srv.SetUsage(subs.Usage())
 	rt := routing.New(routing.Ports{Hostnames: srv.ServerHostnames(), Catalog: srv.EndpointCatalog(), Dialer: srv.ProxyDialer()})
+	srv.SetRouting(rt.Guard())
 	return []module.Module{srv, subs, rt}
 }
 
