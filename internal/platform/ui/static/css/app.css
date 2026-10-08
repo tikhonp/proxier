@@ -620,8 +620,30 @@ a.row.rlist { text-decoration: none; color: inherit; }
 .dropped { padding: 4px 16px 10px; }
 .dropped .row.dom { padding-left: 0; padding-right: 0; }
 .cover-hint { color: var(--gold); }
+/* Routing refresh and catalog (3c) */
+.row.svc .state { display: flex; align-items: center; gap: 6px; }
+.band.rejected { flex-direction: column; align-items: stretch; gap: 10px; border-top: 1px solid var(--gold-border); }
+.band.rejected .row.dline { padding: 2px 8px; }
+.rej-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.rej-acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.cause { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.search-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; }
+.search-form input[type=search] { flex: 1 1 260px; }
+.search-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); align-items: start; }
+.search-cols .preview:empty { display: none; }
+.search-cols:has(.preview:empty) { grid-template-columns: minmax(0, 1fr); }
+.preview { border-left: 1px solid var(--overlay); }
+.row.cat, .colhead.cat { grid-template-columns: minmax(0, 1.6fr) 70px minmax(0, 1fr) auto; align-items: start; }
+.row.cat .acts { display: flex; gap: 4px; }
+.row.cat .seltext { overflow-wrap: anywhere; }
+.set-group { border: 0; padding: 0; margin: 0 0 20px; display: flex; flex-direction: column; gap: 16px; }
+.set-group legend { font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 @media (max-width: 760px) {
-  .colhead.svc, .colhead.edrow, .colhead.rlist { display: none; }
+  .colhead.svc, .colhead.edrow, .colhead.rlist, .colhead.cat { display: none; }
+  .search-cols { grid-template-columns: minmax(0, 1fr); }
+  .preview { border-left: 0; border-top: 1px solid var(--overlay); }
+  .rej-cols { grid-template-columns: minmax(0, 1fr); }
+  .row.cat { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; padding: 10px 16px; }
   .row.rlist { grid-template-columns: minmax(0, 1fr) auto auto; gap: 4px 12px; padding: 10px 16px; }
   .row.rlist > :nth-child(n+5) { grid-column: 1 / -1; }
   .row.svc, .row.dom, .row.skip, .row.snap { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }

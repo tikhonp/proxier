@@ -6,10 +6,10 @@ Upstream lists change: v2fly adds a domain to `anthropic`, iplist reshuffles a g
 
 ## Steps
 
-1. At 04:00 (setting) the scheduler queues one refresh per upstream service (v2fly, iplist, URL) that is in at least one routing list. Custom services aren't refreshed: they change only when saved.
-2. Each refresh fetches and parses the service's selector, exactly as when it was added ([service management](./service-management.md)).
+1. At 04:00 (`routing.refresh_at`) the scheduler queues the daily round (`routing.refresh_round`), which refreshes every upstream service (v2fly, iplist, URL) that is in at least one routing list, one after another, each in its own transaction. Custom services aren't refreshed: they change only when saved. A round cut short by a restart resumes after the services it already did.
+2. Each refresh fetches and parses the service's selector, exactly as when it was added ([service management](./service-management.md)). An unpinned iplist selector is fetched from the portal its accepted snapshot came from, so a refresh never switches portals silently: a miss there is a failure.
 3. **Fetch or parse error** (network, HTTP error, an `include:` that 404s, every iplist portal unreachable) → the current snapshot stays, and `last error` and `consecutive failures` are updated. At 3 consecutive failures → `routing.refresh_failing{failures, error}` (notifies).
-4. **Same as the current snapshot** (same hash) → only `last checked` is updated.
+4. **Same as the current snapshot** (same hash) → only `last checked` is updated (and the failure count ends). A rejected snapshot still waiting for a decision is moot now: it is dismissed. → `routing.snapshot_dismissed{automatic: true}`
 5. **Different** → run the safety checks against the current accepted snapshot:
 
    | Check | Rejects when |
@@ -18,14 +18,15 @@ Upstream lists change: v2fly adds a domain to `anthropic`, iplist reshuffles a g
    | Shrink | The current snapshot has at least 20 domains and the new one has lost more than half of them (both thresholds are settings). |
 
 6. **Passes** → the new snapshot is **accepted** and the old one becomes superseded. Every target whose routing list contains the service is marked for sync (coalesced, see [router sync](./router-sync.md)). → `routing.snapshot_accepted{added, removed, counts}`
-7. **Fails** → the new snapshot is stored as **rejected** with the reason. The current one stays in force, and targets are not touched. → `routing.snapshot_rejected{reason, old_count, new_count}`
-8. When the daily round is done, one **digest** notification summarises it: services changed with domains added and removed, rejections, failures. A rejection outside the daily round (from **Refresh now**) notifies on its own.
+7. **Fails** → the new snapshot is stored as **rejected** with the reason. The current one stays in force, and targets are not touched. → `routing.snapshot_rejected{reason, old_count, new_count, lost_pct, in_round}`. The same rejection again (equal to the one waiting) stores and records nothing.
+8. When the daily round is done, it records its **digest**, the event `routing.refresh_digest{changed, added, removed, rejected, failing, still_failing, services}`, after every round. It notifies only with news: a service changed, a snapshot was held back, or a service **started** failing in this round (a service failing for days is counted in `still_failing` and is news on its first day only). The failures in the digest are this round's. A rejection outside the daily round (from **Refresh now**) notifies on its own.
 
 ## Steps — handling a rejection
 
 1. The service page shows the rejected snapshot with its diff against the current one, the reason, and **Accept anyway** / **Dismiss**.
 2. **Accept anyway** makes it the accepted snapshot (as in step 6) and records who accepted it. → `routing.snapshot_accepted{added, removed, counts, forced: true}`
-3. **Dismiss** leaves it rejected. The next refresh checks again from the current accepted snapshot.
+3. **Dismiss** leaves it rejected. The next refresh checks again from the current accepted snapshot. → `routing.snapshot_dismissed{automatic: false}`
+4. The page shows the "likely cause" when the catalog knows one: when one catalog selector (other than the service's own) holds at least half of the removed names, "Likely cause: 128 of the 131 removed names are now in v2fly:netflix-cdn (catalog of 8 Oct)." with **Add v2fly:netflix-cdn…**. It is computed when the page renders, never stored.
 
 ## Rules
 

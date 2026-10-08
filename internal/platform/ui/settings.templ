@@ -59,6 +59,33 @@ templ SettingsForm(sec settings.Section, vals []settings.Value, errs settings.Fi
 	</form>
 }
 
+// SettingsGroups is SettingsForm with the section's fields in titled groups,
+// in the groups' order. A secret field left empty keeps its value; ticking
+// its "clear.<key>" box removes it (the handler decides).
+templ SettingsGroups(groups []SettingsGroup, vals []settings.Value, errs settings.FieldErrors, action string) {
+	<form method="post" action={ action } class="form">
+		<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+		for _, g := range groups {
+			<fieldset class="set-group">
+				<legend>{ g.Title }</legend>
+				if g.Note != "" {
+					<p class="help">{ g.Note }</p>
+				}
+				for _, key := range g.Keys {
+					for _, v := range vals {
+						if v.Field.Key == key {
+							@settingField(v, errs[v.Field.Key])
+						}
+					}
+				}
+			</fieldset>
+		}
+		<div class="form-actions">
+			<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+		</div>
+	</form>
+}
+
 templ settingField(v settings.Value, errMsg string) {
 	<div class="field">
 		<label for={ "f-" + v.Field.Key } class="lbl">
@@ -78,7 +105,10 @@ templ settingField(v settings.Value, errMsg string) {
 				<input type="hidden" id={ "f-" + v.Field.Key } name={ v.Field.Key } value={ v.Value }/>
 				<button type="button" role="switch" class="pc-sw" data-switch={ "f-" + v.Field.Key } aria-checked={ fmt.Sprint(v.Value == "true") } aria-label={ i18n.T(ctx, "settings.field."+v.Field.Key) }></button>
 			case settings.Secret:
-				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } type="password" class="pc-inp" autocomplete="off" aria-invalid?={ errMsg != "" }/>
+				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } type="password" class="pc-inp" autocomplete="off" aria-invalid?={ errMsg != "" } placeholder={ secretPlaceholder(ctx, v) }/>
+				if !v.IsDefault {
+					<label class="check"><input type="checkbox" name={ "clear." + v.Field.Key } value="1"/>{ i18n.T(ctx, "ui.clear_secret") }</label>
+				}
 			case settings.Int:
 				<input id={ "f-" + v.Field.Key } name={ v.Field.Key } type="number" class="pc-inp" value={ v.Value } aria-invalid?={ errMsg != "" }/>
 			default:
@@ -98,4 +128,11 @@ func optionLabel(ctx context.Context, key, option string) string {
 		return i18n.T(ctx, k)
 	}
 	return option
+}
+
+func secretPlaceholder(ctx context.Context, v settings.Value) string {
+	if v.IsDefault {
+		return ""
+	}
+	return i18n.T(ctx, "ui.secret_kept")
 }

@@ -289,6 +289,9 @@
 
     if (k === 'Escape') {
       if (closeKeys() || closeMenu()) { e.preventDefault(); return; }
+      // a panel that closes with esc (the catalog preview) carries data-esc on its ×
+      var esc = $('[data-esc]');
+      if (esc && esc.offsetParent !== null && !typing(e.target)) { esc.click(); e.preventDefault(); return; }
       if (document.body.classList.contains('drawer-open')) { document.body.classList.remove('drawer-open'); return; }
       if (typing(e.target)) { e.target.blur(); }
       setPending(false);

@@ -140,7 +140,9 @@ Tables `routing_*`, all written by the module's first migration ([3a](./build/3a
 | Network countries (of fetching networks) | 30 days; an unknown one (lookup off or failed) 1 day, so it is looked up again |
 | Deleted links (tombstones) | the row forever; the token is erased once `subscriptions.tombstone` (default 30 days) has passed |
 | Shadowrocket fetches | 90 days |
-| Superseded snapshots | 90 days (the current one forever) |
+| Superseded snapshots | 90 days after they were fetched (the accepted one forever), by the daily `routing.prune` job |
+| Rejected snapshots | 90 days after they were fetched once settled (dismissed, or older than the accepted snapshot, or no longer the newest rejection); the one waiting for a decision is kept |
+| Catalog generations | only the one in force; the previous one is deleted right after a refresh switches, a cut-short one by the next refresh (and by the prune job while no catalog refresh runs) |
 | Discovery runs | 30 days |
 | Sign-in attempts | 30 days |
 | Backups | 14 daily snapshots |

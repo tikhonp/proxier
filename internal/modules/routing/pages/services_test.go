@@ -328,6 +328,17 @@ func TestNoInlineStyleOrScript(t *testing.T) {
 		"switch":  h.Login.Get("/routing/services/1/switch").Body.String(),
 		"diff":    h.Login.Get("/routing/services/1/snapshots/1").Body.String(),
 		"remove":  h.Login.Get("/routing/services/1/remove").Body.String(),
+		"search":  h.Login.Get("/routing/search?q=anthropic&selector=v2fly:anthropic").Body.String(),
+		"drawer":  "<div>" + hx(h, "GET", "/routing/search/preview?selector=v2fly:anthropic", nil) + "</div>",
+		"routing": h.Login.Get("/settings/routing").Body.String(),
+	}
+	h.Up.V2fly("anthropic", "")
+	if _, err := h.Mod.Refresh.Refresh(bg(), 1, false, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	pages["rejected"] = h.Login.Get("/routing/services/1").Body.String()
+	if !strings.Contains(pages["rejected"], "was held back") {
+		t.Error("no rejected band to check")
 	}
 	for name, body := range pages {
 		if len(body) < 50 {
@@ -335,4 +346,65 @@ func TestNoInlineStyleOrScript(t *testing.T) {
 		}
 		checkNoInline(t, name, body)
 	}
+}
+
+func TestStatesOnListPages(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("a", "a.com\n")
+	h.Up.V2fly("b", "b.com\n")
+	h.Up.V2fly("netflix", nfNames(0, 212))
+	a, b, nf := h.Upstream("v2fly:a"), h.Upstream("v2fly:b"), h.Upstream("v2fly:netflix")
+	mine := h.Custom("mine", "mine.com")
+	main := h.List("Main", a, b, nf, mine)
+	h.Up.V2fly("netflix", nfNames(129, 212))
+	h.Up.Fail("/v2fly/data/b", http.StatusBadGateway)
+	for _, id := range []int64{a, b, nf} {
+		if _, err := h.Mod.Refresh.Refresh(bg(), id, false, "admin"); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	body := h.Login.Get("/routing/services").Body.String()
+	has(t, "list", body, "4 services · 1 custom · refreshed daily at 04:00 · 1 snapshot waiting · 1 failing",
+		">waiting<", ">failing<", ">ok<", "ok · 2", "waiting · 1", "failing · 1", `href="/routing/services?state=waiting"`,
+		`data-key="r"`, `name="from" value="list"`)
+	if strings.Count(body, `data-key="r"`) != 3 {
+		t.Errorf("%d refresh buttons, want 3 (no custom)", strings.Count(body, `data-key="r"`))
+	}
+	body = h.Login.Get("/routing/services?state=waiting").Body.String()
+	if !strings.Contains(body, ">netflix<") || strings.Contains(body, ">mine<") || strings.Contains(body, `"/routing/services/1"`) {
+		t.Error("the state filter")
+	}
+	has(t, "pressed", body, `href="/routing/services"`)
+
+	rec := h.Login.Post(fmt.Sprintf("/routing/services/%d/refresh", a), url.Values{"from": {"list"}})
+	if rec.Header().Get("Location") != "/routing/services?refreshed=a" {
+		t.Fatalf("row refresh: %s", rec.Header().Get("Location"))
+	}
+	has(t, "row band", h.Login.Get("/routing/services?refreshed=a").Body.String(), "Refresh of a queued.")
+
+	// the list page: states, warnings, Refresh all
+	lh := fmt.Sprintf("/routing/lists/%d", main)
+	body = h.Login.Get(lh).Body.String()
+	has(t, "list page", body,
+		"Rejected snapshot · v2fly:netflix: a refresh lost 60 % of its domains (212 → 83). Targets keep the old 212 until you decide.",
+		"Refresh failing · v2fly:b: 1 failure in a row, HTTP 502", fmt.Sprintf(`href="/routing/services/%d"`, nf),
+		">waiting<", ">failing<", ">Refresh all<", `action="`+lh+`/refresh"`)
+	var queued int
+	_ = h.App.DB.R.Get(&queued, `SELECT count(*) FROM jobs WHERE type = 'routing.refresh'`)
+	rec = h.Login.Post(lh+"/refresh", url.Values{})
+	if rec.Header().Get("Location") != lh+"?refreshing=3" {
+		t.Fatalf("Refresh all: %s", rec.Header().Get("Location"))
+	}
+	var n int
+	_ = h.App.DB.R.Get(&n, `SELECT count(*) FROM jobs WHERE type = 'routing.refresh'`)
+	if n-queued != 2 { // a's own refresh was already queued: it coalesced
+		t.Errorf("Refresh all queued %d new jobs", n-queued)
+	}
+	var keys []string
+	_ = h.App.DB.R.Select(&keys, `SELECT resource_key FROM jobs WHERE type = 'routing.refresh' ORDER BY resource_key`)
+	if strings.Join(keys, ",") != fmt.Sprintf("service:%d,service:%d,service:%d", a, b, nf) {
+		t.Errorf("jobs: %v", keys)
+	}
+	has(t, "refreshing band", h.Login.Get(lh+"?refreshing=3").Body.String(), "Refreshing 3 services.")
 }

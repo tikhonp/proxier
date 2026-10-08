@@ -29,6 +29,8 @@ type memberRow struct {
 	Source       string
 	First, Last  bool
 	Cursor       bool
+	StateKind    string
+	State        string
 }
 
 // undoView is the band after a reorder.
@@ -84,7 +86,7 @@ func parseCSV(s string) ([]int64, bool) {
 }
 
 // membersView is the Services area of a view, the cursor on moved (0: none).
-func membersOf(ctx context.Context, v lists.View, moved int64) membersView {
+func membersOf(ctx context.Context, v lists.View, moved int64, states map[int64]string) membersView {
 	loc := i18n.From(ctx)
 	mv := membersView{ListID: v.List.ID, Name: v.List.Name}
 	var ids []int64
@@ -93,6 +95,7 @@ func membersOf(ctx context.Context, v lists.View, moved int64) membersView {
 			ID: m.Service.ID, Pos: m.Position, Tag: m.Service.Tag, Source: string(m.Service.Source),
 			Owned: loc.Number(int64(m.Owned.Count())), Total: loc.Number(int64(m.Owned.Total)), Same: m.Owned.Count() == m.Owned.Total,
 			First: i == 0, Last: i == len(v.Members)-1, Cursor: m.Service.ID == moved,
+			StateKind: stateKind(states[m.Service.ID]), State: stateWord(ctx, states[m.Service.ID]),
 		}
 		if m.Service.Source != selector.Custom {
 			r.Sub = m.Service.Selector
@@ -115,13 +118,20 @@ func (h *handler) listPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v := listPageView{L: l, Members: membersOf(ctx, view, 0)}
+	states, err := h.Refresh.States(ctx)
+	if err != nil {
+		return err
+	}
+	v := listPageView{L: l, Members: membersOf(ctx, view, 0, states)}
 	v.Line = loc.N("lists.services_n", int64(len(view.Members))) + " · " + loc.N("lists.domains_n", int64(view.Result.Count()))
 	if l.Default {
 		v.Line += " · " + i18n.T(ctx, "lists.default_line")
 	}
 	if n, err := strconv.Atoi(c.QueryParam("added")); err == nil && n > 0 {
 		v.Band = loc.N("lists.added_band", int64(n))
+	}
+	if n, err := strconv.Atoi(c.QueryParam("refreshing")); err == nil {
+		v.Band = loc.N("refresh.refreshing_band", int64(n))
 	}
 	ts, err := h.Lists.Targets(ctx, l.ID)
 	if err != nil {
@@ -200,7 +210,11 @@ func (h *handler) answerMembers(c *echo.Context, l lists.List, moved int64, stal
 	if err != nil {
 		return err
 	}
-	mv := membersOf(ctx, view, moved)
+	states, err := h.Refresh.States(ctx)
+	if err != nil {
+		return err
+	}
+	mv := membersOf(ctx, view, moved, states)
 	mv.Stale, mv.Undo = stale, undo
 	return web.Render(c, http.StatusOK, membersArea(mv))
 }

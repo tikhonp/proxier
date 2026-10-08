@@ -6,6 +6,7 @@ package routingtest
 import (
 	"context"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -29,7 +30,10 @@ type Harness struct {
 	Up      *sourcestest.Upstream
 	Servers *Servers         // fake servers ports (the guard, 3g)
 	Marks   *change.Recorder // the marker until 3e
-	Now     time.Time        // the module's clock, starting 2026-10-08 12:00 UTC
+	Now     time.Time        // the module's clock, starting 2026-10-08 12:00 UTC; move it with Advance
+
+	mu       sync.Mutex
+	stopJobs func()
 }
 
 // Option changes New.
@@ -62,13 +66,105 @@ func New(t *testing.T, opts ...Option) *Harness {
 	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}})
 	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Up: up, Servers: srv, Marks: marks,
 		Now: time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)}
-	mod.Now = func() time.Time { return h.Now }
+	mod.Now = func() time.Time {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+		return h.Now
+	}
 	h.Login = site.SignIn("")
 	return h
 }
 
 // Advance moves the module's clock.
-func (h *Harness) Advance(d time.Duration) { h.Now = h.Now.Add(d) }
+func (h *Harness) Advance(d time.Duration) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.Now = h.Now.Add(d)
+}
+
+// StartJobs runs the job workers (the scheduler polls only hourly: tests
+// queue schedules with RunSchedule).
+func (h *Harness) StartJobs() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.stopJobs != nil {
+		return
+	}
+	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 100*time.Millisecond, time.Hour, 300*time.Millisecond
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = h.App.Jobs.Start(ctx) }()
+	h.stopJobs = func() { cancel(); <-done }
+	h.T.Cleanup(h.StopJobs)
+}
+
+// StopJobs stops the workers as a shutdown does: running jobs are
+// interrupted, to resume on the next StartJobs.
+func (h *Harness) StopJobs() {
+	h.mu.Lock()
+	stop := h.stopJobs
+	h.stopJobs = nil
+	h.mu.Unlock()
+	if stop != nil {
+		stop()
+	}
+}
+
+// Drain waits until no job is queued, running or interrupted.
+func (h *Harness) Drain() {
+	h.T.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	calm := 0
+	for time.Now().Before(deadline) {
+		var n int
+		if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM jobs WHERE state IN ('running', 'interrupted', 'queued')`); err != nil {
+			h.T.Fatal(err)
+		}
+		if n == 0 {
+			if calm++; calm >= 3 {
+				return
+			}
+		} else {
+			calm = 0
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	h.T.Fatal("jobs did not become idle")
+}
+
+// RunSchedule enqueues that schedule's job now, as the scheduler would, and
+// returns its id.
+func (h *Harness) RunSchedule(name string) int64 {
+	h.T.Helper()
+	ctx := context.Background()
+	for _, s := range h.Mod.Schedules() {
+		if s.Name != name {
+			continue
+		}
+		req, err := s.Request(ctx)
+		if err != nil {
+			h.T.Fatal(err)
+		}
+		req.CreatedBy = "schedule:" + name
+		e, err := h.App.Jobs.EnqueueNow(ctx, req)
+		if err != nil {
+			h.T.Fatal(err)
+		}
+		return e.ID
+	}
+	h.T.Fatalf("no schedule %s", name)
+	return 0
+}
+
+// Job reads a job's state and error.
+func (h *Harness) Job(id int64) (state, errText string) {
+	h.T.Helper()
+	j, err := h.App.Jobs.Job(context.Background(), id)
+	if err != nil {
+		h.T.Fatal(err)
+	}
+	return string(j.State), j.Error
+}
 
 // Events lists the recorded events of a type, oldest first.
 func (h *Harness) Events(typ string) []events.Event {

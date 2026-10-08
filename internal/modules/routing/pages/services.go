@@ -29,10 +29,12 @@ type svcRow struct {
 	StateKind, State string
 	Lists            string
 	NoLists          bool
+	Upstream         bool // has a Refresh now (r)
 }
 
 type listView struct {
 	Status   string
+	Band     string
 	Chips    []ui.Chip
 	Rows     []svcRow
 	Empty    bool // no services at all
@@ -41,7 +43,10 @@ type listView struct {
 	PrevHref string
 }
 
-var sourceFilters = []string{"", "v2fly", "iplist", "url", "custom"}
+var (
+	sourceFilters = []string{"", "v2fly", "iplist", "url", "custom"}
+	stateFilters  = []string{store.StateOK, store.StateWaiting, store.StateFailing}
+)
 
 func (h *handler) list(c *echo.Context) error {
 	ctx := c.Request().Context()
@@ -54,7 +59,11 @@ func (h *handler) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	f := services.Filter{Source: src}
+	state := c.QueryParam("state")
+	if !contains(stateFilters, state) {
+		state = ""
+	}
+	f := services.Filter{Source: src, State: state}
 	listParam := c.QueryParam("list")
 	if listParam == "none" {
 		f.NoList = true
@@ -67,11 +76,29 @@ func (h *handler) list(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v := listView{
-		Empty:  all == 0,
-		Status: loc.N("services.status.services", int64(all)) + " · " + loc.N("services.status.custom", int64(custom)),
+	states, err := h.Refresh.States(ctx)
+	if err != nil {
+		return err
 	}
-	query := func(source, list string) string {
+	byState := map[string]int{}
+	for _, st := range states {
+		byState[st]++
+	}
+	v := listView{
+		Empty: all == 0,
+		Status: loc.N("services.status.services", int64(all)) + " · " + loc.N("services.status.custom", int64(custom)) + " · " +
+			i18n.T(ctx, "refresh.status.daily", i18n.Args{"at": h.refreshedAt(ctx)}),
+	}
+	if n := byState[store.StateWaiting]; n > 0 {
+		v.Status += " · " + loc.N("refresh.status.waiting", int64(n))
+	}
+	if n := byState[store.StateFailing]; n > 0 {
+		v.Status += " · " + loc.N("refresh.status.failing", int64(n))
+	}
+	if tag := c.QueryParam("refreshed"); tag != "" {
+		v.Band = i18n.T(ctx, "refresh.queued_for", i18n.Args{"tag": tag})
+	}
+	queryState := func(source, list, st string) string {
 		q := url.Values{}
 		if source != "" {
 			q.Set("source", source)
@@ -79,17 +106,31 @@ func (h *handler) list(c *echo.Context) error {
 		if list != "" {
 			q.Set("list", list)
 		}
+		if st != "" {
+			q.Set("state", st)
+		}
 		if len(q) == 0 {
 			return listPath
 		}
 		return listPath + "?" + q.Encode()
 	}
+	query := func(source, list string) string { return queryState(source, list, state) }
 	for _, s := range sourceFilters {
 		label := i18n.T(ctx, "services.filter.all")
 		if s != "" {
 			label = s
 		}
 		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "services.filter.source", i18n.Args{"source": label}), Href: query(s, listParam), On: s == src})
+	}
+	// State chips: pressing the pressed one clears it.
+	for _, st := range stateFilters {
+		href := queryState(src, listParam, st)
+		if st == state {
+			href = queryState(src, listParam, "")
+		}
+		v.Chips = append(v.Chips, ui.Chip{
+			Label: i18n.T(ctx, "refresh.filter.state", i18n.Args{"state": stateWord(ctx, st), "n": byState[st]}), Href: href, On: st == state,
+		})
 	}
 	// List chips: pressing the pressed one clears it.
 	rls, err := h.Lists.All(ctx)
@@ -119,8 +160,8 @@ func (h *handler) list(c *echo.Context) error {
 		sr := svcRow{
 			ID: r.ID, Tag: r.Tag, Sub: sourceWord(ctx, r.Item), Source: string(r.Source),
 			Domains:   i18n.T(ctx, "services.col.domains_value", i18n.Args{"suffix": loc.Number(int64(r.Suffix)), "exact": loc.Number(int64(r.Exact))}),
-			StateKind: "ok", State: i18n.T(ctx, "services.state."+r.State),
-			Lists: strings.Join(r.Lists, ", "), NoLists: len(r.Lists) == 0,
+			StateKind: stateKind(r.State), State: stateWord(ctx, r.State),
+			Lists: strings.Join(r.Lists, ", "), NoLists: len(r.Lists) == 0, Upstream: r.Source != selector.Custom,
 		}
 		if r.Source == selector.Custom {
 			sr.When = i18n.T(ctx, "services.saved_on", i18n.Args{"date": loc.ShortDate(r.SavedAt)})
@@ -139,6 +180,9 @@ func (h *handler) list(c *echo.Context) error {
 		}
 		if listParam != "" {
 			q.Set("list", listParam)
+		}
+		if state != "" {
+			q.Set("state", state)
 		}
 		return listPath + "?" + q.Encode()
 	}
@@ -199,7 +243,14 @@ func (h *handler) listChecks(ctx context.Context, checked []int64, first bool) (
 }
 
 func (h *handler) addPage(c *echo.Context) error {
-	ls, err := h.listChecks(c.Request().Context(), nil, true)
+	// a link may tick lists (the likely cause adds to the service's lists)
+	var checked []int64
+	for _, s := range c.QueryParams()["lists"] {
+		if n, err := strconv.ParseInt(s, 10, 64); err == nil && n > 0 {
+			checked = append(checked, n)
+		}
+	}
+	ls, err := h.listChecks(c.Request().Context(), checked, len(checked) == 0)
 	if err != nil {
 		return err
 	}
@@ -320,4 +371,12 @@ func (h *handler) create(c *echo.Context) error {
 		return err
 	}
 	return web.Redirect(c, svcHref(id)+"/edit")
+}
+
+// rowHint is the key line of a row under the cursor.
+func rowHint(ctx context.Context, r svcRow) string {
+	if r.Upstream {
+		return i18n.T(ctx, "refresh.hints.row", i18n.Args{"tag": r.Tag})
+	}
+	return i18n.T(ctx, "services.hints.row", i18n.Args{"tag": r.Tag})
 }

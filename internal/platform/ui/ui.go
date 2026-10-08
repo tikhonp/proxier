@@ -200,6 +200,12 @@ type Chip struct {
 	On    bool
 }
 
+// SettingsGroup is a titled group of a settings section's fields.
+type SettingsGroup struct {
+	Title, Note string // translated
+	Keys        []string
+}
+
 // FilterForm is the part of a filter bar that needs a choice: selects sent
 // with a GET.
 type FilterForm struct {

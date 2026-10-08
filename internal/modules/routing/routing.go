@@ -12,11 +12,13 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/migrations"
 	"github.com/tikhonp/proxier/internal/modules/routing/pages"
+	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
@@ -24,6 +26,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -48,6 +51,8 @@ type Module struct {
 	Marker   change.Marker
 	Services *services.Service
 	Lists    *lists.Service
+	Refresh  *refresh.Service
+	Catalog  *catalog.Service
 
 	ports Ports
 	deps  module.Deps
@@ -63,8 +68,12 @@ const modName = "routing"
 func (*Module) Name() string      { return modName }
 func (*Module) Migrations() fs.FS { return migrations.FS }
 
-// interactiveRequest bounds each request made inside an admin request.
-const interactiveRequest = 15 * time.Second
+// interactiveRequest bounds each request made inside an admin request;
+// jobRequest each request a job makes.
+const (
+	interactiveRequest = 15 * time.Second
+	jobRequest         = 30 * time.Second
+)
 
 // Init builds the module's services.
 func (m *Module) Init(d module.Deps) error {
@@ -83,7 +92,34 @@ func (m *Module) Init(d module.Deps) error {
 	m.Lists = lists.New(lists.Deps{
 		DB: d.DB, Events: d.Events, Services: m.Services, Hostnames: m.ports.Hostnames, Marker: m, Now: now, Log: d.Log,
 	})
+	jobFetch := &sources.Fetcher{Timeout: jobRequest}
+	m.Refresh = refresh.New(refresh.Deps{
+		DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, Services: m.Services, Lists: m.Lists,
+		Resolver: &sources.Resolver{Endpoints: m.Endpoints, Fetch: jobFetch}, Marker: m, Now: now, Log: d.Log,
+	})
+	m.Catalog = catalog.New(catalog.Deps{
+		DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, Services: m.Services, Lists: m.Lists,
+		Fetch: jobFetch, Endpoints: m.Endpoints, Now: now, Log: d.Log,
+	})
 	return nil
+}
+
+// JobTypes: the refresh, the daily round, the catalog refresh and the prune job.
+func (m *Module) JobTypes() []jobs.Type {
+	out := append(m.Refresh.JobTypes(), m.Catalog.JobTypes()...)
+	return append(out, m.pruneType())
+}
+
+// Schedules: the round at routing.refresh_at, the catalog at
+// routing.catalog_at, the prune job at 05:10.
+func (m *Module) Schedules() []jobs.Schedule {
+	out := append(m.Refresh.Schedules(), m.Catalog.Schedules()...)
+	return append(out, m.pruneSchedule())
+}
+
+// SettingsPages: Settings → Routing.
+func (*Module) SettingsPages() []ui.SettingsPage {
+	return []ui.SettingsPage{{Slug: "routing", Title: "settings.routing", Order: 38}}
 }
 
 // Mark forwards to m.Marker as it is at call time.
@@ -98,14 +134,18 @@ func (*Module) SettingsSections() []settings.Section { return []settings.Section
 func (*Module) Messages() i18n.Messages { return messages }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Services: m.Services, Lists: m.Lists, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
+	pages.Register(r, pages.Deps{
+		Services: m.Services, Lists: m.Lists, Refresh: m.Refresh, Catalog: m.Catalog, Jobs: m.deps.Jobs, Settings: m.deps.Settings,
+		DB: m.deps.DB, Now: func() time.Time { return m.Now() },
+	})
 }
 
-// Nav adds Lists and Services; Search, Discover, Routers and Shadowrocket come later.
+// Nav adds Lists, Services and Search; Discover, Routers and Shadowrocket come later.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "routing", Label: "lists.nav", Href: "/routing/lists", Order: 10},
 		{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20},
+		{Group: "routing", Label: "catalog.nav", Href: "/routing/search", Order: 30},
 	}
 }
 
@@ -187,14 +227,17 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 }
 
 var (
-	_ module.Module           = (*Module)(nil)
-	_ module.Initializer      = (*Module)(nil)
-	_ module.EventDeclarer    = (*Module)(nil)
-	_ module.SettingsDeclarer = (*Module)(nil)
-	_ module.MessagesDeclarer = (*Module)(nil)
-	_ module.RouteDeclarer    = (*Module)(nil)
-	_ module.NavDeclarer      = (*Module)(nil)
-	_ module.Searcher         = (*Module)(nil)
-	_ module.SubjectNamer     = (*Module)(nil)
-	_ change.Marker           = (*Module)(nil)
+	_ module.Module               = (*Module)(nil)
+	_ module.Initializer          = (*Module)(nil)
+	_ module.EventDeclarer        = (*Module)(nil)
+	_ module.SettingsDeclarer     = (*Module)(nil)
+	_ module.MessagesDeclarer     = (*Module)(nil)
+	_ module.RouteDeclarer        = (*Module)(nil)
+	_ module.NavDeclarer          = (*Module)(nil)
+	_ module.Searcher             = (*Module)(nil)
+	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.JobDeclarer          = (*Module)(nil)
+	_ module.SettingsPageDeclarer = (*Module)(nil)
+	_ module.NotificationRenderer = (*Module)(nil)
+	_ change.Marker               = (*Module)(nil)
 )

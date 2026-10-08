@@ -26,13 +26,15 @@ templ servicePage(s ui.Shell, v pageView) {
 				@crumbs(v.It.ID, v.It.Tag, "")
 				<h1>{ v.It.Tag }</h1>
 				<div class="status">
-					@ui.Status("ok", i18n.T(ctx, "services.state.ok"))
+					@ui.Status(stateKind(v.State), v.Word)
 					<span>{ v.Line }</span>
 				</div>
 			</div>
 			<div class="actions">
 				if v.Custom {
 					@ui.ActionButton(ui.Action{ID: "services.edit", Label: "services.edit", Method: "GET", Href: svcHref(v.It.ID) + "/edit", Key: "e", Kind: ui.Primary})
+				} else {
+					@ui.ActionButton(ui.Action{ID: "refresh.now", Label: "refresh.now", Method: "POST", Href: svcHref(v.It.ID) + "/refresh", Key: "r", Kind: ui.Primary})
 				}
 			</div>
 		</div>
@@ -40,6 +42,14 @@ templ servicePage(s ui.Shell, v pageView) {
 			@ui.Alert("pine", "status") {
 				{ v.Band }
 			}
+		}
+		if v.Refresh != "" {
+			@ui.Alert("iris", "status") {
+				<a href={ templ.SafeURL("/jobs/" + i64(v.Src.Job)) }>{ v.Refresh }</a>
+			}
+		}
+		if v.Rejected != nil {
+			@rejectedBand(v.It.ID, v.Rejected)
 		}
 		<div class="subcols">
 			<div class="col-l">
@@ -81,14 +91,7 @@ templ servicePage(s ui.Shell, v pageView) {
 				}
 			</div>
 			<div class="col-r">
-				@ui.Area(i18n.T(ctx, "services.area.source"), "") {
-					<dl class="kv area-body">
-						for _, r := range v.Source {
-							<dt>{ r.K }</dt>
-							<dd>{ r.V }</dd>
-						}
-					</dl>
-				}
+				@sourceAreaView(v.Src)
 				@ui.Area(i18n.T(ctx, "services.area.snapshots"), "") {
 					for _, r := range v.History {
 						<a href={ templ.SafeURL(r.Href) } class="row snap pc-row">
@@ -132,6 +135,81 @@ templ servicePage(s ui.Shell, v pageView) {
 			</div>
 		</div>
 	}
+}
+
+// sourceAreaView is the Source area; while a refresh is queued or running it
+// polls itself, and the answer after the refresh ends reloads the page.
+templ sourceAreaView(v sourceView) {
+	<section
+		class="area"
+		id="source-area"
+		aria-label={ i18n.T(ctx, "services.area.source") }
+		if v.Job != 0 {
+			hx-get={ svcHref(v.ID) + "/source?polling=1" }
+			hx-trigger="every 2s"
+			hx-target="#source-area"
+			hx-swap="outerHTML"
+		}
+	>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "services.area.source") }</h2>
+			<span class="flex1"></span>
+		</div>
+		if v.Check != "" {
+			<p class={ "area-body", "sm", templ.KV("love", v.Bad), templ.KV("subtle", !v.Bad) }>{ v.Check }</p>
+		}
+		<dl class="kv area-body">
+			for _, r := range v.Rows {
+				<dt>{ r.K }</dt>
+				<dd>{ r.V }</dd>
+			}
+		</dl>
+	</section>
+}
+
+// rejectedBand shows the waiting snapshot first (RP-Service): why it was
+// held back, what it removes and adds, and the two decisions.
+templ rejectedBand(id int64, v *rejectedView) {
+	<section class="band gold rejected" aria-label={ v.Title }>
+		<div class="col">
+			<span class="bold">{ v.Title }</span>
+			<span>{ v.Line }</span>
+		</div>
+		<div class="rej-cols">
+			<div>
+				<p class="sm bold">{ v.RemovedHead }</p>
+				for _, d := range v.Removed {
+					<div class="row dline del"><span class="mk" aria-hidden="true">−</span><span>{ d.Name }</span><span class="sm subtle">{ d.Kind }</span></div>
+				}
+				if v.MoreRemoved != "" {
+					<p class="sm"><a href={ templ.SafeURL(v.DiffHref) }>{ v.MoreRemoved }</a></p>
+				}
+			</div>
+			<div>
+				<p class="sm bold">{ v.AddedHead }</p>
+				for _, d := range v.Added {
+					<div class="row dline add"><span class="mk" aria-hidden="true">+</span><span>{ d.Name }</span><span class="sm subtle">{ d.Kind }</span></div>
+				}
+				if v.MoreAdded != "" {
+					<p class="sm"><a href={ templ.SafeURL(v.DiffHref) }>{ v.MoreAdded }</a></p>
+				}
+			</div>
+		</div>
+		if v.Cause != "" {
+			<p class="sm cause">
+				{ v.Cause }
+				<a href={ templ.SafeURL(v.CauseHref) } class="pc-btn pc-sm" data-action="refresh.cause_add">{ i18n.T(ctx, "refresh.cause_add", i18n.Args{"selector": v.CauseSel}) }</a>
+			</p>
+		}
+		<div class="rej-acts">
+			<form method="post" action={ templ.SafeURL(svcHref(id) + "/snapshots/" + i64(v.SnapID) + "/dismiss") } class="inline">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<button type="submit" class="pc-btn pc-sm" data-action="refresh.dismiss">{ v.Keep }</button>
+			</form>
+			@ui.ActionButton(acceptAction(id, v))
+		</div>
+		<p class="sm subtle">{ v.Footer }</p>
+	</section>
 }
 
 // domainsList is the Domains area's rows; the filter and the pager swap it.
@@ -198,6 +276,12 @@ templ diffPage(s ui.Shell, v diffView) {
 				<p class="subtle">{ v.Line }</p>
 			</div>
 		</div>
+		if v.Cause != "" {
+			@ui.Alert("gold", "status") {
+				{ v.Cause }
+				<a href={ templ.SafeURL(v.CauseHref) }>{ i18n.T(ctx, "refresh.cause_add_short") }</a>
+			}
+		}
 		<div class="subcols">
 			<div class="col-l">
 				@ui.Area(v.AddedHead, "") {

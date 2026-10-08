@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
@@ -121,4 +122,26 @@ func (r *Resolver) Resolve(ctx context.Context, s selector.Selector) (Resolved, 
 		return r.url(ctx, s.URL)
 	}
 	return Resolved{}, fmt.Errorf("sources: nothing to resolve for %q", s.Source)
+}
+
+// ErrorText is a failure as stored and shown: short, with the status of an
+// HTTP error rather than the whole address.
+func ErrorText(err error) string {
+	var he *HTTPError
+	var ie *IncludeError
+	text := err.Error()
+	switch {
+	case errors.As(err, &ie):
+		text = ie.Error()
+	case errors.As(err, &he):
+		text = "HTTP " + strconv.Itoa(he.Status)
+	case errors.Is(err, context.DeadlineExceeded):
+		text = "timed out"
+	case errors.Is(err, ErrNotFound):
+		text = strings.TrimPrefix(text, ErrNotFound.Error()+": ")
+	}
+	if len(text) > 300 {
+		text = text[:300] + "…"
+	}
+	return text
 }

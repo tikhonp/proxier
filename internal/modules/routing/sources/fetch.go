@@ -14,10 +14,9 @@ import (
 
 // Fetcher is the one HTTP client of the module.
 type Fetcher struct {
-	Client    *http.Client                     // nil: a client following at most 5 redirects
-	UserAgent string                           // "" means "proxier/" + obs.AppVersion
-	Timeout   time.Duration                    // per request: 30 s in jobs, 15 s inside a request
-	Token     func(ctx context.Context) string // GitHub token for GitHubAPI only (3c)
+	Client    *http.Client  // nil: a client following at most 5 redirects
+	UserAgent string        // "" means "proxier/" + obs.AppVersion
+	Timeout   time.Duration // per request: 30 s in jobs, 15 s inside a request
 }
 
 const maxRedirects = 5
@@ -35,6 +34,12 @@ var defaultClient = &http.Client{CheckRedirect: func(req *http.Request, via []*h
 // Get fetches rawURL and returns its status and at most max bytes of its body
 // (ErrTooBig when there is more).
 func (f *Fetcher) Get(ctx context.Context, rawURL string, max int64) (int, []byte, error) {
+	return f.GetWith(ctx, rawURL, max, nil)
+}
+
+// GetWith is Get with extra request headers (GitHub's Accept and
+// Authorization).
+func (f *Fetcher) GetWith(ctx context.Context, rawURL string, max int64, header http.Header) (int, []byte, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return 0, nil, fmt.Errorf("sources: not an http(s) address: %q", rawURL)
@@ -51,6 +56,11 @@ func (f *Fetcher) Get(ctx context.Context, rawURL string, max int64) (int, []byt
 	ua := f.UserAgent
 	if ua == "" {
 		ua = "proxier/" + obs.AppVersion
+	}
+	for k, vs := range header {
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
 	}
 	req.Header.Set("User-Agent", ua)
 	client := f.Client

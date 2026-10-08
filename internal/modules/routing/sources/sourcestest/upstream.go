@@ -4,6 +4,9 @@
 package sourcestest
 
 import (
+	"archive/tar"
+	"bytes"
+	"compress/gzip"
 	"net/http"
 	"net/http/httptest"
 	"sort"
@@ -26,8 +29,14 @@ type Upstream struct {
 	down     map[string]bool
 	files    map[string]string
 	fail     map[string]int
+	hang     map[string]bool
 	requests []string
 	agents   []string
+
+	commit     string          // the GitHub commits API answer; "" answers 500
+	githubDown bool            // the API and codeload answer 502
+	exportDown map[string]bool // only that portal's custom export fails
+	auth       string          // the last Authorization header seen by the API
 }
 
 // New starts the fake for the test.
@@ -35,7 +44,8 @@ func New(t *testing.T) *Upstream {
 	t.Helper()
 	u := &Upstream{
 		v2fly: map[string]string{}, sites: map[string]map[string][]string{}, groups: map[string]map[string][]string{},
-		down: map[string]bool{}, files: map[string]string{}, fail: map[string]int{},
+		down: map[string]bool{}, files: map[string]string{}, fail: map[string]int{}, hang: map[string]bool{},
+		exportDown: map[string]bool{}, commit: DefaultCommit,
 	}
 	u.srv = httptest.NewServer(http.HandlerFunc(u.serve))
 	t.Cleanup(u.srv.Close)
@@ -94,10 +104,15 @@ func (u *Upstream) File(path, body string) string {
 	return u.srv.URL + "/files/" + path
 }
 
-// Fail makes that path (as requested, without the query) answer status.
+// Fail makes that path (as requested, without the query) answer status; 0
+// makes it answer normally again.
 func (u *Upstream) Fail(path string, status int) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
+	if status == 0 {
+		delete(u.fail, path)
+		return
+	}
 	u.fail[path] = status
 }
 
@@ -121,8 +136,52 @@ func (u *Upstream) Agents() []string {
 	return append([]string(nil), u.agents...)
 }
 
+// DefaultCommit is the commit the GitHub API answers until Commit changes it.
+const DefaultCommit = "1111111111111111111111111111111111111111"
+
+// Commit sets the GitHub commits API answer; "" makes it answer 500.
+func (u *Upstream) Commit(sha string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.commit = sha
+}
+
+// GitHubDown makes the GitHub API and codeload answer 502.
+func (u *Upstream) GitHubDown(down bool) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.githubDown = down
+}
+
+// ExportDown makes only that portal's custom export (the catalog) answer 502.
+func (u *Upstream) ExportDown(portal string, down bool) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.exportDown[portal] = down
+}
+
+// Hang makes requests for that path (without the query) wait until their
+// client gives up: a refresh cut short.
+func (u *Upstream) Hang(path string, on bool) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	u.hang[path] = on
+}
+
+// Auth is the last Authorization header the GitHub API saw.
+func (u *Upstream) Auth() string {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	return u.auth
+}
+
 func (u *Upstream) serve(w http.ResponseWriter, r *http.Request) {
 	u.mu.Lock()
+	if u.hang[r.URL.Path] {
+		u.mu.Unlock()
+		<-r.Context().Done()
+		return
+	}
 	defer u.mu.Unlock()
 	p := r.URL.Path
 	u.requests = append(u.requests, p)
@@ -139,6 +198,26 @@ func (u *Upstream) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, _ = w.Write([]byte(body))
+	case strings.HasPrefix(p, "/github/"):
+		u.auth = r.Header.Get("Authorization")
+		switch {
+		case u.githubDown:
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+		case p != "/github/repos/v2fly/domain-list-community/commits/master" || r.Header.Get("Accept") != "application/vnd.github.sha":
+			http.NotFound(w, r)
+		case u.commit == "":
+			http.Error(w, "server error", http.StatusInternalServerError)
+		default:
+			_, _ = w.Write([]byte(u.commit))
+		}
+	case strings.HasPrefix(p, "/codeload/v2fly/domain-list-community/tar.gz/"):
+		if u.githubDown {
+			http.Error(w, "bad gateway", http.StatusBadGateway)
+			return
+		}
+		ref := strings.TrimPrefix(p, "/codeload/v2fly/domain-list-community/tar.gz/")
+		w.Header().Set("Content-Type", "application/x-gzip")
+		_, _ = w.Write(u.archive(ref))
 	case strings.HasPrefix(p, "/iplist/"):
 		portal := strings.Trim(strings.TrimPrefix(p, "/iplist/"), "/")
 		if u.down[portal] {
@@ -146,6 +225,14 @@ func (u *Upstream) serve(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		q := r.URL.Query()
+		if q.Get("format") == "custom" {
+			if u.exportDown[portal] {
+				http.Error(w, "bad gateway", http.StatusBadGateway)
+				return
+			}
+			_, _ = w.Write([]byte(u.export(portal, q.Get("template"))))
+			return
+		}
 		var names []string
 		if site := q.Get("site"); site != "" {
 			names = u.sites[portal][site]
@@ -166,4 +253,50 @@ func (u *Upstream) serve(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.NotFound(w, r)
 	}
+}
+
+// archive is a tar.gz of every V2fly file under domain-list-community-<ref>/data/,
+// as codeload names the top directory.
+func (u *Upstream) archive(ref string) []byte {
+	var buf bytes.Buffer
+	gz := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gz)
+	top := "domain-list-community-" + ref + "/"
+	_ = tw.WriteHeader(&tar.Header{Name: top, Typeflag: tar.TypeDir, Mode: 0o755})
+	_ = tw.WriteHeader(&tar.Header{Name: top + "data/", Typeflag: tar.TypeDir, Mode: 0o755})
+	names := make([]string, 0, len(u.v2fly))
+	for n := range u.v2fly {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		body := u.v2fly[n]
+		_ = tw.WriteHeader(&tar.Header{Name: top + "data/" + n, Typeflag: tar.TypeReg, Mode: 0o644, Size: int64(len(body))})
+		_, _ = tw.Write([]byte(body))
+	}
+	readme := "domain list community"
+	_ = tw.WriteHeader(&tar.Header{Name: top + "README.md", Typeflag: tar.TypeReg, Mode: 0o644, Size: int64(len(readme))})
+	_, _ = tw.Write([]byte(readme))
+	_ = tw.Close()
+	_ = gz.Close()
+	return buf.Bytes()
+}
+
+// export is the custom export of a portal: one line per domain of every
+// site, by the template ({group}, {site}, {data}).
+func (u *Upstream) export(portal, template string) string {
+	var lines []string
+	groups := make([]string, 0, len(u.groups[portal]))
+	for g := range u.groups[portal] {
+		groups = append(groups, g)
+	}
+	sort.Strings(groups)
+	for _, g := range groups {
+		for _, site := range u.groups[portal][g] {
+			for _, d := range u.sites[portal][site] {
+				lines = append(lines, strings.NewReplacer("{group}", g, "{site}", site, "{data}", d).Replace(template))
+			}
+		}
+	}
+	return strings.Join(lines, "\n")
 }

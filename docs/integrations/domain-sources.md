@@ -39,8 +39,7 @@ A tag is never empty: an empty tag is what untagged router entries carry. It nev
 ## v2fly
 
 - Lists: `https://raw.githubusercontent.com/v2fly/domain-list-community/refs/heads/master/data/<name>`. A `404` means the list doesn't exist.
-- Names (catalog): the git trees API (`/repos/v2fly/domain-list-community/git/trees/master`, then the `data` tree). The contents API truncates at 1000 entries.
-- Reverse index: the repository archive at `master`, parsed in full.
+- Catalog: one API request for master's commit (`/repos/v2fly/domain-list-community/commits/master` with `Accept: application/vnd.github.sha`, plus `Authorization: Bearer <routing.github_token>` when set); when it changed, the archive `codeload.github.com/v2fly/domain-list-community/tar.gz/<commit>` (≤ 32 MiB, about 340 KB) gives every list name and the reverse index, parsed in full. The trees API isn't used.
 - Format, line by line, with comments (`#`) stripped:
 
 | Line | Meaning |
@@ -65,7 +64,7 @@ A tag is never empty: an empty tag is what untagged router entries carry. It nev
 - **`wildcard=1` is mandatory.** `wildcard=0` returns every hostname ever seen (15,000+ for youtube). The wildcard set is the apex list, exactly what `match-subdomain=yes` means.
 - **A miss is `200` with an empty body**, not `404`. So an unreachable portal must never count as a miss: "not found" requires every portal in scope to answer empty.
 - The output is a plain list of suffix domains. The domain-name check drops the scraped junk it sometimes carries.
-- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}|{data}` per portal. It prints one line per domain (`{data}` is the selected data, the domain itself: verified 2026-10-08), so each line gives a (portal, group, site) triple and a domain of that site for the reverse index.
+- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}|{data}` per portal. It prints one line per domain (`{data}` is the selected data, the domain itself: verified 2026-10-08), so each line gives a (portal, group, site) triple and a domain of that site for the reverse index. Each portal is written as a new generation of the catalog; an export whose SHA-256 equals the one in force is not written again.
 
 ## URL
 

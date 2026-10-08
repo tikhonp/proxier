@@ -9,13 +9,17 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -24,18 +28,23 @@ import (
 type Deps struct {
 	Services *services.Service
 	Lists    *lists.Service
+	Refresh  *refresh.Service
+	Catalog  *catalog.Service
+	Jobs     *jobs.System
+	Settings *settings.Store
 	DB       *db.DB
 	Now      func() time.Time
 }
 
 type handler struct {
 	Deps
-	shell func(c *echo.Context, title, path string) ui.Shell
+	shell         func(c *echo.Context, title, path string) ui.Shell
+	settingsPages func() []ui.SettingsPage
 }
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
-	h := &handler{Deps: d, shell: r.Shell}
+	h := &handler{Deps: d, shell: r.Shell, settingsPages: r.SettingsPages}
 	r.Admin.GET("/routing/services", h.list)
 	r.Admin.GET("/routing/services/add", h.addPage)
 	r.Admin.POST("/routing/services", h.add)
@@ -50,6 +59,16 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/routing/services/:id/snapshots/:snap", h.diff)
 	r.Admin.GET("/routing/services/:id/remove", h.removePage)
 	r.Admin.POST("/routing/services/:id/remove", h.removePost)
+	r.Admin.POST("/routing/services/:id/refresh", h.refreshPost)
+	r.Admin.GET("/routing/services/:id/source", h.sourceArea)
+	r.Admin.POST("/routing/services/:id/snapshots/:snap/accept", h.acceptPost)
+	r.Admin.POST("/routing/services/:id/snapshots/:snap/dismiss", h.dismissPost)
+	r.Admin.POST("/routing/lists/:id/refresh", h.refreshListPost)
+	r.Admin.GET("/routing/search", h.search)
+	r.Admin.GET("/routing/search/preview", h.preview)
+	r.Admin.POST("/routing/catalog/refresh", h.catalogRefresh)
+	r.Admin.GET("/settings/routing", h.settingsPage)
+	r.Admin.POST("/settings/routing", h.saveSettings)
 	h.registerLists(r)
 }
 

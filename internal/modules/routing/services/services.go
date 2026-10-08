@@ -111,7 +111,7 @@ type Row struct {
 	Count   int      // names in the accepted snapshot
 	Suffix  int      // of which suffix
 	Exact   int      // and exact
-	State   string   // ok (3c adds waiting, failing)
+	State   string   // ok, waiting, failing (store.State*)
 	Lists   []string // the lists that hold it (3b fills them)
 	SavedAt time.Time
 }
@@ -121,7 +121,7 @@ type Filter struct {
 	Source string // "" any
 	List   int64  // services in that list
 	NoList bool   // in no list
-	State  string // 3c: ok, waiting, failing
+	State  string // ok, waiting, failing
 	Page   int
 }
 
@@ -205,9 +205,17 @@ func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
 			return nil, err
 		}
 	}
+	states, err := store.States(ctx, s.d.DB.R)
+	if err != nil {
+		return nil, err
+	}
 	out := make([]Row, 0, len(rows))
 	for _, r := range rows {
 		if in != nil && !in[r.ID] {
+			continue
+		}
+		state := states[r.ID]
+		if f.State != "" && state != f.State {
 			continue
 		}
 		lists, err := store.ListsOf(ctx, s.d.DB.R, r.ID)
@@ -219,7 +227,7 @@ func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
 		}
 		out = append(out, Row{
 			Item: item(r.Service), Count: r.SuffixCount + r.ExactCount, Suffix: r.SuffixCount, Exact: r.ExactCount,
-			State: "ok", Lists: lists, SavedAt: r.AcceptedAt.Time,
+			State: state, Lists: lists, SavedAt: r.AcceptedAt.Time,
 		})
 	}
 	return out, nil
@@ -234,6 +242,9 @@ func (s *Service) Counts(ctx context.Context) (all, custom int, err error) {
 func (s *Service) ListsOf(ctx context.Context, id int64) ([]string, error) {
 	return store.ListsOf(ctx, s.d.DB.R, id)
 }
+
+// FromRow is a stored snapshot as the package shows it.
+func FromRow(r store.Snapshot) (Snapshot, error) { return toSnapshot(r) }
 
 func toSnapshot(r store.Snapshot) (Snapshot, error) {
 	var skipped []snapshot.Skipped

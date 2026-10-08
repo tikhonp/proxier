@@ -60,6 +60,10 @@ templ rlistPage(s ui.Shell, v listPageView) {
 				}
 				@ui.Area(i18n.T(ctx, "lists.area.actions"), "") {
 					<div class="row act">
+						@ui.ActionButton(ui.Action{ID: "refresh.all", Label: "refresh.all", Method: "POST", Href: listHref(v.L.ID) + "/refresh", Small: true})
+						<span class="sm subtle">{ i18n.T(ctx, "refresh.all.note") }</span>
+					</div>
+					<div class="row act">
 						@ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true})
 						<span class="sm subtle">{ i18n.T(ctx, "lists.rename.note") }</span>
 					</div>
@@ -148,7 +152,10 @@ templ membersArea(v membersView) {
 								<span class="subtle">/ { r.Total }</span>
 							}
 						</span>
-						<span class="out sm subtle">{ r.Source } · { i18n.T(ctx, "services.state.ok") }</span>
+						<span class="out sm subtle">
+							{ r.Source } ·
+							@ui.Status(r.StateKind, r.State)
+						</span>
 						<span class="acts">
 							@listMoveButton(v.ListID, r, "up")
 							@listMoveButton(v.ListID, r, "down")

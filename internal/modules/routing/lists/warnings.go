@@ -6,13 +6,14 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
+	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
 // Warning is a line of a list's Warnings area.
 type Warning struct {
-	Kind string // refused, guarded (3c: rejected, failing)
+	Kind string // refused, guarded, rejected, failing
 	At   time.Time
 	Text string // rendered for the admin's language
 	Href string
@@ -53,6 +54,15 @@ func (s *Service) warnings(ctx context.Context, v View) ([]Warning, error) {
 			Href: "/activity?subject=" + Subject(v.List.ID).String()})
 	}
 	for _, m := range v.Members {
+		w, err := s.refreshWarning(ctx, m.Service.ID)
+		if err != nil {
+			return nil, err
+		}
+		if w != nil {
+			out = append(out, *w)
+		}
+	}
+	for _, m := range v.Members {
 		for _, d := range m.Owned.Dropped {
 			if d.Reason != own.ReasonGuarded {
 				continue
@@ -67,4 +77,37 @@ func (s *Service) warnings(ctx context.Context, v View) ([]Warning, error) {
 		}
 	}
 	return out, nil
+}
+
+// refreshWarning is a member's waiting snapshot ("Rejected snapshot · …") or
+// its failing refresh, nil when neither.
+func (s *Service) refreshWarning(ctx context.Context, serviceID int64) (*Warning, error) {
+	svc, err := store.GetService(ctx, s.d.DB.R, serviceID)
+	if err != nil || svc.Source == "custom" {
+		return nil, err
+	}
+	href := "/routing/services/" + strconv.FormatInt(serviceID, 10)
+	w, waiting, err := store.Waiting(ctx, s.d.DB.R, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	if waiting {
+		acc, err := store.AcceptedSnapshot(ctx, s.d.DB.R, serviceID)
+		if err != nil {
+			return nil, err
+		}
+		old := int64(acc.SuffixCount + acc.ExactCount)
+		args := i18n.Args{"source": svc.Selector, "old": i18n.From(ctx).Number(old), "new": i18n.From(ctx).Number(int64(w.SuffixCount + w.ExactCount)), "pct": w.LostPct}
+		key := "lists.warning.rejected"
+		if w.Reason == "empty" {
+			key = "lists.warning.rejected_empty"
+		}
+		return &Warning{Kind: "rejected", At: w.FetchedAt.Time, Text: i18n.N(ctx, key, old, args), Href: href}, nil
+	}
+	if svc.Failures > 0 {
+		return &Warning{Kind: "failing", Text: i18n.N(ctx, "lists.warning.failing", int64(svc.Failures), i18n.Args{
+			"source": svc.Selector, "error": svc.LastError,
+		}), Href: href}, nil
+	}
+	return nil, nil
 }

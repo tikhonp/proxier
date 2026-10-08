@@ -181,3 +181,36 @@ func (s *Service) Switch(ctx context.Context, id int64, raw string, actor string
 		})
 	})
 }
+
+// Preview parses and resolves a selector as Add would, without the tag check
+// and within the interactive deadline: the search page's preview. Nothing is
+// written. A selector with no usable name returns what it resolved to with
+// its *EmptyResolveError, so its skipped entries can be shown.
+func (s *Service) Preview(ctx context.Context, raw string) (Prepared, error) {
+	sel, err := selector.Parse(raw)
+	if err != nil {
+		return Prepared{}, err
+	}
+	tag, err := sel.Tag()
+	if err != nil {
+		return Prepared{}, err
+	}
+	res, stored, err := s.resolve(ctx, sel)
+	p := Prepared{Selector: sel, Tag: tag, Resolved: res}
+	if err != nil {
+		return p, err
+	}
+	if p.Selector, err = selector.Parse(stored); err != nil {
+		return Prepared{}, err
+	}
+	return p, nil
+}
+
+// BySelector reads the service stored with exactly this selector.
+func (s *Service) BySelector(ctx context.Context, sel string) (Item, error) {
+	r, err := store.ServiceBySelector(ctx, s.d.DB.R, sel)
+	if errors.Is(err, store.ErrNotFound) {
+		return Item{}, ErrNotFound
+	}
+	return item(r), err
+}

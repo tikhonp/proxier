@@ -51,12 +51,16 @@ type eventLine struct{ Time, Text string }
 type pageView struct {
 	It       services.Item
 	Custom   bool
+	State    string // ok, waiting, failing
+	Word     string
+	Refresh  string // "Refresh queued · job #123"
+	Rejected *rejectedView
+	Src      sourceView
 	Line     string // "v2fly:netflix · tag netflix · in no list"
 	Band     string // after add or save
 	Counts   string // "212 · 198 suffix, 14 exact · 3 skipped"
 	Domains  domainsView
 	Skipped  []skipRow
-	Source   []kv
 	Dropped  []droppedView
 	History  []histRow
 	Activity []eventLine
@@ -99,6 +103,27 @@ func (h *handler) page(c *echo.Context) error {
 		}
 	case c.QueryParam("switched") == "1":
 		v.Band = i18n.T(ctx, "services.switched_band", i18n.Args{"tag": it.Tag, "selector": it.Selector})
+	case c.QueryParam("accepted") == "1":
+		v.Band = loc.N("refresh.accepted_band", int64(acc.Count()), i18n.Args{"tag": it.Tag})
+	case c.QueryParam("dismissed") == "1":
+		v.Band = i18n.T(ctx, "refresh.dismissed_band")
+	case c.QueryParam("gone") == "1":
+		v.Band = i18n.T(ctx, "refresh.gone_band")
+	}
+	if v.State, err = h.Refresh.State(ctx, it.ID); err != nil {
+		return err
+	}
+	v.Word = stateWord(ctx, v.State)
+	if v.Src, err = h.sourceOf(ctx, it, acc); err != nil {
+		return err
+	}
+	if v.Src.Job != 0 {
+		v.Refresh = i18n.T(ctx, "refresh.queued_band", i18n.Args{"job": v.Src.Job})
+	}
+	if !v.Custom {
+		if v.Rejected, err = h.rejectedOf(ctx, it, acc); err != nil {
+			return err
+		}
 	}
 	v.Counts = loc.Number(int64(acc.Count())) + " · " + i18n.T(ctx, "services.counts", i18n.Args{
 		"suffix": loc.Number(int64(acc.SuffixCount)), "exact": loc.Number(int64(acc.ExactCount)),
@@ -109,7 +134,6 @@ func (h *handler) page(c *echo.Context) error {
 	for _, s := range acc.Set.Skipped {
 		v.Skipped = append(v.Skipped, skipRow{Entry: s.Entry, Reason: i18n.T(ctx, s.Reason)})
 	}
-	v.Source = sourceRows(ctx, it, acc, ms)
 	if v.Dropped, err = h.droppedViews(ctx, it, ms); err != nil {
 		return err
 	}
@@ -412,6 +436,7 @@ type diffLine struct{ Name, Unicode, Kind string }
 
 type diffView struct {
 	It                     services.Item
+	Cause, CauseHref       string
 	Title, Line            string
 	Added, Removed         []diffLine
 	MoreAdded, MoreRemoved string
@@ -451,6 +476,12 @@ func (h *handler) diff(c *echo.Context) error {
 	v.RemovedHead = i18n.T(ctx, "services.diff.removed", i18n.Args{"n": d.Removed()})
 	v.Added, v.MoreAdded = diffLines(ctx, d.AddedSuffix, d.AddedExact)
 	v.Removed, v.MoreRemoved = diffLines(ctx, d.RemovedSuffix, d.RemovedExact)
+	if prev.ID != 0 {
+		removed := append(append([]string(nil), d.RemovedSuffix...), d.RemovedExact...)
+		if err := h.likelyCause(ctx, it, removed, func(line, _, href string) { v.Cause, v.CauseHref = line, href }); err != nil {
+			return err
+		}
+	}
 	return web.Render(c, http.StatusOK, diffPage(h.shell(c, it.Tag, listPath), v))
 }
 

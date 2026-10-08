@@ -19,6 +19,11 @@ templ listPage(s ui.Shell, v listView) {
 				@ui.ActionButton(ui.Action{ID: "services.add", Label: "services.add", Method: "GET", Href: listPath + "/add", Key: "n", Kind: ui.Primary})
 			</div>
 		</div>
+		if v.Band != "" {
+			@ui.Alert("iris", "status") {
+				{ v.Band }
+			}
+		}
 		if v.Empty {
 			@ui.EmptyState(i18n.T(ctx, "services.empty"), i18n.T(ctx, "services.empty_next"))
 		} else {
@@ -35,22 +40,31 @@ templ listPage(s ui.Shell, v listView) {
 					<span>{ i18n.T(ctx, "services.col.lists") }</span>
 				</div>
 				for _, r := range v.Rows {
-					<a href={ templ.SafeURL(svcHref(r.ID)) } class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ i18n.T(ctx, "services.hints.row", i18n.Args{"tag": r.Tag}) }>
+					<div class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ rowHint(ctx, r) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
-							<span class="bold">{ r.Tag }</span>
+							<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold">{ r.Tag }</a>
 							<span class="sm subtle seltext">{ r.Sub }</span>
 						</span>
 						<span class="subtle">{ r.Source }</span>
 						<span class="subtle">{ r.Domains }</span>
 						<span class="sm subtle">{ r.When }</span>
-						@ui.Status(r.StateKind, r.State)
+						<span class="state">
+							@ui.Status(r.StateKind, r.State)
+							if r.Upstream {
+								<form method="post" action={ templ.SafeURL(svcHref(r.ID) + "/refresh") } class="inline">
+									<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+									<input type="hidden" name="from" value="list"/>
+									<button type="submit" class="pc-btn pc-sm pc-ghost" data-key="r" data-row-only aria-label={ i18n.T(ctx, "refresh.row", i18n.Args{"tag": r.Tag}) }>↻</button>
+								</form>
+							}
+						</span>
 						if r.NoLists {
 							<span class="sm muted">{ i18n.T(ctx, "services.none") }</span>
 						} else {
 							<span class="sm subtle">{ r.Lists }</span>
 						}
-					</a>
+					</div>
 				}
 				<p class="pager">
 					{ v.Info }

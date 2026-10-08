@@ -143,3 +143,10 @@ func ReplaceCustomDomains(ctx context.Context, x sqlx.ExtContext, id int64, rows
 	}
 	return nil
 }
+
+// ServiceBySelector reads the upstream service stored with that selector.
+func ServiceBySelector(ctx context.Context, q sqlx.QueryerContext, sel string) (Service, error) {
+	var s Service
+	err := sqlx.GetContext(ctx, q, &s, `SELECT `+serviceCols+` FROM routing_services WHERE selector = ? AND source <> 'custom' ORDER BY id LIMIT 1`, sel)
+	return s, notFound(err)
+}

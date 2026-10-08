@@ -97,12 +97,12 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 | `routing.service_updated` | service | changes (of source, name, tag, description, domains), from, to (selectors for a switch, tags for a rename), added, removed (names, for a domains change) | off | 3a |
 | `routing.service_removed` | service | selector, tag | off | 3a |
 | `routing.snapshot_accepted` | service | added, removed, suffix, exact, forced, in_round | off: the digest carries it | 3c |
-| `routing.snapshot_rejected` | service | reason, old_count, new_count, lost_pct, in_round | **on** outside the daily round 🟡 | 3c |
-| `routing.snapshot_dismissed` | service | new_count, automatic (a refresh equal to the accepted snapshot ended it) | off | 3c |
-| `routing.refresh_failing` | service | failures, error | **on** at 3 🔴 | 3c |
-| `routing.refresh_digest` | `routing:refresh` | changed, added, removed, rejected, failing (started failing this round), still_failing, services (changed tags) | **on** when changed + rejected + failing > 0 📋 | 3c. "Routing refresh: 3 services changed (+42 / −5 domains), 1 rejected" |
-| `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | 3c |
-| `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 days of failures 🔴 | 3c |
+| `routing.snapshot_rejected` | service | reason (`empty`, `shrink`), old_count, new_count, lost_pct, in_round | **on** outside the daily round 🟡 | 3c. "netflix: new snapshot held back" / "It has 83 domains instead of 212 (a 61 % drop). Targets keep the old list until you decide." The same rejection again (equal to the one waiting) records nothing. |
+| `routing.snapshot_dismissed` | service | new_count, automatic (true: a refresh equal to the accepted snapshot ended it; false: **Dismiss**) | off | 3c |
+| `routing.refresh_failing` | service | failures, error | **on** at 3 🔴 | 3c. Once per run of failures; a success resets. "netflix: refresh failing" / "3 failures in a row: HTTP 404. Targets keep the last good list." |
+| `routing.refresh_digest` | `routing:refresh` | changed, added, removed, rejected, failing (started failing this round), still_failing, services (how many the round refreshed) | **on** when changed + rejected + failing > 0 📋 | 3c. Recorded after every daily round; a service failing for days is news on its first day only. "Routing refresh: 3 services changed (+42 / −5 domains)" or "Routing refresh: no changes" / "1 held back · 1 started failing · 2 still failing" (each part only when not zero). |
+| `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | 3c. Only when a source wrote a new generation or failed; an unchanged catalog records nothing. |
+| `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 failures in a row (3 days) 🔴 | 3c. Once per run of failures. "Catalog: v2fly failing since 6 Oct" / "HTTP 502. Search shows its catalog of 5 Oct." |
 | `routing.list_created` | routing list | name | off | 3b |
 | `routing.list_updated` | routing list | changes (`services`, `order`, `default`, or the fields: `name`, `description`); added or removed (tags, comma-joined), reordered (true), from, to (old and new name) | off | 3b. Nothing when nothing changed. |
 | `routing.list_deleted` | routing list | name, moved (the targets moved to another list, comma-joined) | off | 3b. Each moved router records `router_updated{changes: list, from, to}`, each config `shadowrocket_updated{changes: list, from, to}`. |

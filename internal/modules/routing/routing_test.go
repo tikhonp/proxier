@@ -104,15 +104,17 @@ func TestModuleIsWired(t *testing.T) {
 		t.Errorf("valid values: %v", err)
 	}
 
-	// nav: Lists and Services in the routing group, no go-to key
+	// nav: Lists, Services and Search in the routing group, no go-to key
 	nav := h.Mod.Nav()
-	if len(nav) != 2 || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
-		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "" || nav[1].GoKey != "" {
+	if len(nav) != 3 || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
+		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "" || nav[1].GoKey != "" ||
+		nav[2].Href != "/routing/search" || nav[2].Order != 30 || nav[2].GoKey != "" {
 		t.Errorf("nav: %+v", nav)
 	}
 	body := h.Login.Get("/").Body.String()
-	if !strings.Contains(body, `href="/routing/services"`) || !strings.Contains(body, `href="/routing/lists"`) {
-		t.Error("the nav has no Lists or Services")
+	if !strings.Contains(body, `href="/routing/services"`) || !strings.Contains(body, `href="/routing/lists"`) ||
+		!strings.Contains(body, `href="/routing/search"`) {
+		t.Error("the nav has no Lists, Services or Search")
 	}
 	// "Main" exists after the module's migration
 	var main string
@@ -223,6 +225,14 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 		built = append(built, "lists.event."+s)
 	}
 	built = append(built, "lists.target.router", "lists.target.shadowrocket", "lists.err.name", "lists.err.name_taken", "lists.err.description")
+	built = append(built, "services.state.waiting", "services.state.failing", "catalog.kind.list", "catalog.kind.site", "catalog.kind.group",
+		"catalog.add", "catalog.add_more", "catalog.open", "notify.routing.refresh_digest.rejected", "notify.routing.refresh_digest.failing",
+		"notify.routing.refresh_digest.still_failing", "routing.settings.note", "routing.settings.refresh", "routing.settings.catalog",
+		"routing.settings.routers", "routing.settings.routers.note")
+	for _, j := range []string{"refresh", "refresh.step.refresh", "refresh_round", "refresh_round.step.refresh", "refresh_round.step.digest",
+		"catalog_refresh", "catalog_refresh.step.v2fly", "catalog_refresh.step.iplist", "catalog_refresh.step.finish", "prune", "prune.step.prune"} {
+		built = append(built, "job.routing."+j)
+	}
 	built = append(built, "services.state.ok", "services.kind.site", "services.kind.group",
 		"services.paste.ip", "services.paste.invalid", "services.paste.unsupported", "services.skip.unsupported", "services.skip.invalid",
 		"services.err.name", "services.err.name_taken", "services.err.tag_empty", "services.err.tag", "services.err.tag_taken",

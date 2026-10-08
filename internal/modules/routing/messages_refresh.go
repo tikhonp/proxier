@@ -1,0 +1,143 @@
+package routing
+
+import "github.com/tikhonp/proxier/internal/platform/i18n"
+
+// refreshMessages are the texts of upstream refresh, the catalog, search and
+// Settings → Routing (3c).
+var refreshMessages = i18n.Messages{
+	// States
+	"services.state.waiting": {EN: "waiting", RU: "ждёт решения"},
+	"services.state.failing": {EN: "failing", RU: "с ошибками"},
+
+	// Refresh on the service page and the lists
+	"refresh.now":             {EN: "Refresh now", RU: "Обновить сейчас"},
+	"refresh.all":             {EN: "Refresh all", RU: "Обновить все"},
+	"refresh.all.note":        {EN: "fetches every upstream service of this list again now", RU: "заново загружает все сервисы списка из источников"},
+	"refresh.row":             {EN: "Refresh {tag}", RU: "Обновить {tag}"},
+	"refresh.hints.row":       {EN: "↵ open {tag} · r refresh", RU: "↵ открыть {tag} · r обновить"},
+	"refresh.queued_band":     {EN: "Refresh queued · job #{job}", RU: "Обновление в очереди · задача #{job}"},
+	"refresh.queued_for":      {EN: "Refresh of {tag} queued.", RU: "Обновление {tag} в очереди."},
+	"refresh.refreshing_band": {EN: "Refreshing {n} service.|Refreshing {n} services.", RU: "Обновляется {n} сервис.|Обновляются {n} сервиса.|Обновляются {n} сервисов."},
+	"refresh.accepted_band":   {EN: "{tag} now has {n} domain: accepted anyway.|{tag} now has {n} domains: accepted anyway.", RU: "В {tag} теперь {n} домен: принят вопреки проверке.|В {tag} теперь {n} домена: принят вопреки проверке.|В {tag} теперь {n} доменов: принят вопреки проверке."},
+	"refresh.dismissed_band":  {EN: "Dismissed. The next refresh checks again from the accepted snapshot.", RU: "Отклонено. Следующее обновление снова сверит с принятым снимком."},
+	"refresh.gone_band":       {EN: "That snapshot no longer waits for a decision.", RU: "Этот снимок больше не ждёт решения."},
+	"refresh.status.daily":    {EN: "refreshed daily at {at}", RU: "обновляются ежедневно в {at}"},
+	"refresh.status.waiting":  {EN: "{n} snapshot waiting|{n} snapshots waiting", RU: "{n} снимок ждёт решения|{n} снимка ждут решения|{n} снимков ждут решения"},
+	"refresh.status.failing":  {EN: "{n} failing|{n} failing", RU: "{n} с ошибками|{n} с ошибками|{n} с ошибками"},
+	"refresh.filter.state":    {EN: "{state} · {n}", RU: "{state} · {n}"},
+	"refresh.check.ok":        {EN: "Last check {time} · fetched ok", RU: "Последняя проверка {time} · загружено"},
+	"refresh.check.never":     {EN: "Not refreshed yet: the daily round or Refresh now will check it.", RU: "Ещё не обновлялся: проверит ежедневный обход или «Обновить сейчас»."},
+	"refresh.check.failing":   {EN: "Failing · {n} failure in a row · {error}|Failing · {n} failures in a row · {error}", RU: "Ошибка · {n} неудача подряд · {error}|Ошибка · {n} неудачи подряд · {error}|Ошибка · {n} неудач подряд · {error}"},
+	"refresh.check.last_good": {EN: "last good check {time}", RU: "последняя удачная проверка {time}"},
+
+	// The rejected band
+	"refresh.band.title_today": {EN: "Today’s snapshot was held back", RU: "Сегодняшний снимок задержан"},
+	"refresh.band.title_day":   {EN: "The snapshot of {date} was held back", RU: "Снимок от {date} задержан"},
+	"refresh.band.empty":       {EN: "It came back empty.", RU: "Он пришёл пустым."},
+	"refresh.band.shrink":      {EN: "It has {n} domain instead of {old}: a {pct} % drop, above the {limit} % safety limit.|It has {n} domains instead of {old}: a {pct} % drop, above the {limit} % safety limit.", RU: "В нём {n} домен вместо {old}: потеря {pct} %, больше допустимых {limit} %.|В нём {n} домена вместо {old}: потеря {pct} %, больше допустимых {limit} %.|В нём {n} доменов вместо {old}: потеря {pct} %, больше допустимых {limit} %."},
+	"refresh.band.removed":     {EN: "Removed · {n}", RU: "Убрано · {n}"},
+	"refresh.band.added":       {EN: "Added · {n}", RU: "Добавлено · {n}"},
+	"refresh.band.keep":        {EN: "Keep {n}, dismiss this one|Keep {n}, dismiss this one", RU: "Оставить {n}, отклонить этот|Оставить {n}, отклонить этот|Оставить {n}, отклонить этот"},
+	"refresh.band.footer":      {EN: "Routers keep the {n} domain until you decide.|Routers keep the {n} domains until you decide.", RU: "Роутеры сохраняют {n} домен, пока вы не решите.|Роутеры сохраняют {n} домена, пока вы не решите.|Роутеры сохраняют {n} доменов, пока вы не решите."},
+	"refresh.dismiss":          {EN: "Dismiss", RU: "Отклонить"},
+	"refresh.accept":           {EN: "Accept anyway…", RU: "Принять всё равно…"},
+	"refresh.accept.title":     {EN: "Accept {n} name for {tag}?|Accept {n} names for {tag}?", RU: "Принять {n} домен для {tag}?|Принять {n} домена для {tag}?|Принять {n} доменов для {tag}?"},
+	"refresh.accept.lose":      {EN: "Targets of {lists} lose {n} name on their next sync.|Targets of {lists} lose {n} names on their next sync.", RU: "Цели списков {lists} потеряют {n} домен при следующей синхронизации.|Цели списков {lists} потеряют {n} домена при следующей синхронизации.|Цели списков {lists} потеряют {n} доменов при следующей синхронизации."},
+	"refresh.accept.gain":      {EN: "Targets of {lists} get {n} new name on their next sync.|Targets of {lists} get {n} new names on their next sync.", RU: "Цели списков {lists} получат {n} новый домен при следующей синхронизации.|Цели списков {lists} получат {n} новых домена при следующей синхронизации.|Цели списков {lists} получат {n} новых доменов при следующей синхронизации."},
+	"refresh.accept.no_lists":  {EN: "No list holds this service: no target changes.", RU: "Сервис не входит ни в один список: цели не изменятся."},
+	"refresh.cause":            {EN: "Likely cause: {held} of the {n} removed name is now in {selector} (catalog of {date}).|Likely cause: {held} of the {n} removed names are now in {selector} (catalog of {date}).", RU: "Вероятная причина: {held} из {n} убранного домена теперь в {selector} (каталог от {date}).|Вероятная причина: {held} из {n} убранных доменов теперь в {selector} (каталог от {date}).|Вероятная причина: {held} из {n} убранных доменов теперь в {selector} (каталог от {date})."},
+	"refresh.cause_add":        {EN: "Add {selector}…", RU: "Добавить {selector}…"},
+	"refresh.cause_add_short":  {EN: "Add it…", RU: "Добавить…"},
+
+	// List warnings
+	"lists.warning.rejected":       {EN: "Rejected snapshot · {source}: a refresh lost {pct} % of its domains ({old} → {new}). Targets keep the old {n} until you decide.|Rejected snapshot · {source}: a refresh lost {pct} % of its domains ({old} → {new}). Targets keep the old {n} until you decide.", RU: "Задержанный снимок · {source}: обновление потеряло {pct} % доменов ({old} → {new}). Цели сохраняют прежний {n}, пока вы не решите.|Задержанный снимок · {source}: обновление потеряло {pct} % доменов ({old} → {new}). Цели сохраняют прежние {n}, пока вы не решите.|Задержанный снимок · {source}: обновление потеряло {pct} % доменов ({old} → {new}). Цели сохраняют прежние {n}, пока вы не решите."},
+	"lists.warning.rejected_empty": {EN: "Rejected snapshot · {source}: a refresh came back empty. Targets keep the old {n} until you decide.|Rejected snapshot · {source}: a refresh came back empty. Targets keep the old {n} until you decide.", RU: "Задержанный снимок · {source}: обновление пришло пустым. Цели сохраняют прежний {n}, пока вы не решите.|Задержанный снимок · {source}: обновление пришло пустым. Цели сохраняют прежние {n}, пока вы не решите.|Задержанный снимок · {source}: обновление пришло пустым. Цели сохраняют прежние {n}, пока вы не решите."},
+	"lists.warning.failing":        {EN: "Refresh failing · {source}: {n} failure in a row, {error}|Refresh failing · {source}: {n} failures in a row, {error}", RU: "Обновление с ошибками · {source}: {n} неудача подряд, {error}|Обновление с ошибками · {source}: {n} неудачи подряд, {error}|Обновление с ошибками · {source}: {n} неудач подряд, {error}"},
+
+	// Notifications
+	"refresh.notify.reason.empty":                 {EN: "it came back empty", RU: "он пришёл пустым"},
+	"refresh.notify.reason.shrink":                {EN: "a {pct} % drop", RU: "потеря {pct} %"},
+	"notify.routing.snapshot_rejected":            {EN: "{subject}: new snapshot held back", RU: "{subject}: новый снимок задержан"},
+	"notify.routing.snapshot_rejected.body":       {EN: "It has {n} domain instead of {old} ({reason}). Targets keep the old list until you decide.|It has {n} domains instead of {old} ({reason}). Targets keep the old list until you decide.", RU: "В нём {n} домен вместо {old} ({reason}). Цели сохраняют прежний список, пока вы не решите.|В нём {n} домена вместо {old} ({reason}). Цели сохраняют прежний список, пока вы не решите.|В нём {n} доменов вместо {old} ({reason}). Цели сохраняют прежний список, пока вы не решите."},
+	"notify.routing.refresh_failing":              {EN: "{subject}: refresh failing", RU: "{subject}: обновление не удаётся"},
+	"notify.routing.refresh_failing.body":         {EN: "{n} failure in a row: {error}. Targets keep the last good list.|{n} failures in a row: {error}. Targets keep the last good list.", RU: "{n} неудача подряд: {error}. Цели сохраняют последний удачный список.|{n} неудачи подряд: {error}. Цели сохраняют последний удачный список.|{n} неудач подряд: {error}. Цели сохраняют последний удачный список."},
+	"notify.routing.refresh_digest":               {EN: "Routing refresh: {n} service changed (+{added} / −{removed} domains)|Routing refresh: {n} services changed (+{added} / −{removed} domains)", RU: "Обновление маршрутизации: изменён {n} сервис (+{added} / −{removed} доменов)|Обновление маршрутизации: изменено {n} сервиса (+{added} / −{removed} доменов)|Обновление маршрутизации: изменено {n} сервисов (+{added} / −{removed} доменов)"},
+	"notify.routing.refresh_digest.body":          {EN: "{rejected} held back · {failing} started failing · {still_failing} still failing", RU: "задержано {rejected} · начали падать {failing} · всё ещё падают {still_failing}"},
+	"notify.routing.refresh_digest.none":          {EN: "Routing refresh: no changes", RU: "Обновление маршрутизации: без изменений"},
+	"notify.routing.refresh_digest.rejected":      {EN: "{n} held back|{n} held back", RU: "{n} задержан|{n} задержано|{n} задержано"},
+	"notify.routing.refresh_digest.failing":       {EN: "{n} started failing|{n} started failing", RU: "{n} начал падать|{n} начали падать|{n} начали падать"},
+	"notify.routing.refresh_digest.still_failing": {EN: "{n} still failing|{n} still failing", RU: "{n} всё ещё падает|{n} всё ещё падают|{n} всё ещё падают"},
+	"notify.routing.catalog_refresh_failed":       {EN: "Catalog: {source} failing since {since}", RU: "Каталог: {source} не обновляется с {since}"},
+	"notify.routing.catalog_refresh_failed.body":  {EN: "{error}. Search shows its catalog of {date}.", RU: "{error}. Поиск показывает его каталог от {date}."},
+	"notify.routing.catalog_refresh_failed.never": {EN: "{error}. Search has no catalog of it yet.", RU: "{error}. В поиске его каталога ещё нет."},
+
+	// Search
+	"catalog.nav":                   {EN: "Search", RU: "Поиск"},
+	"catalog.title":                 {EN: "Search the catalog", RU: "Поиск по каталогу"},
+	"catalog.status":                {EN: "v2fly lists and iplist sites and groups, kept here and searched instantly", RU: "списки v2fly, сайты и группы iplist, хранятся здесь и ищутся мгновенно"},
+	"catalog.status.refreshed":      {EN: "refreshed {time}", RU: "обновлён {time}"},
+	"catalog.status.failing":        {EN: "{source}: failing since {since}, showing the catalog of {date}", RU: "{source}: ошибки с {since}, показан каталог от {date}"},
+	"catalog.empty":                 {EN: "The catalog fills every day at {at}, or now with Refresh catalog.", RU: "Каталог заполняется каждый день в {at} или сейчас — кнопкой «Обновить каталог»."},
+	"catalog.refresh":               {EN: "Refresh catalog", RU: "Обновить каталог"},
+	"catalog.queued_band":           {EN: "Catalog refresh queued · job #{job}. Search keeps answering from the current catalog until it is done.", RU: "Обновление каталога в очереди · задача #{job}. Пока оно идёт, поиск отвечает по текущему каталогу."},
+	"catalog.placeholder":           {EN: "Find a list, site or group", RU: "Найти список, сайт или группу"},
+	"catalog.find":                  {EN: "Find", RU: "Найти"},
+	"catalog.hint":                  {EN: "Type part of a name: apple, netflix, youtube.com.", RU: "Введите часть имени: apple, netflix, youtube.com."},
+	"catalog.kind":                  {EN: "Kind", RU: "Вид"},
+	"catalog.portal":                {EN: "Portal", RU: "Портал"},
+	"catalog.kind.any":              {EN: "Kind: any", RU: "Вид: любой"},
+	"catalog.kind.list":             {EN: "list", RU: "список"},
+	"catalog.kind.group":            {EN: "group", RU: "группа"},
+	"catalog.kind.site":             {EN: "site", RU: "сайт"},
+	"catalog.portal.any":            {EN: "Portal: any", RU: "Портал: любой"},
+	"catalog.chip.all":              {EN: "All sources", RU: "Все источники"},
+	"catalog.chip.v2fly":            {EN: "v2fly · {n}", RU: "v2fly · {n}"},
+	"catalog.chip.iplist":           {EN: "iplist · {n}", RU: "iplist · {n}"},
+	"catalog.col.selector":          {EN: "Selector", RU: "Селектор"},
+	"catalog.col.kind":              {EN: "Kind", RU: "Вид"},
+	"catalog.col.lists":             {EN: "In lists", RU: "В списках"},
+	"catalog.not_a_service":         {EN: "not a service", RU: "не сервис"},
+	"catalog.line.list":             {EN: "list · {n} domain|list · {n} domains", RU: "список · {n} домен|список · {n} домена|список · {n} доменов"},
+	"catalog.line.group":            {EN: "group · {n} site · {domains} domains|group · {n} sites · {domains} domains", RU: "группа · {n} сайт · доменов: {domains}|группа · {n} сайта · доменов: {domains}|группа · {n} сайтов · доменов: {domains}"},
+	"catalog.line.site":             {EN: "site · group {group}", RU: "сайт · группа {group}"},
+	"catalog.line.pinned":           {EN: "{portal}, added pinned", RU: "{portal}, добавится с привязкой"},
+	"catalog.line.shadowed":         {EN: "a site of this name is found first: not selectable", RU: "сайт с тем же именем находится первым: выбрать нельзя"},
+	"catalog.age":                   {EN: "catalog {n} day old|catalog {n} days old", RU: "каталогу {n} день|каталогу {n} дня|каталогу {n} дней"},
+	"catalog.more":                  {EN: "{n} more: type more of the name|{n} more: type more of the name", RU: "ещё {n}: уточните имя|ещё {n}: уточните имя|ещё {n}: уточните имя"},
+	"catalog.no_match":              {EN: "Nothing in the catalog matches “{q}”.", RU: "В каталоге нет ничего похожего на «{q}»."},
+	"catalog.preview":               {EN: "Preview", RU: "Просмотр"},
+	"catalog.add":                   {EN: "Add to lists…", RU: "Добавить в списки…"},
+	"catalog.add_more":              {EN: "Add to more lists…", RU: "Добавить в другие списки…"},
+	"catalog.open":                  {EN: "Open service", RU: "Открыть сервис"},
+	"catalog.hints.row":             {EN: "↵ preview · a add to lists", RU: "↵ просмотр · a добавить в списки"},
+	"catalog.preview.add":           {EN: "Add to lists…", RU: "Добавить в списки…"},
+	"catalog.preview.new":           {EN: "fetched just now · not a service yet", RU: "загружено сейчас · пока не сервис"},
+	"catalog.preview.service":       {EN: "fetched just now · service {tag} · {lists}", RU: "загружено сейчас · сервис {tag} · {lists}"},
+	"catalog.preview.creates":       {EN: "creates the service, tag {tag}", RU: "создаст сервис с тегом {tag}"},
+	"catalog.preview.suffix":        {EN: "{n} suffix", RU: "с поддоменами: {n}"},
+	"catalog.preview.exact":         {EN: "{n} exact", RU: "точных: {n}"},
+	"routing.settings.note":         {EN: "Upstream refresh, the catalog and router sync.", RU: "Обновление источников, каталог и синхронизация роутеров."},
+	"routing.settings.refresh":      {EN: "Upstream refresh", RU: "Обновление источников"},
+	"routing.settings.catalog":      {EN: "Catalog", RU: "Каталог"},
+	"routing.settings.routers":      {EN: "Routers", RU: "Роутеры"},
+	"routing.settings.routers.note": {EN: "Used from router sync on.", RU: "Используется, когда появится синхронизация роутеров."},
+
+	// Jobs
+	"job.routing.refresh":                     {EN: "Refresh a service", RU: "Обновление сервиса"},
+	"job.routing.refresh.step.refresh":        {EN: "Fetch and decide", RU: "Загрузка и решение"},
+	"job.routing.refresh_round":               {EN: "Daily upstream refresh", RU: "Ежедневное обновление источников"},
+	"job.routing.refresh_round.step.refresh":  {EN: "Refresh every service in a list", RU: "Обновление всех сервисов из списков"},
+	"job.routing.refresh_round.step.digest":   {EN: "Digest", RU: "Сводка"},
+	"job.routing.catalog_refresh":             {EN: "Catalog refresh", RU: "Обновление каталога"},
+	"job.routing.catalog_refresh.step.v2fly":  {EN: "v2fly lists", RU: "Списки v2fly"},
+	"job.routing.catalog_refresh.step.iplist": {EN: "iplist portals", RU: "Порталы iplist"},
+	"job.routing.catalog_refresh.step.finish": {EN: "Finish", RU: "Завершение"},
+	"job.routing.prune":                       {EN: "Routing retention", RU: "Очистка маршрутизации"},
+	"job.routing.prune.step.prune":            {EN: "Delete old snapshots and catalog rows", RU: "Удаление старых снимков и строк каталога"},
+}
+
+func init() {
+	for k, v := range refreshMessages {
+		messages[k] = v
+	}
+}

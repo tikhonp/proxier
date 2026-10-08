@@ -1,0 +1,23 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ routingSettingsPage(s ui.Shell, pages []ui.SettingsPage, v settingsView) {
+	@ui.SettingsLayout(s, pages, "routing") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.routing") }</h2>
+			<p>{ i18n.T(ctx, "routing.settings.note") }</p>
+		</div>
+		if v.Saved {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "ui.saved") }
+				}
+			</div>
+		}
+		@ui.SettingsGroups(v.Groups, v.Values, v.Errs, "/settings/routing")
+	}
+}

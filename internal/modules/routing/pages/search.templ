@@ -1,0 +1,152 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ searchPage(s ui.Shell, v searchView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "catalog.title") }</h1>
+				<p class="subtle">{ v.Status }</p>
+				for _, f := range v.Failing {
+					<p class="sm gold">{ f }</p>
+				}
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "catalog.refresh", Label: "catalog.refresh", Method: "POST", Href: "/routing/catalog/refresh", Fields: map[string]string{"q": v.Q}})
+			</div>
+		</div>
+		if v.Band != "" {
+			@ui.Alert("iris", "status") {
+				{ v.Band }
+			}
+		}
+		if v.Empty != "" {
+			@ui.Alert("gold", "status") {
+				{ v.Empty }
+			}
+		}
+		<form method="get" action={ templ.SafeURL(searchPath) } class="search-form" hx-get={ searchPath } hx-select="#search-results" hx-target="#search-results" hx-swap="outerHTML" hx-push-url="true" hx-trigger="input changed delay:300ms from:find input[name=q], change from:find select, submit">
+			<input class="pc-inp" type="search" name="q" value={ v.Q } placeholder={ i18n.T(ctx, "catalog.placeholder") } aria-label={ i18n.T(ctx, "catalog.placeholder") } autocomplete="off" autocapitalize="off" spellcheck="false" autofocus/>
+			if v.Source != "" {
+				<input type="hidden" name="source" value={ v.Source }/>
+			}
+			<select name="kind" class="pc-inp sel" aria-label={ i18n.T(ctx, "catalog.kind") }>
+				for _, o := range v.Kinds {
+					<option value={ o.Value } selected?={ o.Value == v.Kind }>{ o.Label }</option>
+				}
+			</select>
+			<select name="portal" class="pc-inp sel" aria-label={ i18n.T(ctx, "catalog.portal") }>
+				for _, o := range v.Portals {
+					<option value={ o.Value } selected?={ o.Value == v.Portal }>{ o.Label }</option>
+				}
+			</select>
+			<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "catalog.find") }</button>
+		</form>
+		<div class="search-cols">
+			@searchResults(v)
+			<aside id="preview" class="preview" aria-live="polite">
+				if v.Preview != nil {
+					@previewDrawer(*v.Preview)
+				}
+			</aside>
+		</div>
+	}
+}
+
+// searchResults is the part the query field swaps: the chips and the rows.
+templ searchResults(v searchView) {
+	<div id="search-results" class="search-results">
+		@ui.FilterBar(v.Chips, nil, "")
+		if v.Q == "" {
+			<p class="subtle area-body">{ i18n.T(ctx, "catalog.hint") }</p>
+		} else if v.NoMatch != "" {
+			@ui.EmptyState(v.NoMatch, "")
+		} else {
+			<div class="colhead cat" aria-hidden="true">
+				<span>{ i18n.T(ctx, "catalog.col.selector") }</span>
+				<span>{ i18n.T(ctx, "catalog.col.kind") }</span>
+				<span>{ i18n.T(ctx, "catalog.col.lists") }</span>
+				<span></span>
+			</div>
+			for _, r := range v.Rows {
+				<div class="row cat pc-row" data-row={ r.Selector } data-href={ r.PreviewHref } data-hint={ i18n.T(ctx, "catalog.hints.row") }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold seltext">{ r.Selector }</span>
+						<span class="sm subtle">{ r.Line }</span>
+					</span>
+					<span class="subtle">{ r.Kind }</span>
+					if r.Lists != "" {
+						<span class="sm">{ r.Lists }</span>
+					} else {
+						<span class="sm muted">{ i18n.T(ctx, "catalog.not_a_service") }</span>
+					}
+					<span class="acts">
+						<a href={ templ.SafeURL(r.PreviewHref) } class="pc-btn pc-sm pc-ghost" hx-get={ previewURL(r.Selector) } hx-target="#preview" hx-swap="innerHTML" hx-push-url="false">{ i18n.T(ctx, "catalog.preview") }</a>
+						if r.AddHref != "" {
+							<a href={ templ.SafeURL(r.AddHref) } class="pc-btn pc-sm" data-key="a" data-row-only>{ i18n.T(ctx, r.AddLabel) }</a>
+						}
+					</span>
+				</div>
+			}
+			if v.More != "" {
+				<p class="pager">{ v.More }</p>
+			}
+		}
+	</div>
+}
+
+// previewDrawer is what a selector holds right now.
+templ previewDrawer(p previewView) {
+	<section class="area drawer-panel" aria-label={ p.Selector }>
+		<div class="pc-title">
+			<h2 class="seltext">{ p.Selector }</h2>
+			<span class="flex1"></span>
+			if p.CloseHref != "" {
+				<a href={ templ.SafeURL(p.CloseHref) } class="pc-seg pc-close" data-esc aria-label={ i18n.T(ctx, "ui.close") }>×</a>
+			} else {
+				<a href="/routing/search/preview" class="pc-seg pc-close" hx-get="/routing/search/preview" hx-target="#preview" hx-swap="innerHTML" data-esc aria-label={ i18n.T(ctx, "ui.close") }>×</a>
+			}
+		</div>
+		if p.Line != "" {
+			<p class="sm subtle area-body">{ p.Line }</p>
+		}
+		if p.Err != "" {
+			<p class="err area-body" role="alert">{ p.Err }</p>
+		}
+		if len(p.Counts) > 0 {
+			<p class="area-body">
+				for i, c := range p.Counts {
+					if i > 0 {
+						·
+					}
+					<span>{ c }</span>
+				}
+			</p>
+		}
+		for _, d := range p.Names {
+			<div class="row dline"><span></span><span>{ d.Name }</span><span class="sm subtle">{ d.Kind }</span></div>
+		}
+		if p.More != "" {
+			<p class="pager">{ p.More }</p>
+		}
+		if len(p.Skipped) > 0 {
+			<p class="sm bold area-body">{ i18n.N(ctx, "services.skipped_n", int64(len(p.Skipped))) }</p>
+			for _, sk := range p.Skipped {
+				<div class="row skip"><span class="seltext">{ sk.Entry }</span><span class="sm subtle">{ sk.Reason }</span></div>
+			}
+		}
+		if p.AddHref != "" {
+			<p class="area-body">
+				<a href={ templ.SafeURL(p.AddHref) } class="pc-btn pc-pri pc-sm" data-action="catalog.preview.add">{ i18n.T(ctx, "catalog.add") }</a>
+				<span class="sm subtle">{ p.AddNote }</span>
+			</p>
+		} else if p.OpenHref != "" {
+			<p class="area-body"><a href={ templ.SafeURL(p.OpenHref) } class="pc-btn pc-sm">{ i18n.T(ctx, "catalog.open") }</a></p>
+		}
+	</section>
+}

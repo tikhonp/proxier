@@ -31,6 +31,8 @@ var messages = i18n.Messages{
 	},
 	"ui.save":              {EN: "Save", RU: "Сохранить"},
 	"ui.saved":             {EN: "Saved.", RU: "Сохранено."},
+	"ui.clear_secret":      {EN: "Clear it", RU: "Удалить"},
+	"ui.secret_kept":       {EN: "set · leave empty to keep", RU: "задан · оставьте пустым, чтобы сохранить"},
 	"ui.changed_hint":      {EN: "Changed from the default", RU: "Отличается от значения по умолчанию"},
 	"ui.settings_sections": {EN: "Settings sections", RU: "Разделы настроек"},
 	"ui.hints.default":     {EN: "j k move · ↵ open", RU: "j k вверх-вниз · ↵ открыть"},
