@@ -14,6 +14,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -143,14 +144,22 @@ func (s *Service) snapshot(ctx context.Context, r *jobs.Run) error {
 	}
 	name := s.Now().In(loc).Format(FileLayout)
 	tmp := filepath.Join(dir, "."+name+".tmp")
-	_ = os.Remove(tmp) // VACUUM INTO refuses an existing file: a leftover of a crash
+	_ = os.Remove(tmp) // VACUUM INTO refuses a file with content: a leftover of a crash
+	// VACUUM INTO accepts an empty file. Creating it here keeps it private
+	// from the start (SQLite would create it world-readable) and turns an
+	// unwritable directory into an error that names it, not SQLite's
+	// "unable to open database file (14)".
+	f, err := os.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if errors.Is(err, os.ErrPermission) {
+		return jobs.Permanent(notWritable(dir))
+	}
+	if err != nil {
+		return err
+	}
+	_ = f.Close()
 	if err := s.d.VacuumInto(ctx, tmp); err != nil {
 		_ = os.Remove(tmp)
 		return fmt.Errorf("snapshot: %w", err)
-	}
-	if err := os.Chmod(tmp, 0o600); err != nil { // VACUUM INTO creates it world-readable
-		_ = os.Remove(tmp)
-		return err
 	}
 	if err := syncFile(tmp); err != nil {
 		_ = os.Remove(tmp)
@@ -168,6 +177,20 @@ func (s *Service) snapshot(ctx context.Context, r *jobs.Run) error {
 	}
 	r.Log().Info("Wrote %s (%d bytes)", name, fi.Size())
 	return r.SavePayload(ctx, payload{File: name, Size: fi.Size()})
+}
+
+// notWritable says who owns dir. Docker creates a bind mount's missing host
+// directory as root, so a backup container mounting the backups directory
+// before Proxier's first backup leaves one Proxier can't write; a retry won't
+// change that.
+func notWritable(dir string) error {
+	owner := ""
+	if fi, err := os.Stat(dir); err == nil {
+		if st, ok := fi.Sys().(*syscall.Stat_t); ok {
+			owner = fmt.Sprintf(", owned by uid %d with mode %v", st.Uid, fi.Mode().Perm())
+		}
+	}
+	return fmt.Errorf("the backup directory %s is not writable by uid %d%s: chown it to %d", dir, os.Geteuid(), owner, os.Geteuid())
 }
 
 func syncFile(path string) error {

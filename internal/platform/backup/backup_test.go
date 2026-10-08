@@ -293,6 +293,35 @@ func TestBackupEvents(t *testing.T) {
 	}
 }
 
+// Docker creates a bind mount's missing host directory as root, so a backup
+// container mounting /data/backups before Proxier's first backup leaves a
+// directory Proxier can't write. SQLite's "unable to open database (14)" says
+// nothing of that; the job names the directory and fails without a retry.
+func TestUnwritableBackupDirIsNamed(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root writes anywhere")
+	}
+	r := newRig(t, nil)
+	if err := os.MkdirAll(r.s.Dir(), 0o500); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(r.s.Dir(), 0o700) })
+	id := r.backUp()
+	// Failed after one attempt, not queued for the second: a retry won't change
+	// the directory's owner.
+	if r.h.State(id) != jobs.Failed {
+		t.Fatalf("job state %s", r.h.State(id))
+	}
+	bad := r.events("backup.failed")
+	if len(bad) != 1 {
+		t.Fatalf("failed: %+v", bad)
+	}
+	msg, _ := bad[0].Payload["error"].(string)
+	if !strings.Contains(msg, r.s.Dir()) || !strings.Contains(msg, "not writable") || !strings.Contains(msg, "uid") {
+		t.Fatalf("error %q doesn't say which directory is not writable by whom", msg)
+	}
+}
+
 func TestBackupScheduleFollowsSetting(t *testing.T) {
 	r := newRig(t, nil)
 	r.stop() // the test drives the scheduler by hand

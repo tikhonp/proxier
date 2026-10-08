@@ -44,7 +44,7 @@ Same pattern as vk2tg and alcs:
 /data/tailnet/                    the tailnet node's state (only once the tailnet is on)
 ```
 
-The directory is created by the image owned by uid 65532; a bind mount on the host must be made the same way (`sudo install -d -o 65532 -g 65532 -m 700 ~/.local/share/proxier`). The tailnet state is not in the database or its snapshots.
+The directory is created by the image owned by uid 65532; a bind mount on the host must be made the same way, and so must `backups/` in it, because the backup container mounts that directory and Docker would otherwise create it owned by root, which Proxier can't write (`sudo install -d -o 65532 -g 65532 -m 700 ~/.local/share/proxier ~/.local/share/proxier/backups`). The tailnet state is not in the database or its snapshots.
 
 ## First start
 
