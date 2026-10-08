@@ -238,8 +238,8 @@ internal/modules/servers/    templates, provisioning, stack rendering, health, s
     dns/cloudflare/
     checkers/checkhost/
 internal/modules/subscriptions/   conf, store, output (formats, hiding, stubs, headers), subs, links, fetch, alerts, pages, substest
-internal/modules/routing/    catalog, services, lists, sync engine, discovery
-    sources/{v2fly,iplist,url,custom}/
-    targets/{mikrotik,shadowrocket}/
+internal/modules/routing/         conf, store, change (the sync seam), domain, selector, snapshot (pure), sources (+ sourcestest),
+                                  services, pages, routingtest; later own, lists, refresh, catalog, shadowrocket, mtvpn,
+                                  routeros (+ routerostest), routers, discovery
 internal/modules/routerscripts/
 ```

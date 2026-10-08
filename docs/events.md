@@ -89,25 +89,37 @@ The payload lists the fields beyond the subject. Notification texts are given in
 
 ## Routing
 
+Every type is declared from [3a](./build/3a.md#events); the sub-phase in brackets is the one that first records it. Lists in payloads are one comma-joined string.
+
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `routing.catalog_refreshed` | — | entries, per source | off | |
-| `routing.catalog_refresh_failed` | — | source, error, failing since | **on** after 3 days of failures | |
-| `routing.service_added` / `.removed` / `.updated` | service | selector, tag | off | |
-| `routing.snapshot_accepted` | service | added, removed, counts | **on, as one daily digest** | "Routing refresh: 3 services changed (+42 / −5 domains), 1 rejected" |
-| `routing.snapshot_rejected` | service | reason, previous and new counts | **on** (in the digest, and alone when outside the daily refresh) | |
-| `routing.refresh_failing` | service | consecutive failures, error | **on** at 3 | |
-| `routing.list_created` / `.updated` / `.deleted` | routing list | changes | off | |
-| `routing.list_refused_server_hostname` | routing list | domain, server | off | Shown in the UI at once. |
-| `routing.router_added` / `.removed` | router | — | off | |
-| `routing.router_connected` | router | RouterOS version, board | off | First successful connection. Ends "awaiting setup". |
-| `routing.router_synced` | router | tags added / updated / removed, counts | off | |
-| `routing.router_sync_failed` | router | step, error, consecutive | **on** at the 2nd consecutive failure (at once for a manual sync) | |
-| `routing.router_recovered` | router | after failures | **on** | |
-| `routing.drift_detected` | router | tags differing | **on** only when auto-repair is off | |
-| `routing.unmanaged_tags_found` | router | tags | **on** once per new set | |
-| `routing.shadowrocket_created` / `.updated` | Shadowrocket config | — | off | |
-| `routing.discovery_completed` / `.failed` | discovery run | hosts found, suggestions | off | The admin is watching the run. |
+| `routing.service_added` | service | selector (`""` custom), tag, source, origin | off | 3a |
+| `routing.service_updated` | service | changes (of source, name, tag, description, domains), from, to (selectors for a switch, tags for a rename), added, removed (names, for a domains change) | off | 3a |
+| `routing.service_removed` | service | selector, tag | off | 3a |
+| `routing.snapshot_accepted` | service | added, removed, suffix, exact, forced, in_round | off: the digest carries it | 3c |
+| `routing.snapshot_rejected` | service | reason, old_count, new_count, lost_pct, in_round | **on** outside the daily round 🟡 | 3c |
+| `routing.snapshot_dismissed` | service | new_count, automatic (a refresh equal to the accepted snapshot ended it) | off | 3c |
+| `routing.refresh_failing` | service | failures, error | **on** at 3 🔴 | 3c |
+| `routing.refresh_digest` | `routing:refresh` | changed, added, removed, rejected, failing (started failing this round), still_failing, services (changed tags) | **on** when changed + rejected + failing > 0 📋 | 3c. "Routing refresh: 3 services changed (+42 / −5 domains), 1 rejected" |
+| `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | 3c |
+| `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 days of failures 🔴 | 3c |
+| `routing.list_created` | routing list | name | off | 3b |
+| `routing.list_updated` | routing list | added, removed (tags), reordered, changes (of name, description, default) | off | 3b |
+| `routing.list_deleted` | routing list | name, moved (target names) | off | 3b |
+| `routing.list_refused_server_hostname` | routing list | domain, server, hostname, service | off | 3b. Shown in the UI at once. |
+| `routing.shadowrocket_created` / `.updated` / `.deleted` | Shadowrocket config | name, list / changes (of base, list, policy, token, disabled, enabled), version / name | off | 3d |
+| `routing.router_added` | router | list, host, by (admin / routerscripts) | off | 3e |
+| `routing.router_updated` | router | changes (of name, connection, names, list), from, to (list names) | off | 3e |
+| `routing.router_connected` | router | version, board | off | 3e. First successful connection; ends "awaiting setup". |
+| `routing.router_synced` | router | added, updated, removed, recorded, trigger | off | 3e |
+| `routing.router_sync_failed` | router | step, error, consecutive, manual, attempt, final | **on** when the job gives up (final) 🔴 | 3e |
+| `routing.router_recovered` | router | failures, notified | **on** after a notified failure 🟢 | 3e |
+| `routing.router_paused` / `.resumed` | router | — | off | 3f |
+| `routing.router_removed` | router | name, cleaned | off | 3f |
+| `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | 3f |
+| `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | 3f |
+| `routing.unmanaged_tag_ignored` | router | tag, ignored | off | 3f |
+| `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | 3g. The admin is watching the run. |
 
 ## Router scripts
 

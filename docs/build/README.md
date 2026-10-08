@@ -38,7 +38,7 @@ Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cr
 
 | Sub-phase | Contract | State |
 |---|---|---|
-| 3a Routing module, schema, sources, services | [3a.md](./3a.md) | contract written 2026-10-08 |
+| 3a Routing module, schema, sources, services | [3a.md](./3a.md) | done 2026-10-09 (real upstreams and a real-browser look are the user's) |
 | 3b Routing lists, ownership, server-hostname guard | [3b.md](./3b.md) | contract written 2026-10-08 |
 | 3c Upstream refresh, catalog, search | [3c.md](./3c.md) | contract written 2026-10-08 |
 | 3d Shadowrocket config, mtvpn import | [3d.md](./3d.md) | contract written 2026-10-08 |

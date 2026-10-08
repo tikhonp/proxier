@@ -17,19 +17,19 @@ A service is a named set of domains from one source, and the unit that goes into
    - **v2fly**: a `404` means "v2fly has no list `<name>`", with a link to search.
    - **iplist**: tries the portals in order. Every reachable portal answering empty means "not found". An unreachable portal is reported as unreachable, never as "not found".
    - **URL**: an HTTP error is reported.
-5. The parsed result becomes the first snapshot (suffix and exact domains, skipped entries) and the service is created. If routing lists were chosen, it is added to them, which triggers sync. → `routing.service_added{selector, tag}`
+5. The parsed result becomes the first snapshot (suffix and exact domains, skipped entries) and the service is created. A selector that resolves to no usable name is refused ("v2fly:x has no names RouterOS can use (3 skipped)"). If routing lists were chosen, it is added to them, which triggers sync. → `routing.service_added{selector, tag}`
 
 ## Steps — custom services
 
-1. Routing → Services → **New custom service**: name, tag (a slug of the name, editable), description.
+1. Routing → Services → **New custom service**: name, tag (a slug of the name, editable), description. It starts with no domains (an empty snapshot installs nothing); the editor opens next.
 2. The **domain editor** is a table of domain, **suffix** or **exact**, and note. Two ways to add domains:
-   - **Paste many**: one per line. Accepts v2fly-like lines (`domain:`, `full:`, plain = suffix) and full URLs (the host is taken).
+   - **Paste many**: one per line. Accepts v2fly-like lines (`domain:`, `full:`, plain = suffix) and full URLs (the host is taken). `regexp:`, `keyword:` and `include:` lines are refused; `#` comments are ignored. **Preview** shows what the paste does ("+12 added · 2 merged · 1 refused"); **Add to the table** applies it. Nothing is stored until **Save**.
 3. Every domain is normalised:
    - lowercased and trimmed;
    - scheme, path, port and a leading `*.` removed (`*.example.com` means suffix `example.com`);
    - internationalised names converted to punycode.
 
-   Then validated: IP addresses are refused (services hold domains only), and so are invalid names. Duplicates are merged, and a suffix entry absorbs exact entries under it, with a note.
+   Then validated: IP addresses are refused (services hold domains only), and so are invalid names. Duplicates are merged (suffix wins over exact), and a suffix entry absorbs every entry under it, exact or suffix, with a note ("api.example.com goes under example.com").
 4. Each entry shows **already covered by** when another service in the same routing lists has it or a suffix above it (informational).
 5. **Save** writes the domains and a new snapshot, then the targets of its lists re-sync. → `routing.service_added` (first save) or `routing.service_updated{added, removed}`
 6. Saving is refused if any domain would trip the [server hostname guard](./routing-lists.md#rules) in a list the service is in.
@@ -41,7 +41,7 @@ A service is a named set of domains from one source, and the unit that goes into
 3. **History**: snapshots (accepted, rejected, superseded) with counts and a diff against the previous accepted one. A **rejected** snapshot has **Accept anyway** ([upstream refresh](./upstream-refresh.md)).
 4. Actions:
    - **Refresh now**, which runs the refresh flow for this service;
-   - **Switch source** (upstream);
+   - **Switch source** (upstream): the new source's snapshot is accepted at once, without the safety checks of the refresh (the admin chose the source);
    - **Edit domains** (custom);
    - **Rename tag** (custom), which makes routers drop the old tag and install the new one;
    - **Remove**, only when it is in no routing list.

@@ -22,6 +22,7 @@ import (
 	"time"
 	_ "time/tzdata" // the image has no zoneinfo
 
+	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/platform"
@@ -37,7 +38,8 @@ func modules() []module.Module {
 	srv := servers.New()
 	subs := subscriptions.New(subscriptions.Ports{Catalog: srv.EndpointCatalog(), Rotator: srv.Rotator()})
 	srv.SetUsage(subs.Usage())
-	return []module.Module{srv, subs}
+	rt := routing.New(routing.Ports{Hostnames: srv.ServerHostnames(), Catalog: srv.EndpointCatalog(), Dialer: srv.ProxyDialer()})
+	return []module.Module{srv, subs, rt}
 }
 
 const usage = `Usage:

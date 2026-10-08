@@ -586,3 +586,32 @@ a.pc-sb { display: inline-flex; align-items: center; text-decoration: none; }
 .row.cutoff-item > span:nth-child(2) { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .row.cutoff-item .detail { grid-column: 1 / -1; overflow-wrap: anywhere; }
 .row.cutoff-item form { grid-column: 3; grid-row: 1; }
+
+/* Routing services (3a): the list, the service page, the snapshot diff, the domain editor */
+.offscreen { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.row.svc, .colhead.svc { grid-template-columns: minmax(0, 1.4fr) 70px 110px 110px 110px minmax(0, 1fr); align-items: start; }
+a.row.svc { text-decoration: none; color: inherit; }
+.row.svc .seltext, .row.skip .seltext { overflow-wrap: anywhere; }
+.row.dom { grid-template-columns: minmax(0, 1fr) 110px minmax(0, 1fr); border-top: 1px solid var(--overlay); }
+.row.skip { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); border-top: 1px solid var(--overlay); }
+.row.snap { grid-template-columns: 150px 120px 70px minmax(0, 1fr); text-decoration: none; color: inherit; border-top: 1px solid var(--overlay); }
+.row.dline { grid-template-columns: 16px minmax(0, 1fr) 110px; border-top: 1px solid var(--overlay); }
+.row.dline.add { background: var(--pine-bg); }
+.row.dline.add .mk { color: var(--foam); font-weight: 600; }
+.row.dline.del { background: var(--love-bg); }
+.row.dline.del .mk { color: var(--love); font-weight: 600; }
+.row.edrow, .colhead.edrow { grid-template-columns: 16px minmax(0, 1.4fr) 200px minmax(0, 1fr) 40px; gap: 12px; align-items: start; }
+.row.edrow { border-top: 1px solid var(--overlay); }
+.row.edrow .pc-inp { width: 100%; }
+.row.edrow .mark { color: var(--foam); font-weight: 600; padding-top: 6px; }
+.row.edrow .inline-fields { padding-top: 4px; }
+.row.edrow.invalid { background: var(--love-bg); }
+.form.wide { max-width: none; padding: 12px 16px; }
+.form.wide textarea { width: 100%; }
+.paste-report { display: flex; flex-direction: column; gap: 2px; }
+@media (max-width: 760px) {
+  .colhead.svc, .colhead.edrow { display: none; }
+  .row.svc, .row.dom, .row.skip, .row.snap { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .row.edrow { grid-template-columns: 16px minmax(0, 1fr) 40px; }
+  .row.edrow > .inline-fields, .row.edrow > input.pc-inp { grid-column: 2 / 3; }
+}

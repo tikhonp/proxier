@@ -1,0 +1,192 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// ------------------------------------------------------------------ the list
+
+templ listPage(s ui.Shell, v listView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "services.title") }</h1>
+				<p class="subtle">{ v.Status }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "services.new", Label: "services.new", Method: "GET", Href: listPath + "/new"})
+				@ui.ActionButton(ui.Action{ID: "services.add", Label: "services.add", Method: "GET", Href: listPath + "/add", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if v.Empty {
+			@ui.EmptyState(i18n.T(ctx, "services.empty"), i18n.T(ctx, "services.empty_next"))
+		} else {
+			@ui.FilterBar(v.Chips, nil, "")
+			if len(v.Rows) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "services.none_match"), "")
+			} else {
+				<div class="colhead svc" aria-hidden="true">
+					<span>{ i18n.T(ctx, "services.col.service") }</span>
+					<span>{ i18n.T(ctx, "services.col.source") }</span>
+					<span>{ i18n.T(ctx, "services.col.domains") }</span>
+					<span>{ i18n.T(ctx, "services.col.refreshed") }</span>
+					<span>{ i18n.T(ctx, "services.col.state") }</span>
+					<span>{ i18n.T(ctx, "services.col.lists") }</span>
+				</div>
+				for _, r := range v.Rows {
+					<a href={ templ.SafeURL(svcHref(r.ID)) } class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ i18n.T(ctx, "services.hints.row", i18n.Args{"tag": r.Tag}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold">{ r.Tag }</span>
+							<span class="sm subtle seltext">{ r.Sub }</span>
+						</span>
+						<span class="subtle">{ r.Source }</span>
+						<span class="subtle">{ r.Domains }</span>
+						<span class="sm subtle">{ r.When }</span>
+						@ui.Status(r.StateKind, r.State)
+						if r.NoLists {
+							<span class="sm muted">{ i18n.T(ctx, "services.none") }</span>
+						} else {
+							<span class="sm subtle">{ r.Lists }</span>
+						}
+					</a>
+				}
+				<p class="pager">
+					{ v.Info }
+					if v.PrevHref != "" {
+						· <a href={ templ.SafeURL(v.PrevHref) }>{ i18n.T(ctx, "services.prev_page") }</a>
+					}
+					if v.NextHref != "" {
+						· <a href={ templ.SafeURL(v.NextHref) }>{ i18n.T(ctx, "services.next_page") }</a>
+					}
+				</p>
+			}
+		}
+	}
+}
+
+// ------------------------------------------------------------------- add
+
+templ addPage(s ui.Shell, v addView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href={ templ.SafeURL(listPath) }>{ i18n.T(ctx, "services.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "services.add") }</span></nav>
+				<h1>{ i18n.T(ctx, "services.add.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "services.add.note") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(listPath) } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="svc-selector">{ i18n.T(ctx, "services.field.selector") }</label>
+				<input id="svc-selector" class="pc-inp" name="selector" value={ v.Selector } placeholder="v2fly:anthropic" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus aria-invalid?={ v.Err != "" }/>
+				if v.Err != "" {
+					<p class="err" role="alert">{ v.Err }</p>
+				}
+				<p class="help">{ i18n.T(ctx, "services.field.selector.help") }</p>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="services.add.submit">{ i18n.T(ctx, "services.add.submit") }</button>
+				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+		if v.Taken != nil {
+			@takenArea(*v.Taken)
+		}
+	}
+}
+
+templ takenArea(t takenView) {
+	@ui.Area(i18n.T(ctx, "services.taken.title", i18n.Args{"tag": t.Tag}), "") {
+		<div class="area-body">
+			<dl class="kv">
+				<dt>{ i18n.T(ctx, "services.source.tag") }</dt>
+				<dd><a href={ templ.SafeURL(svcHref(t.ID)) }>{ t.Tag }</a></dd>
+				<dt>{ i18n.T(ctx, "services.source.selector") }</dt>
+				<dd>{ t.Selector }</dd>
+				<dt>{ i18n.T(ctx, "services.source.source") }</dt>
+				<dd>{ t.Source }</dd>
+				<dt>{ i18n.T(ctx, "services.source.lists") }</dt>
+				<dd>{ t.Lists }</dd>
+			</dl>
+			if t.Same {
+				<p>{ i18n.T(ctx, "services.taken.same", i18n.Args{"tag": t.Tag}) }</p>
+				<div class="form-actions">
+					@ui.ActionButton(ui.Action{ID: "services.taken.open", Label: "services.taken.open", Method: "GET", Href: svcHref(t.ID), Kind: ui.Primary})
+				</div>
+			} else {
+				<p>{ i18n.T(ctx, "services.taken.other", i18n.Args{"tag": t.Tag}) }</p>
+				<form method="post" action={ templ.SafeURL(svcHref(t.ID) + "/switch") } class="form-actions">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<input type="hidden" name="selector" value={ t.New }/>
+					<button type="submit" class="pc-btn pc-pri" data-action="services.taken.switch">{ i18n.T(ctx, "services.taken.switch", i18n.Args{"tag": t.Tag, "selector": t.New}) }</button>
+				</form>
+			}
+		</div>
+		if t.Suggest != "" {
+			<form method="post" action={ templ.SafeURL(listPath) } class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<div class="field">
+					<label for="svc-other">{ i18n.T(ctx, "services.taken.name_it") }</label>
+					<input id="svc-other" class="pc-inp" name="selector" value={ t.Suggest } autocomplete="off" spellcheck="false"/>
+					<p class="help">{ i18n.T(ctx, "services.taken.name_it.help") }</p>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn">{ i18n.T(ctx, "services.taken.add_separate") }</button>
+				</div>
+			</form>
+		}
+	}
+}
+
+// ------------------------------------------------------------ custom create
+
+templ newPage(s ui.Shell, v newView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href={ templ.SafeURL(listPath) }>{ i18n.T(ctx, "services.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "services.new") }</span></nav>
+				<h1>{ i18n.T(ctx, "services.new.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "services.new.note") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(listPath + "/custom") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			@customFields(v.Name, v.Tag, v.Description, v.Errs, true)
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="services.new.submit">{ i18n.T(ctx, "services.new.submit") }</button>
+				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ fieldErr(errs map[string]string, key string) {
+	if errs[key] != "" {
+		<p class="err" role="alert">{ errs[key] }</p>
+	}
+}
+
+templ customFields(name, tag, description string, errs map[string]string, autofocus bool) {
+	<div class="field">
+		<label for="svc-name">{ i18n.T(ctx, "services.field.name") }</label>
+		<input id="svc-name" class="pc-inp" name="name" value={ name } maxlength="60" autocomplete="off" autofocus?={ autofocus } aria-invalid?={ errs["name"] != "" }/>
+		@fieldErr(errs, "name")
+	</div>
+	<div class="field">
+		<label for="svc-tag">{ i18n.T(ctx, "services.field.tag") }</label>
+		<input id="svc-tag" class="pc-inp" name="tag" value={ tag } maxlength="63" autocomplete="off" autocapitalize="off" spellcheck="false" aria-invalid?={ errs["tag"] != "" }/>
+		if errs["tag"] != "" {
+			@fieldErr(errs, "tag")
+		} else {
+			<p class="help">{ i18n.T(ctx, "services.field.tag.help") }</p>
+		}
+	</div>
+	<div class="field">
+		<label for="svc-desc">{ i18n.T(ctx, "services.field.description") }</label>
+		<textarea id="svc-desc" class="pc-inp" name="description" rows="2" aria-invalid?={ errs["description"] != "" }>{ description }</textarea>
+		@fieldErr(errs, "description")
+	</div>
+}

@@ -93,21 +93,30 @@ erDiagram
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Catalog entry** | source, portal, selector, kind (v2fly list / iplist site / iplist group), group, site count, refreshed | Search. |
-| **Catalog domain** | source, selector, domain, suffix or exact | Reverse index for discovery's catalog lookup. |
-| **Service** | tag (unique), source, selector, portal, URL, display name, description, current snapshot, last checked, consecutive failures, last error | |
-| **Snapshot** | service, fetched, status (accepted / rejected / superseded), rejection reason, suffix domains, exact domains, skipped entries, hash, counts | Rejected snapshots wait for "accept anyway". Older accepted ones are kept 90 days for diffs. |
-| **Custom domain** | service, domain, suffix or exact, note | Custom services only. Each save also writes a snapshot. |
+Tables `routing_*`, all written by the module's first migration ([3a](./build/3a.md#tables)); "Main" is inserted by it as the default list.
+
+| Entity | Important fields | Notes |
+|---|---|---|
+| **Catalog source** | source (`v2fly`, `iplist:main`, `iplist:beta`, `iplist:russia`), generation in force, refreshed, revision (v2fly commit), entries, consecutive failures, failing since, last error, notified | Each source writes its rows as a new **generation** and then switches to it in one short transaction; only the generation in force is read. |
+| **Catalog entry** | source, generation, kind (v2fly list / iplist site / iplist group), name (the tag), group (of a site), sites (of a group), domains (includes resolved) | Search. |
+| **Catalog domain** | source, generation, name (list or site), domain, suffix or exact, attributes (v2fly) | Reverse index for discovery's catalog lookup. |
+| **Catalog include** | generation, list, included list, filter (`@ads`, `@-cn`) | Names the lists that hold a domain through an include. |
+| **Service** | tag (unique), source (`v2fly` / `iplist` / `url` / `custom`), selector (the stored spelling; empty for custom), name (custom), description, origin (custom: '' / discovery / import / router), last checked, last error, consecutive failures, failing notified | The accepted snapshot is found by its status, not stored here. |
+| **Snapshot** | service, status (accepted / superseded / rejected), selector, portal and kind (iplist: site or group), suffix and exact names (sorted text, newline-joined), skipped entries (JSON), counts, hash, added / removed (against the accepted one before), rejection reason and percent lost, forced by, made by the daily round, dismissed, fetched, accepted | Exactly one accepted snapshot per service (a partial unique index). Snapshots are text, never one row per name. |
+| **Custom domain** | service, domain (punycode), exact, note (≤ 200) | Custom services only. Each save that changes the names also writes a snapshot. |
 | **Routing list** | name, description, default | Exactly one default. |
-| **List service** | list, service, position | Position breaks ties in domain ownership ([ADR 0013](./adr/0013-one-owner-service-per-domain.md)). |
-| **Router** | name, routing list, state (awaiting setup / active / paused), host, SSH port, user, jump host (host, port, user), address-list name, DoH-forwarder name, RouterOS version, board, last sync, last sync result, last seen | |
-| **Applied tag** | router, tag, domain hash, suffix and exact counts, applied at | What Proxier last installed. |
-| **Router sync** | router, job, kind (sync / drift check), plan, result, error, time | |
-| **Shadowrocket config** | name, routing list, token 🔒 + HMAC, state, rule policy (default `PROXY`), created, last fetch | |
-| **Base config version** | config, number, content, created | |
+| **List service** | list, service, position (dense, 1..n), added | Position breaks ties in domain ownership ([ADR 0013](./adr/0013-one-owner-service-per-domain.md)). A service in a list can't be deleted. |
+| **Router** | name, routing list, state (awaiting / active / paused / removing), host, port, user, jump host (host, port, user), first hop through the tailnet, address-list name, DoH-forwarder name, RouterOS version, board, connected, last seen, last sync (time, result, error), consecutive failures, failure notified, drift (tags, checked), unmanaged tags notified, untagged and infra-pin counts at the last read, awaiting until, created by | |
+| **Applied tag** | router, tag, entries hash, suffix and exact counts, applied at | What Proxier last installed. |
+| **Unmanaged tag** | router, tag, entries, names (JSON, ≤ 5 000), first and last seen, ignored | Tags on a router Proxier never installed. |
+| **Router sync** | router, job, kind (sync / preview / drift / removal), trigger, state, failed step and hop, error, read at, plan (JSON), script (preview), added / updated / removed / unchanged / recorded counts, drift, times | |
+| **Router test** | router (none for the add form), the connection tested, job, state (running / passed / warned / failed / confirm), checks (JSON), the key to confirm (hop, address, key, fingerprint), version, board, error, times | Test connection runs. |
+| **Shadowrocket config** | name (also the file name), routing list, rule policy (default `PROXY`), token 🔒 + HMAC, enabled, created, last fetch (time, user agent) | |
+| **Base config version** | config, number, content, note, created | |
 | **Shadowrocket fetch** | config, time, IP, user agent | Retention 90 days. |
-| **Discovery run** | input, registrable domain, via server (ID from servers), depth, state, job, suggestions, screenshots, created | Retention 30 days. |
-| **Discovered host** | run, hostname, registrable domain, class (first-party / CDN / tracker / third-party / IP literal), requests, failed, already covered by | |
+| **Import** | state (preview / running / done / failed), routing list, rows (JSON), ignored keys, fetched base config and its URL, Shadowrocket choice and outcome (JSON), job, times | Never the imported file's text. |
+| **Discovery run** | input, URL visited, host, registrable domain, via (direct / server / auto), server (ID from servers, and its name), depth, state, job, title, suggestions (JSON), visits (JSON), capped, error, created, finished | Retention 30 days; screenshots are files under the data directory. |
+| **Discovered host** | run, hostname, registrable domain, class (first-party / CDN / tracker / third-party / IP literal), requests, failure on the direct visit, the visits that saw it | |
 
 ## Router scripts
 

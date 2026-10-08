@@ -1,0 +1,254 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ crumbs(id int64, tag, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(listPath) }>{ i18n.T(ctx, "services.title") }</a>
+		<span aria-hidden="true">/</span>
+		if last == "" {
+			<span>{ tag }</span>
+		} else {
+			<a href={ templ.SafeURL(svcHref(id)) }>{ tag }</a>
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ servicePage(s ui.Shell, v pageView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.It.ID, v.It.Tag, "")
+				<h1>{ v.It.Tag }</h1>
+				<div class="status">
+					@ui.Status("ok", i18n.T(ctx, "services.state.ok"))
+					<span>{ v.Line }</span>
+				</div>
+			</div>
+			<div class="actions">
+				if v.Custom {
+					@ui.ActionButton(ui.Action{ID: "services.edit", Label: "services.edit", Method: "GET", Href: svcHref(v.It.ID) + "/edit", Key: "e", Kind: ui.Primary})
+				}
+			</div>
+		</div>
+		if v.Band != "" {
+			@ui.Alert("pine", "status") {
+				{ v.Band }
+			}
+		}
+		<div class="subcols">
+			<div class="col-l">
+				<section class="area" id="domains" aria-label={ i18n.T(ctx, "services.area.domains") }>
+					<div class="pc-title">
+						<h2>{ i18n.T(ctx, "services.area.domains") }</h2>
+						<span class="note">{ v.Counts }</span>
+						<span class="flex1"></span>
+					</div>
+					<form method="get" action={ templ.SafeURL(svcHref(v.It.ID) + "/domains") } class="area-body inline-fields" hx-get={ svcHref(v.It.ID) + "/domains" } hx-target="#domains-list" hx-swap="outerHTML" hx-trigger="input changed delay:250ms from:find input, submit">
+						<input class="pc-inp" type="search" name="q" value={ v.Domains.Q } placeholder={ i18n.T(ctx, "services.domains.filter") } aria-label={ i18n.T(ctx, "services.domains.filter") } autocomplete="off"/>
+						<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "services.domains.apply") }</button>
+					</form>
+					@domainsList(v.Domains)
+				</section>
+				if len(v.Skipped) > 0 {
+					@ui.Area(i18n.T(ctx, "services.area.skipped", i18n.Args{"n": len(v.Skipped)}), "") {
+						for _, sk := range v.Skipped {
+							<div class="row skip"><span class="seltext">{ sk.Entry }</span><span class="sm subtle">{ sk.Reason }</span></div>
+						}
+					}
+				}
+			</div>
+			<div class="col-r">
+				@ui.Area(i18n.T(ctx, "services.area.source"), "") {
+					<dl class="kv area-body">
+						for _, r := range v.Source {
+							<dt>{ r.K }</dt>
+							<dd>{ r.V }</dd>
+						}
+					</dl>
+				}
+				@ui.Area(i18n.T(ctx, "services.area.snapshots"), "") {
+					for _, r := range v.History {
+						<a href={ templ.SafeURL(r.Href) } class="row snap pc-row">
+							<span class="sm subtle">{ r.Time }</span>
+							@ui.Status(r.Kind, r.State)
+							<span>{ r.Count }</span>
+							<span class="sm subtle">{ r.Change }</span>
+						</a>
+					}
+				}
+				@ui.Area(i18n.T(ctx, "services.area.actions"), "") {
+					if v.Custom {
+						<div class="row act">
+							<a href={ templ.SafeURL(svcHref(v.It.ID) + "/edit") } class="pc-btn pc-sm">{ i18n.T(ctx, "services.edit") }</a>
+							<span class="sm subtle">{ i18n.T(ctx, "services.edit.note") }</span>
+						</div>
+					} else {
+						<div class="row act">
+							@ui.ActionButton(ui.Action{ID: "services.switch", Label: "services.switch", Method: "GET", Href: svcHref(v.It.ID) + "/switch", Small: true})
+							<span class="sm subtle">{ i18n.T(ctx, "services.switch.note") }</span>
+						</div>
+					}
+					<div class="row act">
+						@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger})
+						<span class="sm subtle">{ i18n.T(ctx, "services.remove.note") }</span>
+					</div>
+				}
+				@ui.Area(i18n.T(ctx, "services.area.activity"), "") {
+					if len(v.Activity) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "services.activity.none") }</p>
+					}
+					for _, e := range v.Activity {
+						<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+					}
+					<p class="area-body"><a href={ templ.SafeURL("/activity?subject=service:" + i64(v.It.ID)) }>{ i18n.T(ctx, "services.activity.all") }</a></p>
+				}
+			</div>
+		</div>
+	}
+}
+
+// domainsList is the Domains area's rows; the filter and the pager swap it.
+templ domainsList(v domainsView) {
+	<div id="domains-list">
+		for _, r := range v.Rows {
+			<div class="row dom pc-row" data-row={ r.Name }>
+				<span class="caret" aria-hidden="true">›</span>
+				<span class="col">
+					<span>{ r.Name }</span>
+					if r.Unicode != "" {
+						<span class="sm subtle">{ r.Unicode }</span>
+					}
+				</span>
+				<span class="sm subtle">{ r.Kind }</span>
+				<span class="sm subtle">{ r.Note }</span>
+			</div>
+		}
+		<p class="pager">
+			{ v.Info }
+			if v.PrevHref != "" {
+				· <a href={ templ.SafeURL(v.PrevHref) } hx-get={ v.PrevHref } hx-target="#domains-list" hx-swap="outerHTML">{ i18n.T(ctx, "services.prev_page") }</a>
+			}
+			if v.NextHref != "" {
+				· <a href={ templ.SafeURL(v.NextHref) } hx-get={ v.NextHref } hx-target="#domains-list" hx-swap="outerHTML">{ i18n.T(ctx, "services.next_page") }</a>
+			}
+		</p>
+	</div>
+}
+
+templ switchPage(s ui.Shell, v switchView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.It.ID, v.It.Tag, i18n.T(ctx, "services.switch"))
+				<h1>{ i18n.T(ctx, "services.switch.title", i18n.Args{"tag": v.It.Tag}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "services.switch.body", i18n.Args{"tag": v.It.Tag, "selector": v.It.Selector}) }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(svcHref(v.It.ID) + "/switch") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="svc-switch">{ i18n.T(ctx, "services.field.selector") }</label>
+				<input id="svc-switch" class="pc-inp" name="selector" value={ v.Selector } autocomplete="off" autocapitalize="off" spellcheck="false" autofocus aria-invalid?={ v.Err != "" }/>
+				if v.Err != "" {
+					<p class="err" role="alert">{ v.Err }</p>
+				}
+				<p class="help">{ i18n.T(ctx, "services.switch.help", i18n.Args{"tag": v.It.Tag}) }</p>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="services.switch.submit">{ i18n.T(ctx, "services.switch.submit") }</button>
+				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ diffPage(s ui.Shell, v diffView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.It.ID, v.It.Tag, v.Title)
+				<h1>{ v.Title }</h1>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+		</div>
+		<div class="subcols">
+			<div class="col-l">
+				@ui.Area(v.AddedHead, "") {
+					for _, d := range v.Added {
+						<div class="row dline add">
+							<span class="mk" aria-hidden="true">+</span>
+							<span class="col">
+								<span>{ d.Name }</span>
+								if d.Unicode != "" {
+									<span class="sm subtle">{ d.Unicode }</span>
+								}
+							</span>
+							<span class="sm subtle">{ d.Kind }</span>
+						</div>
+					}
+					if v.MoreAdded != "" {
+						<p class="pager">{ v.MoreAdded }</p>
+					}
+				}
+			</div>
+			<div class="col-r">
+				@ui.Area(v.RemovedHead, "") {
+					for _, d := range v.Removed {
+						<div class="row dline del">
+							<span class="mk" aria-hidden="true">−</span>
+							<span class="col">
+								<span>{ d.Name }</span>
+								if d.Unicode != "" {
+									<span class="sm subtle">{ d.Unicode }</span>
+								}
+							</span>
+							<span class="sm subtle">{ d.Kind }</span>
+						</div>
+					}
+					if v.MoreRemoved != "" {
+						<p class="pager">{ v.MoreRemoved }</p>
+					}
+				}
+			</div>
+		</div>
+	}
+}
+
+templ removePage(s ui.Shell, v removeView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.It.ID, v.It.Tag, i18n.T(ctx, "services.remove"))
+				<h1>{ i18n.T(ctx, "services.remove.title", i18n.Args{"tag": v.It.Tag}) }</h1>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="post" action={ templ.SafeURL(svcHref(v.It.ID) + "/remove") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Lists) == 0 {
+				<p>{ i18n.T(ctx, "services.remove.body", i18n.Args{"tag": v.It.Tag}) }</p>
+			} else {
+				@ui.Band("gold") {
+					{ i18n.T(ctx, "services.remove.held") }
+				}
+				for _, l := range v.Lists {
+					<div class="row"><span class="bold">{ i18n.T(ctx, "services.remove.take_out", i18n.Args{"list": l}) }</span></div>
+				}
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" disabled?={ len(v.Lists) > 0 } data-action="services.remove">{ i18n.T(ctx, "services.remove") }</button>
+				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

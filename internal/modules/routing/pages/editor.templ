@@ -1,0 +1,115 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+	"strconv"
+)
+
+templ editorPage(s ui.Shell, v editorView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.It.ID, v.It.Tag, i18n.T(ctx, "services.edit"))
+				<h1>{ v.It.Tag }</h1>
+				<p class="subtle" id="editor-status">{ v.Status }</p>
+			</div>
+		</div>
+		@editorForm(v)
+	}
+}
+
+// editorForm is the whole editor: one form that round-trips its state.
+// Preview, Add to the table and × re-render it (htmx swaps it; without JS
+// the page reloads with the same state); only Save writes. Its first button
+// is an offscreen Save, so Enter in a field saves instead of pressing the
+// first ×.
+templ editorForm(v editorView) {
+	<form id="editor" method="post" action={ templ.SafeURL(svcHref(v.It.ID) + "/edit") } hx-post={ svcHref(v.It.ID) + "/edit" } hx-target="#editor" hx-swap="outerHTML" class="editor">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<input type="hidden" name="rows" value={ strconv.Itoa(len(v.Rows)) }/>
+		<button type="submit" name="op" value="save" class="offscreen" tabindex="-1" aria-hidden="true">{ i18n.T(ctx, "services.editor.save_short") }</button>
+		if len(v.Errs) > 0 {
+			@ui.Alert("love", "alert") {
+				{ i18n.T(ctx, "services.editor.refused") }
+			}
+		}
+		<div class="form">
+			@customFields(v.Name, v.Tag, v.Description, v.Errs, false)
+		</div>
+		<section class="area" aria-label={ i18n.T(ctx, "services.editor.domains") }>
+			<div class="pc-title">
+				<h2>{ i18n.T(ctx, "services.editor.domains_n", i18n.Args{"n": len(v.Rows)}) }</h2>
+				<span class="note">{ i18n.T(ctx, "services.editor.domains.note") }</span>
+				<span class="flex1"></span>
+			</div>
+			if v.Errs["rows"] != "" {
+				<p class="err area-body" role="alert">{ v.Errs["rows"] }</p>
+			}
+			if len(v.Rows) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "services.editor.empty") }</p>
+			} else {
+				<div class="colhead edrow" aria-hidden="true">
+					<span></span>
+					<span>{ i18n.T(ctx, "services.editor.col.domain") }</span>
+					<span>{ i18n.T(ctx, "services.editor.col.match") }</span>
+					<span>{ i18n.T(ctx, "services.editor.col.note") }</span>
+					<span></span>
+				</div>
+			}
+			for _, r := range v.Rows {
+				<div class={ "row", "edrow", templ.KV("invalid", r.Err != "") } data-row={ strconv.Itoa(r.N) }>
+					<span class="mark" aria-hidden="true">
+						if r.New {
+							+
+						}
+					</span>
+					<span class="col">
+						<input class="pc-inp" name={ "domain." + strconv.Itoa(r.N) } value={ r.Domain } aria-label={ i18n.T(ctx, "services.editor.col.domain") } autocomplete="off" spellcheck="false" aria-invalid?={ r.Err != "" }/>
+						if r.Unicode != "" {
+							<span class="sm subtle">{ r.Unicode }</span>
+						}
+						if r.Err != "" {
+							<span class="err sm" role="alert">{ r.Err }</span>
+						}
+					</span>
+					<span class="inline-fields" role="radiogroup" aria-label={ i18n.T(ctx, "services.editor.col.match") }>
+						<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="suffix" checked?={ !r.Exact }/>{ i18n.T(ctx, "services.kind.suffix") }</label>
+						<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="exact" checked?={ r.Exact }/>{ i18n.T(ctx, "services.kind.exact") }</label>
+					</span>
+					<input class="pc-inp" name={ "note." + strconv.Itoa(r.N) } value={ r.Note } maxlength="200" aria-label={ i18n.T(ctx, "services.editor.col.note") } autocomplete="off"/>
+					<button type="submit" name="op" value={ "remove-" + strconv.Itoa(r.N) } class="pc-btn pc-sm pc-ghost" aria-label={ i18n.T(ctx, "services.editor.remove_row", i18n.Args{"name": r.Domain}) }>×</button>
+				</div>
+			}
+		</section>
+		@ui.Area(i18n.T(ctx, "services.editor.paste"), "") {
+			<div class="area-body form wide">
+				<div class="field">
+					<label for="svc-paste" class="offscreen">{ i18n.T(ctx, "services.editor.paste") }</label>
+					<textarea id="svc-paste" class="pc-inp" name="paste" rows="6" spellcheck="false" placeholder={ "https://www.example.com/page\n*.cdn.example.net\nfull:api.example.org" }>{ v.Paste }</textarea>
+					<p class="help">{ i18n.T(ctx, "services.editor.paste.help") }</p>
+				</div>
+				if v.Report != nil {
+					<div class="paste-report" role="status">
+						<p class="bold">{ v.Report.Line }</p>
+						for _, l := range v.Report.Lines {
+							<p class="sm subtle">{ l }</p>
+						}
+					</div>
+				}
+				<div class="form-actions">
+					<button type="submit" name="op" value="preview" class="pc-btn pc-sm" data-action="services.editor.preview">{ i18n.T(ctx, "services.editor.preview") }</button>
+					if v.Report != nil && v.Report.Preview {
+						<button type="submit" name="op" value="add" class="pc-btn pc-sm" data-action="services.editor.add">{ i18n.N(ctx, "services.editor.add", int64(v.Report.Addable)) }</button>
+					} else {
+						<button type="submit" name="op" value="add" class="pc-btn pc-sm" data-action="services.editor.add">{ i18n.T(ctx, "services.editor.add_all") }</button>
+					}
+				</div>
+			</div>
+		}
+		<div class="form-actions area-body">
+			<button type="submit" name="op" value="save" class="pc-btn pc-pri" data-action="services.editor.save">{ i18n.N(ctx, "services.editor.save", int64(len(v.Rows))) } <span class="k">⌘↵</span></button>
+			<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+		</div>
+	</form>
+}
