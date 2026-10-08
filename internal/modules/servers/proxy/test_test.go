@@ -205,26 +205,47 @@ func capture(t *testing.T, fn func()) string {
 	return string(out)
 }
 
+// heard reports whether an instance with logging on writes to stdout. The
+// instance stays up until its first line arrives: closing it stops xray's log
+// goroutine, which drops whatever it has not written yet.
+func heard(t *testing.T) bool {
+	t.Helper()
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	orig := os.Stdout
+	os.Stdout = w
+	defer func() {
+		os.Stdout = orig
+		_ = w.Close()
+		_ = r.Close()
+	}()
+	cfg, err := serial.LoadJSONConfig(strings.NewReader(`{"log":{"loglevel":"debug"},"outbounds":[{"protocol":"freedom"}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inst, err := core.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := inst.Start(); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = inst.Close() }()
+	if err := r.SetReadDeadline(time.Now().Add(10 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	n, _ := r.Read(make([]byte, 512))
+	return n > 0
+}
+
 // TestConcurrentProxyTestsStayQuiet runs the eight tests the checks queue
 // allows at once, and watches stdout: a started xray instance installs a
 // process-wide log handler that would write there in its own format.
 func TestConcurrentProxyTestsStayQuiet(t *testing.T) {
 	// the control: an instance with logging on is heard, so silence below means something
-	loud := capture(t, func() {
-		cfg, err := serial.LoadJSONConfig(strings.NewReader(`{"log":{"loglevel":"debug"},"outbounds":[{"protocol":"freedom"}]}`))
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		inst, err := core.New(cfg)
-		if err != nil {
-			t.Error(err)
-			return
-		}
-		_ = inst.Start()
-		_ = inst.Close()
-	})
-	if loud == "" {
+	if !heard(t) {
 		t.Fatal("the control instance wrote nothing to stdout: this test can no longer see xray's logs")
 	}
 
