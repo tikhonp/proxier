@@ -179,5 +179,8 @@ func actorLabel(ctx context.Context, actor string) string {
 	if id, ok := strings.CutPrefix(actor, "job:"); ok {
 		return i18n.T(ctx, "activity.actor.job", i18n.Args{"id": id})
 	}
+	if id, ok := strings.CutPrefix(actor, "agent:"); ok {
+		return i18n.T(ctx, "activity.actor.agent", i18n.Args{"id": id})
+	}
 	return actor
 }

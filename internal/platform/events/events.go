@@ -31,6 +31,10 @@ const (
 // JobActor is the actor of an event recorded by job id.
 func JobActor(id int64) string { return fmt.Sprintf("job:%d", id) }
 
+// AgentActor is the actor of an event recorded for a template agent session:
+// the coding agent the admin handed a draft to (servers module).
+func AgentActor(sessionID int64) string { return fmt.Sprintf("agent:%d", sessionID) }
+
 // Subject is what an event is about, e.g. {"server", "12"}. The zero Subject
 // means the event has none (a failed sign-in).
 type Subject struct {

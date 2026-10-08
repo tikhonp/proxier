@@ -48,7 +48,7 @@ A coding agent on the admin's machine (Claude Code, Codex or similar) can fix a 
    - a save → `template.draft_saved{by: agent}`;
    - a validation → `template.draft_validated{by: agent}`.
 4. While a session is open, the template page and the editor show a band: who opened it and for what, how many saves and validations, when it expires, **What it changed** (the activity filtered to this session) and **Revoke access**.
-5. The session ends on expiry, on **Revoke access**, when the draft is published or discarded, or after the 8-hour maximum. A request after that gets `401` with "session ended". → `template.agent_session_closed{reason, saves}`
+5. The session ends on expiry, on **Revoke access**, when the draft is published or discarded, when a new hand-off for the same draft replaces it (`replaced`), or after the 8-hour maximum. A request after that gets `401` with "session ended"; so does one with an unknown token, so an ended session can't be told from one that never existed. → `template.agent_session_closed{reason, saves}`
 6. The admin reviews the draft (diff against the base version, validation, preview) and publishes as usual. Publishing is never done by the agent.
 
 The **agent API** lives under `/agent/v1`. It accepts only an agent token, never a session cookie.
@@ -58,7 +58,7 @@ The **agent API** lives under `/agent/v1`. It accepts only an agent token, never
 | `GET /context` | The problem text, the chosen context (report, redacted job log), the template's name, base version and links. |
 | `GET /draft` | The manifest and the file list with ETags. |
 | `GET /draft/files/{path}` | One file, with its ETag. |
-| `PUT /draft/files/{path}` | Write a file. Requires `If-Match`; a mismatch gets `412` "the draft changed". |
+| `PUT /draft/files/{path}` | Write a file. Requires `If-Match` with the file's ETag, or `If-None-Match: *` to create one; a mismatch gets `412` "the draft changed", a missing header `428`. |
 | `DELETE /draft/files/{path}` | Delete a file (`If-Match` as above). |
 | `POST /draft/validate` | Run validation and return the report. |
 | `POST /draft/preview?server=<name>` | Render for one of the servers allowed in this session, secrets masked. |
@@ -71,7 +71,8 @@ Rules:
   - publish, discard or import;
   - deploy, or preview for a server it wasn't given;
   - read a secret value: generated values and secret parameters render as `•••`, and job logs are the redacted ones.
-- **Rate limit.** 600 requests per session, and 60 per minute. Files keep the editor's size limit.
+- **ETags.** A file's ETag is `"<draft revision>-<first 16 hex digits of the content's SHA-256>"`; the draft's is `"<revision>"`. Every save bumps the revision, so every file's ETag changes: read again before the next write.
+- **Rate limit.** 600 requests per session, and 60 per minute (a fixed minute); over either gets `429` with `Retry-After`. Files keep the editor's size limit (1 MiB a file, 10 MiB the draft; a larger request gets `413`).
 - **Editing alongside the agent.** The admin's open editor gets "the draft changed" after an agent save and offers to reload, the same as two browser tabs.
 - **The prompt is a secret.** The dialog says so, and the token is shown masked in its preview. Copying it again later isn't possible: the token is shown once. A new hand-off makes a new session.
 

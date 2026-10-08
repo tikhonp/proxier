@@ -380,6 +380,11 @@
     // a dialog that arrives in a swap opens itself (the QR code)
     var d = $('dialog[data-autoopen]');
     if (d) { d.removeAttribute('data-autoopen'); if (d.showModal && !d.open) d.showModal(); }
+    // the draft changed under the editor (an agent saved): saving would only be refused
+    if ($('[data-ed-stale]')) {
+      var off = document.querySelectorAll('[form="draft-form"][type="submit"],[data-action="tpl.validate"]');
+      for (var i = 0; i < off.length; i++) off[i].disabled = true;
+    }
   });
 
   // dialog: esc closes natively; a click on the backdrop closes too

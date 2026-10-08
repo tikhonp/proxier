@@ -21,9 +21,9 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 | 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | done 2026-10-08 (real-VPS and browser checks are the user's) |
 | 1f Health and stats | [1f.md](./1f.md) | done 2026-10-08 (real-VPS, real-browser and provisioned-server check-host runs are the user's) |
 | 1g Retirement, server list, Phase 1 exit | [1g.md](./1g.md) | done 2026-10-08 (the exit demo, real-VPS and real-browser runs are the user's) |
-| 1h Agent hand-off | [1h.md](./1h.md) | planned |
+| 1h Agent hand-off | [1h.md](./1h.md) | done 2026-10-08 (a real agent run and a real-browser look are the user's) |
 
-The order is a dependency order: each builds only on finished ones. 1h is not needed for the Phase 1 exit demo (1g), so it may come after it.
+The order is a dependency order: each builds only on finished ones. 1h was not needed for the Phase 1 exit demo (1g) and came after it.
 
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 

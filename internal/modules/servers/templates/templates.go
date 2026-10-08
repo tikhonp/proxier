@@ -104,6 +104,10 @@ type Service struct {
 	// Git fetches import sources; the zero value is production's. Tests point
 	// it at an httptest git server.
 	Git GitFetcher
+	// DraftEnded runs in the transaction that publishes or discards a draft,
+	// with the reason ("published", "discarded"). The agent sessions close
+	// there; set in the module's Init so this package does not import agent.
+	DraftEnded func(ctx context.Context, tx *sqlx.Tx, templateID int64, reason, actor string) error
 
 	d   *db.DB
 	ev  *events.Catalog
@@ -121,6 +125,14 @@ func (s *Service) FetchGit(ctx context.Context, src GitSource) (map[string][]byt
 }
 
 func (s *Service) now() db.Time { return db.At(s.Now()) }
+
+// draftEnded tells the hook that a template's draft is gone.
+func (s *Service) draftEnded(ctx context.Context, tx *sqlx.Tx, templateID int64, reason, actor string) error {
+	if s.DraftEnded == nil {
+		return nil
+	}
+	return s.DraftEnded(ctx, tx, templateID, reason, actor)
+}
 
 func subject(id int64) events.Subject {
 	return events.Subject{Type: "template", ID: itoa(id)}

@@ -11,17 +11,20 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/tikhonp/proxier/internal/modules/servers/agent"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/health"
+	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 	"github.com/tikhonp/proxier/internal/modules/servers/migrations"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
+	"github.com/tikhonp/proxier/internal/modules/servers/render"
 	"github.com/tikhonp/proxier/internal/modules/servers/retire"
 	"github.com/tikhonp/proxier/internal/modules/servers/seed"
 	"github.com/tikhonp/proxier/internal/modules/servers/stats"
@@ -54,6 +57,8 @@ type Module struct {
 	Health *health.Service
 	// Retire takes servers out of service for good.
 	Retire *retire.Service
+	// Agent hands template drafts to coding agents (1h).
+	Agent *agent.Service
 	// DNS writes and removes servers' A records; Waiter waits for resolvers to
 	// show them (1d composes both into provisioning).
 	DNS    dns.Driver
@@ -124,6 +129,16 @@ func (m *Module) Init(d module.Deps) error {
 			return remote.Env{Log: log}
 		},
 	})
+	m.Agent = agent.New(agent.Deps{
+		DB: d.DB, Events: d.Events, Vault: d.Vault, Templates: m.Templates, Jobs: d.Jobs, Log: d.Log,
+		BaseURL: strings.TrimRight(d.Cfg.BaseURL.String(), "/"),
+		// read at use: the masked context of a real server for a draft
+		Preview: func(ctx context.Context, serverID int64) (func(*manifest.Manifest, string) (render.Context, error), error) {
+			return m.Provision.PreviewContext(ctx, serverID, false)
+		},
+	})
+	// An agent session ends in the transaction that publishes or discards its draft.
+	m.Templates.DraftEnded = m.Agent.CloseForDraft
 	// The validators that need the embedded xray and the endpoint types.
 	validate.XrayConfig, validate.EndpointFields = proxy.ValidateConfig, endpoint.Check
 	return nil
@@ -152,13 +167,16 @@ func (*Module) EventTypes() []events.Type { return Events }
 func (m *Module) JobTypes() []jobs.Type {
 	types := append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
 	types = append(types, m.Health.JobTypes()...)
+	types = append(types, m.Agent.JobTypes()...)
 	return append(types, m.Retire.JobType())
 }
 
 // Subscribers: the rollout advances when a deploy job of its running item ends.
 func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Deploy.Subscriber()} }
 
-func (m *Module) Schedules() []jobs.Schedule { return m.Health.Schedules() }
+func (m *Module) Schedules() []jobs.Schedule {
+	return append(m.Health.Schedules(), m.Agent.Schedule())
+}
 
 func (*Module) SettingsSections() []settings.Section {
 	return []settings.Section{Section, cloudflare.Section}
@@ -187,8 +205,8 @@ func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
-	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages)+len(deployMessages)+len(healthMessages)+len(retireMessages))
-	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages, deployMessages, healthMessages, retireMessages} {
+	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages)+len(deployMessages)+len(healthMessages)+len(retireMessages)+len(agentMessages))
+	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages, deployMessages, healthMessages, retireMessages, agentMessages} {
 		for k, v := range set {
 			all[k] = v
 		}
@@ -197,10 +215,12 @@ func (*Module) Messages() i18n.Messages {
 }
 
 func (m *Module) Routes(r web.Routes) {
+	// The agent API answers to a bearer token only: a public route.
+	m.Agent.Routes(r.Public)
 	pages.Register(r, pages.Deps{
 		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
 		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
-		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy, Retire: m.Retire, Health: m.Health, Stats: m.Stats,
+		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy, Retire: m.Retire, Health: m.Health, Stats: m.Stats, Agent: m.Agent,
 		Usage: func() pages.UsageReader { return m.usage },
 	})
 }

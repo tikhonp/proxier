@@ -11,7 +11,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/finding"
@@ -26,7 +25,6 @@ import (
 
 const (
 	maxDraftFiles = templates.MaxImportFiles
-	maxPathLen    = 200
 	fileField     = "file["
 	binField      = "bin["
 )
@@ -65,6 +63,7 @@ type editorView struct {
 	Error     string            // translated
 	Message   string            // translated, shown in #ed-msg
 	Servers   []store.ServerRef // active servers of the template, for the preview picker
+	Agent     *agentBandView    // the open agent session on the draft
 }
 
 func newEditorFiles(files map[string][]byte) ([]edFile, []edRow) {
@@ -102,19 +101,8 @@ func treeRows(paths []string) []edRow {
 	return rows
 }
 
-// validDraftPath is a path the editor may hold: relative, no "..", no empty
-// segment, no backslash or control character.
-func validDraftPath(p string) bool {
-	if p == "" || len(p) > maxPathLen || strings.HasPrefix(p, "/") || strings.HasSuffix(p, "/") || strings.ContainsAny(p, "\\\x00") {
-		return false
-	}
-	for _, seg := range strings.Split(p, "/") {
-		if seg == "" || seg == "." || seg == ".." || seg == ".git" {
-			return false
-		}
-	}
-	return path.Clean(p) == p && utf8.ValidString(p)
-}
+// validDraftPath is a path the editor may hold.
+func validDraftPath(p string) bool { return templates.ValidPath(p) }
 
 // posted is what the editor form carries.
 type posted struct {
@@ -186,6 +174,9 @@ func (h *handler) renderEditor(c *echo.Context, status int, id int64, files map[
 	v.T = info
 	v.Next = info.Latest + 1
 	if v.Servers, err = store.ActiveServersOf(ctx, h.Store.DB.R, id); err != nil {
+		return err
+	}
+	if v.Agent, err = h.agentBand(c, id); err != nil {
 		return err
 	}
 	v.Files, v.Rows = newEditorFiles(files)

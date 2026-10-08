@@ -1,0 +1,188 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ agentCrumbs(t string, id int64, name string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href="/templates">{ t }</a>
+		<span aria-hidden="true">/</span>
+		<a href={ templ.SafeURL(tplHref(id)) }>{ name }</a>
+		<span aria-hidden="true">/</span>
+		<span>{ i18n.T(ctx, "agent.handoff.short") }</span>
+	</nav>
+}
+
+templ agentFormPage(s ui.Shell, v agentFormView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@agentCrumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name)
+				<h1>{ i18n.T(ctx, "agent.title") }</h1>
+				<p class="subtle">
+					{ v.T.Name } ·
+					if v.BasedOn > 0 {
+						{ i18n.T(ctx, "agent.based_on", i18n.Args{"v": v.BasedOn}) }
+					} else {
+						{ i18n.T(ctx, "agent.no_base") }
+					}
+					· { i18n.T(ctx, "agent.for_whom") }
+				</p>
+			</div>
+		</div>
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		<form method="post" action={ templ.SafeURL(actionHref(v.T.ID, "/agent")) } class="form agent-form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<input type="hidden" name="form_id" value={ v.FormID }/>
+			<div class="field">
+				<label for="ag-problem">{ i18n.T(ctx, "agent.problem") }</label>
+				<textarea id="ag-problem" name="problem" class="pc-inp" rows="5" required maxlength="4000" aria-invalid?={ v.Error != "" && v.Problem == "" }>{ v.Problem }</textarea>
+				<p class="help">{ i18n.T(ctx, "agent.problem.help") }</p>
+			</div>
+			<fieldset class="fs">
+				<legend>{ i18n.T(ctx, "agent.context") }</legend>
+				<label class="check"><input type="checkbox" name="report" value="1" checked?={ v.Report }/> { i18n.T(ctx, "agent.ctx.report") } <span class="subtle sm">· { i18n.T(ctx, "agent.ctx.report.note") }</span></label>
+				<div class="field">
+					<label for="ag-job">{ i18n.T(ctx, "agent.ctx.job") }</label>
+					<select id="ag-job" name="job" class="pc-inp">
+						<option value="">{ i18n.T(ctx, "agent.ctx.job.none") }</option>
+						for _, j := range v.Failed {
+							<option value={ i64(j.ID) } selected?={ v.Job == j.ID }>{ j.Label }</option>
+						}
+					</select>
+					<p class="help">{ i18n.T(ctx, "agent.ctx.job.help") }</p>
+				</div>
+				for _, sv := range v.Servers {
+					<label class="check"><input type="checkbox" name="server" value={ i64(sv.ID) } checked?={ v.Picked[sv.ID] }/> { i18n.T(ctx, "agent.ctx.preview", i18n.Args{"name": sv.Name}) } <span class="subtle sm">· { i18n.T(ctx, "agent.ctx.preview.note") }</span></label>
+				}
+				<label class="check"><input type="checkbox" name="diff" value="1" checked?={ v.Diff }/> { i18n.T(ctx, "agent.ctx.diff") } <span class="subtle sm">· { i18n.T(ctx, "agent.ctx.diff.note") }</span></label>
+				<p class="help">{ i18n.T(ctx, "agent.ctx.always") }</p>
+			</fieldset>
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "agent.agent") }</legend>
+				for _, a := range []string{"claude-code", "codex", "other"} {
+					<label class="pc-opt"><input type="radio" name="agent" value={ a } checked?={ v.Agent == a }/> { i18n.T(ctx, "agent.agent."+a) }</label>
+				}
+				<p class="help">{ i18n.T(ctx, "agent.agent.note") }</p>
+			</fieldset>
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "agent.for") }</legend>
+				for _, m := range []string{"30", "120", "480"} {
+					<label class="pc-opt"><input type="radio" name="for" value={ m } checked?={ v.For == m }/> { i18n.T(ctx, "agent.for."+m) }</label>
+				}
+			</fieldset>
+			<div class="agent-scope">
+				<div>
+					<p class="pc-label">{ i18n.T(ctx, "agent.can") }</p>
+					<ul class="plain">
+						<li>{ i18n.T(ctx, "agent.can.1") }</li>
+						<li>{ i18n.T(ctx, "agent.can.2") }</li>
+						<li>{ i18n.T(ctx, "agent.can.3") }</li>
+						<li>{ i18n.T(ctx, "agent.can.4") }</li>
+					</ul>
+				</div>
+				<div>
+					<p class="pc-label">{ i18n.T(ctx, "agent.cant") }</p>
+					<ul class="plain">
+						<li>{ i18n.T(ctx, "agent.cant.1") }</li>
+						<li>{ i18n.T(ctx, "agent.cant.2") }</li>
+						<li>{ i18n.T(ctx, "agent.cant.3") }</li>
+						<li>{ i18n.T(ctx, "agent.cant.4") }</li>
+					</ul>
+				</div>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="tpl.agent_create">{ i18n.T(ctx, "agent.create") }</button>
+				<a href={ templ.SafeURL(tplHref(v.T.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ agentResultPage(s ui.Shell, v agentResultView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@agentCrumbs(i18n.T(ctx, "templates.title"), v.T.ID, v.T.Name)
+				<h1>{ i18n.T(ctx, "agent.title") }</h1>
+			</div>
+		</div>
+		if v.Repeated {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "agent.repeated.title") }</span>
+				<span class="subtle">{ i18n.T(ctx, "agent.repeated.body") }</span>
+				<span class="flex1"></span>
+				<a href={ templ.SafeURL(actionHref(v.T.ID, "/agent")) } class="pc-btn pc-sm" data-action="tpl.agent_again">{ i18n.T(ctx, "agent.repeated.again") }</a>
+			}
+		} else {
+			<section class="area" aria-label={ i18n.T(ctx, "agent.prompt") }>
+				<div class="pc-title">
+					<h2>{ i18n.T(ctx, "agent.prompt") }</h2>
+					<span class="note">{ i18n.T(ctx, "agent.prompt.note", i18n.Args{"size": v.Size}) }</span>
+					<span class="flex1"></span>
+				</div>
+				<pre class="agent-prompt" tabindex="0">{ v.Masked }</pre>
+			</section>
+			@ui.Alert("gold", "status") {
+				{ i18n.T(ctx, "agent.secret.warn") }
+				@ui.Time(v.ExpiresAt)
+			}
+			<div class="form-actions">
+				<button type="button" class="pc-btn pc-pri" data-action="tpl.agent_copy" data-copy={ v.Prompt }>{ i18n.T(ctx, "agent.copy") }</button>
+				<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost" data-action="tpl.agent_to_editor">{ i18n.T(ctx, "agent.to_editor") }</a>
+				<a href={ templ.SafeURL(tplHref(v.T.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "agent.to_template") }</a>
+				<span class="subtle sm">{ i18n.T(ctx, "agent.copy.then") }</span>
+			</div>
+		}
+	}
+}
+
+// agentBand shows the open session on the template page and the editor.
+templ agentBand(b *agentBandView) {
+	@ui.Band("iris") {
+		<span class="iris bold">{ i18n.T(ctx, "agent.band.title", i18n.Args{"agent": i18n.T(ctx, "agent.agent."+b.Agent)}) }</span>
+		<span class="subtle">{ b.Problem }</span>
+		<span class="sm subtle">
+			{ i18n.T(ctx, "agent.band.counts", i18n.Args{"saves": b.Saves, "validations": b.Validations}) } ·
+			{ i18n.T(ctx, "agent.band.expires") }
+			@ui.Time(b.ExpiresAt)
+		</span>
+		<span class="flex1"></span>
+		<a href={ templ.SafeURL("/activity?actor=agent:" + i64(b.ID)) } class="pc-btn pc-sm" data-action="tpl.agent_changes">{ i18n.T(ctx, "agent.band.changes") }</a>
+		@ui.ActionButton(ui.Action{
+			ID: "tpl.agent_revoke", Label: "agent.band.revoke", Method: "POST", Href: actionHref(b.Template, "/agent/"+i64(b.ID)+"/revoke"), Small: true, Kind: ui.Danger,
+			Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "agent.revoke.title"), Body: i18n.T(ctx, "agent.revoke.body")},
+		})
+	}
+}
+
+// draftPoller asks every ten seconds whether the draft is still as the editor
+// holds it; the editor's hidden revision field says what that is.
+templ draftPoller(id int64) {
+	<div
+		id="ed-poll"
+		hx-get={ actionHref(id, "/draft/revision") }
+		hx-trigger="every 10s"
+		hx-include="#ed-revision"
+		hx-swap="outerHTML"
+	></div>
+}
+
+// draftChangedBand is the poller's answer when an agent (or another tab) saved.
+templ draftChangedBand(id int64) {
+	<div id="ed-poll" data-ed-stale>
+		@ui.Band("gold") {
+			<span class="gold bold">{ i18n.T(ctx, "templates.stale.title") }</span>
+			<span class="subtle">{ i18n.T(ctx, "templates.stale.body") }</span>
+			<span class="flex1"></span>
+			<button type="button" class="pc-btn pc-sm" data-copy-draft>{ i18n.T(ctx, "templates.stale.copy") }</button>
+			<a href={ templ.SafeURL(actionHref(id, "/edit")) } class="pc-btn pc-sm" data-ed-reload>{ i18n.T(ctx, "templates.stale.reload") }</a>
+		}
+	</div>
+}

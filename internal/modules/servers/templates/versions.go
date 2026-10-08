@@ -260,9 +260,11 @@ func (s *Service) DiscardDraft(ctx context.Context, templateID int64, actor stri
 		if err := store.DeleteDraft(ctx, tx, templateID); err != nil {
 			return err
 		}
-		_, err = s.ev.Record(ctx, tx, events.Event{Type: "template.draft_discarded", Subject: subject(templateID), Actor: actor,
-			Payload: map[string]any{"based_on": meta.BasedOn, "revision": meta.Revision}})
-		return err
+		if _, err = s.ev.Record(ctx, tx, events.Event{Type: "template.draft_discarded", Subject: subject(templateID), Actor: actor,
+			Payload: map[string]any{"based_on": meta.BasedOn, "revision": meta.Revision}}); err != nil {
+			return err
+		}
+		return s.draftEnded(ctx, tx, templateID, "discarded", actor)
 	})
 }
 

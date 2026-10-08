@@ -42,7 +42,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `template.agent_session_opened` | template | expires_at, context | **on** | "An agent can edit the nginx-xhttp draft until 18:41". Anyone holding the copied prompt can do so. |
 | `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version), source (zip / git, for an import) | off | A save that changes no file records nothing. Also recorded when a draft is created from a version, from the skeleton or by an import. |
 | `template.draft_validated` | template | by, errors, warnings | off | |
-| `template.agent_session_closed` | template | reason (expired / revoked / published / discarded), saves | off | |
+| `template.agent_session_closed` | template | reason (expired / revoked / published / discarded / replaced), saves, session | off | `replaced`: a new hand-off for the same draft ended it. The actor of a save or validation by the agent is `agent:<session id>`. |
 | `location.created` | location | code, name, country | off | |
 | `location.changed` | location | fields (`name`, `country`) | off | Only when something changed. |
 | `location.deleted` | location | code, name | off | Only a location without servers. |

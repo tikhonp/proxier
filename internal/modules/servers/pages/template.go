@@ -42,6 +42,7 @@ type templateView struct {
 	Typed    *detailsForm
 	// Outdated are the active servers on a version older than the default.
 	Outdated []store.Server
+	Agent    *agentBandView // the open agent session on the draft
 }
 
 func (h *handler) renderTemplate(c *echo.Context, status int, id int64, v templateView) error {
@@ -74,6 +75,11 @@ func (h *handler) renderTemplate(c *echo.Context, status int, id int64, v templa
 				ds.Changed = len(d.Files)
 			}
 			v.Draft = ds
+		}
+	}
+	if info.HasDraft {
+		if v.Agent, err = h.agentBand(c, id); err != nil {
+			return err
 		}
 	}
 	if info.DefaultVersion > 0 {

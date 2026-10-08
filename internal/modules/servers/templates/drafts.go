@@ -22,6 +22,14 @@ const maxEventFiles = 50
 // save that changes no file records nothing and keeps the revision. by is
 // "admin" or "agent".
 func (s *Service) SaveDraft(ctx context.Context, templateID int64, revision int, files map[string][]byte, by, actor string) (newRevision int, err error) {
+	return s.SaveDraftIn(ctx, templateID, revision, files, by, actor, nil)
+}
+
+// SaveDraftIn is SaveDraft with work for the same transaction: inTx runs after
+// the draft is written, with whether a new revision was made, and an error
+// from it undoes the save. The agent counts its saves there and refuses a
+// write once its session has ended.
+func (s *Service) SaveDraftIn(ctx context.Context, templateID int64, revision int, files map[string][]byte, by, actor string, inTx func(tx *sqlx.Tx, changed bool) error) (newRevision int, err error) {
 	err = s.d.Write(ctx, func(tx *sqlx.Tx) error {
 		meta, err := store.GetDraft(ctx, tx, templateID)
 		if err != nil {
@@ -40,6 +48,9 @@ func (s *Service) SaveDraft(ctx context.Context, templateID int64, revision int,
 		changed := changedPaths(have, files)
 		if len(changed) == 0 {
 			newRevision = meta.Revision
+			if inTx != nil {
+				return inTx(tx, false)
+			}
 			return nil
 		}
 		newRevision = meta.Revision + 1
@@ -50,9 +61,14 @@ func (s *Service) SaveDraft(ctx context.Context, templateID int64, revision int,
 		if len(listed) > maxEventFiles {
 			listed = listed[:maxEventFiles]
 		}
-		_, err = s.ev.Record(ctx, tx, events.Event{Type: "template.draft_saved", Subject: subject(templateID), Actor: actor,
-			Payload: map[string]any{"by": by, "files": listed, "changed": len(changed)}})
-		return err
+		if _, err = s.ev.Record(ctx, tx, events.Event{Type: "template.draft_saved", Subject: subject(templateID), Actor: actor,
+			Payload: map[string]any{"by": by, "files": listed, "changed": len(changed)}}); err != nil {
+			return err
+		}
+		if inTx != nil {
+			return inTx(tx, true)
+		}
+		return nil
 	})
 	return newRevision, err
 }
@@ -77,6 +93,13 @@ func changedPaths(a, b map[string][]byte) []string {
 // ValidateDraft runs every check on the draft and records
 // template.draft_validated. It changes nothing else.
 func (s *Service) ValidateDraft(ctx context.Context, templateID int64, by, actor string) (finding.Report, error) {
+	return s.ValidateDraftIn(ctx, templateID, by, actor, nil)
+}
+
+// ValidateDraftIn is ValidateDraft with work for the recording transaction
+// (the agent counts its validations there); an error from inTx undoes the
+// record.
+func (s *Service) ValidateDraftIn(ctx context.Context, templateID int64, by, actor string, inTx func(tx *sqlx.Tx) error) (finding.Report, error) {
 	d, err := s.Draft(ctx, templateID)
 	if err != nil {
 		return finding.Report{}, err
@@ -88,7 +111,10 @@ func (s *Service) ValidateDraft(ctx context.Context, templateID int64, by, actor
 	err = s.d.Write(ctx, func(tx *sqlx.Tx) error {
 		_, err := s.ev.Record(ctx, tx, events.Event{Type: "template.draft_validated", Subject: subject(templateID), Actor: actor,
 			Payload: map[string]any{"by": by, "errors": len(report.Errors()), "warnings": len(report.Warnings())}})
-		return err
+		if err != nil || inTx == nil {
+			return err
+		}
+		return inTx(tx)
 	})
 	return report, err
 }

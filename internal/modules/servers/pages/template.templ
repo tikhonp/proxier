@@ -46,6 +46,7 @@ templ templatePage(s ui.Shell, v templateView) {
 			</div>
 			<div class="actions">
 				if v.T.HasDraft {
+					@ui.ActionButton(ui.Action{ID: "tpl.handoff", Label: "agent.handoff", Method: "GET", Href: actionHref(v.T.ID, "/agent")})
 					@ui.ActionButton(ui.Action{ID: "tpl.edit", Label: "templates.edit_draft", Method: "GET", Href: actionHref(v.T.ID, "/edit"), Key: "e", Kind: ui.Primary})
 				} else {
 					@ui.ActionButton(ui.Action{ID: "tpl.edit", Label: "templates.start_draft", Method: "GET", Href: actionHref(v.T.ID, "/edit"), Key: "e", Kind: ui.Primary})
@@ -60,6 +61,9 @@ templ templatePage(s ui.Shell, v templateView) {
 					{ i18n.T(ctx, "templates.saved."+v.Saved) }
 				}
 			}
+		}
+		if v.Agent != nil {
+			@agentBand(v.Agent)
 		}
 		if v.Error != "" {
 			@ui.Band("love") {

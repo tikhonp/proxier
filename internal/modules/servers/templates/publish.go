@@ -52,7 +52,10 @@ func (s *Service) Publish(ctx context.Context, templateID int64, revision int, n
 		if err != nil {
 			return err
 		}
-		return store.DeleteDraft(ctx, tx, templateID)
+		if err := store.DeleteDraft(ctx, tx, templateID); err != nil {
+			return err
+		}
+		return s.draftEnded(ctx, tx, templateID, "published", actor)
 	})
 	return version, err
 }

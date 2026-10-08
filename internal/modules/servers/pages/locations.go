@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/servers/agent"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
@@ -50,12 +51,15 @@ type Deps struct {
 	Stats  *stats.Service
 	// Retire takes servers out of service (1g).
 	Retire *retire.Service
+	// Agent hands template drafts to coding agents (1h).
+	Agent *agent.Service
 	// Usage is the subscriptions port (Phase 2); it returns nil until then.
 	Usage func() UsageReader
 }
 
 type handler struct {
 	Deps
+	forms         usedForms // hand-off forms already posted (agent.go)
 	shell         func(c *echo.Context, title, path string) ui.Shell
 	SettingsPages func() []ui.SettingsPage
 }
@@ -78,6 +82,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerDeploy(r)
 	h.registerHealth(r)
 	h.registerRetire(r)
+	h.registerAgent(r)
 }
 
 type locForm struct{ Code, Name, Country string }

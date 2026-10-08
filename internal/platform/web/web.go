@@ -25,7 +25,8 @@ const (
 )
 
 // publicPrefixes are the URL spaces that never touch cookies (ADR 0006).
-var publicPrefixes = []string{"/s/", "/r/", "/f/"}
+// /agent/ is the template agent API: it answers to a bearer token only.
+var publicPrefixes = []string{"/s/", "/r/", "/f/", "/agent/"}
 
 func isPublicPath(p string) bool {
 	for _, pre := range publicPrefixes {

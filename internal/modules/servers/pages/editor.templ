@@ -53,6 +53,7 @@ templ editorPage(s ui.Shell, v editorView) {
 					hx-swap="innerHTML"
 				>{ i18n.T(ctx, "templates.preview") }</button>
 				<button type="submit" form="draft-form" formaction={ actionHref(v.T.ID, "/draft") } name="next" value="publish" class="pc-btn pc-pri" data-action="tpl.publish" disabled?={ v.Stale }>{ i18n.T(ctx, "templates.publish_n", i18n.Args{"n": v.Next}) }</button>
+				@ui.ActionButton(ui.Action{ID: "tpl.handoff", Label: "agent.handoff", Method: "GET", Href: actionHref(v.T.ID, "/agent")})
 				@ui.ActionButton(ui.Action{
 					ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger,
 					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "templates.discard.title"), Body: i18n.T(ctx, "templates.discard.body"), Consequences: []string{i18n.T(ctx, "templates.discard.lose_all")}},
@@ -62,6 +63,12 @@ templ editorPage(s ui.Shell, v editorView) {
 		if v.Saved {
 			@ui.Alert("pine", "status") {
 				{ i18n.T(ctx, "templates.saved.draft") }
+			}
+		}
+		if v.Agent != nil {
+			@agentBand(v.Agent)
+			if !v.Stale {
+				@draftPoller(v.T.ID)
 			}
 		}
 		if v.Error != "" {
