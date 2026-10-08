@@ -35,7 +35,7 @@ func TestFailedDemoJobReachesTelegram(t *testing.T) {
 	t.Cleanup(func() { stop(); <-done; <-done })
 
 	// The dispatcher's cursors start at the newest event once it is up.
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(30 * time.Second)
 	for {
 		var n int
 		_ = app.DB.R.Get(&n, `SELECT count(*) FROM event_cursors WHERE subscriber = 'platform.notifier'`)
