@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
@@ -199,7 +198,7 @@ func (h *handler) headView(ctx context.Context, s store.Server) serverView {
 	if !s.ActivatedAt.IsZero() {
 		v.Active = loc.Time(s.ActivatedAt.Time)
 	}
-	v.Reason = s.HealthReason
+	v.Reason = reasonText(ctx, s.HealthReason)
 	v.CanRetry = s.State == "failed"
 	v.CanActivateAnyway = s.State == "failed" && s.FailedStep == provision.StepSmokeTest
 	v.CanCancel = s.State == "provisioning" && s.ProvisionJobID.Valid
@@ -477,9 +476,4 @@ func translate(c *echo.Context, fe provision.FieldErrors) map[string]string {
 		out[k] = i18n.T(ctx, m.Key, m.Args)
 	}
 	return out
-}
-
-// DashboardServers is the body of the servers area on the dashboard.
-func DashboardServers(counts map[string]int, failed []store.Server) templ.Component {
-	return dashboardServers(counts, failed)
 }

@@ -67,6 +67,7 @@ type VPS struct {
 	RebootDowntime time.Duration
 
 	mu         sync.Mutex
+	metrics    Metrics
 	images     map[string]string // service → image ID
 	newImages  map[string]bool   // services the registry has a newer image of
 	imageSeq   int
@@ -100,6 +101,10 @@ func NewVPS(t testing.TB) *VPS {
 		PortsInUse: map[int]string{}, HTTPStatus: map[string]string{}, RunHooks: map[string]func(*VPS, string, io.Writer, io.Writer) int{},
 		rootPass: DefaultRootPassword, users: map[string]*user{"root": {locked: true}}, services: map[string]string{},
 		images: map[string]string{}, newImages: map[string]bool{}, RebootDowntime: 30 * time.Millisecond,
+		metrics: Metrics{
+			Load1: 0.20, CPUBusy: 1000, CPUTotal: 10000, MemTotal: 2 << 30, MemAvail: 1 << 30,
+			DiskTotal: 20 << 30, DiskUsed: 5 << 30, Iface: "eth0", RX: 1 << 20, TX: 1 << 20, Uptime: 100000,
+		},
 	}
 	v.AllowPassword("root", v.rootPass)
 	v.HandleFunc(func(string, string) bool { return true }, v.exec)
@@ -540,6 +545,8 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		sayln(s.Stdout, v.httpStatus(call.Args[0]))
 	case remote.OpCertExpiry:
 		return v.certExpiry(call.Args[0], s)
+	case remote.OpStats:
+		v.stats(call.Args[0], s.Stdout)
 	case remote.OpDisk:
 		const total = 10_000_000
 		avail := int(total * v.DiskFreePct / 100)
@@ -788,3 +795,58 @@ func (v *VPS) certExpiry(path string, s *sshxtest.Session) int {
 
 func say(w io.Writer, format string, args ...any) { _, _ = fmt.Fprintf(w, format, args...) }
 func sayln(w io.Writer, args ...any)              { _, _ = fmt.Fprintln(w, args...) }
+
+// Metrics is what the fake machine's /proc and df say. CPUBusy and CPUTotal
+// are /proc/stat's counters, RX and TX those of Iface (the default route's
+// device); Other adds two more devices that must not be counted.
+type Metrics struct {
+	Load1               float64
+	CPUBusy, CPUTotal   uint64
+	MemTotal, MemAvail  int64
+	DiskTotal, DiskUsed int64
+	Iface               string
+	RX, TX              uint64
+	Uptime              float64
+	// NoDocker leaves the container section empty.
+	NoDocker bool
+}
+
+// SetMetrics changes the numbers the next stats batch reports.
+func (v *VPS) SetMetrics(f func(*Metrics)) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	f(&v.metrics)
+}
+
+// stats prints the output of remote.CmdStats from the fake's state.
+func (v *VPS) stats(dir string, w io.Writer) {
+	v.mu.Lock()
+	m := v.metrics
+	names := make([]string, 0, len(v.services))
+	for n := range v.services {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	states := map[string]string{}
+	for _, n := range names {
+		states[n] = v.services[n]
+	}
+	v.mu.Unlock()
+	idle := m.CPUTotal - m.CPUBusy
+	say(w, "##loadavg\n%.2f 0.30 0.25 1/200 1234\n", m.Load1)
+	say(w, "##stat\ncpu  %d 0 0 %d 0 0 0 0 0 0\n", m.CPUBusy, idle)
+	say(w, "##meminfo\nMemTotal:        %d kB\nMemAvailable:    %d kB\n", m.MemTotal/1024, m.MemAvail/1024)
+	say(w, "##df\nFilesystem        1-blocks       Used  Available Capacity Mounted on\n/dev/vda1 %d %d %d 25%% /\n", m.DiskTotal, m.DiskUsed, m.DiskTotal-m.DiskUsed)
+	say(w, "##route\ndefault via 10.0.0.1 dev %s proto dhcp src 10.0.0.5 metric 100\n", m.Iface)
+	say(w, "##netdev\nInter-|   Receive |  Transmit\n face |bytes packets errs drop fifo frame compressed multicast|bytes packets errs drop fifo colls carrier compressed\n")
+	say(w, "    lo: 111111 100 0 0 0 0 0 0 111111 100 0 0 0 0 0 0\n")
+	say(w, "%6s: %d 4000 0 0 0 0 0 0 %d 3000 0 0 0 0 0 0\n", m.Iface, m.RX, m.TX)
+	say(w, "docker0: %d 500 0 0 0 0 0 0 %d 400 0 0 0 0 0 0\n", m.RX/3+7, m.TX/3+7)
+	say(w, "##uptime\n%.2f 5000.00\n", m.Uptime)
+	say(w, "##docker\n")
+	if !m.NoDocker {
+		for _, n := range names {
+			say(w, "/%s-%s-1|%s|0|img/%s:latest\n", "stack", n, states[n], n)
+		}
+	}
+}

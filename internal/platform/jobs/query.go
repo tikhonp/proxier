@@ -286,3 +286,57 @@ func (s *System) Types() []string {
 
 // TypeInfo says what the Jobs page needs to know about a type.
 func (s *System) TypeInfo(name string) (Type, bool) { return s.typeOf(name) }
+
+// Busy reports whether a job holding the resource key is running now. Queued
+// jobs do not count: a delayed check must not wait for work that has not
+// started (docs/build/README.md, Phase 1 rules).
+func (s *System) Busy(ctx context.Context, key string) (bool, error) {
+	return s.BusyExcept(ctx, key)
+}
+
+// BusyExcept is Busy that does not count running jobs of the given types: the
+// proxy test of a round may start while the same round's self-check, which
+// holds the key, is still reading the server.
+func (s *System) BusyExcept(ctx context.Context, key string, types ...string) (bool, error) {
+	q := `SELECT count(*) FROM jobs WHERE resource_key = ? AND state = 'running'`
+	args := []any{key}
+	if len(types) > 0 {
+		q += ` AND type NOT IN (` + strings.TrimSuffix(strings.Repeat("?,", len(types)), ",") + `)`
+		for _, t := range types {
+			args = append(args, t)
+		}
+	}
+	var n int
+	if err := s.d.R.GetContext(ctx, &n, q, args...); err != nil {
+		return false, err
+	}
+	return n > 0, nil
+}
+
+// CancelQueued cancels, inside the caller's transaction, every job of a type
+// that has not started and belongs to the subject (a pause cancels the resume
+// job it replaces). It returns how many it cancelled.
+func (s *System) CancelQueued(ctx context.Context, tx *sqlx.Tx, typ string, subject events.Subject, by string) (int, error) {
+	var ids []int64
+	if err := tx.SelectContext(ctx, &ids, `
+		SELECT id FROM jobs WHERE type = ? AND subject_type = ? AND subject_id = ? AND state = 'queued' AND attempt = 0`,
+		typ, subject.Type, subject.ID); err != nil {
+		return 0, err
+	}
+	t, ok := s.typeOf(typ)
+	for _, id := range ids {
+		r, err := getRow(ctx, tx, id)
+		if err != nil {
+			return 0, err
+		}
+		tp := &t
+		if !ok {
+			tp = nil
+		}
+		if err := s.cancelTx(ctx, tx, r.info(), tp, by, "Cancelled by "+by); err != nil {
+			return 0, err
+		}
+		s.hub.notify(id)
+	}
+	return len(ids), nil
+}

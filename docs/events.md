@@ -52,10 +52,10 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `server.redeployed` | server | kind (`redeploy` / `upgrade` / `params` / `restore` / `restart` / `images` / `reboot`), from version, to version, files changed; `rollout` (id) when a rolling upgrade ran it; `changed_images` for `images` | off | Rotation records `server.credentials_rotated` instead. |
 | `server.redeploy_failed` | server | kind (also `rotate`), step, error; `rollout` when a rolling upgrade ran it; `restored` (kind `rotate`: whether the old files were put back); `cancelled` | **on**, except when `cancelled` | A cancelled job fails its deployment and records this with `cancelled: true`; the rollout still sees it. |
 | `server.credentials_rotated` | server | keys rotated | **on** | |
-| `server.health_changed` | server | from, to, reason, check summary | **on** for changes to `blocked`, `down`, and back to `healthy`. **off** for `degraded` and `unknown` | "🔴 de-1 is down: unreachable over SSH and from 3/3 nodes abroad" |
+| `server.health_changed` | server | from, to, reason, check summary | **on** for changes to `blocked`, `down`, and back to `healthy`. **off** for `degraded` and `unknown`; back to `healthy` only from `blocked` or `down` | "🔴 de-1 is down: unreachable over SSH and from 3/3 nodes abroad" |
 | `server.still_unhealthy` | server | state, since | **on** | Reminder every 24 h while blocked or down. |
-| `server.cert_expiring` | server | days_left | **on** | Once a day while fewer than 14 days are left. |
-| `server.disk_low` | server | free_pct | **on** | Under 10 % free. |
+| `server.cert_expiring` | server | days_left | **on** | Once per crossing of the 14-day threshold (not daily): raised again only after the certificate was renewed and runs low again. |
+| `server.disk_low` | server | free_pct | **on** | Under 10 % free, once per crossing. |
 | `server.checks_paused` | server | until | off | |
 | `server.checks_resumed` | server | — | off | |
 | `server.retired` | server | DNS removed, stack removed | off | |

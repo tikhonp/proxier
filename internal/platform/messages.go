@@ -7,6 +7,7 @@ import "github.com/tikhonp/proxier/internal/platform/i18n"
 var messages = i18n.Messages{
 	// Shell
 	"ui.close":              {EN: "Close", RU: "Закрыть"},
+	"ui.bar":                {EN: "{pct} % used", RU: "занято {pct} %"},
 	"ui.cancel":             {EN: "Cancel", RU: "Отмена"},
 	"ui.closes":             {EN: "closes", RU: "закрывает"},
 	"ui.esc_closes":         {EN: "esc closes", RU: "esc закрывает"},

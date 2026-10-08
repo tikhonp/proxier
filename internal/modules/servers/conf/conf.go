@@ -20,7 +20,52 @@ const (
 	ProxyTestURLKey    = "servers.proxy_test_url"
 	ProxyTestTimeout   = "servers.proxy_test_timeout"
 	ProxyTestStall     = "servers.proxy_test_stall"
+
+	SelfcheckEvery        = "servers.selfcheck_every"
+	ExternalEvery         = "servers.external_every"
+	ExternalOnDemandAfter = "servers.external_on_demand_after"
+	ExternalHourlyCap     = "servers.external_hourly_cap"
+	ExternalNodesRU       = "servers.external_nodes_ru"
+	ExternalNodesAbroad   = "servers.external_nodes_abroad"
+	ReferenceDomestic     = "servers.reference_domestic"
+	ReferenceForeign      = "servers.reference_foreign"
+	FlapConfirmations     = "servers.flap_confirmations"
+	SlowFirstByte         = "servers.slow_first_byte"
+	SlowKbps              = "servers.slow_kbps"
+	CertWarnDays          = "servers.cert_warn_days"
+	DiskWarnPct           = "servers.disk_warn_pct"
+	DiskFailPct           = "servers.disk_fail_pct"
+	ReminderEvery         = "servers.reminder_every"
 )
+
+// urlList checks a comma-separated list of http(s) addresses.
+func urlList(v string) error {
+	n := 0
+	for _, p := range strings.Split(v, ",") {
+		if p = strings.TrimSpace(p); p == "" {
+			continue
+		}
+		u, err := url.Parse(p)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+			return errors.New("every address must be http:// or https://")
+		}
+		n++
+	}
+	if n == 0 {
+		return errors.New("needs at least one address")
+	}
+	return nil
+}
+
+// nodeList checks a comma-separated list of check-host node names.
+func nodeList(v string) error {
+	for _, p := range strings.Split(v, ",") {
+		if p = strings.TrimSpace(p); p != "" && !strings.HasSuffix(p, ".node.check-host.net") {
+			return errors.New("node names look like ru1.node.check-host.net")
+		}
+	}
+	return nil
+}
 
 // Section is the module's settings section. Later sub-phases add fields.
 var Section = settings.Section{
@@ -57,6 +102,23 @@ var Section = settings.Section{
 			}},
 		{Key: ProxyTestTimeout, Kind: settings.Duration, Default: "15s", Min: int64(5 * time.Second), Max: int64(2 * time.Minute)},
 		{Key: ProxyTestStall, Kind: settings.Duration, Default: "5s", Min: int64(time.Second), Max: int64(time.Minute)},
+
+		// Health (1f).
+		{Key: SelfcheckEvery, Kind: settings.Duration, Default: "5m0s", Min: int64(time.Minute), Max: int64(time.Hour)},
+		{Key: ExternalEvery, Kind: settings.Duration, Default: "30m0s", Min: int64(5 * time.Minute), Max: int64(24 * time.Hour)},
+		{Key: ExternalOnDemandAfter, Kind: settings.Duration, Default: "10m0s", Min: int64(time.Minute), Max: int64(6 * time.Hour)},
+		{Key: ExternalHourlyCap, Kind: settings.Int, Default: "60", Min: 0, Max: 1000},
+		{Key: ExternalNodesRU, Kind: settings.String, Default: "", MaxLen: 500, Validate: nodeList},
+		{Key: ExternalNodesAbroad, Kind: settings.String, Default: "", MaxLen: 500, Validate: nodeList},
+		{Key: ReferenceDomestic, Kind: settings.String, Default: "https://ya.ru/,https://vk.com/", MaxLen: 500, Validate: urlList},
+		{Key: ReferenceForeign, Kind: settings.String, Default: "https://www.cloudflare.com/cdn-cgi/trace,https://www.google.com/generate_204", MaxLen: 500, Validate: urlList},
+		{Key: FlapConfirmations, Kind: settings.Int, Default: "2", Min: 1, Max: 5},
+		{Key: SlowFirstByte, Kind: settings.Duration, Default: "2s", Min: int64(100 * time.Millisecond), Max: int64(30 * time.Second)},
+		{Key: SlowKbps, Kind: settings.Int, Default: "1000", Min: 1, Max: 1000000},
+		{Key: CertWarnDays, Kind: settings.Int, Default: "14", Min: 1, Max: 60},
+		{Key: DiskWarnPct, Kind: settings.Int, Default: "10", Min: 1, Max: 50},
+		{Key: DiskFailPct, Kind: settings.Int, Default: "2", Min: 1, Max: 20},
+		{Key: ReminderEvery, Kind: settings.Duration, Default: "24h0m0s", Min: int64(time.Hour), Max: int64(7 * 24 * time.Hour)},
 	},
 }
 

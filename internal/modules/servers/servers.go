@@ -16,11 +16,13 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
+	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/migrations"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/seed"
+	"github.com/tikhonp/proxier/internal/modules/servers/stats"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/modules/servers/validate"
@@ -45,6 +47,9 @@ type Module struct {
 	Provision *provision.Service
 	// Deploy changes active servers: plans, redeploys, rollouts, operations, rotation.
 	Deploy *deploy.Service
+	// Stats keeps the metric samples; Health runs the checks and decides the verdict.
+	Stats  *stats.Service
+	Health *health.Service
 	// DNS writes and removes servers' A records; Waiter waits for resolvers to
 	// show them (1d composes both into provisioning).
 	DNS    dns.Driver
@@ -85,6 +90,20 @@ func (m *Module) Init(d module.Deps) error {
 			return deploy.Seams{ProxyTest: p.ProxyTest, ProxyOptions: p.ProxyOptions, RemoteEnv: p.RemoteEnv, Attempts: p.SmokeAttempts, Gap: p.SmokeGap}
 		},
 	})
+	m.Stats = stats.New(d.DB, d.Settings)
+	m.Health = health.New(health.Deps{
+		DB: d.DB, Events: d.Events, Vault: d.Vault, Jobs: d.Jobs, SSH: d.SSH, Settings: d.Settings, I18n: d.I18n,
+		Stats: m.Stats, Log: d.Log,
+		Setup: func(ctx context.Context, id int64) (health.Setup, error) {
+			cs, err := m.Deploy.CheckSetup(ctx, id)
+			return health.Setup{Server: cs.Server, Dir: cs.Dir, Checks: cs.Checks, ProxyTestURL: cs.ProxyTestURL}, err
+		},
+		// the seams are provisioning's, read at use: a test replaces them once
+		Seams: func() health.Seams {
+			p := m.Provision
+			return health.Seams{ProxyTest: p.ProxyTest, ProxyOptions: p.ProxyOptions, RemoteEnv: p.RemoteEnv}
+		},
+	})
 	// The validators that need the embedded xray and the endpoint types.
 	validate.XrayConfig, validate.EndpointFields = proxy.ValidateConfig, endpoint.Check
 	return nil
@@ -108,16 +127,17 @@ func (m *Module) AfterMigrate(ctx context.Context) error {
 
 func (*Module) EventTypes() []events.Type { return Events }
 
-// JobTypes: provisioning (1d) and the changes to active servers (1e); the
-// later sub-phases add theirs.
+// JobTypes: provisioning (1d), the changes to active servers (1e) and the
+// health checks (1f).
 func (m *Module) JobTypes() []jobs.Type {
-	return append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
+	types := append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
+	return append(types, m.Health.JobTypes()...)
 }
 
 // Subscribers: the rollout advances when a deploy job of its running item ends.
 func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Deploy.Subscriber()} }
 
-func (*Module) Schedules() []jobs.Schedule { return nil }
+func (m *Module) Schedules() []jobs.Schedule { return m.Health.Schedules() }
 
 func (*Module) SettingsSections() []settings.Section {
 	return []settings.Section{Section, cloudflare.Section}
@@ -146,8 +166,8 @@ func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
-	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages)+len(deployMessages))
-	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages, deployMessages} {
+	all := make(i18n.Messages, len(messages)+len(templateMessages)+len(serverMessages)+len(deployMessages)+len(healthMessages))
+	for _, set := range []i18n.Messages{messages, templateMessages, serverMessages, deployMessages, healthMessages} {
 		for k, v := range set {
 			all[k] = v
 		}
@@ -159,7 +179,7 @@ func (m *Module) Routes(r web.Routes) {
 	pages.Register(r, pages.Deps{
 		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
 		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
-		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy,
+		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy, Health: m.Health, Stats: m.Stats,
 		Usage: func() pages.UsageReader { return m.usage },
 	})
 }

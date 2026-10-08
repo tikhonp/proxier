@@ -1,0 +1,58 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// pauseBody is the choices and the consequences, shared by the dialog and the page.
+templ pauseBody(v pauseView) {
+	<form method="post" action={ serverHref(v.S.ID) + "/pause" } class="form">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<div class="dlg-body">
+			<p class="sm subtle">
+				{ i18n.T(ctx, "health.pause.sub", i18n.Args{"state": v.Health, "since": v.Since, "every": v.Every}) }
+			</p>
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "health.pause.for") }</legend>
+				for i, o := range v.Options {
+					<label class="pc-opt"><input type="radio" name="d" value={ o.Value } checked?={ i == 0 }/> { o.Label }</label>
+				}
+			</fieldset>
+			if v.Err != "" {
+				<p class="err" role="alert">{ v.Err }</p>
+			}
+			<ul class="plain">
+				<li>{ i18n.T(ctx, "health.pause.c1", i18n.Args{"name": v.S.Name}) }</li>
+				<li>{ i18n.T(ctx, "health.pause.c2") }</li>
+				<li>{ i18n.T(ctx, "health.pause.c3") }</li>
+			</ul>
+		</div>
+		<div class="dlg-foot">
+			<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "health.pause.confirm") }</button>
+			<a class="pc-btn pc-ghost" href={ templ.SafeURL(serverHref(v.S.ID) + "/health") } data-dialog-close>{ i18n.T(ctx, "ui.cancel") }</a>
+		</div>
+	</form>
+}
+
+templ pauseDialog(v pauseView) {
+	<dialog id="pause-dialog" class="pc-dialog" data-autoopen="true" aria-labelledby="pause-dialog-h">
+		<div class="dlg-title">
+			<h2 id="pause-dialog-h">{ i18n.T(ctx, "health.pause.title", i18n.Args{"name": v.S.Name}) }</h2>
+			<button type="button" class="pc-seg pc-close" data-dialog-close aria-label={ i18n.T(ctx, "ui.close") }>×</button>
+		</div>
+		@pauseBody(v)
+	</dialog>
+}
+
+templ pausePage(s ui.Shell, v pauseView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "health.pause") }</span></nav>
+				<h1>{ i18n.T(ctx, "health.pause.title", i18n.Args{"name": v.S.Name}) }</h1>
+			</div>
+		</div>
+		@pauseBody(v)
+	}
+}

@@ -19,7 +19,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 | 1c Cloudflare, embedded xray, endpoints | [1c.md](./1c.md) | done 2026-10-07 |
 | 1d Provisioning and the server page | [1d.md](./1d.md) | done 2026-10-08 (the real-VPS run is the user's) |
 | 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | done 2026-10-08 (real-VPS and browser checks are the user's) |
-| 1f Health and stats | [1f.md](./1f.md) | planned |
+| 1f Health and stats | [1f.md](./1f.md) | done 2026-10-08 (real-VPS, real-browser and provisioned-server check-host runs are the user's) |
 | 1g Retirement, server list, Phase 1 exit | [1g.md](./1g.md) | planned |
 | 1h Agent hand-off | [1h.md](./1h.md) | planned |
 
@@ -155,7 +155,7 @@ One module, `servers` (`internal/modules/servers`), enabled in `modules()` in `c
 | `jobs.System.RetryWithTx(ctx, tx, id, by, RetryOptions{Payload, Secrets})`: a retry inside the caller's transaction that patches the payload and adds secrets | 1d |
 | `sshx.Hop.Password` (root's password, first login only) | 1d |
 | `sshxtest.Server`: `HandleFunc(match, fn)`, per-user keys and passwords, absolute SFTP paths | 1d |
-| `jobs.System.Busy(ctx, key) (bool, error)`: whether a job in state `running` holds the resource key | 1f |
+| `jobs.System.Busy(ctx, key) (bool, error)`: whether a job in state `running` holds the resource key (+ `BusyExcept`, `CancelQueued`) | 1f (done) |
 | `module.IntegrationDeclarer` (a module's row on Settings → Integrations) and `web.Routes.SettingsPages` (the side menu for a module's own settings page) | 1c (done) |
 
 `/jobs?subject=<type>:<id>` and `/activity?subject=…&actor=…` already exist (0c); the server page's Jobs and Activity tabs link to them.

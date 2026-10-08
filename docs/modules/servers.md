@@ -174,7 +174,7 @@ Only **active** servers have a health state ([health](../processes/servers/serve
 ## Server page
 
 - **Overview**: flag and name, health badge with "since" and a one-sentence reason, lifecycle state, IP, hostnames, location, template and version (with "update available"), endpoints with their connection URIs (copy, QR, reveal), the subscriptions it is in, notes, and recent events.
-- **Health**: the latest result of each check per vantage point, as a matrix, plus the verdict explanation and a timeline of health states ([health](../processes/servers/server-health.md)).
+- **Health**: the latest result of each check per vantage point, as a matrix with 24 h strips, plus the verdict explanation and a timeline of health states (24 h / 7 d / 30 d), **Run checks now** and **Pause checks** / **Resume** ([health](../processes/servers/server-health.md)).
 - **Stats**: CPU, memory, disk and traffic charts for 24 h / 7 d / 30 d, and container states ([stats](../processes/servers/server-stats.md)).
 - **Stack**: the rendered files of the last deployment (secrets masked until revealed), its template version, and the deployment history with diffs.
 - **Jobs** and **Activity**: filtered to this server.
@@ -195,7 +195,7 @@ Actions:
 | Roll back | active, latest deployment failed after uploading files | Opens the plan for the version and parameters of the current files, forced ([redeploy](../processes/servers/server-redeploy.md)). |
 | Reboot | active | Reboots, waits for SSH, then runs a check round. |
 | Run checks now | active | Runs a full check round right away. |
-| Pause checks / Resume | active | Health becomes `paused` for 1 h, 6 h, 24 h or until resumed. No notifications meanwhile. |
+| Pause checks / Resume | active | Health becomes `paused` for 1 h, 6 h, 24 h or until resumed. No notifications meanwhile; the end of a timed pause is a delayed job that checks the stored time. Resume goes to `unknown` and starts a round. |
 | Edit notes | any | — |
 | Retire | provisioning, failed, active | Type the server name to confirm ([retirement](../processes/servers/server-retirement.md)). |
 

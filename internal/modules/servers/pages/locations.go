@@ -13,7 +13,9 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
+	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
+	"github.com/tikhonp/proxier/internal/modules/servers/stats"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -42,6 +44,9 @@ type Deps struct {
 	Provision *provision.Service
 	// Deploy plans and runs changes to active servers (1e).
 	Deploy *deploy.Service
+	// Health runs and reads the checks; Stats answers the Stats tab (1f).
+	Health *health.Service
+	Stats  *stats.Service
 	// Usage is the subscriptions port (Phase 2); it returns nil until then.
 	Usage func() UsageReader
 }
@@ -68,6 +73,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerTemplates(r)
 	h.registerServers(r)
 	h.registerDeploy(r)
+	h.registerHealth(r)
 }
 
 type locForm struct{ Code, Name, Country string }

@@ -39,6 +39,7 @@ const (
 	OpHTTP           Op = "http"
 	OpCertExpiry     Op = "proxier-cert-expiry"
 	OpDisk           Op = "disk"
+	OpStats          Op = "proxier-stats"
 )
 
 // DeployUser is the account Proxier works as after the first login.
@@ -275,6 +276,22 @@ func CmdCertExpiry(path string) string {
 
 // CmdDisk prints the root file system's usage in POSIX format.
 func CmdDisk() string { return plain(false, "df", "-P", "/") }
+
+// CmdStats reads, in one go, what the stats tab shows: load, CPU counters,
+// memory, the root file system, the default route's device and the byte
+// counters of all devices, uptime, and the stack's containers (name, state,
+// restart count, image). Sections are introduced by "##name" lines.
+func CmdStats(dir string) string {
+	return script(true, `echo '##loadavg'; cat /proc/loadavg; `+
+		`echo '##stat'; head -n1 /proc/stat; `+
+		`echo '##meminfo'; grep -E '^(MemTotal|MemAvailable):' /proc/meminfo; `+
+		`echo '##df'; df -P -B1 /; `+
+		`echo '##route'; ip route show default; `+
+		`echo '##netdev'; cat /proc/net/dev; `+
+		`echo '##uptime'; cat /proc/uptime; `+
+		`echo '##docker'; ids=$(docker ps -aq --filter "label=com.docker.compose.project.working_dir=$1" 2>/dev/null); `+
+		`[ -z "$ids" ] || docker inspect --format '{{.Name}}|{{.State.Status}}|{{.RestartCount}}|{{.Config.Image}}' $ids 2>/dev/null; true`, OpStats, dir)
+}
 
 // Parse is the inverse of the builders, for serverstest.VPS: which command
 // this is, and its variable parts. ok is false for anything else.

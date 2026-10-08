@@ -1,0 +1,63 @@
+package ui
+
+import (
+	"strconv"
+	"time"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+)
+
+// TimeSeries is a line chart drawn on the server: no script, no inline style.
+// Missing samples break the line. The grid is three faint lines; the axis
+// labels are the caller's (a row of spans under the chart).
+templ TimeSeries(series []Series, r Range) {
+	<svg class="chart" role="img" aria-label={ r.Label } viewBox={ viewBox(chartW, chartH) } preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+		<rect class="chart-bg" width={ strconv.Itoa(chartW) } height={ strconv.Itoa(chartH) }></rect>
+		for _, y := range []int{chartH / 4, chartH / 2, chartH * 3 / 4} {
+			<path class="chart-grid" d={ "M0 " + strconv.Itoa(y) + "H" + strconv.Itoa(chartW) } vector-effect="non-scaling-stroke"></path>
+		}
+		for _, s := range series {
+			<path class={ "chart-line", s.Class } d={ linePaths(s.Points, r, chartW, chartH) } fill="none" vector-effect="non-scaling-stroke"></path>
+		}
+	</svg>
+}
+
+// Sparkline is a small line of one series, without grid.
+templ Sparkline(points []Point, r Range) {
+	<svg class="spark" role="img" aria-label={ r.Label } viewBox={ viewBox(120, 24) } preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+		<path class="chart-line" d={ linePaths(points, r, 120, 24) } fill="none" vector-effect="non-scaling-stroke"></path>
+	</svg>
+}
+
+// Strip is a row of cells for a success history: ok, fail or none.
+templ Strip(cells []string, label string) {
+	<svg class="strip" role="img" aria-label={ label } viewBox={ viewBox(len(cells)*5, 12) } preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+		for i, c := range cells {
+			<rect class={ "strip-" + c } x={ strconv.Itoa(i * 5) } y="0" width="4" height="12"></rect>
+		}
+	</svg>
+}
+
+// Bar is a used/total bar; its colour follows how full it is.
+templ Bar(used, total int64) {
+	<span class={ "bar", barKind(barPct(used, total)) } role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow={ strconv.Itoa(barPct(used, total)) } aria-label={ i18n.T(ctx, "ui.bar", i18n.Args{"pct": barPct(used, total)}) }>
+		<svg viewBox="0 0 100 6" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+			<rect class="bar-bg" width="100" height="6"></rect>
+			<rect class="bar-fill" width={ strconv.Itoa(barPct(used, total)) } height="6"></rect>
+		</svg>
+	</span>
+}
+
+// Timeline is a bar of coloured stretches, one per state, over a time axis.
+templ Timeline(segs []Segment, from, to time.Time, label string) {
+	<svg class="timeline" role="img" aria-label={ label } viewBox="0 0 1000 14" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+		<rect class="tl-bg" width="1000" height="14"></rect>
+		for _, s := range segs {
+			if x, w, ok := segmentGeom(s, from, to); ok {
+				<rect class={ "tl-" + s.Kind } x={ f1(x) } y="0" width={ f1(w) } height="14">
+					<title>{ s.Title }</title>
+				</rect>
+			}
+		}
+	</svg>
+}

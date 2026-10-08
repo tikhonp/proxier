@@ -1,0 +1,150 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// healthPage is the Health tab: the verdict, the matrix of the latest results
+// and the timeline of states.
+templ healthPage(s ui.Shell, v healthView) {
+	@ui.Layout(s) {
+		@serverHead(v.serverView, "health")
+		if v.Msg == "busy" {
+			@ui.Alert("gold", "status") {
+				{ i18n.T(ctx, "health.run.busy") }
+			}
+		} else if v.Msg == "over_budget" {
+			@ui.Alert("gold", "status") {
+				{ i18n.T(ctx, "health.run.over_budget") }
+			}
+		} else if v.Msg == "queued" {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "health.run.queued") }
+			}
+		}
+		if v.Frozen {
+			@ui.Band("gold") {
+				<span class="bold">{ v.HomeNote }</span>
+				if v.HomeSince != "" {
+					<span class="subtle">{ i18n.T(ctx, "servers.since", i18n.Args{"ago": v.HomeSince}) }</span>
+				}
+			}
+		}
+		<section class={ "verdict", "v-" + v.HealthKind } aria-labelledby="verdict-h">
+			<div class="verdict-head">
+				<h2 id="verdict-h">@ui.Status(v.HealthKind, i18n.T(ctx, "servers.health."+v.Health))</h2>
+				if v.Since != "" {
+					<span class="sm subtle" title={ v.SinceAt }>{ i18n.T(ctx, "servers.since", i18n.Args{"ago": v.Since}) }</span>
+				}
+				<span class="flex1"></span>
+				<div class="actions">
+					@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Kind: ui.Primary, Key: "r"})
+					if v.Paused {
+						@ui.ActionButton(ui.Action{ID: "health.resume", Label: "health.resume", Method: "POST", Href: serverHref(v.S.ID) + "/resume", Key: "p"})
+					} else {
+						<button type="button" class="pc-btn" data-action="health.pause" data-key="p" hx-get={ serverHref(v.S.ID) + "/pause" } hx-target="#pause-slot" hx-swap="innerHTML">{ i18n.T(ctx, "health.pause") }</button>
+					}
+				</div>
+			</div>
+			<div class="verdict-body">
+				if v.Reason != "" {
+					<p>{ v.Reason }</p>
+				}
+				if v.Paused {
+					<p class="subtle">
+						if v.PausedUntil != "" {
+							{ i18n.T(ctx, "health.paused_until", i18n.Args{"until": v.PausedUntil}) }
+						} else {
+							{ i18n.T(ctx, "health.paused_forever") }
+						}
+					</p>
+				}
+				if v.Pending != "" {
+					<p class="subtle">{ v.Pending }</p>
+				}
+			</div>
+		</section>
+		<div id="pause-slot"></div>
+		@healthMatrix(v)
+		@ui.Area(i18n.T(ctx, "health.timeline"), "") {
+			<div class="area-body">
+				<div class="filters">
+					for _, c := range v.Ranges {
+						<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ ui.BoolStr(c.On) }>{ c.Label }</a>
+					}
+				</div>
+				@ui.Timeline(v.Segments, v.TimelineFrom, v.TimelineTo, i18n.T(ctx, "health.timeline.label"))
+				<div class="axis">
+					for _, a := range v.Axis {
+						<span>{ a }</span>
+					}
+				</div>
+				<div class="legend">
+					for _, l := range v.Legend {
+						<span>@ui.Status(l.Kind, l.Word) <span class="subtle">{ l.Duration }</span></span>
+					}
+				</div>
+			</div>
+			if len(v.Changes) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "health.timeline.none") }</p>
+			}
+			for _, ch := range v.Changes {
+				<div class="row chg">
+					<span class="subtle">{ ch.Time }</span>
+					<span><span class="subtle">{ ch.From }</span> → <span class="bold">{ ch.To }</span></span>
+					<span>{ ch.Reason }</span>
+				</div>
+			}
+		}
+	}
+}
+
+// healthMatrix is the table of the latest results. While a manual run is
+// fresh it polls itself every two seconds, until the minute is over.
+templ healthMatrix(v healthView) {
+	if v.PollHref != "" {
+		<div id="matrix" hx-get={ v.PollHref } hx-trigger="every 2s" hx-select="#matrix" hx-target="#matrix" hx-swap="outerHTML">
+			@matrixBody(v)
+		</div>
+	} else {
+		<div id="matrix">
+			@matrixBody(v)
+		</div>
+	}
+}
+
+templ matrixBody(v healthView) {
+	@ui.Area(i18n.T(ctx, "health.matrix"), i18n.T(ctx, "health.matrix.note")) {
+		<div class="colhead mx" aria-hidden="true">
+			<span>{ i18n.T(ctx, "health.col.check") }</span>
+			<span>{ i18n.T(ctx, "health.col.result") }</span>
+			<span>{ i18n.T(ctx, "health.col.detail") }</span>
+			<span>{ i18n.T(ctx, "health.col.when") }</span>
+			<span>{ i18n.T(ctx, "health.col.history") }</span>
+		</div>
+		for _, r := range v.Matrix {
+			if r.Group != "" {
+				<div class="mx-group">{ r.Group }</div>
+			} else {
+				<div class={ "row", "mx", templ.KV("mx-sub", r.Indent) }>
+					<span class="bold">
+						{ r.Label }
+						if r.Sub != "" {
+							<span class="sm subtle">{ r.Sub }</span>
+						}
+					</span>
+					<span>@ui.Status(r.Kind, r.Result)</span>
+					<span class="subtle">{ r.Detail }</span>
+					<span class="sm subtle" title={ r.At }>{ r.When }</span>
+					<span>
+						if len(r.Strip) > 0 {
+							@ui.Strip(r.Strip, r.StripLabel)
+						}
+					</span>
+				</div>
+			}
+		}
+	}
+}
+

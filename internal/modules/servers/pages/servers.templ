@@ -1,7 +1,6 @@
 package pages
 
 import (
-	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"strconv"
 
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -329,6 +328,10 @@ templ locationFieldInner(v newView) {
 templ serverTabs(v serverView, tab string) {
 	<nav class="tabs" aria-label={ i18n.T(ctx, "servers.tabs") }>
 		<a href={ templ.SafeURL(serverHref(v.S.ID)) } if tab == "overview" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.overview") }</a>
+		if v.S.State == "active" {
+			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/health") } if tab == "health" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.health") }</a>
+			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/stats") } if tab == "stats" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.stats") }</a>
+		}
 		if v.S.State != "provisioning" {
 			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/stack") } if tab == "stack" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.stack") }</a>
 		}
@@ -369,6 +372,9 @@ templ serverHead(v serverView, tab string) {
 						Consequences: []string{i18n.T(ctx, "servers.activate.c1"), i18n.T(ctx, "servers.activate.c2")},
 					},
 				})
+			}
+			if v.S.State == "active" && tab != "health" {
+				@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Key: "r"})
 			}
 			if v.S.State == "active" {
 				@ui.ActionButton(ui.Action{ID: "server.redeploy", Label: "servers.act.redeploy", Method: "GET", Href: serverHref(v.S.ID) + "/redeploy", Kind: ui.Primary, Key: "d"})
@@ -573,23 +579,100 @@ templ retryPage(s ui.Shell, v retryView) {
 	}
 }
 
-// dashboardServers is the servers area of the dashboard.
-templ dashboardServers(counts map[string]int, failed []store.Server) {
-	<div class="row dashsrv">
-		for _, st := range []string{"active", "provisioning", "failed"} {
-			<span>
-				<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(counts[st]) }</a>
-				<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
-			</span>
+// dashboardServers is the servers area of the dashboard: home's banner, the
+// fleet by health, the servers that need a look, updates and the top lists.
+templ dashboardServers(v DashboardView) {
+	if v.Home == "offline" {
+		@ui.Band("love") {
+			<span class="bold">{ i18n.T(ctx, "health.dash.home_offline") }</span>
+			if v.HomeSince != "" {
+				<span class="subtle">{ i18n.T(ctx, "servers.since", i18n.Args{"ago": v.HomeSince}) }</span>
+			}
+			<span>{ i18n.T(ctx, "health.dash.home_offline_body") }</span>
 		}
-		<span class="flex1"></span>
-		<a href="/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.dash.all") }</a>
-	</div>
-	for _, s := range failed {
-		<a href={ templ.SafeURL(serverHref(s.ID)) } class="row dashfail pc-row">
-			@ui.Status("broken", i18n.T(ctx, "servers.state.failed"))
-			<span class="bold">{ s.Name }</span>
-			<span class="subtle">{ i18n.T(ctx, "job.servers.provision.step."+s.FailedStep) } · { s.FailedError }</span>
-		</a>
+	} else if v.Home == "foreign-unreachable" {
+		@ui.Band("gold") {
+			<span class="bold">{ i18n.T(ctx, "health.dash.foreign") }</span>
+			if v.HomeSince != "" {
+				<span class="subtle">{ i18n.T(ctx, "servers.since", i18n.Args{"ago": v.HomeSince}) }</span>
+			}
+			<span>{ i18n.T(ctx, "health.dash.foreign_body") }</span>
+		}
+	}
+	if len(v.Checklist) > 0 {
+		<div class="mx-group">{ i18n.T(ctx, "health.dash.setup") }</div>
+		for _, c := range v.Checklist {
+			<a href={ templ.SafeURL(c.Href) } class="row dashsrv pc-row">
+				if c.Done {
+					@ui.Status("ok", c.Label)
+				} else {
+					@ui.Status("off", c.Label)
+				}
+			</a>
+		}
+	}
+	if v.Total > 0 {
+		<div class="row dashsrv">
+			for _, st := range []string{"active", "provisioning", "failed"} {
+				<span>
+					<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(v.Counts[st]) }</a>
+					<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
+				</span>
+			}
+			<span class="flex1"></span>
+			<a href="/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.dash.all") }</a>
+		</div>
+		if v.Counts["active"] > 0 {
+			<div class="row dashcnt">
+				for _, st := range []string{"healthy", "degraded", "blocked", "down", "unknown", "paused"} {
+					<span>
+						@ui.Status(healthKind(st), i18n.T(ctx, "servers.health."+st))
+						<span class="bold">{ strconv.Itoa(v.Health[st]) }</span>
+					</span>
+				}
+			</div>
+		}
+		for _, r := range v.NotHealthy {
+			<a href={ templ.SafeURL(serverHref(r.ID)) } class="row dashsick pc-row">
+				@ui.Status(r.Kind, "")
+				<span class="bold">{ r.Flag } { r.Name }</span>
+				<span>{ r.Reason }</span>
+				<span class="sm subtle">{ r.Note }</span>
+			</a>
+		}
+		for _, s := range v.Failed {
+			<a href={ templ.SafeURL(serverHref(s.ID)) } class="row dashfail pc-row">
+				@ui.Status("broken", i18n.T(ctx, "servers.state.failed"))
+				<span class="bold">{ s.Name }</span>
+				<span class="subtle">{ s.Reason }</span>
+			</a>
+		}
+		if len(v.Updates) > 0 {
+			<div class="mx-group">{ i18n.T(ctx, "health.dash.updates") }</div>
+			for _, r := range v.Updates {
+				<a href={ templ.SafeURL(serverHref(r.ID)) } class="row dashrank pc-row">
+					<span class="bold">{ r.Flag } { r.Name }</span>
+					<span class="subtle">{ r.Note }</span>
+				</a>
+			}
+		}
+		if len(v.TopDisk) > 0 {
+			<div class="mx-group">{ i18n.T(ctx, "health.dash.top_disk") }</div>
+			for _, r := range v.TopDisk {
+				<a href={ templ.SafeURL(serverHref(r.ID) + "/stats") } class="row dashrank pc-row">
+					<span class="bold">{ r.Name }</span>
+					<span class="subtle">{ r.Value }</span>
+				</a>
+			}
+		}
+		if len(v.TopTraffic) > 0 {
+			<div class="mx-group">{ i18n.T(ctx, "health.dash.top_traffic") }</div>
+			for _, r := range v.TopTraffic {
+				<a href={ templ.SafeURL(serverHref(r.ID) + "/stats") } class="row dashrank pc-row">
+					<span class="bold">{ r.Name }</span>
+					<span class="subtle">{ r.Value }</span>
+				</a>
+			}
+		}
 	}
 }

@@ -76,7 +76,7 @@ func TestScriptsAreValidShell(t *testing.T) {
 	for _, cmd := range []string{
 		remote.CmdEnsureUser(), remote.CmdInstallSudoers(), remote.CmdInstallKeys(), remote.CmdSSHDDropin(), remote.CmdSSHDReload(),
 		remote.CmdSSHDRollback(), remote.CmdApt(), remote.CmdDockerInstall(), remote.CmdFirewall([]string{"22/tcp"}),
-		remote.CmdCertExpiry(dir + "/c.pem"), remote.CmdRun(dir, "./a.sh && ./b.sh"),
+		remote.CmdCertExpiry(dir + "/c.pem"), remote.CmdStats(dir), remote.CmdRun(dir, "./a.sh && ./b.sh"),
 	} {
 		words, err := remote.Split(cmd)
 		if err != nil {

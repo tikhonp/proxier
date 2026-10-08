@@ -222,3 +222,11 @@ type JobsCellView struct {
 	Running int
 	Failed  int // failed since the admin last looked
 }
+
+// BoolStr is "true" or "false", for aria-pressed and the like.
+func BoolStr(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}

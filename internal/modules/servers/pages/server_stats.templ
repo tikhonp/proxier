@@ -1,0 +1,78 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// statsPage is the Stats tab: current values, the charts and the containers.
+templ statsPage(s ui.Shell, v statsView) {
+	@ui.Layout(s) {
+		@serverHead(v.serverView, "stats")
+		<div class="filters">
+			for _, c := range v.Ranges {
+				<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ ui.BoolStr(c.On) }>{ c.Label }</a>
+			}
+		</div>
+		if !v.HasData {
+			@ui.EmptyState(i18n.T(ctx, "stats.empty"), i18n.T(ctx, "stats.empty_next"))
+		} else {
+			<div class="now">
+				for _, n := range v.Now {
+					<div class="now-cell">
+						<div class="sm subtle">{ n.Label }</div>
+						<div class="now-v">{ n.Value }</div>
+						if n.Sub != "" {
+							<div class="sm subtle">{ n.Sub }</div>
+						}
+					</div>
+				}
+			</div>
+			<p class="sm subtle area-pad">{ i18n.T(ctx, "stats.sample_at", i18n.Args{"ago": v.SampleAt}) }</p>
+			<div class="charts">
+				for _, ch := range v.Charts {
+					<section class="area chart-box" id={ "chart-" + ch.ID } aria-label={ ch.Title }>
+						<div class="pc-title">
+							<h2>{ ch.Title }</h2>
+							if ch.Last != "" {
+								<span class="note">{ ch.Last }</span>
+							}
+							<span class="flex1"></span>
+							for _, l := range ch.Legend {
+								<span class="sm subtle">{ l }</span>
+							}
+						</div>
+						@ui.TimeSeries(ch.Series, ch.Range)
+						<div class="axis">
+							for _, a := range ch.Axis {
+								<span>{ a }</span>
+							}
+						</div>
+						if ch.Gaps {
+							<p class="sm subtle area-pad">{ i18n.T(ctx, "stats.gaps") }</p>
+						}
+					</section>
+				}
+			</div>
+			@ui.Area(i18n.T(ctx, "stats.containers"), i18n.T(ctx, "stats.containers.note", i18n.Args{"ago": v.SampleAt})) {
+				<div class="colhead ct" aria-hidden="true">
+					<span>{ i18n.T(ctx, "stats.col.service") }</span>
+					<span>{ i18n.T(ctx, "stats.col.state") }</span>
+					<span>{ i18n.T(ctx, "stats.col.restarts") }</span>
+					<span>{ i18n.T(ctx, "stats.col.image") }</span>
+				</div>
+				if len(v.Containers) == 0 {
+					<p class="subtle area-body">{ i18n.T(ctx, "stats.containers.none") }</p>
+				}
+				for _, ct := range v.Containers {
+					<div class="row ct">
+						<span class="bold">{ ct.Name }</span>
+						<span>@ui.Status(ct.Kind, ct.State)</span>
+						<span>{ itoa(ct.Restarts) }</span>
+						<span class="subtle">{ ct.Image }</span>
+					</div>
+				}
+			}
+		}
+	}
+}
