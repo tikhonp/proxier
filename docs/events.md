@@ -74,7 +74,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `subscription.created` / `.deleted` | subscription | name | off | |
 | `subscription.updated` | subscription | changes (the changed settings, comma-joined: name, title, description, formats, default format, update interval, hide unhealthy, hidden states, grace, auto add) | off | Nothing is recorded when nothing changed. |
 | `subscription.servers_changed` | subscription | added, removed (names, comma-joined, `""` for none), reordered (bool); `auto: true` for the automatic add; `reason: "retired"` | off | Includes removals caused by retirement, one event per subscription. |
-| `subscription.all_unhealthy` | subscription | servers (names), count | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). At most hourly per subscription. |
+| `subscription.all_unhealthy` | subscription | servers (names, comma-joined), count | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). Raised by a fetch (actor `system`), at most hourly per subscription. |
 | `link.created` | link | subscription (name), expiry | off | |
 | `link.changed` | link | fields (of name, note, language, format, alert limits, alerts muted) | off | The plain edits of a link. |
 | `link.disabled` / `link.enabled` | link | — | off | |

@@ -6,6 +6,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/modules/servers/remote"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/sitetest"
+
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
@@ -95,3 +100,46 @@ func TestRealRetirementLeavesSubscriptions(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestFetchDuringAndAfterRotation(t *testing.T) {
+	h, mod := substest.WithServers(t)
+	ctx := context.Background()
+	id := h.Provisioned()
+	sub, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")
+	if err := mod.Subs.AddServers(ctx, sub, []int64{id}, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	link, err := mod.Links.Create(ctx, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, _ := mod.Links.Token(ctx, link)
+	fetch := func() string {
+		t.Helper()
+		rec := h.Site.Do(sitetest.Req{Path: "/s/" + token, Addr: "198.51.100.23:5000"})
+		if rec.Code != 200 || !strings.HasPrefix(rec.Body.String(), "vless://") {
+			t.Fatalf("fetch: %d %q", rec.Code, rec.Body.String())
+		}
+		return rec.Body.String()
+	}
+	before := fetch()
+
+	reached, release := h.VPS.Hold(remote.OpComposeUp)
+	job, err := h.Mod.Deploy.Rotate(ctx, id, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-reached
+	if during := fetch(); during != before {
+		t.Errorf("while the rotation runs the link serves new values:\n%s\n%s", before, during)
+	}
+	release()
+	h.Drain()
+	if j, err := h.App.Jobs.Job(ctx, job); err != nil || j.State != jobs.Succeeded {
+		t.Fatalf("rotation: %+v %v", j, err)
+	}
+	after := fetch()
+	if after == before || strings.Split(after, "@")[0] == strings.Split(before, "@")[0] {
+		t.Errorf("after the rotation the credential is the same:\n%s\n%s", before, after)
+	}
+}

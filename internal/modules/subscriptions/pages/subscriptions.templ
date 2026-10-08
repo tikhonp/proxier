@@ -125,6 +125,7 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 				<p class="subtle">{ v.Status }</p>
 			</div>
 			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "links.new", Label: "links.new", Method: "GET", Href: "/links/new?subscription=" + i64(v.S.ID), Key: "n"})
 				@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true})
 			</div>
 		</div>
@@ -157,7 +158,17 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 					@previewBody(v.Preview)
 				}
 				@ui.Area(i18n.T(ctx, "subs.area.links", i18n.Args{"n": v.Links}), "") {
-					<p class="subtle area-body">{ i18n.T(ctx, "subs.links.none") }</p>
+					if len(v.LinkRows) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "subs.links.none") }</p>
+					}
+					for _, l := range v.LinkRows {
+						<a href={ templ.SafeURL(linkHref(l.ID)) } class="row sublink pc-row" data-row={ i64(l.ID) } data-href={ linkHref(l.ID) }>
+							<span class="caret" aria-hidden="true">›</span>
+							<span class="bold">{ l.Name }</span>
+							@ui.Status(l.Kind, l.Word)
+							<span class="sm subtle">{ l.Last }</span>
+						</a>
+					}
 				}
 				@ui.Area(i18n.T(ctx, "subs.area.activity"), "") {
 					if len(v.Activity) == 0 {
@@ -373,6 +384,26 @@ templ deletePage(s ui.Shell, v deleteView) {
 		if v.Err != "" {
 			@ui.Alert("love", "alert") {
 				{ v.Err }
+			}
+		}
+		if len(v.Live) > 0 {
+			@ui.Area(i18n.T(ctx, "links.move.title"), "") {
+				if len(v.Others) == 0 {
+					<p class="subtle area-body">{ i18n.T(ctx, "links.move.nowhere") }</p>
+				} else {
+					<form method="post" action={ subHref(v.S.ID) + "/move-links" } class="form area-body">
+						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+						<p class="sm subtle">{ i18n.N(ctx, "links.move.note", int64(len(v.Live))) }</p>
+						<div class="inline-fields">
+							<select class="pc-inp" name="to" aria-label={ i18n.T(ctx, "links.move.to") }>
+								for _, o := range v.Others {
+									<option value={ i64(o.ID) }>{ o.Name }</option>
+								}
+							</select>
+							<button type="submit" class="pc-btn pc-pri" data-action="links.move">{ i18n.T(ctx, "links.move.submit") }</button>
+						</div>
+					</form>
+				}
 			}
 		}
 		<form method="post" action={ subHref(v.S.ID) + "/delete" } class="form">

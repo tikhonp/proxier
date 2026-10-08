@@ -39,7 +39,9 @@ vless://00000000-0000-0000-0000-000000000000@127.0.0.1:1?encryption=none&type=tc
 | deleted | ⛔ Link removed | ⛔ Ссылка удалена |
 | no servers | ⚠️ No servers yet | ⚠️ Серверов пока нет |
 
-`{contact}` is the admin contact from Settings. Without one, the "· contact …" part is left out.
+`{contact}` is the admin contact from Settings. Without one, the "· contact …" part is left out. `{date}` is the last day the link worked, in the display time zone: "1 Dec 2026" / "1 дек 2026".
+
+The fragment (the entry's name) and the `filename*` of `content-disposition` are percent-encoded byte by byte: everything but `A–Z a–z 0–9 - . _ ~` (a space is `%20`, `@` is `%40`).
 
 ## App detection
 

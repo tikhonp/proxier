@@ -532,3 +532,23 @@ fieldset.field legend { padding: 0; font-size: var(--fs-sm); color: var(--subtle
   .row.member { grid-template-columns: 20px 24px minmax(0, 1fr) auto; }
   .row.member .hl, .row.member .out { grid-column: 3 / -1; }
 }
+
+/* Links (2b): the list, the link page's columns, the URL field, the fetch log, the actions */
+.row.lnk, .colhead.lnk { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 110px minmax(0, 1.2fr) minmax(0, 1.4fr) 48px; align-items: center; }
+a.row.lnk { text-decoration: none; color: inherit; }
+.filter-form .pc-inp.name { height: 26px; font-size: var(--fs-sm); width: 180px; }
+.list-foot { padding: 10px 16px; color: var(--subtle); font-size: var(--fs-sm); }
+.row.sublink { grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1fr); }
+.urlfield { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.urlfield code { font-family: inherit; word-break: break-all; }
+.row.fetch, .colhead.fetch { grid-template-columns: 130px minmax(0, 1fr) minmax(0, 1.4fr) 90px 110px; align-items: start; font-size: var(--fs-sm); }
+.row.fetch .ua { word-break: break-word; }
+.row.act { grid-template-columns: 190px minmax(0, 1fr); }
+.row.act .pc-btn { justify-self: start; }
+.expiry-fields .pc-inp.date { width: 150px; }
+.expiry-fields .pc-inp.clock { width: 90px; }
+@media (max-width: 760px) {
+  .colhead.lnk, .colhead.fetch { display: none; }
+  .row.lnk, .row.fetch, .row.act, .row.sublink { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .filter-form { flex-wrap: wrap; }
+}

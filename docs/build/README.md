@@ -30,7 +30,7 @@ Phase 2 ([roadmap](../roadmap.md#phase-2-subscriptions)) is built the same way. 
 | Sub-phase | Contract | State |
 |---|---|---|
 | 2a Subscriptions module, schema, subscriptions | [2a.md](./2a.md) | done 2026-10-08 (real phones and apps are the user's) |
-| 2b Links and the public fetch | [2b.md](./2b.md) | planned |
+| 2b Links and the public fetch | [2b.md](./2b.md) | done 2026-10-08 (real phones and apps are the user's) |
 | 2c Expiry, shared-link alerts, dashboard | [2c.md](./2c.md) | planned |
 | 2d Cut-off, Phase 2 exit | [2d.md](./2d.md) | planned |
 

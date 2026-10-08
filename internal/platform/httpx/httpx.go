@@ -103,7 +103,7 @@ func RequestLogger(log *slog.Logger) echo.MiddlewareFunc {
 		LogLatency: true, LogRemoteIP: true, LogMethod: true, LogURIPath: true, LogStatus: true, LogRequestID: true,
 		HandleError: true,
 		LogValuesFunc: func(c *echo.Context, v middleware.RequestLoggerValues) error {
-			attrs := []any{"method", v.Method, "path", v.URIPath, "status", v.Status,
+			attrs := []any{"method", v.Method, "path", MaskPath(v.URIPath), "status", v.Status,
 				"latency_ms", v.Latency.Milliseconds(), "ip", v.RemoteIP, "request_id", v.RequestID}
 			if v.Error != nil {
 				attrs = append(attrs, "error", v.Error.Error())
@@ -119,6 +119,28 @@ func RequestLogger(log *slog.Logger) echo.MiddlewareFunc {
 			return nil
 		},
 	})
+}
+
+// tokenPrefixes are the public spaces whose first segment is a secret token.
+var tokenPrefixes = []string{"/s/", "/r/", "/f/"}
+
+// MaskPath hides the token of a public path, so no log holds one:
+// /s/<token> → /s/•••, /r/<token>/home.conf → /r/•••/home.conf.
+func MaskPath(p string) string {
+	for _, pre := range tokenPrefixes {
+		rest, ok := strings.CutPrefix(p, pre)
+		if !ok {
+			continue
+		}
+		if rest == "" {
+			return p
+		}
+		if i := strings.IndexByte(rest, '/'); i >= 0 {
+			return pre + "•••" + rest[i:]
+		}
+		return pre + "•••"
+	}
+	return p
 }
 
 // Run serves on addr until ctx is cancelled, then drains connections.

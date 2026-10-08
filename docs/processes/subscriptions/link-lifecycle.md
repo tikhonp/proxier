@@ -12,7 +12,7 @@ A link is what you hand to one person or device: a name and a secret URL serving
    - optional **expiry** (a date, meaning the end of that day in the display time zone, or a date and time);
    - **language** of the stub texts;
    - **note**.
-2. Proxier generates the token and creates the link as **active**. The link page opens with the URL, **Copy** and a **QR code**. → `link.created{subscription, expiry}`
+2. Proxier generates the token and creates the link as **active**. The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
 3. The admin sends the URL, or shows the QR to be scanned in the app.
 
 ## Steps — changing a link
@@ -21,12 +21,12 @@ A link is what you hand to one person or device: a name and a secret URL serving
 |---|---|---|
 | **Disable** | The dialog warns: "Their app's list becomes the 'disabled' entry on its next refresh. Copied URIs keep working until you rotate the servers: use **Cut off** for that." Confirm → state `disabled`. | `link.disabled` |
 | **Enable** | State `active`. The real output returns on the next fetch. | `link.enabled` |
-| **Regenerate token** | A new token at once. The old URL returns `404` from now on. The new URL and QR are shown. | `link.token_regenerated` |
+| **Regenerate token** | A new token at once. The old URL returns `404` from now on. The link page shows a band "New URL ready: copy it and send it." with **Copy URL** holding the new one. | `link.token_regenerated` |
 | **Change subscription** | The next fetch serves the new subscription. | `link.subscription_changed{from, to}` |
-| **Set / extend / clear expiry** | Changes the expiry. Extending an expired link makes it serve the real output again. | `link.expiry_changed{from, to}` |
+| **Set / extend / clear expiry** | Changes the expiry. Extending an expired link makes it serve the real output again. Any change re-arms the warning and the expired notification for the new expiry. | `link.expiry_changed{from, to}` |
 | **Cut off** | Disable, plus rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers}` |
 | **Delete** | The dialog explains the tombstone. Confirm → state `deleted`. The link leaves the lists, and its URL serves "⛔ Link removed" for 30 days, then `404`. | `link.deleted` |
-| **Rename, edit note, change language** | Plain edits. | — |
+| **Rename, edit note, change language, format override** | Plain edits. Nothing changed records nothing. | `link.changed{fields}` |
 
 ## Steps — expiry (the expiry scan, every 15 min)
 
@@ -41,6 +41,8 @@ A link is what you hand to one person or device: a name and a secret URL serving
 - A token is shown only on the link page. It is never in a notification, an event or a log.
 - Exactly one subscription per link.
 - "Expired" isn't a separate state: it is an active link past its expiry. Clearing or extending the expiry is enough to bring it back.
+- The expiry is stored as the **first moment the link is expired**: a date alone (1 Dec in Europe/Moscow) is 00:00 of the next day there; a date and time is that minute.
+- A deleted link's page is read-only: "Deleted on 8 Oct 2026. Its URL serves “⛔ Link removed” until 7 Nov 2026." (or, after that, the day its tombstone ended). The tombstone period is the setting `subscriptions.tombstone` (30 days by default), the one in force at fetch time.
 - A disabled link keeps its expiry. Enabling an expired link still serves the "expired" stub entry.
 - Deleting is softer than it sounds and stronger than a `404`. The tombstone's stub entry makes refreshing apps drop the servers, which a `404` wouldn't (apps keep their last list on errors).
 - What the link holder sees is the stub entry's name in their app, in the link's language, with the admin contact from Settings.

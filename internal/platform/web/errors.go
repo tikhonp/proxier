@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/httpx"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
@@ -20,7 +21,7 @@ func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 			code = http.StatusInternalServerError
 		}
 		if code >= 500 {
-			log.Error("handler", "error", err, "path", c.Request().URL.Path)
+			log.Error("handler", "error", err, "path", httpx.MaskPath(c.Request().URL.Path))
 		}
 		if c.Request().Method == http.MethodHead {
 			_ = c.NoContent(code)

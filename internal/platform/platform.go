@@ -63,6 +63,9 @@ type App struct {
 	SSH     *sshx.SSH
 	Tailnet *tailnet.Node
 	Backup  *backup.Service
+	// PublicLimit is the rate limit of /s/, /r/ and /f/: 60 requests a
+	// minute per client IP.
+	PublicLimit *web.Limiter
 	// closing is closed when Serve starts shutting down, so live streams end
 	// before the HTTP server's grace period runs out.
 	closing chan struct{}
@@ -102,6 +105,7 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.Tailnet = tailnet.New(cfg, log)
 	a.SSH = sshx.New(d, v, a.Events, a.Settings, a.Tailnet.Dial, log)
 	a.Backup = backup.New(d, cfg, a.Settings, a.Events, log)
+	a.PublicLimit = web.NewLimiter(60, time.Minute)
 	a.closing = make(chan struct{})
 
 	var errs []error
@@ -217,8 +221,8 @@ func (a *App) Health(ctx context.Context) error {
 // HTTP builds the HTTP app: the platform's pages, then every module's routes.
 func (a *App) HTTP() *echo.Echo {
 	e := httpx.New(httpx.Options{Log: a.Log, TrustedProxies: a.Cfg.TrustedProxies, Health: a.Health})
-	r := web.Mount(e, web.Deps{Log: a.Log, Auth: a.Auth, I18n: a.I18n, Settings: a.Settings, BaseURL: a.Cfg.BaseURL},
-		ui.StaticFS, ui.StaticHash)
+	r := web.Mount(e, web.Deps{Log: a.Log, Auth: a.Auth, I18n: a.I18n, Settings: a.Settings, BaseURL: a.Cfg.BaseURL,
+		PublicLimit: a.PublicLimit}, ui.StaticFS, ui.StaticHash)
 
 	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n,
 		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Query: a.DB.R, Closing: a.closing,

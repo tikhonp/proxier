@@ -13,6 +13,8 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/fetch"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/migrations"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/pages"
@@ -33,8 +35,10 @@ type Ports struct {
 // Module is the subscriptions module.
 type Module struct {
 	// Now is the module's clock; every service reads it, so a test replaces it once.
-	Now  func() time.Time
-	Subs *subs.Service
+	Now   func() time.Time
+	Subs  *subs.Service
+	Links *links.Service
+	Fetch *fetch.Service
 
 	ports Ports
 	deps  module.Deps
@@ -53,6 +57,11 @@ func (m *Module) Init(d module.Deps) error {
 	m.Subs = subs.New(subs.Deps{
 		DB: d.DB, Events: d.Events, Settings: d.Settings, I18n: d.I18n, Catalog: m.ports.Catalog, Now: now, Log: d.Log,
 	})
+	m.Links = links.NewService(links.Deps{
+		DB: d.DB, Vault: d.Vault, Events: d.Events, Settings: d.Settings, I18n: d.I18n, Subs: m.Subs, Now: now,
+		BaseURL: d.Cfg.BaseURL, Log: d.Log,
+	})
+	m.Fetch = fetch.New(fetch.Deps{Links: m.Links, DB: d.DB, Events: d.Events, Log: d.Log, Now: now})
 	return nil
 }
 
@@ -75,15 +84,19 @@ func (*Module) Messages() i18n.Messages {
 func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Subs.Subscriber()} }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Subs: m.Subs, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
+	m.Fetch.Register(r.Public)
+	pages.Register(r, pages.Deps{Subs: m.Subs, Links: m.Links, DB: m.deps.DB, Settings: m.deps.Settings, Now: func() time.Time { return m.Now() }})
 }
 
-// Nav adds Subscriptions (Links arrives in 2b).
+// Nav adds Subscriptions and Links.
 func (*Module) Nav() []ui.NavItem {
-	return []ui.NavItem{{Group: "subscriptions", Label: "subs.nav", Href: "/subscriptions", GoKey: "u", Order: 10}}
+	return []ui.NavItem{
+		{Group: "subscriptions", Label: "subs.nav", Href: "/subscriptions", GoKey: "u", Order: 10},
+		{Group: "subscriptions", Label: "links.nav", Href: "/links", GoKey: "l", Order: 20},
+	}
 }
 
-// Search finds subscriptions by name or title.
+// Search finds subscriptions by name or title, and live links by name.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	rows, err := m.Subs.List(ctx)
@@ -100,28 +113,46 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			Href: "/subscriptions/" + strconv.FormatInt(r.ID, 10),
 		})
 		if len(out) == limit {
+			return out, nil
+		}
+	}
+	list, err := m.Links.List(ctx, links.Filter{Name: q})
+	if err != nil {
+		return nil, err
+	}
+	now := m.Now()
+	for _, l := range list {
+		out = append(out, ui.SearchHit{
+			Label: l.Name, Meta: i18n.T(ctx, "links.search", i18n.Args{"subscription": l.Subscription, "status": i18n.T(ctx, "links.status."+l.Status(now))}),
+			Href: "/links/" + strconv.FormatInt(l.ID, 10),
+		})
+		if len(out) == limit {
 			break
 		}
 	}
 	return out, nil
 }
 
-// SubjectTypes are the subject types of the module's events (links: 2b).
-func (*Module) SubjectTypes() []string { return []string{"subscription"} }
+// SubjectTypes are the subject types of the module's events.
+func (*Module) SubjectTypes() []string { return []string{"subscription", "link"} }
 
 // NameSubjects names subscriptions for Activity, Jobs and notifications.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
 	out := map[string]ui.SubjectRef{}
-	if typ != "subscription" {
-		return out, nil
-	}
 	for _, id := range ids {
 		n, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			continue
 		}
-		if s, err := m.Subs.Get(ctx, n); err == nil {
-			out[id] = ui.SubjectRef{Label: s.Name, Href: "/subscriptions/" + id}
+		switch typ {
+		case "subscription":
+			if s, err := m.Subs.Get(ctx, n); err == nil {
+				out[id] = ui.SubjectRef{Label: s.Name, Href: "/subscriptions/" + id}
+			}
+		case "link": // deleted links keep their names
+			if l, err := m.Links.Get(ctx, n); err == nil {
+				out[id] = ui.SubjectRef{Label: l.Name, Href: "/links/" + id}
+			}
 		}
 	}
 	return out, nil

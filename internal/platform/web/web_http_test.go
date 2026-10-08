@@ -1,13 +1,20 @@
 package web_test
 
 import (
+	"bytes"
+	"errors"
+	"log/slog"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/httpx"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
@@ -158,5 +165,40 @@ func TestAdminPagesSendCSP(t *testing.T) {
 	p := sitetest.New(t, sitetest.Options{})
 	if got := p.Do(sitetest.Req{Path: "/login"}).Header().Get("Strict-Transport-Security"); got != "" {
 		t.Errorf("HSTS over http: %q", got)
+	}
+}
+
+func TestTokenPathsAreMaskedInLogs(t *testing.T) {
+	var buf bytes.Buffer
+	log := slog.New(slog.NewTextHandler(&buf, nil))
+	e := httpx.New(httpx.Options{Log: log})
+	r := web.Mount(e, web.Deps{Log: log, BaseURL: &url.URL{Scheme: "http", Host: "proxier.test"}}, ui.StaticFS, ui.StaticHash)
+	boom := func(*echo.Context) error { return errors.New("boom") }
+	r.Public.GET("/s/:token", boom)
+	r.Public.GET("/r/:token/x.conf", boom)
+	const token = "Zm9vYmFyYmF6cXV4cXV1eGNvcmdlZ3JhdWx0Z2FycGx5"
+	for _, p := range []string{"/s/" + token, "/r/" + token + "/x.conf"} {
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, p, nil))
+		if rec.Code != 500 {
+			t.Fatalf("%s: %d", p, rec.Code)
+		}
+	}
+	out := buf.String()
+	if strings.Contains(out, token) {
+		t.Errorf("a token reached the log:\n%s", out)
+	}
+	for _, want := range []string{"msg=handler", "path=/s/•••", "path=/r/•••/x.conf", "msg=request"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the log has no %q:\n%s", want, out)
+		}
+	}
+	for p, want := range map[string]string{
+		"/s/abc": "/s/•••", "/r/abc/home.conf": "/r/•••/home.conf", "/f/abc/": "/f/•••/", "/s/": "/s/", "/s": "/s",
+		"/servers/1": "/servers/1", "/agent/v1/files": "/agent/v1/files",
+	} {
+		if got := httpx.MaskPath(p); got != want {
+			t.Errorf("MaskPath(%q) = %q, want %q", p, got, want)
+		}
 	}
 }

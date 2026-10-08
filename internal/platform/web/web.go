@@ -40,7 +40,7 @@ func isPublicPath(p string) bool {
 // Routes are the groups modules add routes to.
 type Routes struct {
 	Admin  *echo.Group // session required, CSRF on unsafe methods, admin headers
-	Public *echo.Group // never reads or sets cookies; no-store, noindex (rate limits: Phase 2)
+	Public *echo.Group // never reads or sets cookies; no-store, noindex; /s/, /r/, /f/ rate-limited per IP
 	Open   *echo.Group // no session needed, admin headers: /login
 	// Shell builds the layout's data (title already translated, current
 	// path) for a page of a module; the platform fills it in before the
@@ -76,6 +76,8 @@ type Deps struct {
 	I18n     *i18n.Catalog
 	Settings *settings.Store
 	BaseURL  *url.URL
+	// PublicLimit rate-limits /s/, /r/ and /f/ per client IP; nil: no limit.
+	PublicLimit *Limiter
 }
 
 // current returns the request's Request, creating it on first use.

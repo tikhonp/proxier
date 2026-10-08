@@ -159,7 +159,7 @@ One listener, two kinds of routes. The namespaces are fixed so the gateway can l
 | `/f/{token}` | a router | single-use token | Router script fetch URL |
 | `/healthz` | monitoring | — | Liveness (DB reachable, workers alive). Reveals nothing. |
 
-Public routes never set cookies, always send `Cache-Control: no-store` and `X-Robots-Tag: noindex`, and are rate-limited per client IP. All unknown tokens get the same `404`. The client IP comes from `X-Real-IP` only when the request arrives from a trusted proxy address (the SSH tunnel endpoint). Otherwise it is the socket address.
+Public routes never set cookies, always send `Cache-Control: no-store` and `X-Robots-Tag: noindex`. `/s/`, `/r/` and `/f/` are rate-limited to 60 requests a minute per client IP (a fixed window; over it, `429` with `Retry-After`); `/agent/` limits itself per session. All unknown tokens get the same plain `404` as any unknown public path. Proxier's own logs never hold a token: the request log and the error log write `/s/•••`, `/r/•••/home.conf`. The client IP comes from `X-Real-IP` only when the request arrives from a trusted proxy address (the SSH tunnel endpoint). Otherwise it is the socket address.
 
 ## Outbound connections
 

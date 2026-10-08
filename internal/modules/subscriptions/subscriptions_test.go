@@ -95,12 +95,52 @@ func TestModuleIsWired(t *testing.T) {
 	if rec := h.Login.Get("/subscriptions"); rec.Code != 200 {
 		t.Errorf("/subscriptions: %d", rec.Code)
 	}
-	var goKey bool
+	var goKey, linksKey bool
 	for _, it := range h.Mod.Nav() {
 		goKey = goKey || it.Href == "/subscriptions" && it.GoKey == "u" && it.Group == "subscriptions"
+		linksKey = linksKey || it.Href == "/links" && it.GoKey == "l" && it.Group == "subscriptions" && it.Order == 20
 	}
 	if !goKey {
 		t.Error("Subscriptions is not g u")
+	}
+	if !linksKey || !strings.Contains(body, `href="/links"`) {
+		t.Error("Links is not in the nav as g l")
+	}
+}
+
+func TestLinksAreNamedAndSearched(t *testing.T) {
+	h := substest.New(t)
+	ctx := context.Background()
+	sub := h.Subscription("Family", 1)
+	mom, momToken := h.Link(sub, "Mom — iPhone")
+	gone, _ := h.Link(sub, "Mom — old phone")
+	if err := h.Mod.Links.Disable(ctx, mom, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Mod.Links.Delete(ctx, gone, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	ids := []string{strconv.FormatInt(mom, 10), strconv.FormatInt(gone, 10), "999"}
+	got, err := h.Mod.NameSubjects(ctx, "link", ids)
+	if err != nil || len(got) != 2 || got[ids[0]].Label != "Mom — iPhone" || got[ids[0]].Href != "/links/"+ids[0] ||
+		got[ids[1]].Label != "Mom — old phone" {
+		t.Fatalf("names: %+v %v", got, err)
+	}
+	ctx = i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil))
+	hits, err := h.Mod.Search(ctx, "mom", 10)
+	if err != nil || len(hits) != 1 || hits[0].Label != "Mom — iPhone" || hits[0].Meta != "link · Family · disabled" || hits[0].Href != "/links/"+ids[0] {
+		t.Errorf("search: %+v %v", hits, err)
+	}
+	if hits, _ := h.Mod.Search(ctx, "old phone", 10); len(hits) != 0 {
+		t.Errorf("a deleted link was found: %+v", hits)
+	}
+	if hits, _ := h.Mod.Search(ctx, "fam", 10); len(hits) != 1 || hits[0].Label != "Family" {
+		t.Errorf("a subscription: %+v", hits)
+	}
+	// Activity names the link; the token is nowhere in it
+	body := h.Login.Get("/activity?subject=link:" + ids[0]).Body.String()
+	if !strings.Contains(body, `href="/links/`+ids[0]+`"`) || strings.Contains(body, momToken) {
+		t.Error("Activity does not link the link, or shows its token")
 	}
 }
 
@@ -177,6 +217,27 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 	for _, st := range []string{"healthy", "degraded", "blocked", "down", "unknown", "paused"} {
 		if !h.App.I18n.Has("subs.health."+st) || !h.App.I18n.Has("subs.state."+st) {
 			t.Errorf("no words for %s", st)
+		}
+	}
+	var built []string
+	for _, st := range []string{"active", "disabled", "expired", "deleted"} {
+		built = append(built, "links.status."+st)
+	}
+	for _, st := range []string{"live", "active", "disabled", "expired", "deleted", "all"} {
+		built = append(built, "links.filter.state."+st)
+	}
+	for _, o := range []string{"ok", "stub-disabled", "stub-expired", "stub-deleted", "stub-empty"} {
+		built = append(built, "links.outcome."+o)
+	}
+	for _, kind := range []string{"subscription", "expiry", "edit"} {
+		for _, suffix := range []string{"", ".title", ".note", ".submit"} {
+			built = append(built, "links.form."+kind+suffix)
+		}
+	}
+	built = append(built, "links.lang.en", "links.lang.ru")
+	for _, k := range built {
+		if !h.App.I18n.Has(k) {
+			t.Errorf("%s is missing", k)
 		}
 	}
 }

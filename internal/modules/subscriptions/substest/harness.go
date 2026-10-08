@@ -2,12 +2,17 @@ package substest
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
+	"net/netip"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/platform"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
@@ -25,18 +30,24 @@ type Harness struct {
 	Now     time.Time // the module's clock (starts 2026-10-07 12:00 UTC); Advance moves it
 }
 
+// Tunnel is the trusted proxy's address: requests from it carry the client's
+// X-Real-IP.
+const Tunnel = "127.0.0.1:41000"
+
 // New: the app with the module on a fake catalog holding nl-1 (🇳🇱 Netherlands 1,
-// id 1) and de-1 (🇩🇪 Germany 1, id 2), general.admin_contact "@tikhonp". No
-// job workers run.
+// id 1) and de-1 (🇩🇪 Germany 1, id 2), general.admin_contact "@tikhonp", the
+// tunnel (127.0.0.1) trusted. No job workers run. The public rate limiter
+// runs on the harness clock.
 func New(t *testing.T) *Harness {
 	t.Helper()
 	cat := NewCatalog()
 	cat.Put(Server(1, "nl-1", "🇳🇱", "Netherlands", 1))
 	cat.Put(Server(2, "de-1", "🇩🇪", "Germany", 1))
 	mod := subscriptions.New(subscriptions.Ports{Catalog: cat})
-	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}})
+	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}, TrustedProxies: []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}})
 	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Catalog: cat, Now: time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)}
 	mod.Now = func() time.Time { return h.Now }
+	h.App.PublicLimit.Now = func() time.Time { return h.Now }
 	if err := h.App.Settings.Set(context.Background(), "admin", "general", map[string]string{"general.admin_contact": "@tikhonp"}); err != nil {
 		t.Fatal(err)
 	}
@@ -74,6 +85,36 @@ func (h *Harness) Subscription(name string, serverIDs ...int64) int64 {
 		}
 	}
 	return id
+}
+
+// Link creates a link through the service (language EN, no expiry) and
+// returns its id and token.
+func (h *Harness) Link(subID int64, name string) (int64, string) {
+	h.T.Helper()
+	ctx := context.Background()
+	id, err := h.Mod.Links.Create(ctx, links.New{Name: name, SubscriptionID: subID, Lang: "en"}, "admin")
+	if err != nil {
+		h.T.Fatal(err)
+	}
+	token, err := h.Mod.Links.Token(ctx, id)
+	if err != nil {
+		h.T.Fatal(err)
+	}
+	return id, token
+}
+
+// Fetch requests path from addr ("198.51.100.23:5000" when empty) with a
+// user agent.
+func (h *Harness) Fetch(method, path, addr, ua string) *httptest.ResponseRecorder {
+	h.T.Helper()
+	if addr == "" {
+		addr = "198.51.100.23:5000"
+	}
+	hd := http.Header{}
+	if ua != "" {
+		hd.Set("User-Agent", ua)
+	}
+	return h.Site.Do(sitetest.Req{Method: strings.ToUpper(method), Path: path, Addr: addr, Header: hd})
 }
 
 // Exec runs SQL on the write connection (link rows before 2b builds links).

@@ -26,6 +26,10 @@ func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 		SecureHeaders(https), LimitBody(MaxBody), CrossOrigin(d.BaseURL), OptionalSession(d.Auth, https), Localize(d.Auth, d.I18n, d.Settings),
 	}
 	publicChain := []echo.MiddlewareFunc{PublicHeaders()}
+	if d.PublicLimit != nil {
+		// Unknown paths under /s/ count too: guessing tokens costs the same.
+		publicChain = append(publicChain, d.PublicLimit.Middleware())
+	}
 
 	notFound := func(*echo.Context) error { return echo.ErrNotFound }
 	e.RouteNotFound("/*", func(c *echo.Context) error {

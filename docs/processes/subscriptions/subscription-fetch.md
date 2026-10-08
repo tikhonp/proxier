@@ -6,8 +6,8 @@ This is the only thing link holders ever touch. An app requests the link's URL a
 
 ## Steps
 
-1. Rate limit: at most 60 requests per minute per client IP across all public routes. Over the limit → `429` with `Retry-After`.
-2. Look up the token by its HMAC. No match (never existed, regenerated, or tombstone expired) → `404` with an empty body, the same response as any unknown path. Nothing is recorded.
+1. Rate limit: at most 60 requests per minute per client IP, counted together over `/s/`, `/r/` and `/f/` (unknown paths there count too; `/agent/` is limited per session instead). Over the limit → `429` with `Retry-After`: the whole seconds until the window ends, at least 1.
+2. Look up the token by its HMAC. A token that can't be one (not 20–64 characters of `A–Z a–z 0–9 - _`) is unknown without a lookup. No match (never existed, regenerated, erased), or a deleted link past its tombstone → the platform's plain public `404` ("Not Found"), the same response as any unknown public path. Nothing is recorded.
 3. Pick the format: `?format=` if it names a format the subscription allows, else the link's format override, else the subscription's default. A `?format=` naming a disallowed or unknown format → `400`.
 4. Decide the output:
 
@@ -25,7 +25,7 @@ This is the only thing link holders ever touch. An app requests the link's URL a
    3. If that drops every server, keep them all and raise `subscription.all_unhealthy` (at most once an hour per subscription).
    4. Build each connection URI through the endpoint type, named with the endpoint's display name ("🇳🇱 Netherlands 1": the location as the admin entered it, whatever the link's language; the link's language changes only its stub entries).
 6. Render the format and send `200` with the headers below.
-7. Record the fetch: link, time, client IP, network (IPv4 /24, IPv6 /48), user agent (trimmed to 256 characters), detected app, format, outcome. Update the link's last fetch.
+7. Record the fetch: link, time, client IP, network (IPv4 /24, IPv6 /48), user agent (trimmed to 256 characters), detected app, format, outcome. Update the link's last fetch. One transaction, before the answer is written. If it fails, the error is logged (`subscriptions: record fetch`, never the token) and the answer still goes out: apps must not lose their list over a log.
 
 ## Headers
 
@@ -36,10 +36,10 @@ This is the only thing link holders ever touch. An app requests the link's URL a
 | `X-Robots-Tag` | `noindex` |
 | `profile-title` | `base64:` + base64 of the subscription's title |
 | `profile-update-interval` | the subscription's update interval, in hours |
-| `subscription-userinfo` | `upload=0; download=0; total=0; expire=<unix time of the expiry, or 0>` |
+| `subscription-userinfo` | `upload=0; download=0; total=0; expire=<unix time of the last second the link works, or 0>` |
 | `content-disposition` | `inline; filename*=UTF-8''<percent-encoded title>.txt` |
 
-Stub entries are served with the same headers and a `200`, so apps accept them and replace their list.
+Stub entries are served with the same headers and a `200`, so apps accept them and replace their list. The four `profile-*`, `subscription-userinfo` and `content-disposition` names are sent in lower case, as written.
 
 ## Rules
 

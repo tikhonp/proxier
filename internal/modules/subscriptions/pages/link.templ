@@ -1,0 +1,196 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// linkPage: the title block, then the sharing parts (URL, QR, what the app
+// gets) before the rest, so a phone shows them first; on a desktop they are
+// the left column.
+templ linkPage(s ui.Shell, v linkView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><span>{ v.L.Name }</span></nav>
+				<div class="jobtitle">
+					<h1>{ v.L.Name }</h1>
+					@ui.Status(v.Kind, v.Word)
+				</div>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+			if !v.Deleted {
+				<div class="actions">
+					<button type="button" class="pc-btn pc-pri" data-copy={ v.URL } data-action="links.copy" data-key="y">{ i18n.T(ctx, "links.copy") }</button>
+					if v.L.State == "disabled" {
+						@ui.ActionButton(ui.Action{ID: "links.enable", Label: "links.enable", Method: "POST", Href: linkHref(v.L.ID) + "/enable"})
+					} else {
+						@ui.ActionButton(ui.Action{
+							ID: "links.disable", Label: "links.disable", Method: "POST", Href: linkHref(v.L.ID) + "/disable",
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.disable.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.disable.body")},
+						})
+					}
+				</div>
+			}
+		</div>
+		switch v.Band {
+			case "created", "regenerated":
+				@ui.Band("pine") {
+					{ v.BandText }
+				}
+			case "disabled", "expired":
+				@ui.Band("gold") {
+					{ v.BandText }
+				}
+			case "deleted", "ended":
+				@ui.Band("iris") {
+					{ v.BandText }
+				}
+		}
+		<div class="subcols">
+			<div class="col-l">
+				if !v.Deleted {
+					@ui.Area(i18n.T(ctx, "links.area.url"), "") {
+						<div class="area-body">
+							@urlField(v.L.ID, v.URL, v.Masked, false)
+							<p class="sm subtle">{ i18n.T(ctx, "links.url.note") }</p>
+						</div>
+					}
+					@ui.Area(i18n.T(ctx, "links.area.qr"), "") {
+						<div class="area-body">
+							<p class="sm subtle">{ i18n.T(ctx, "links.qr.note") }</p>
+							@qrSlot(v.L.ID, v.L.Name, "", false)
+						</div>
+					}
+				}
+				if v.HasPreview {
+					@ui.Area(i18n.T(ctx, "links.area.preview"), i18n.T(ctx, "links.area.preview.note")) {
+						@previewBody(v.Preview)
+					}
+				}
+			</div>
+			<div class="col-r">
+				@ui.Area(i18n.T(ctx, "links.area.link"), "") {
+					<dl class="kv area-body">
+						<dt>{ i18n.T(ctx, "links.kv.subscription") }</dt>
+						<dd>
+							if v.SubName != "" {
+								<a href={ templ.SafeURL(subHref(v.L.SubscriptionID)) }>{ v.SubName }</a>
+								if v.SubServers != "" {
+									<span class="sm subtle">· { v.SubServers }</span>
+								}
+							} else {
+								<span class="muted">—</span>
+							}
+							if !v.Deleted {
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/subscription") }>{ i18n.T(ctx, "links.change") }</a>
+							}
+						</dd>
+						<dt>{ i18n.T(ctx, "links.kv.expiry") }</dt>
+						<dd>
+							{ v.Expiry }
+							if !v.Deleted {
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/expiry") }>{ i18n.T(ctx, "links.set") }</a>
+							}
+						</dd>
+						<dt>{ i18n.T(ctx, "links.kv.language") }</dt>
+						<dd>{ v.Lang }</dd>
+						<dt>{ i18n.T(ctx, "links.kv.format") }</dt>
+						<dd>{ v.Format }</dd>
+						<dt>{ i18n.T(ctx, "links.kv.last") }</dt>
+						<dd>{ v.LastFetch }</dd>
+						if v.L.Note != "" {
+							<dt>{ i18n.T(ctx, "links.kv.note") }</dt>
+							<dd>{ v.L.Note }</dd>
+						}
+						<dt>{ i18n.T(ctx, "links.kv.created") }</dt>
+						<dd>{ v.Created }</dd>
+					</dl>
+				}
+				@ui.Area(i18n.T(ctx, "links.area.fetches"), v.Retention) {
+					if len(v.Fetches) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "links.fetchlog.none") }</p>
+					} else {
+						<div class="colhead fetch" aria-hidden="true">
+							<span>{ i18n.T(ctx, "links.fetchlog.time") }</span>
+							<span>{ i18n.T(ctx, "links.fetchlog.ip") }</span>
+							<span>{ i18n.T(ctx, "links.fetchlog.app") }</span>
+							<span>{ i18n.T(ctx, "links.fetchlog.format") }</span>
+							<span>{ i18n.T(ctx, "links.fetchlog.outcome") }</span>
+						</div>
+						for _, f := range v.Fetches {
+							<div class="row fetch">
+								<span class="subtle">{ f.Time }</span>
+								<span>{ f.IP }</span>
+								<span class="ua">{ f.App }</span>
+								<span class="subtle">{ f.Format }</span>
+								<span class={ templ.KV("subtle", f.OK), templ.KV("gold", !f.OK) }>{ f.Outcome }</span>
+							</div>
+						}
+						if v.OlderHref != "" {
+							<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "links.fetchlog.older") }</a></p>
+						}
+					}
+				}
+				if !v.Deleted {
+					@ui.Area(i18n.T(ctx, "links.area.actions"), "") {
+						@actionRow(ui.Action{
+							ID: "links.regenerate", Label: "links.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate", Small: true,
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
+						}, i18n.T(ctx, "links.regenerate.what"))
+						@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
+						@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
+						@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
+						@actionRow(ui.Action{
+							ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger,
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.delete.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.delete.body")},
+						}, i18n.T(ctx, "links.delete.what"))
+					}
+				}
+				@ui.Area(i18n.T(ctx, "links.area.activity"), "") {
+					if len(v.Activity) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "subs.activity.none") }</p>
+					}
+					for _, e := range v.Activity {
+						<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+					}
+					<p class="area-body"><a href={ templ.SafeURL("/activity?subject=link:" + i64(v.L.ID)) }>{ i18n.T(ctx, "subs.activity.all") }</a></p>
+				}
+			</div>
+		</div>
+	}
+}
+
+templ actionRow(a ui.Action, what string) {
+	<div class="row act">
+		@ui.ActionButton(a)
+		<span class="sm subtle">{ what }</span>
+	</div>
+}
+
+// urlField is the URL masked, or in clear after Reveal (an htmx fragment
+// answered with no-store). Copy holds the URL either way.
+templ urlField(id int64, full, masked string, revealed bool) {
+	<div class="urlfield" id="link-url">
+		if revealed {
+			<code>{ full }</code>
+			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url?hide=1" } hx-target="#link-url" hx-swap="outerHTML">{ i18n.T(ctx, "links.url.hide") }</button>
+		} else {
+			<code class="masked">{ masked }</code>
+			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url" } hx-target="#link-url" hx-swap="outerHTML" data-action="links.reveal">{ i18n.T(ctx, "links.url.reveal") }</button>
+		}
+		<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "links.url.copy") }</button>
+	</div>
+}
+
+// qrSlot is Show QR, or the code and Hide QR.
+templ qrSlot(id int64, name, url string, shown bool) {
+	<div id="link-qr">
+		if shown {
+			@ui.QR(url, i18n.T(ctx, "links.qr.label", i18n.Args{"name": name}))
+			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/qr?hide=1" } hx-target="#link-qr" hx-swap="outerHTML">{ i18n.T(ctx, "links.qr.hide") }</button>
+		} else {
+			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/qr" } hx-target="#link-qr" hx-swap="outerHTML" data-action="links.qr">{ i18n.T(ctx, "links.qr.show") }</button>
+		}
+	</div>
+}

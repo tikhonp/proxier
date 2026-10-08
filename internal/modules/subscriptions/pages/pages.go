@@ -10,21 +10,25 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 // Deps are what the pages use.
 type Deps struct {
-	Subs *subs.Service
-	DB   *db.DB
-	Now  func() time.Time
+	Subs     *subs.Service
+	Links    *links.Service
+	DB       *db.DB
+	Settings *settings.Store
+	Now      func() time.Time
 }
 
 type handler struct {
@@ -48,6 +52,24 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/subscriptions/:id/preview", h.preview)
 	r.Admin.GET("/subscriptions/:id/delete", h.deletePage)
 	r.Admin.POST("/subscriptions/:id/delete", h.deletePost)
+	r.Admin.POST("/subscriptions/:id/move-links", h.moveLinks)
+
+	r.Admin.GET("/links", h.linkList)
+	r.Admin.GET("/links/new", h.newLinkPage)
+	r.Admin.POST("/links", h.createLink)
+	r.Admin.GET("/links/:id", h.linkPage)
+	r.Admin.GET("/links/:id/url", h.linkURL)
+	r.Admin.GET("/links/:id/qr", h.linkQR)
+	r.Admin.POST("/links/:id/disable", h.act(h.Links.Disable, ""))
+	r.Admin.POST("/links/:id/enable", h.act(h.Links.Enable, ""))
+	r.Admin.POST("/links/:id/regenerate", h.act(h.Links.RegenerateToken, "?regenerated=1"))
+	r.Admin.GET("/links/:id/subscription", h.formPage("subscription"))
+	r.Admin.POST("/links/:id/subscription", h.changeSubscription)
+	r.Admin.GET("/links/:id/expiry", h.formPage("expiry"))
+	r.Admin.POST("/links/:id/expiry", h.setExpiry)
+	r.Admin.GET("/links/:id/edit", h.formPage("edit"))
+	r.Admin.POST("/links/:id/edit", h.editLink)
+	r.Admin.POST("/links/:id/delete", h.deleteLink)
 }
 
 func subHref(id int64) string { return "/subscriptions/" + strconv.FormatInt(id, 10) }
@@ -226,6 +248,7 @@ type pageView struct {
 	Errs     map[string]string
 	Preview  previewView
 	Links    int
+	LinkRows []subLinkRow
 	Activity []eventLine
 }
 
@@ -309,15 +332,10 @@ func (h *handler) pageView(c *echo.Context, s subs.Subscription) (pageView, erro
 	if v.Preview, err = h.previewView(ctx, s, "", false); err != nil {
 		return v, err
 	}
-	holders, err := h.Subs.Holders(ctx, s.ID)
-	if err != nil {
+	if v.LinkRows, err = h.subLinks(ctx, s.ID); err != nil {
 		return v, err
 	}
-	for _, x := range holders {
-		if x.State != "deleted" {
-			v.Links++
-		}
-	}
+	v.Links = len(v.LinkRows)
 	v.Status = i18n.T(ctx, "subs.status", i18n.Args{"title": s.Title}) + " · " +
 		loc.N("subs.n_servers", int64(len(v.Servers.Rows))) + " · " + loc.N("subs.n_links", int64(v.Links))
 	list, err := events.List(ctx, h.DB.R, events.Filter{Subject: subs.Subject(s.ID), Limit: 10})

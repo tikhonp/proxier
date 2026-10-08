@@ -1,0 +1,233 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// ------------------------------------------------------------------ the list
+
+templ linksPage(s ui.Shell, v linksView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "links.title") }</h1>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "links.new", Label: "links.new", Method: "GET", Href: "/links/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if v.Empty {
+			@ui.EmptyState(i18n.T(ctx, "links.empty"), i18n.T(ctx, "links.empty_next"))
+		} else {
+			<div class="filters">
+				<form method="get" action="/links" class="filter-form">
+					<input class="pc-inp name" name="name" value={ v.Name } placeholder={ i18n.T(ctx, "links.filter.name") } aria-label={ i18n.T(ctx, "links.filter.name") } autocomplete="off"/>
+					<select name="subscription" class="pc-inp sel" aria-label={ i18n.T(ctx, "links.filter.sub") }>
+						for _, o := range v.Subs {
+							<option value={ o.Value } selected?={ o.Value == v.SubID }>{ o.Label }</option>
+						}
+					</select>
+					<select name="state" class="pc-inp sel" aria-label={ i18n.T(ctx, "links.filter.state") }>
+						for _, o := range v.States {
+							<option value={ o.Value } selected?={ o.Value == v.State }>{ o.Label }</option>
+						}
+					</select>
+					if v.Expiring {
+						<input type="hidden" name="expiring" value="1"/>
+					}
+					<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "links.filter.apply") }</button>
+				</form>
+				<a href={ templ.SafeURL(v.ChipHref) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Expiring) }>{ i18n.T(ctx, "links.filter.expiring") }</a>
+				if v.ClearHref != "" {
+					<a href={ templ.SafeURL(v.ClearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
+				}
+			</div>
+			<div class="colhead lnk" aria-hidden="true">
+				<span>{ i18n.T(ctx, "links.col.link") }</span>
+				<span>{ i18n.T(ctx, "links.col.subscription") }</span>
+				<span>{ i18n.T(ctx, "links.col.status") }</span>
+				<span>{ i18n.T(ctx, "links.col.expires") }</span>
+				<span>{ i18n.T(ctx, "links.col.last") }</span>
+				<span>{ i18n.T(ctx, "links.col.fetches") }</span>
+			</div>
+			if len(v.Rows) == 0 {
+				@ui.EmptyState(i18n.T(ctx, "links.none_match"), "")
+			}
+			for _, r := range v.Rows {
+				<a href={ templ.SafeURL(linkHref(r.ID)) } class="row lnk pc-row" data-row={ i64(r.ID) } data-href={ linkHref(r.ID) } data-hint={ i18n.T(ctx, "links.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="bold">{ r.Name }</span>
+					<span class="subtle">{ r.Subscription }</span>
+					@ui.Status(r.Kind, r.Word)
+					<span class="sm subtle">{ r.Expires }</span>
+					<span class="sm subtle">{ r.Last }</span>
+					<span class="subtle">{ strconv.Itoa(r.Fetches) }</span>
+				</a>
+			}
+			if v.Tombs > 0 {
+				<p class="list-foot"><a href={ templ.SafeURL(v.TombsHref) }>{ i18n.N(ctx, "links.tombs", int64(v.Tombs)) }</a></p>
+			}
+		}
+	}
+}
+
+// ------------------------------------------------------------------ new link
+
+templ newLinkPage(s ui.Shell, v newLinkView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "links.new") }</span></nav>
+				<h1>{ i18n.T(ctx, "links.new") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "links.new.note") }</p>
+			</div>
+		</div>
+		if len(v.Subs) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "links.new.no_subs"), "")
+			<p class="area-body"><a href="/subscriptions/new">{ i18n.T(ctx, "links.new.create_sub") }</a></p>
+		} else {
+			<form method="post" action="/links" class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				if len(v.Errs) > 0 {
+					@ui.Alert("love", "alert") {
+						{ i18n.T(ctx, "links.refused") }
+					}
+				}
+				<div class="field">
+					<label for="link-name">{ i18n.T(ctx, "links.field.name") }</label>
+					<input id="link-name" class="pc-inp" name="name" value={ v.Name } maxlength="80" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+					if v.Errs["name"] != "" {
+						@fieldErr(v.Errs, "name")
+					} else {
+						<p class="help">{ i18n.T(ctx, "links.field.name.help") }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="link-sub">{ i18n.T(ctx, "links.field.subscription") }</label>
+					<select id="link-sub" class="pc-inp" name="subscription" aria-invalid?={ v.Errs["subscription"] != "" }>
+						if v.SubID == 0 {
+							<option value="">{ i18n.T(ctx, "links.field.subscription.pick") }</option>
+						}
+						for _, sub := range v.Subs {
+							<option value={ i64(sub.ID) } selected?={ sub.ID == v.SubID }>{ sub.Name } · { i18n.N(ctx, "subs.n_servers", int64(len(sub.Members))) }</option>
+						}
+					</select>
+					@fieldErr(v.Errs, "subscription")
+				</div>
+				@expiryFields(v.Expiry, v.Errs, "")
+				@langField(v.Lang)
+				<div class="field">
+					<label for="link-note">{ i18n.T(ctx, "links.field.note") }</label>
+					<textarea id="link-note" class="pc-inp" name="note" rows="2" aria-invalid?={ v.Errs["note"] != "" }>{ v.Note }</textarea>
+					@fieldErr(v.Errs, "note")
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "links.create") }</button>
+					<a href="/links" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				</div>
+			</form>
+		}
+	}
+}
+
+templ langField(lang string) {
+	<div class="field">
+		<label for="link-lang">{ i18n.T(ctx, "links.field.language") }</label>
+		<select id="link-lang" class="pc-inp" name="language">
+			for _, l := range []string{"ru", "en"} {
+				<option value={ l } selected?={ l == lang }>{ i18n.T(ctx, "links.lang."+l) }</option>
+			}
+		</select>
+		<p class="help">{ i18n.T(ctx, "links.field.language.help") }</p>
+	</div>
+}
+
+// expiryFields is Never / On a date with an optional time, read in the
+// display zone; hint names what the current expiry means.
+templ expiryFields(e expiryForm, errs map[string]string, hint string) {
+	<fieldset class="field expiry-fields">
+		<legend>{ i18n.T(ctx, "links.field.expiry") }</legend>
+		<div class="inline-fields">
+			<label class="check"><input type="radio" name="expiry" value="never" checked?={ e.Mode != "on" }/>{ i18n.T(ctx, "links.field.expiry.never") }</label>
+			<label class="check"><input type="radio" name="expiry" value="on" checked?={ e.Mode == "on" }/>{ i18n.T(ctx, "links.field.expiry.on") }</label>
+			<input type="date" class="pc-inp date" name="expiry_date" value={ e.Date } aria-label={ i18n.T(ctx, "links.field.expiry.date") } aria-invalid?={ errs["expiry"] != "" }/>
+			<input type="time" class="pc-inp clock" name="expiry_time" value={ e.Clock } aria-label={ i18n.T(ctx, "links.field.expiry.time") }/>
+		</div>
+		@fieldErr(errs, "expiry")
+		if hint != "" {
+			<p class="help">{ hint }</p>
+		}
+		<p class="help">{ i18n.T(ctx, "links.field.expiry.help", i18n.Args{"zone": e.Zone}) }</p>
+	</fieldset>
+}
+
+// ------------------------------------------------- pages styled as dialogs
+
+templ linkFormPage(s ui.Shell, v linkFormView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(linkHref(v.L.ID)) }>{ v.L.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "links.form."+v.Kind) }</span></nav>
+				<h1>{ i18n.T(ctx, "links.form."+v.Kind+".title", i18n.Args{"name": v.L.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "links.form."+v.Kind+".note") }</p>
+			</div>
+		</div>
+		<form method="post" action={ linkHref(v.L.ID) + "/" + v.Kind } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Errs) > 0 {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, "links.refused") }
+				}
+			}
+			switch v.Kind {
+				case "subscription":
+					if len(v.Subs) == 0 {
+						<p>{ i18n.T(ctx, "links.form.subscription.none") }</p>
+					} else {
+						<div class="field">
+							<label for="link-sub">{ i18n.T(ctx, "links.field.subscription") }</label>
+							<select id="link-sub" class="pc-inp" name="subscription">
+								for _, sub := range v.Subs {
+									<option value={ i64(sub.ID) }>{ sub.Name } · { i18n.N(ctx, "subs.n_servers", int64(len(sub.Members))) }</option>
+								}
+							</select>
+							@fieldErr(v.Errs, "subscription")
+						</div>
+					}
+				case "expiry":
+					@expiryFields(v.Expiry, v.Errs, v.Hint)
+				case "edit":
+					<div class="field">
+						<label for="link-name">{ i18n.T(ctx, "links.field.name") }</label>
+						<input id="link-name" class="pc-inp" name="name" value={ v.Name } maxlength="80" autocomplete="off" aria-invalid?={ v.Errs["name"] != "" }/>
+						@fieldErr(v.Errs, "name")
+					</div>
+					@langField(v.Lang)
+					<div class="field">
+						<label for="link-format">{ i18n.T(ctx, "links.field.format") }</label>
+						<select id="link-format" class="pc-inp" name="format" aria-invalid?={ v.Errs["format"] != "" }>
+							<option value="" selected?={ v.Format == "" }>{ i18n.T(ctx, "links.field.format.default", i18n.Args{"format": v.Default}) }</option>
+							for _, f := range v.Formats {
+								<option value={ f } selected?={ f == v.Format }>{ f }</option>
+							}
+						</select>
+						@fieldErr(v.Errs, "format")
+						<p class="help">{ i18n.T(ctx, "links.field.format.help") }</p>
+					</div>
+					<div class="field">
+						<label for="link-note">{ i18n.T(ctx, "links.field.note") }</label>
+						<textarea id="link-note" class="pc-inp" name="note" rows="3" aria-invalid?={ v.Errs["note"] != "" }>{ v.Note }</textarea>
+						@fieldErr(v.Errs, "note")
+					</div>
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" disabled?={ v.Kind == "subscription" && len(v.Subs) == 0 }>{ i18n.T(ctx, "links.form."+v.Kind+".submit") }</button>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
