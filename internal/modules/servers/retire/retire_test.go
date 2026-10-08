@@ -558,10 +558,32 @@ type clock struct {
 }
 
 func (c *clock) Now() time.Time { c.mu.Lock(); defer c.mu.Unlock(); return c.t }
-func (c *clock) Add(d time.Duration) {
+
+// Set moves the clock forward to t; it never goes back.
+func (c *clock) Set(t time.Time) {
 	c.mu.Lock()
-	c.t = c.t.Add(d)
+	if t.After(c.t) {
+		c.t = t
+	}
 	c.mu.Unlock()
+}
+
+// awaitJobs runs the job clock forward until done: whenever a job waits for its
+// next attempt, the clock jumps to that moment and no further (so scheduled
+// rounds stay quiet), and the pools are woken instead of waiting for their poll.
+// The deadline is real time, sized for a loaded CI runner under -race: a fixed
+// count of passes ran out there.
+func awaitJobs(t *testing.T, h *serverstest.Harness, clk *clock, done func() bool) {
+	t.Helper()
+	for deadline := time.Now().Add(60 * time.Second); !done() && time.Now().Before(deadline); {
+		var next db.Time
+		err := h.App.DB.R.Get(&next, `SELECT run_after FROM jobs WHERE state = 'queued' ORDER BY run_after LIMIT 1`)
+		if err == nil && next.After(clk.Now()) {
+			clk.Set(next.Time)
+		}
+		h.App.Jobs.Kick()
+		time.Sleep(5 * time.Millisecond)
+	}
 }
 
 func TestRetireFailureAndRetry(t *testing.T) {
@@ -576,14 +598,10 @@ func TestRetireFailureAndRetry(t *testing.T) {
 
 	first := mustRetire(t, h, id, true)
 	var j jobs.Job
-	for i := 0; i < 200; i++ {
-		clk.Add(6 * time.Minute) // past the backoff of 1 and 5 minutes
-		time.Sleep(10 * time.Millisecond)
+	awaitJobs(t, h, clk, func() bool { // through the backoffs of 1 and 5 minutes
 		j, _ = h.App.Jobs.Job(bg, first)
-		if j.State == jobs.Failed {
-			break
-		}
-	}
+		return j.State == jobs.Failed
+	})
 	if j.State != jobs.Failed || j.Attempt != 3 || j.ErrorStep != retire.StepDNS {
 		t.Fatalf("job %s attempt %d at %q: %s", j.State, j.Attempt, j.ErrorStep, j.Error)
 	}
@@ -608,10 +626,7 @@ func TestRetireFailureAndRetry(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 200 && h.Server(id).State != "retired"; i++ {
-		clk.Add(6 * time.Minute)
-		time.Sleep(10 * time.Millisecond)
-	}
+	awaitJobs(t, h, clk, func() bool { return h.Server(id).State == "retired" })
 	h.Drain()
 	if s := h.Server(id); s.State != "retired" || s.RetireJobID.Int64 != second {
 		t.Fatalf("after the retry: %s job %d", s.State, s.RetireJobID.Int64)
