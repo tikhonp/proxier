@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"sort"
 	"strings"
 	"time"
@@ -141,5 +142,26 @@ func ChangedImages(before, after map[string]Image) []string {
 func ServiceLogs(ctx context.Context, env Env, c Conn, dir, service string) error {
 	env.info("Last 200 lines of %s", service)
 	_, err := env.run(ctx, c, "docker compose logs "+service, CmdComposeLogs(dir, service), RunOpts{Timeout: 2 * time.Minute, Stream: true})
+	return err
+}
+
+// StackDirOK says whether dir may be deleted with its contents: absolute,
+// clean, and at least two levels deep, so a manifest mistake can never turn
+// retirement into `rm -rf /` or `rm -rf /opt`.
+func StackDirOK(dir string) bool {
+	if !strings.HasPrefix(dir, "/") || path.Clean(dir) != dir {
+		return false
+	}
+	return len(strings.Split(strings.Trim(dir, "/"), "/")) >= 2
+}
+
+// RemoveStack deletes the stack's directory (retirement, after the template's
+// uninstall steps). It refuses a directory StackDirOK does not accept.
+func RemoveStack(ctx context.Context, env Env, c Conn, dir string) error {
+	if !StackDirOK(dir) {
+		return fmt.Errorf("refusing to delete %q: not an absolute path at least two levels deep", dir)
+	}
+	env.info("Deleting %s", dir)
+	_, err := env.run(ctx, c, "rm -rf "+dir, CmdRemoveDir(dir), RunOpts{Timeout: time.Minute})
 	return err
 }

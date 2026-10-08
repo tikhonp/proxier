@@ -30,7 +30,7 @@ func (s *Service) Retry(ctx context.Context, serverID int64, rootPassword string
 	if err != nil {
 		return 0, err
 	}
-	if srv.State != "failed" || !srv.ProvisionJobID.Valid {
+	if srv.State != "failed" || !srv.ProvisionJobID.Valid || srv.Retiring() {
 		return 0, ErrNotAllowed
 	}
 	opts := jobs.RetryOptions{}
@@ -71,7 +71,7 @@ func (s *Service) ActivateAnyway(ctx context.Context, serverID int64, actor stri
 		if err != nil {
 			return err
 		}
-		if srv.State != "failed" || srv.FailedStep != StepSmokeTest {
+		if srv.State != "failed" || srv.FailedStep != StepSmokeTest || srv.Retiring() {
 			return ErrNotAllowed
 		}
 		return s.activateTx(ctx, tx, srv, actor, map[string]any{

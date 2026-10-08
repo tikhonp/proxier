@@ -236,10 +236,39 @@
       return;
     }
     if (t.hasAttribute && t.hasAttribute('data-confirm-name')) {
-      var dlg = t.closest('dialog');
+      var dlg = t.closest('dialog') || t.closest('form');
       var btn = dlg && $('[data-confirm-submit]', dlg);
       if (btn) btn.disabled = t.value !== t.getAttribute('data-confirm-name');
     }
+  });
+
+  // ---- bulk actions of the server list: only active servers can be taken ----
+  function refreshBulk(form) {
+    var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="server"][form="' + form.id + '"]'));
+    var on = boxes.filter(function (b) { return b.checked; });
+    var reason = '';
+    if (!on.length) reason = form.getAttribute('data-reason-none');
+    else if (on.some(function (b) { return b.getAttribute('data-state') !== 'active'; })) reason = form.getAttribute('data-reason-state');
+    Array.prototype.forEach.call(form.querySelectorAll('[data-bulk-action]'), function (btn) {
+      btn.disabled = !!reason;
+      if (reason) btn.setAttribute('title', reason); else btn.removeAttribute('title');
+    });
+  }
+  document.addEventListener('change', function (e) {
+    var t = e.target;
+    if (!t || !t.getAttribute) return;
+    if (t.hasAttribute('data-bulk-all')) {
+      var f = t.closest('form[data-bulk]');
+      Array.prototype.forEach.call(document.querySelectorAll('input[name="server"][form="' + f.id + '"]'), function (b) { b.checked = t.checked; });
+      refreshBulk(f);
+    } else if (t.name === 'server' && t.getAttribute('form')) {
+      var form = document.getElementById(t.getAttribute('form'));
+      if (form && form.hasAttribute('data-bulk')) refreshBulk(form);
+    }
+  });
+  document.addEventListener('DOMContentLoaded', function () {
+    var f = document.querySelector('form[data-bulk]');
+    if (f) refreshBulk(f);
   });
 
   // ---- keyboard ----------------------------------------------------------

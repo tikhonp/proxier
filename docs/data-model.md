@@ -128,3 +128,4 @@ erDiagram
 | Discovery runs | 30 days |
 | Sign-in attempts | 30 days |
 | Backups | 14 daily snapshots |
+| Deployments and deployed files of retired servers | kept (sealed, never shown); no pruning rule exists yet |

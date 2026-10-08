@@ -1,0 +1,148 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// serversPage is the list: filters in the URL, a row per server and, under
+// 760 px, a card per server. The rows' checkboxes belong to the bulk form.
+templ serversPage(s ui.Shell, v serversView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "servers.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.note") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "servers.new", Label: "servers.new", Method: "GET", Href: "/servers/new", Kind: ui.Primary, Key: "n"})
+			</div>
+		</div>
+		if v.Notice != "" {
+			@ui.Alert("pine", "status") {
+				{ v.Notice }
+			}
+		}
+		@ui.FilterBar(v.Chips, v.Form, v.Clear)
+		if len(v.Rows) == 0 {
+			if v.Total == 0 {
+				@ui.EmptyState(i18n.T(ctx, "servers.empty"), i18n.T(ctx, "servers.empty_next"))
+			} else {
+				@ui.EmptyState(i18n.T(ctx, "servers.empty_filtered"), i18n.T(ctx, "servers.empty_filtered_next"))
+			}
+		} else {
+			<form id="bulk" method="post" class="bulk" data-bulk data-reason-state={ i18n.T(ctx, "servers.bulk.not_active") } data-reason-none={ i18n.T(ctx, "servers.bulk.none") }>
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<label class="check"><input type="checkbox" data-bulk-all aria-label={ i18n.T(ctx, "servers.bulk.all") }/> { i18n.T(ctx, "servers.bulk.all") }</label>
+				<span class="flex1"></span>
+				<button type="submit" class="pc-btn pc-sm" formaction="/servers/bulk/checks" data-bulk-action data-action="servers.bulk.checks">{ i18n.T(ctx, "servers.bulk.checks") }</button>
+				<button type="submit" class="pc-btn pc-sm" formaction="/servers/rollout/plan" data-bulk-action data-action="servers.bulk.upgrade">{ i18n.T(ctx, "servers.bulk.upgrade") }</button>
+				<button type="submit" class="pc-btn pc-sm" formaction="/servers/bulk/pause" data-bulk-action data-action="servers.bulk.pause">{ i18n.T(ctx, "servers.bulk.pause") }</button>
+			</form>
+			<div class="srv-table">
+				<div class="colhead srv" aria-hidden="true">
+					<span></span>
+					<span></span>
+					<span>{ i18n.T(ctx, "servers.col.name") }</span>
+					<span>{ i18n.T(ctx, "servers.col.status") }</span>
+					<span>{ i18n.T(ctx, "servers.col.ip") }</span>
+					<span>{ i18n.T(ctx, "servers.col.host") }</span>
+					<span>{ i18n.T(ctx, "servers.col.template") }</span>
+					<span>{ i18n.T(ctx, "servers.col.proxy") }</span>
+					<span>{ i18n.T(ctx, "servers.col.load") }</span>
+					<span>{ i18n.T(ctx, "servers.col.traffic") }</span>
+					<span>{ i18n.T(ctx, "servers.col.subs") }</span>
+				</div>
+				for _, r := range v.Rows {
+					<div class="row srv pc-row" data-href={ r.Href } data-hint={ r.Hint }>
+						<input type="checkbox" name="server" value={ strconv.FormatInt(r.ID, 10) } form="bulk" data-state={ rowState(r) } aria-label={ r.Name }/>
+						<span class="caret" aria-hidden="true">›</span>
+						<a href={ templ.SafeURL(r.Href) } class="bold">{ r.Flag } { r.Name }</a>
+						<span class="col">
+							@ui.Status(r.Kind, r.Word)
+							if r.Since != "" {
+								<span class="sm subtle">{ r.Since }</span>
+							}
+						</span>
+						<span class="subtle">{ r.IP }</span>
+						<span class="subtle">{ r.Proxy }</span>
+						<span class="col">
+							<span class="subtle">{ r.Template }</span>
+							if r.Update != "" {
+								<span class="sm gold">{ r.Update }</span>
+							}
+						</span>
+						<span class="subtle">{ r.ProxyMS }</span>
+						<span class="meters">
+							if r.HasSample {
+								<span class="meter"><span class="sm subtle">{ i18n.T(ctx, "servers.meter.cpu") }</span>@ui.Bar(r.CPU, 1000)</span>
+								<span class="meter"><span class="sm subtle">{ i18n.T(ctx, "servers.meter.mem") }</span>@ui.Bar(r.MemUsed, r.MemTot)</span>
+								<span class="meter"><span class="sm subtle">{ i18n.T(ctx, "servers.meter.disk") }</span>@ui.Bar(r.DiskUsed, r.DiskTot)</span>
+							} else {
+								<span class="subtle">—</span>
+							}
+						</span>
+						<span class="subtle">{ r.Traffic }</span>
+						<span class="subtle">{ r.Subs }</span>
+					</div>
+				}
+			</div>
+			<div class="srv-cards">
+				for _, r := range v.Rows {
+					<a href={ templ.SafeURL(r.Href) } class="row srv-card pc-row" data-href={ r.Href }>
+						<span class="bold">{ r.Flag } { r.Name }</span>
+						@ui.Status(r.Kind, r.Word)
+						if r.Reason != "" {
+							<span class="sm">{ r.Reason }</span>
+						}
+						if r.Since != "" {
+							<span class="sm subtle">{ r.Since }</span>
+						}
+						<span class="sm subtle">{ r.IP }</span>
+					</a>
+				}
+			</div>
+		}
+	}
+}
+
+// bulkPausePage asks how long to pause the checks of the selected servers.
+templ bulkPausePage(s ui.Shell, v bulkPauseView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.bulk.pause") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.bulk.pause_title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.bulk.pause_note") }</p>
+			</div>
+		</div>
+		<form method="post" action="/servers/bulk/pause" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			for _, sv := range v.Servers {
+				<input type="hidden" name="server" value={ strconv.FormatInt(sv.ID, 10) }/>
+			}
+			@ui.Area(i18n.T(ctx, "servers.bulk.selected"), "") {
+				<div class="area-body">
+					for _, sv := range v.Servers {
+						<div class="row"><span class="bold">{ sv.Name }</span></div>
+					}
+				</div>
+			}
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "health.pause.for") }</legend>
+				for i, o := range v.Options {
+					<label class="pc-opt"><input type="radio" name="d" value={ o.Value } checked?={ i == 0 }/> { o.Label }</label>
+				}
+			</fieldset>
+			if v.Err != "" {
+				<p class="err" role="alert">{ v.Err }</p>
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "health.pause.confirm") }</button>
+				<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

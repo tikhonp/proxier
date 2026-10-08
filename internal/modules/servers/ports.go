@@ -75,7 +75,7 @@ func (c catalog) Active(ctx context.Context) ([]ServerEndpoints, error) {
 	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
 	var out []ServerEndpoints
 	for _, s := range all {
-		if s.State != "active" {
+		if s.State != "active" || s.Retiring() {
 			continue
 		}
 		se, err := c.build(ctx, s)
@@ -91,7 +91,7 @@ func (c catalog) Active(ctx context.Context) ([]ServerEndpoints, error) {
 
 func (c catalog) Server(ctx context.Context, id int64) (ServerEndpoints, bool, error) {
 	s, err := store.GetServer(ctx, c.m.deps.DB.R, id)
-	if errors.Is(err, store.ErrNotFound) || err == nil && s.State != "active" {
+	if errors.Is(err, store.ErrNotFound) || err == nil && (s.State != "active" || s.Retiring()) {
 		return ServerEndpoints{}, false, nil
 	}
 	if err != nil {

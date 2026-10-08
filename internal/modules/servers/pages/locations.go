@@ -15,6 +15,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
 	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
+	"github.com/tikhonp/proxier/internal/modules/servers/retire"
 	"github.com/tikhonp/proxier/internal/modules/servers/stats"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
@@ -47,6 +48,8 @@ type Deps struct {
 	// Health runs and reads the checks; Stats answers the Stats tab (1f).
 	Health *health.Service
 	Stats  *stats.Service
+	// Retire takes servers out of service (1g).
+	Retire *retire.Service
 	// Usage is the subscriptions port (Phase 2); it returns nil until then.
 	Usage func() UsageReader
 }
@@ -74,6 +77,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerServers(r)
 	h.registerDeploy(r)
 	h.registerHealth(r)
+	h.registerRetire(r)
 }
 
 type locForm struct{ Code, Name, Country string }

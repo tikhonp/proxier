@@ -51,6 +51,9 @@ func (s *Service) ContainerLogs(ctx context.Context, serverID int64, actor strin
 	if err != nil {
 		return 0, err
 	}
+	if srv.Retiring() {
+		return 0, ErrNotAllowed
+	}
 	switch srv.State {
 	case "active":
 	case "failed":
@@ -355,7 +358,7 @@ func (s *Service) containerLogs(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
-	if srv.State != "active" && srv.State != "failed" {
+	if srv.State != "active" && srv.State != "failed" || srv.Retiring() {
 		return jobs.Permanent(errors.New("the server has no stack"))
 	}
 	secrets, err := s.StoredSecrets(ctx, srv, nil)

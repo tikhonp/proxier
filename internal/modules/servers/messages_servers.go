@@ -118,7 +118,6 @@ var serverMessages = i18n.Messages{
 	"servers.activate.c1":         {EN: "It becomes active, and its checks start. Its health will most likely be blocked.", RU: "Сервер станет активным, начнутся проверки. Скорее всего он будет «заблокирован»."},
 	"servers.activate.c2":         {EN: "Subscriptions that add new servers automatically will include it; those that hide unhealthy servers keep it hidden.", RU: "Подписки с автодобавлением включат его; те, что скрывают нездоровые, продолжат его скрывать."},
 	"servers.retire":              {EN: "Retire", RU: "Вывести"},
-	"servers.retire.soon":         {EN: "Retirement arrives with the next step of the plan.", RU: "Вывод из работы появится на следующем шаге плана."},
 	"servers.failed.at":           {EN: "Stopped at {step}", RU: "Остановилось на шаге: {step}"},
 	"servers.provision.steps":     {EN: "Provisioning", RU: "Настройка"},
 	"servers.provision.open_job":  {EN: "Open the job", RU: "Открыть задачу"},

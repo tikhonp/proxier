@@ -26,6 +26,7 @@ const (
 	OpFirewall       Op = "proxier-ufw"
 	OpPrepareDirs    Op = "prepare-dirs"
 	OpRemove         Op = "remove"
+	OpRemoveDir      Op = "remove-dir"
 	OpRun            Op = "run"
 	OpComposePull    Op = "compose-pull"
 	OpComposeUp      Op = "compose-up"
@@ -169,6 +170,12 @@ func CmdPrepareDirs(dirs []string) string {
 // CmdRemove deletes files Proxier put there and the new version no longer has.
 func CmdRemove(paths []string) string {
 	return plain(true, append([]string{"rm", "-f", "--"}, paths...)...)
+}
+
+// CmdRemoveDir deletes a stack's directory with everything in it (retirement).
+// The caller has checked the path (see StackDirOK).
+func CmdRemoveDir(dir string) string {
+	return plain(true, "rm", "-rf", "--", dir)
 }
 
 // --- template steps
@@ -363,6 +370,8 @@ func Parse(cmd string) (Call, bool) {
 		return set(OpPrepareDirs, words[indexOf(words, "--")+1:]...)
 	case is("rm", "-f", "--"):
 		return set(OpRemove, words[3:]...)
+	case c.Sudo && is("rm", "-rf", "--") && len(words) == 4:
+		return set(OpRemoveDir, words[3])
 	case is("curl", "-sk"):
 		url := words[len(words)-1]
 		resolve := ""

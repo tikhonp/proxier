@@ -1,0 +1,65 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// retirePageView is the consequences of retiring a server, the stack choice
+// and the name to type. The button is disabled until the name matches (the
+// server checks again).
+templ retirePageView(s ui.Shell, v retireView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.retire") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.retire.title", i18n.Args{"name": v.S.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.retire.note") }</p>
+			</div>
+		</div>
+		if v.Err != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		<form method="post" action={ serverHref(v.S.ID) + "/retire" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			@ui.Area(i18n.T(ctx, "servers.retire.links"), "") {
+				<p class="area-body">{ v.Usage }</p>
+			}
+			@ui.Area(i18n.T(ctx, "servers.retire.dns"), "") {
+				<div class="area-body">
+					if len(v.DNS) == 0 {
+						<p class="subtle">{ i18n.T(ctx, "servers.retire.dns_none") }</p>
+					}
+					for _, r := range v.DNS {
+						<div class="row"><span class="bold">{ r }</span></div>
+					}
+				</div>
+			}
+			<div class="field">
+				<label class="check">
+					<input type="checkbox" name="remove_stack" value="1" checked?={ v.RemoveStack } disabled?={ !v.StackPossible }/>
+					{ i18n.T(ctx, "servers.retire.stack") }
+				</label>
+				if v.StackPossible {
+					<p class="help">{ i18n.T(ctx, "servers.retire.stack.help") }</p>
+				} else {
+					<p class="help">{ i18n.T(ctx, "servers.retire.stack.none") }</p>
+				}
+			</div>
+			@ui.Band("gold") {
+				{ i18n.T(ctx, "servers.retire.warning") }
+			}
+			<div class="field">
+				<label for="retire-name">{ i18n.T(ctx, "ui.type_name", i18n.Args{"name": v.S.Name}) }</label>
+				<input id="retire-name" class="pc-inp" name="name" value={ v.Typed } autocomplete="off" spellcheck="false" autofocus data-confirm-name={ v.S.Name } aria-invalid?={ v.Err != "" }/>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" disabled data-confirm-submit>{ i18n.T(ctx, "servers.retire") }</button>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<span class="sm subtle">{ i18n.T(ctx, "servers.retire.irreversible") }</span>
+			</div>
+		</form>
+	}
+}

@@ -60,8 +60,10 @@ func TestOnDemandExternalIsAwaited(t *testing.T) {
 	// A failing proxy round: the job stores it, asks for an external check and
 	// the evaluation waits.
 	f.VPS.SetService("nginx", "running")
-	f.Harness.StallSmoke(true)
-	f.queueProxytest()
+	f.StallSmoke(true)
+	if err := f.queueProxytest(); err != nil {
+		t.Fatal(err)
+	}
 	f.WaitFor("the proxy test", func() bool { return f.countResults("proxy") == 2 })
 	f.Drain()
 

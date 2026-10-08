@@ -12,7 +12,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/conf"
-	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -24,10 +23,10 @@ import (
 
 func (h *handler) registerHealth(r web.Routes) {
 	r.Admin.GET("/servers/:id/health", h.healthTab)
-	r.Admin.POST("/servers/:id/checks/run", h.runChecks)
-	r.Admin.GET("/servers/:id/pause", h.pauseForm)
-	r.Admin.POST("/servers/:id/pause", h.pause)
-	r.Admin.POST("/servers/:id/resume", h.resume)
+	r.Admin.POST("/servers/:id/checks/run", h.runChecks, h.operable)
+	r.Admin.GET("/servers/:id/pause", h.pauseForm, h.operable)
+	r.Admin.POST("/servers/:id/pause", h.pause, h.operable)
+	r.Admin.POST("/servers/:id/resume", h.resume, h.operable)
 	r.Admin.GET("/servers/:id/stats", h.statsTab)
 }
 
@@ -98,7 +97,7 @@ func (h *handler) healthTab(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if s.State != "active" {
+	if s.State != "active" || s.Retiring() {
 		return web.Redirect(c, serverHref(s.ID))
 	}
 	ctx := c.Request().Context()
@@ -609,6 +608,3 @@ func (h *handler) resume(c *echo.Context) error {
 	}
 	return web.Redirect(c, serverHref(s.ID)+"/health?run="+strconv.FormatInt(h.Health.Now().Unix(), 10))
 }
-
-// flag is a server's flag with its name.
-func flagName(s store.Server) string { return country.Flag(s.Country) + " " + s.Name }

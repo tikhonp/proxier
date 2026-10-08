@@ -64,3 +64,27 @@ func TestCancelQueuedCancelsOnlyUnstartedJobsOfTheSubject(t *testing.T) {
 		t.Fatalf("states %s %s", ja.State, jb.State)
 	}
 }
+
+func TestHoldingListsUnfinishedJobsOfAKey(t *testing.T) {
+	h := newH(t)
+	g := newGate()
+	reg(t, h.Sys, simple("test.hold", func(ctx context.Context, r *jobs.Run) error { return g.wait(ctx) }))
+	h.Start(h.Sys)
+
+	enq(t, h, jobs.Request{Type: "test.hold", ResourceKey: "server:7"})
+	waitInt(t, h, "job running", g.reached.Load, 1)
+	enq(t, h, jobs.Request{Type: "test.hold", ResourceKey: "server:7", Delay: time.Hour})
+	enq(t, h, jobs.Request{Type: "test.hold", ResourceKey: "server:8"})
+
+	held, err := h.Sys.Holding(bg, "server:7")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(held) != 2 || held[0].State != jobs.Running || held[1].State != jobs.Queued || held[0].Type != "test.hold" {
+		t.Fatalf("held: %+v", held)
+	}
+	if none, _ := h.Sys.Holding(bg, "server:9"); len(none) != 0 {
+		t.Fatalf("another key: %+v", none)
+	}
+	g.release()
+}

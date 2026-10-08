@@ -14,6 +14,8 @@ type CheckSetup struct {
 	Dir          string
 	Checks       []manifest.Check
 	ProxyTestURL string
+	// Uninstall are the version's uninstall steps (retirement), rendered.
+	Uninstall []manifest.Step
 }
 
 // CheckSetup renders the version in force for the server with its stored
@@ -27,5 +29,5 @@ func (s *Service) CheckSetup(ctx context.Context, serverID int64) (CheckSetup, e
 	if err != nil {
 		return CheckSetup{Server: srv}, err
 	}
-	return CheckSetup{Server: srv, Dir: c.Man.Dir, Checks: c.Rendered.Checks, ProxyTestURL: c.Rendered.ProxyTestURL}, nil
+	return CheckSetup{Server: srv, Dir: c.Man.Dir, Checks: c.Rendered.Checks, ProxyTestURL: c.Rendered.ProxyTestURL, Uninstall: c.Rendered.Uninstall}, nil
 }

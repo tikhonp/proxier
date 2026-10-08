@@ -58,7 +58,8 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `server.disk_low` | server | free_pct | **on** | Under 10 % free, once per crossing. |
 | `server.checks_paused` | server | until | off | |
 | `server.checks_resumed` | server | — | off | |
-| `server.retired` | server | DNS removed, stack removed | off | |
+| `server.retired` | server | dns_removed (names), dns_kept (name, reason), stack_removed | off | Recorded by the retire job's last step. |
+| `server.retire_failed` | server | step, error, cancelled | **on** | "nl-2: retirement failed at …". The server stays out of service (retiring) until the admin retries; a cancelled job notifies nothing. |
 | `server.notes_changed` | server | — | off | Only when the notes changed. |
 | `server.rollout_started` | rollout (`rollout:<id>`) | servers (names), to_version | off | A rolling upgrade began. |
 | `server.rollout_finished` | rollout | state (`done` / `stopped` / `cancelled`), done, failed, not_started, skipped | off | Recorded once, when the rollout is no longer running and no server of it is. |

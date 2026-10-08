@@ -12,7 +12,11 @@ import (
 templ stackPage(s ui.Shell, v stackView) {
 	@ui.Layout(s) {
 		@serverHead(v.serverView, "stack")
-		if v.Dep == nil {
+		if v.S.State == "retired" {
+			@ui.Band("iris") {
+				{ i18n.T(ctx, "servers.stack.retired") }
+			}
+		} else if v.Dep == nil {
 			@ui.EmptyState(i18n.T(ctx, "servers.stack.empty"), i18n.T(ctx, "servers.stack.empty_next"))
 		} else {
 			@ui.Area(i18n.T(ctx, "servers.stack.files"), v.DepNote) {

@@ -28,7 +28,7 @@ func (s *Service) Pause(ctx context.Context, ids []int64, d time.Duration, until
 			if err != nil {
 				return err
 			}
-			if h.State != "active" {
+			if h.State != "active" || h.Retiring {
 				continue
 			}
 			if _, err := s.Jobs.CancelQueued(ctx, tx, JobResume, store.ServerSubject(id), actor); err != nil {

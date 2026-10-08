@@ -48,7 +48,7 @@ func (h *handler) statsTab(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if s.State != "active" {
+	if s.State != "active" || s.Retiring() {
 		return web.Redirect(c, serverHref(s.ID))
 	}
 	ctx := c.Request().Context()

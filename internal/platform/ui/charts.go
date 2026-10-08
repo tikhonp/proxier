@@ -119,9 +119,6 @@ func barKind(pct int) string {
 
 func viewBox(w, h int) string { return "0 0 " + strconv.Itoa(w) + " " + strconv.Itoa(h) }
 
-// stripCell is one cell of a status strip: ok, fail or none.
-type stripCell = string
-
 // StripCell values.
 const (
 	CellOK   = "ok"

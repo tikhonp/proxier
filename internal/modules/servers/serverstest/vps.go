@@ -504,6 +504,8 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		for _, p := range call.Args {
 			_ = os.Remove(v.real(p))
 		}
+	case remote.OpRemoveDir:
+		_ = os.RemoveAll(v.real(call.Args[0]))
 	case remote.OpRun:
 		return v.run(call.Args[0], call.Args[1], s)
 	case remote.OpComposePull:

@@ -28,6 +28,8 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - Stats ([stats](./processes/servers/server-stats.md)).
 - Retirement ([retirement](./processes/servers/server-retirement.md)).
 
+**Status (2026-10-08):** built, sub-phases 1a–1g. The exit demo below needs a real VPS and the real deployment; it is the user's to run ([1g](./build/1g.md#phase-1-exit-demo)). Left over: nothing has run on a real server or in a real browser yet.
+
 **Exit:** a fresh VPS becomes `nl-2`, active and healthy, from the UI alone. Firewalling 443 on it from home produces a `blocked` verdict and a Telegram message, and removing the rule recovers it. Rotation changes the connection URI and the old one stops working.
 
 ## Phase 2: Subscriptions

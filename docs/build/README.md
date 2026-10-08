@@ -20,7 +20,7 @@ Phase 1 ([roadmap](../roadmap.md#phase-1-servers)) is built the same way. Its cr
 | 1d Provisioning and the server page | [1d.md](./1d.md) | done 2026-10-08 (the real-VPS run is the user's) |
 | 1e Redeploy, upgrade, rollout, rotation | [1e.md](./1e.md) | done 2026-10-08 (real-VPS and browser checks are the user's) |
 | 1f Health and stats | [1f.md](./1f.md) | done 2026-10-08 (real-VPS, real-browser and provisioned-server check-host runs are the user's) |
-| 1g Retirement, server list, Phase 1 exit | [1g.md](./1g.md) | planned |
+| 1g Retirement, server list, Phase 1 exit | [1g.md](./1g.md) | done 2026-10-08 (the exit demo, real-VPS and real-browser runs are the user's) |
 | 1h Agent hand-off | [1h.md](./1h.md) | planned |
 
 The order is a dependency order: each builds only on finished ones. 1h is not needed for the Phase 1 exit demo (1g), so it may come after it.

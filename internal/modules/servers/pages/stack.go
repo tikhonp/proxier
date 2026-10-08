@@ -22,8 +22,8 @@ func countryFlag(cc string) string { return country.Flag(cc) }
 
 func (h *handler) registerStack(r web.Routes) {
 	r.Admin.GET("/servers/:id/stack", h.stackTab)
-	r.Admin.GET("/servers/:id/stack/files/:deployment/*", h.stackFile)
-	r.Admin.GET("/servers/:id/stack/diff/:deployment", h.stackDiff)
+	r.Admin.GET("/servers/:id/stack/files/:deployment/*", h.stackFile, h.notRetired)
+	r.Admin.GET("/servers/:id/stack/diff/:deployment", h.stackDiff, h.notRetired)
 }
 
 type stackFileRow struct {
@@ -83,7 +83,9 @@ func (h *handler) stackTab(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if ok {
+	// A retired server's files stay sealed: the values that masked them are
+	// erased, so no content and no diff can be shown safely.
+	if ok && s.State != "retired" {
 		v.Dep = &cur
 		v.DepNote = i18n.T(ctx, "servers.stack.deployed", i18n.Args{
 			"time": loc.Time(cur.StartedAt.Time), "version": vlabel(cur.TemplateVersion), "kind": i18n.T(ctx, "servers.dep.kind."+cur.Kind),
@@ -131,7 +133,7 @@ func (h *handler) stackTab(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if h.Deploy != nil && s.State == "active" {
+	if h.Deploy != nil && s.State == "active" && !s.Retiring() {
 		v.CanRoll = h.Deploy.CanRollBack(ctx, s.ID)
 	}
 	for _, d := range deps {
@@ -151,7 +153,7 @@ func (h *handler) stackTab(c *echo.Context) error {
 			row.Result += " · " + i18n.From(ctx).N("servers.dep.files", int64(d.FilesChanged))
 			if _, has, err := store.PreviousUploading(ctx, h.Store.DB.R, s.ID, d.ID); err != nil {
 				return err
-			} else if has && d.State == "succeeded" {
+			} else if has && d.State == "succeeded" && s.State != "retired" {
 				row.DiffHref = serverHref(s.ID) + "/stack/diff/" + i64(d.ID)
 			}
 		}

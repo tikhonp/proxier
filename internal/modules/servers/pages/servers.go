@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -34,14 +33,16 @@ func (h *handler) registerServers(r web.Routes) {
 	r.Admin.POST("/servers/new/summary", h.newSummary)
 	r.Admin.POST("/servers/new/location", h.newLocation)
 	r.Admin.POST("/servers", h.createServer)
+	r.Admin.POST("/servers/bulk/checks", h.bulkChecks)
+	r.Admin.POST("/servers/bulk/pause", h.bulkPause)
 	r.Admin.GET("/servers/:id", h.serverPage)
-	r.Admin.GET("/servers/:id/retry", h.retryForm)
-	r.Admin.POST("/servers/:id/retry", h.retry)
-	r.Admin.POST("/servers/:id/activate", h.activate)
-	r.Admin.POST("/servers/:id/cancel", h.cancelProvisioning)
+	r.Admin.GET("/servers/:id/retry", h.retryForm, h.operable)
+	r.Admin.POST("/servers/:id/retry", h.retry, h.operable)
+	r.Admin.POST("/servers/:id/activate", h.activate, h.operable)
+	r.Admin.POST("/servers/:id/cancel", h.cancelProvisioning, h.operable)
 	r.Admin.GET("/servers/:id/endpoints/:key/uri", h.endpointURI)
 	r.Admin.GET("/servers/:id/endpoints/:key/qr", h.endpointQR)
-	r.Admin.POST("/servers/:id/notes", h.saveNotes)
+	r.Admin.POST("/servers/:id/notes", h.saveNotes, h.operable)
 }
 
 func serverHref(id int64) string { return "/servers/" + i64(id) }
@@ -49,6 +50,9 @@ func serverHref(id int64) string { return "/servers/" + i64(id) }
 // stateKind maps a server to the marker kind and the word of its status: the
 // health for an active server, the lifecycle state otherwise.
 func stateKind(ctx context.Context, s store.Server) (kind, word string) {
+	if s.Retiring() {
+		return "running", i18n.T(ctx, "servers.state.retiring")
+	}
 	if s.State == "active" {
 		h := s.Health
 		if h == "" {
@@ -59,54 +63,6 @@ func stateKind(ctx context.Context, s store.Server) (kind, word string) {
 	}
 	kind = map[string]string{"provisioning": "running", "failed": "broken", "retired": "gone"}[s.State]
 	return kind, i18n.T(ctx, "servers.state."+s.State)
-}
-
-// ---------------------------------------------------------------- the list
-
-type serverRow struct {
-	Href, Flag, Name string
-	Kind, Word       string
-	Since            string
-	IP, Proxy        string
-	Template         string
-	Hint             string
-}
-
-type serversView struct {
-	Rows        []serverRow
-	Chips       []ui.Chip
-	ShowRetired bool
-}
-
-func (h *handler) serversList(c *echo.Context) error {
-	ctx := c.Request().Context()
-	all, err := store.ListServers(ctx, h.Store.DB.R)
-	if err != nil {
-		return err
-	}
-	v := serversView{ShowRetired: c.QueryParam("retired") == "1"}
-	sort.SliceStable(all, func(i, j int) bool { return all[i].Name < all[j].Name })
-	loc := i18n.From(ctx)
-	for _, s := range all {
-		if s.State == "retired" && !v.ShowRetired {
-			continue
-		}
-		kind, word := stateKind(ctx, s)
-		row := serverRow{
-			Href: serverHref(s.ID), Flag: country.Flag(s.Country), Name: s.Name, Kind: kind, Word: word, IP: s.IP, Proxy: s.ProxyHostname,
-			Template: s.TemplateName + " " + vlabel(s.TemplateVersion), Hint: s.Name,
-		}
-		if s.State == "active" && !s.HealthSince.IsZero() {
-			row.Since = i18n.T(ctx, "servers.since", i18n.Args{"ago": loc.Ago(s.HealthSince.Time)})
-		}
-		v.Rows = append(v.Rows, row)
-	}
-	retired := ui.Chip{Label: i18n.T(ctx, "servers.chip.retired"), Href: "/servers?retired=1", On: v.ShowRetired}
-	if v.ShowRetired {
-		retired.Href = "/servers"
-	}
-	v.Chips = []ui.Chip{retired}
-	return web.Render(c, http.StatusOK, serversPage(h.shell(c, i18n.T(ctx, "servers.title"), "/servers"), v))
 }
 
 // ------------------------------------------------------------ the server page
@@ -155,6 +111,15 @@ type serverView struct {
 	Actions  []ui.Action
 	Rollback *rollbackBand
 	UpdateTo int
+	// 1g: retirement. Retiring is out of service while the job runs (and
+	// after it failed); Retired is read-only history.
+	Retiring     bool
+	Retired      bool
+	RetiredOn    string
+	RetireJob    *jobSide
+	RetireFailed bool
+	RetireStep   string
+	RetireErr    string
 }
 
 func (h *handler) serverID(c *echo.Context) (int64, error) { return h.id(c) }
@@ -199,9 +164,14 @@ func (h *handler) headView(ctx context.Context, s store.Server) serverView {
 		v.Active = loc.Time(s.ActivatedAt.Time)
 	}
 	v.Reason = reasonText(ctx, s.HealthReason)
-	v.CanRetry = s.State == "failed"
-	v.CanActivateAnyway = s.State == "failed" && s.FailedStep == provision.StepSmokeTest
-	v.CanCancel = s.State == "provisioning" && s.ProvisionJobID.Valid
+	v.Retiring, v.Retired = s.Retiring(), s.State == "retired"
+	if v.Retired && !s.RetiredAt.IsZero() {
+		v.RetiredOn = loc.Time(s.RetiredAt.Time)
+	}
+	live := !v.Retiring && !v.Retired
+	v.CanRetry = s.State == "failed" && live
+	v.CanActivateAnyway = s.State == "failed" && s.FailedStep == provision.StepSmokeTest && live
+	v.CanCancel = s.State == "provisioning" && s.ProvisionJobID.Valid && live
 	return v
 }
 
@@ -218,7 +188,26 @@ func (h *handler) buildServer(ctx context.Context, s store.Server, jobParam int6
 		}
 	}
 
-	if (s.State == "provisioning" || s.State == "failed") && s.ProvisionJobID.Valid && h.Jobs != nil {
+	if v.Retiring && h.Jobs != nil {
+		job, err := h.jobSide(ctx, s.RetireJobID.Int64)
+		if err != nil {
+			return v, err
+		}
+		v.RetireJob = job
+		if job.State == string(jobs.Failed) || job.State == string(jobs.Cancelled) {
+			j, err := h.Jobs.Job(ctx, s.RetireJobID.Int64)
+			if err != nil {
+				return v, err
+			}
+			v.RetireFailed, v.RetireErr = true, j.Error
+			if j.State == jobs.Cancelled {
+				v.RetireErr = i18n.T(ctx, "servers.retire.cancelled")
+			}
+			if j.ErrorStep != "" {
+				v.RetireStep = i18n.T(ctx, "job.servers.retire.step."+j.ErrorStep)
+			}
+		}
+	} else if (s.State == "provisioning" || s.State == "failed") && s.ProvisionJobID.Valid && h.Jobs != nil && !v.Retired {
 		job, err := h.jobSide(ctx, s.ProvisionJobID.Int64)
 		if err != nil {
 			return v, err
@@ -476,4 +465,34 @@ func translate(c *echo.Context, fe provision.FieldErrors) map[string]string {
 		out[k] = i18n.T(ctx, m.Key, m.Args)
 	}
 	return out
+}
+
+// ------------------------------------------------------------- retired servers
+
+// operable refuses an action on a server that is retired or being retired:
+// 409, as the page shows no actions for it.
+func (h *handler) operable(next echo.HandlerFunc) echo.HandlerFunc { return h.guard(next, true) }
+
+// notRetired refuses what would show a retired server's old files: the values
+// that masked them are erased, so neither content nor diff can be shown safely.
+func (h *handler) notRetired(next echo.HandlerFunc) echo.HandlerFunc { return h.guard(next, false) }
+
+func (h *handler) guard(next echo.HandlerFunc, retiring bool) echo.HandlerFunc {
+	return func(c *echo.Context) error {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			return next(c)
+		}
+		s, err := store.GetServer(c.Request().Context(), h.Store.DB.R, id)
+		if errors.Is(err, store.ErrNotFound) {
+			return next(c)
+		}
+		if err != nil {
+			return err
+		}
+		if s.State == "retired" || retiring && s.Retiring() {
+			return echo.NewHTTPError(http.StatusConflict, "the server is retired or being retired")
+		}
+		return next(c)
+	}
 }

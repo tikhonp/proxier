@@ -2,10 +2,16 @@ package pages_test
 
 import (
 	"context"
+	"database/sql"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/db"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
@@ -90,7 +96,7 @@ func TestServerPageStates(t *testing.T) {
 	id2 := h2.Create(h2.Form())
 	h2.Drain()
 	body = page(t, h2, "/servers/"+sid(id2))
-	mustContain(t, body, "Failed", "Stopped at Smoke test", "the proxy test through main failed", ">Retry<", "Activate anyway", "Retire", "disabled", "/servers/"+sid(id2)+"/retry", "/servers/"+sid(id2)+"/activate")
+	mustContain(t, body, "Failed", "Stopped at Smoke test", "the proxy test through main failed", ">Retry<", "Activate anyway", "Retire", "/servers/"+sid(id2)+"/retire", "/servers/"+sid(id2)+"/retry", "/servers/"+sid(id2)+"/activate")
 	mustNotContain(t, body, "Cancel provisioning")
 
 	// Failed earlier: Activate anyway is not offered, and the handler refuses it.
@@ -437,3 +443,241 @@ func TestPreviewForAServer(t *testing.T) {
 	form.Set("server", "4242")
 	mustContain(t, h.Login.Post("/templates/"+sid(h.TemplateID)+"/draft/preview", form).Body.String(), "not an active server of this template")
 }
+
+// ---------------------------------------------------------- the server list
+
+var hintRe = regexp.MustCompile(`data-hint="([^"]+)"`)
+
+// listed is the names of the servers a list page shows, in order.
+func listed(body string) []string {
+	var out []string
+	for _, m := range hintRe.FindAllStringSubmatch(body, -1) {
+		out = append(out, m[1])
+	}
+	return out
+}
+
+func sameList(t *testing.T, what, body string, want ...string) {
+	t.Helper()
+	if got := listed(body); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("%s: %v, want %v", what, got, want)
+	}
+}
+
+// fleet makes nl-1 (active), nl-2 (active), nl-3 (failed) and de-1 (active, in
+// another location), and returns their ids.
+func fleet(t *testing.T) (h *serverstest.Harness, nl1, nl2, nl3, de1, de int64) {
+	t.Helper()
+	h = serverstest.NewHarness(t, serverstest.StubProxy())
+	nl1 = h.Provisioned()
+	nl2 = h.AddServer("10.77.0.2")
+	var err error
+	if de, err = h.Mod.Store.CreateLocation(bg, "de", "Germany", "DE", "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.VPS.Unharden()
+	f := h.Form()
+	f.IP, f.LocationID = "10.77.0.4", de
+	de1 = h.Create(f)
+	h.Drain()
+	h.StallSmoke(true)
+	h.VPS.Unharden()
+	f = h.Form()
+	f.IP = "10.77.0.3"
+	nl3 = h.Create(f)
+	h.Drain()
+	h.StallSmoke(false)
+	for id, st := range map[int64]string{nl1: "active", nl2: "active", nl3: "failed", de1: "active"} {
+		if got := h.Server(id).State; got != st {
+			t.Fatalf("%s is %s, want %s", h.Server(id).Name, got, st)
+		}
+	}
+	return
+}
+
+func TestServerListFilters(t *testing.T) {
+	h, nl1, _, _, _, de := fleet(t)
+
+	// the default hides retired ones; "show retired" reveals them
+	sameList(t, "default", page(t, h, "/servers"), "de-1", "nl-1", "nl-2", "nl-3")
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET state = 'retired', health = NULL WHERE name = 'nl-2'`); err != nil {
+		t.Fatal(err)
+	}
+	sameList(t, "after retiring nl-2", page(t, h, "/servers"), "de-1", "nl-1", "nl-3")
+	all := page(t, h, "/servers?state=all")
+	sameList(t, "show retired", all, "de-1", "nl-1", "nl-2", "nl-3")
+	mustContain(t, all, `href="/servers"`, `aria-pressed="true"`) // the chip that turns it off
+	sameList(t, "legacy retired=1", page(t, h, "/servers?retired=1"), "de-1", "nl-1", "nl-2", "nl-3")
+	sameList(t, "only retired", page(t, h, "/servers?state=retired"), "nl-2")
+
+	// every filter on its own, and combined
+	sameList(t, "failed", page(t, h, "/servers?state=failed"), "nl-3")
+	sameList(t, "active", page(t, h, "/servers?state=active"), "de-1", "nl-1")
+	sameList(t, "health unknown", page(t, h, "/servers?health=unknown"), "de-1", "nl-1")
+	sameList(t, "health healthy", page(t, h, "/servers?health=healthy"))
+	sameList(t, "location de", page(t, h, "/servers?location="+sid(de)), "de-1")
+	sameList(t, "location nl", page(t, h, "/servers?location="+sid(h.LocationID)), "nl-1", "nl-3")
+	sameList(t, "template", page(t, h, "/servers?template="+sid(h.TemplateID)), "de-1", "nl-1", "nl-3")
+	sameList(t, "another template", page(t, h, "/servers?template=4242"))
+	sameList(t, "combined", page(t, h, "/servers?state=active&location="+sid(h.LocationID)+"&health=unknown"), "nl-1")
+	sameList(t, "combined, none", page(t, h, "/servers?state=failed&location="+sid(de)))
+
+	// a filter stays in the URL: the chip and the form keep it
+	body := page(t, h, "/servers?state=active&location="+sid(de))
+	mustContain(t, body, `<option value="active" selected>`, `<option value="`+sid(de)+`" selected>`, `href="/servers?location=`+sid(de)+`&amp;state=all"`, "Clear filters")
+	mustContain(t, page(t, h, "/servers?state=failed&location=999"), "No server matches these filters")
+
+	// sorting: by name by default, worst health first, then traffic
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET health = 'down', health_since = created_at WHERE name = 'nl-1'`); err != nil {
+		t.Fatal(err)
+	}
+	sameList(t, "sort health", page(t, h, "/servers?sort=health"), "nl-1", "de-1", "nl-3")
+	sameList(t, "sort name", page(t, h, "/servers?sort=name"), "de-1", "nl-1", "nl-3")
+	insertSample(t, h, h.Server(nl1).ID, func(s *store.Sample) { s.RXBytes, s.TXBytes = sqlInt(1<<20), sqlInt(1<<20) })
+	sameList(t, "sort traffic", page(t, h, "/servers?sort=traffic"), "nl-1", "de-1", "nl-3")
+}
+
+func TestServerListColumns(t *testing.T) {
+	h, id := provisioned(t)
+
+	// no samples, no proxy result: dashes, no meters
+	body := page(t, h, "/servers")
+	mustContain(t, body, "nl-1", "Unknown", "127.0.0.1", "nl-1.hosts.tikhonnnnn.com", "VLESS XHTTP behind nginx v1", "Run checks now", "Upgrade to default version", "Pause checks")
+	mustNotContain(t, body, `role="meter"`, "available")
+	mustContain(t, body, `<span class="subtle">—</span>`)
+
+	// with a sample, a proxy test and a newer default version
+	insertSample(t, h, id, func(s *store.Sample) {
+		s.CPUPct = sqlFloat(25)
+		s.MemUsed, s.MemTotal, s.DiskUsed, s.DiskTotal = 512, 1024, 900, 1000
+		s.RXBytes, s.TXBytes = sqlInt(3<<20), sqlInt(0)
+	})
+	if err := h.App.DB.Write(bg, func(tx *sqlx.Tx) error {
+		return store.InsertCheckResult(bg, tx, store.CheckResult{
+			ServerID: id, Kind: "proxy", EndpointKey: "main", Vantage: "home", At: db.At(time.Now()), OK: true,
+			Detail: `{"connect_ms":50,"first_byte_ms":321,"kbps":5000}`,
+		})
+	}); err != nil {
+		t.Fatal(err)
+	}
+	h.PublishVersion(func(files map[string][]byte) {
+		files["site/index.html"] = append(files["site/index.html"], []byte("<!-- v2 -->")...)
+	}, true)
+	body = page(t, h, "/servers")
+	mustContain(t, body, `role="meter"`, `aria-valuenow="25"`, `aria-valuenow="50"`, `aria-valuenow="90"`, "321 ms", "3.0 MiB", "v2 is available")
+
+	// a failed server has no health, meters or proxy time: its lifecycle state instead
+	h.StallSmoke(true)
+	h.VPS.Unharden()
+	f := h.Form()
+	f.IP = "10.77.0.3"
+	failed := h.Create(f)
+	h.Drain()
+	body = page(t, h, "/servers?state=failed")
+	mustContain(t, body, "nl-2", "Failed")
+	mustNotContain(t, body, `role="meter"`, "321 ms")
+	_ = failed
+}
+
+func TestBulkActions(t *testing.T) {
+	h, nl1, nl2, nl3, _, _ := fleet(t)
+	jobCount := func(typ string) int {
+		var n int
+		if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM jobs WHERE type = ?`, typ); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+
+	// the page draws the checkboxes and the three buttons; a failed server's box says so
+	body := page(t, h, "/servers")
+	mustContain(t, body, `data-bulk`, `data-bulk-all`, `formaction="/servers/bulk/checks"`, `formaction="/servers/rollout/plan"`, `formaction="/servers/bulk/pause"`,
+		`name="server" value="`+sid(nl1)+`" form="bulk" data-state="active"`, `name="server" value="`+sid(nl3)+`" form="bulk" data-state="other"`,
+		"not active")
+
+	// Run checks now: every selected active server gets a round
+	before := jobCount("servers.selfcheck")
+	rec := h.Login.Post("/servers/bulk/checks", url.Values{"server": {sid(nl1), sid(nl2)}})
+	if rec.Code != 303 || !strings.Contains(rec.Header().Get("Location"), "bulk=checks&n=2") {
+		t.Fatalf("bulk checks: %d %s", rec.Code, rec.Header().Get("Location"))
+	}
+	h.Drain()
+	if got := jobCount("servers.selfcheck") - before; got != 2 {
+		t.Errorf("self-checks queued: %d, want 2", got)
+	}
+	mustContain(t, page(t, h, rec.Header().Get("Location")), "Checks queued for 2 servers")
+
+	// Pause: the first request asks for how long, the second pauses both
+	rec = h.Login.Post("/servers/bulk/pause", url.Values{"server": {sid(nl1), sid(nl2)}})
+	if rec.Code != 200 {
+		t.Fatalf("bulk pause form: %d", rec.Code)
+	}
+	mustContain(t, rec.Body.String(), "nl-1", "nl-2", `name="d"`, `name="server" value="`+sid(nl1)+`"`)
+	if h.Server(nl1).Health == "paused" {
+		t.Fatal("asking how long paused the server")
+	}
+	rec = h.Login.Post("/servers/bulk/pause", url.Values{"server": {sid(nl1), sid(nl2)}, "d": {"6h"}})
+	if rec.Code != 303 {
+		t.Fatalf("bulk pause: %d\n%s", rec.Code, rec.Body)
+	}
+	for _, id := range []int64{nl1, nl2} {
+		if hl, _ := store.GetHealth(bg, h.App.DB.R, id); hl.PausedUntil.IsZero() || hl.Health != "paused" {
+			t.Errorf("server %d: %+v", id, hl)
+		}
+	}
+	if hl, _ := store.GetHealth(bg, h.App.DB.R, nl3); !hl.PausedUntil.IsZero() {
+		t.Error("the failed server was paused")
+	}
+	if rec := h.Login.Post("/servers/bulk/pause", url.Values{"server": {sid(nl1)}, "d": {"nonsense"}}); rec.Code != 422 {
+		t.Errorf("a bad duration: %d", rec.Code)
+	}
+
+	// a selection with a failed server is refused as a whole
+	before = jobCount("servers.selfcheck")
+	for _, path := range []string{"/servers/bulk/checks", "/servers/bulk/pause"} {
+		rec = h.Login.Post(path, url.Values{"server": {sid(nl1), sid(nl3)}, "d": {"1h"}})
+		if rec.Code != 409 {
+			t.Errorf("POST %s with a failed server: %d", path, rec.Code)
+		}
+	}
+	if got := jobCount("servers.selfcheck"); got != before {
+		t.Errorf("a refused selection queued %d self-checks", got-before)
+	}
+	if rec := h.Login.Post("/servers/bulk/checks", url.Values{}); rec.Code != 422 {
+		t.Errorf("an empty selection: %d", rec.Code)
+	}
+}
+
+func TestServerListPhone(t *testing.T) {
+	h, id := provisioned(t)
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET health = 'down', health_since = created_at,
+		health_reason = '{"key":"health.reason.waiting"}' WHERE id = ?`, id); err != nil {
+		t.Fatal(err)
+	}
+	body := page(t, h, "/servers")
+	// the narrow variant is in the page: a card per server with name, health, reason, since
+	cards := body[strings.Index(body, `class="srv-cards"`):]
+	mustContain(t, cards, `class="row srv-card pc-row"`, "nl-1", "Down", "since")
+	mustNotContain(t, body, ` style=`)
+	// and the stylesheet swaps the two under 760 px
+	m := regexp.MustCompile(`href="(/static/[^"]+/css/app\.css)"`).FindStringSubmatch(body)
+	if m == nil {
+		t.Fatal("no stylesheet link")
+	}
+	css := page(t, h, m[1])
+	if !regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.srv-table[^}]*display: none[^@]*\.srv-cards \{ display: block`).MatchString(css) {
+		t.Error("the stylesheet does not show the cards under 760px")
+	}
+}
+
+func insertSample(t *testing.T, h *serverstest.Harness, id int64, change func(*store.Sample)) {
+	t.Helper()
+	s := store.Sample{ServerID: id, At: db.At(time.Now()), Containers: "[]"}
+	change(&s)
+	if err := h.App.DB.Write(bg, func(tx *sqlx.Tx) error { return store.InsertSample(bg, tx, s) }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func sqlInt(n int64) sql.NullInt64       { return sql.NullInt64{Int64: n, Valid: true} }
+func sqlFloat(f float64) sql.NullFloat64 { return sql.NullFloat64{Float64: f, Valid: true} }

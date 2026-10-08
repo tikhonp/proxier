@@ -48,6 +48,11 @@ type Server struct {
 	TemplateName string `db:"template_name"`
 }
 
+// Retiring is a server whose retirement has started and not ended: it is out
+// of service (no checks, no actions, not offered) while its job runs, and
+// stays so if the job fails, because the stack may already be gone.
+func (s Server) Retiring() bool { return s.RetireJobID.Valid && s.State != "retired" }
+
 const serverSelect = `SELECT s.id, s.location_id, s.number, s.name, s.ip, s.ssh_port, s.management_hostname, s.proxy_hostname,
 	s.state, s.template_id, s.template_version, s.params, s.params_secret, s.notes, s.provision_job_id, s.retire_job_id,
 	COALESCE(s.failed_step, '') AS failed_step, COALESCE(s.failed_error, '') AS failed_error,
@@ -457,4 +462,67 @@ func (s *Store) SetServerNotes(ctx context.Context, id int64, notes, actor strin
 		_, err = s.Events.Record(ctx, tx, events.Event{Type: "server.notes_changed", Subject: ServerSubject(id), Actor: actor})
 		return err
 	})
+}
+
+// --- retirement
+
+// SetRetireJob starts a server's retirement: it records the job. It reports
+// false for a server that is retired or already retiring.
+func SetRetireJob(ctx context.Context, tx sqlx.ExtContext, id, jobID int64) (bool, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE servers_servers SET retire_job_id = ?
+		WHERE id = ? AND state <> 'retired' AND retire_job_id IS NULL`, jobID, id)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// RetryRetireJob points a failed retirement at its retry.
+func RetryRetireJob(ctx context.Context, tx sqlx.ExtContext, id, oldJobID, jobID int64) (bool, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE servers_servers SET retire_job_id = ?
+		WHERE id = ? AND state <> 'retired' AND retire_job_id = ?`, jobID, id, oldJobID)
+	if err != nil {
+		return false, err
+	}
+	n, err := res.RowsAffected()
+	return n > 0, err
+}
+
+// MarkRetired ends a server's life: state retired, every health field cleared
+// (the table insists that only an active server has a health), generated
+// values and endpoints deleted so the old credentials can't be shown or
+// served again. It reports false when the server was retired already.
+func MarkRetired(ctx context.Context, tx sqlx.ExtContext, id int64, at db.Time) (bool, error) {
+	res, err := tx.ExecContext(ctx, `UPDATE servers_servers SET state = 'retired', retired_at = ?,
+		health = NULL, health_since = NULL, health_reason = '', health_detail = '{}', candidate = NULL, candidate_count = 0,
+		counted_proxy_at = NULL, checks_paused_until = NULL, reminded_at = NULL, cert_warned = 0, disk_warned = 0
+		WHERE id = ? AND state <> 'retired'`, at, id)
+	if err != nil {
+		return false, err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return false, nil
+	}
+	for _, q := range []string{
+		`DELETE FROM servers_generated_values WHERE server_id = ?`,
+		`DELETE FROM servers_endpoints WHERE server_id = ?`,
+	} {
+		if _, err := tx.ExecContext(ctx, q, id); err != nil {
+			return false, err
+		}
+	}
+	return true, nil
+}
+
+// MarkDNSDeleted records that the provider no longer has the record.
+func MarkDNSDeleted(ctx context.Context, tx sqlx.ExtContext, id int64, at db.Time) error {
+	_, err := tx.ExecContext(ctx, `UPDATE servers_dns_records SET deleted_at = ? WHERE id = ? AND deleted_at IS NULL`, at, id)
+	return err
+}
+
+// MarkDNSKept records why retirement left the record alone.
+func MarkDNSKept(ctx context.Context, tx sqlx.ExtContext, id int64, reason string) error {
+	_, err := tx.ExecContext(ctx, `UPDATE servers_dns_records SET kept = ? WHERE id = ? AND deleted_at IS NULL`, reason, id)
+	return err
 }

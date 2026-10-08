@@ -25,18 +25,18 @@ import (
 const jobPrefix = "servers" + "."
 
 func (h *handler) registerDeploy(r web.Routes) {
-	r.Admin.GET("/servers/:id/redeploy", h.redeployPlan)
-	r.Admin.GET("/servers/:id/upgrade", h.upgradePlan)
-	r.Admin.GET("/servers/:id/params", h.paramsPlan)
-	r.Admin.POST("/servers/:id/plan", h.planPost)
-	r.Admin.POST("/servers/:id/apply", h.applyPost)
-	r.Admin.GET("/servers/:id/rollback", h.rollbackPlan)
-	r.Admin.POST("/servers/:id/restart", h.opRestart)
-	r.Admin.POST("/servers/:id/images", h.opImages)
-	r.Admin.POST("/servers/:id/reboot", h.opReboot)
-	r.Admin.POST("/servers/:id/logs", h.opLogs)
-	r.Admin.GET("/servers/:id/rotate", h.rotatePage)
-	r.Admin.POST("/servers/:id/rotate", h.rotatePost)
+	r.Admin.GET("/servers/:id/redeploy", h.redeployPlan, h.operable)
+	r.Admin.GET("/servers/:id/upgrade", h.upgradePlan, h.operable)
+	r.Admin.GET("/servers/:id/params", h.paramsPlan, h.operable)
+	r.Admin.POST("/servers/:id/plan", h.planPost, h.operable)
+	r.Admin.POST("/servers/:id/apply", h.applyPost, h.operable)
+	r.Admin.GET("/servers/:id/rollback", h.rollbackPlan, h.operable)
+	r.Admin.POST("/servers/:id/restart", h.opRestart, h.operable)
+	r.Admin.POST("/servers/:id/images", h.opImages, h.operable)
+	r.Admin.POST("/servers/:id/reboot", h.opReboot, h.operable)
+	r.Admin.POST("/servers/:id/logs", h.opLogs, h.operable)
+	r.Admin.GET("/servers/:id/rotate", h.rotatePage, h.operable)
+	r.Admin.POST("/servers/:id/rotate", h.rotatePost, h.operable)
 	h.registerStack(r)
 	h.registerRollout(r)
 }
@@ -47,7 +47,7 @@ func (h *handler) registerDeploy(r web.Routes) {
 // server: the actions, "update available", the roll back notice and the job of
 // a change in progress (or the one the page was opened for).
 func (h *handler) changeView(ctx context.Context, s store.Server, jobParam int64, v *serverView) error {
-	if h.Deploy == nil {
+	if h.Deploy == nil || s.Retiring() || s.State == "retired" {
 		return nil
 	}
 	switch s.State {
@@ -204,7 +204,7 @@ func (h *handler) activeServer(c *echo.Context) (store.Server, error) {
 	if err != nil {
 		return s, err
 	}
-	if s.State != "active" {
+	if s.State != "active" || s.Retiring() {
 		return s, echo.NewHTTPError(http.StatusConflict, "the server is not active")
 	}
 	return s, nil

@@ -82,7 +82,7 @@ func (h *handler) renderTemplate(c *echo.Context, status int, id int64, v templa
 			return err
 		}
 		for _, srv := range all {
-			if srv.TemplateID == id && srv.State == "active" && srv.TemplateVersion < info.DefaultVersion {
+			if srv.TemplateID == id && srv.State == "active" && !srv.Retiring() && srv.TemplateVersion < info.DefaultVersion {
 				v.Outdated = append(v.Outdated, srv)
 			}
 		}

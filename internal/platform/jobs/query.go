@@ -340,3 +340,30 @@ func (s *System) CancelQueued(ctx context.Context, tx *sqlx.Tx, typ string, subj
 	}
 	return len(ids), nil
 }
+
+// Held is a job that holds a resource key and has not ended.
+type Held struct {
+	ID    int64
+	Type  string
+	State State
+}
+
+// Holding lists the jobs that hold the resource key and have not ended:
+// queued, running or interrupted, oldest first. Retirement uses it to find
+// what to cancel and what to wait for.
+func (s *System) Holding(ctx context.Context, key string) ([]Held, error) {
+	var rows []struct {
+		ID    int64  `db:"id"`
+		Type  string `db:"type"`
+		State string `db:"state"`
+	}
+	if err := s.d.R.SelectContext(ctx, &rows, `
+		SELECT id, type, state FROM jobs WHERE resource_key = ? AND state IN ('queued', 'running', 'interrupted') ORDER BY id`, key); err != nil {
+		return nil, err
+	}
+	out := make([]Held, len(rows))
+	for i, r := range rows {
+		out[i] = Held{ID: r.ID, Type: r.Type, State: State(r.State)}
+	}
+	return out, nil
+}

@@ -7,48 +7,6 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-templ serversPage(s ui.Shell, v serversView) {
-	@ui.Layout(s) {
-		<div class="titleblock">
-			<div class="head">
-				<h1>{ i18n.T(ctx, "servers.title") }</h1>
-				<p class="subtle">{ i18n.T(ctx, "servers.note") }</p>
-			</div>
-			<div class="actions">
-				@ui.ActionButton(ui.Action{ID: "servers.new", Label: "servers.new", Method: "GET", Href: "/servers/new", Kind: ui.Primary, Key: "n"})
-			</div>
-		</div>
-		@ui.FilterBar(v.Chips, nil, "")
-		if len(v.Rows) == 0 {
-			@ui.EmptyState(i18n.T(ctx, "servers.empty"), i18n.T(ctx, "servers.empty_next"))
-		} else {
-			<div class="colhead srv" aria-hidden="true">
-				<span></span>
-				<span>{ i18n.T(ctx, "servers.col.name") }</span>
-				<span>{ i18n.T(ctx, "servers.col.status") }</span>
-				<span>{ i18n.T(ctx, "servers.col.ip") }</span>
-				<span>{ i18n.T(ctx, "servers.col.host") }</span>
-				<span>{ i18n.T(ctx, "servers.col.template") }</span>
-			</div>
-			for _, r := range v.Rows {
-				<a href={ templ.SafeURL(r.Href) } class="row srv pc-row" data-href={ r.Href } data-hint={ r.Hint }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="bold">{ r.Flag } { r.Name }</span>
-					<span class="col">
-						@ui.Status(r.Kind, r.Word)
-						if r.Since != "" {
-							<span class="sm subtle">{ r.Since }</span>
-						}
-					</span>
-					<span class="subtle">{ r.IP }</span>
-					<span class="subtle">{ r.Proxy }</span>
-					<span class="subtle">{ r.Template }</span>
-				</a>
-			}
-		}
-	}
-}
-
 // ---------------------------------------------------------- new server
 
 templ newServerPage(s ui.Shell, v newView) {
@@ -328,7 +286,7 @@ templ locationFieldInner(v newView) {
 templ serverTabs(v serverView, tab string) {
 	<nav class="tabs" aria-label={ i18n.T(ctx, "servers.tabs") }>
 		<a href={ templ.SafeURL(serverHref(v.S.ID)) } if tab == "overview" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.overview") }</a>
-		if v.S.State == "active" {
+		if v.S.State == "active" && !v.Retiring {
 			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/health") } if tab == "health" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.health") }</a>
 			<a href={ templ.SafeURL(serverHref(v.S.ID) + "/stats") } if tab == "stats" { aria-current="page" }>{ i18n.T(ctx, "servers.tab.stats") }</a>
 		}
@@ -373,14 +331,17 @@ templ serverHead(v serverView, tab string) {
 					},
 				})
 			}
-			if v.S.State == "active" && tab != "health" {
+			if v.RetireFailed {
+				@ui.ActionButton(ui.Action{ID: "server.retire.retry", Label: "servers.retire.retry", Method: "POST", Href: serverHref(v.S.ID) + "/retire/retry", Kind: ui.Primary, Key: "r"})
+			}
+			if v.S.State == "active" && !v.Retiring && tab != "health" {
 				@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Key: "r"})
 			}
-			if v.S.State == "active" {
+			if v.S.State == "active" && !v.Retiring {
 				@ui.ActionButton(ui.Action{ID: "server.redeploy", Label: "servers.act.redeploy", Method: "GET", Href: serverHref(v.S.ID) + "/redeploy", Kind: ui.Primary, Key: "d"})
 			}
-			if v.S.State == "provisioning" || v.S.State == "failed" || v.S.State == "active" {
-				<button type="button" class="pc-btn" disabled title={ i18n.T(ctx, "servers.retire.soon") }>{ i18n.T(ctx, "servers.retire") }</button>
+			if !v.Retiring && !v.Retired {
+				@ui.ActionButton(ui.Action{ID: "server.retire", Label: "servers.retire", Method: "GET", Href: serverHref(v.S.ID) + "/retire", Kind: ui.Danger})
 			}
 		</div>
 	</div>
@@ -415,7 +376,29 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 				{ i18n.T(ctx, "servers.notes.saved") }
 			}
 		}
-		if v.S.State == "failed" {
+		if v.Retired {
+			@ui.Band("iris") {
+				<span class="bold">{ i18n.T(ctx, "servers.retired.on", i18n.Args{"date": v.RetiredOn}) }</span>
+				<span>{ i18n.T(ctx, "servers.retired.note") }</span>
+			}
+		}
+		if v.Retiring && !v.RetireFailed {
+			@ui.Band("gold") {
+				<span class="bold">{ i18n.T(ctx, "servers.retiring.title") }</span>
+				<span>{ i18n.T(ctx, "servers.retiring.note") }</span>
+			}
+		}
+		if v.RetireFailed {
+			@ui.Band("love") {
+				<span class="bold">{ i18n.T(ctx, "servers.retire.failed_at", i18n.Args{"step": v.RetireStep}) }</span>
+				<span>{ v.RetireErr }</span>
+				<span class="subtle">{ i18n.T(ctx, "servers.retire.failed_note") }</span>
+			}
+		}
+		if v.RetireJob != nil {
+			@jobPanel(v.RetireJob, i18n.T(ctx, "servers.retire.steps"))
+		}
+		if v.S.State == "failed" && !v.Retiring {
 			@ui.Band("love") {
 				<span class="bold">{ i18n.T(ctx, "servers.failed.at", i18n.Args{"step": i18n.T(ctx, "job.servers.provision.step."+v.S.FailedStep)}) }</span>
 				<span>{ v.S.FailedError }</span>
@@ -490,6 +473,9 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 			}
 		}
 		@ui.Area(i18n.T(ctx, "servers.area.notes"), "") {
+			if v.Retired {
+				<p class="area-body">{ v.S.Notes }</p>
+			} else {
 			<form method="post" action={ serverHref(v.S.ID) + "/notes" } class="form area-body">
 				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 				<div class="field">
@@ -502,6 +488,7 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 					<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.notes.save") }</button>
 				</div>
 			</form>
+			}
 		}
 		@ui.Area(i18n.T(ctx, "servers.area.events"), "") {
 			if len(v.Events) == 0 {

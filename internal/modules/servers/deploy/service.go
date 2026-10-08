@@ -351,7 +351,7 @@ func (s *Service) activeServer(ctx context.Context, q sqlx.QueryerContext, id in
 	if err != nil {
 		return srv, err
 	}
-	if srv.State != "active" {
+	if srv.State != "active" || srv.Retiring() {
 		return srv, ErrNotActive
 	}
 	return srv, nil

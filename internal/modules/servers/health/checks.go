@@ -65,7 +65,7 @@ func (s *Service) selfcheckStep(ctx context.Context, r *jobs.Run) error {
 		return err
 	}
 	srv := setup.Server
-	if srv.State != "active" {
+	if srv.State != "active" || srv.Retiring() {
 		r.Log().Info("%s is %s: nothing to check", srv.Name, srv.State)
 		return nil
 	}
@@ -221,7 +221,7 @@ func (s *Service) proxytestStep(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
-	if srv.State != "active" {
+	if srv.State != "active" || srv.Retiring() {
 		p.Skipped = "the server is " + srv.State
 		return r.SavePayload(ctx, p)
 	}

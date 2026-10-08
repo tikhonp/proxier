@@ -57,6 +57,7 @@ var Events = []events.Type{
 	{Name: "server.checks_paused", Description: "Checks of a server were paused."},
 	{Name: "server.checks_resumed", Description: "Checks of a server were resumed."},
 	{Name: "server.retired", Description: "A server was retired."},
+	{Name: "server.retire_failed", Notify: true, NotifyIf: notCancelled, Emoji: "🔴", Description: "Retirement stopped at a step; the server stays out of service until retried."},
 	{Name: "server.notes_changed", Description: "The notes of a server changed."},
 	{Name: "server.rollout_started", Description: "A rolling upgrade started."},
 	{Name: "server.rollout_finished", Description: "A rolling upgrade finished, stopped or was cancelled."},

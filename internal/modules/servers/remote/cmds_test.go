@@ -43,6 +43,7 @@ func TestEveryCommandParsesBack(t *testing.T) {
 		{remote.CmdFirewall([]string{"22/tcp", "443/tcp"}), remote.OpFirewall, true, []string{"22/tcp", "443/tcp"}},
 		{remote.CmdPrepareDirs([]string{dir, dir + "/nginx"}), remote.OpPrepareDirs, true, []string{dir, dir + "/nginx"}},
 		{remote.CmdRemove([]string{dir + "/a.txt", dir + "/it's"}), remote.OpRemove, true, []string{dir + "/a.txt", dir + "/it's"}},
+		{remote.CmdRemoveDir(dir), remote.OpRemoveDir, true, []string{dir}},
 		{remote.CmdRun(dir, "./issue-cert.sh --now"), remote.OpRun, true, []string{dir, "./issue-cert.sh --now"}},
 		{remote.CmdComposePull(dir), remote.OpComposePull, true, []string{dir}},
 		{remote.CmdComposeUp(dir), remote.OpComposeUp, true, []string{dir}},
@@ -144,5 +145,24 @@ func TestOSAndArchChecks(t *testing.T) {
 	ls := remote.ParseListeners("LISTEN 0 511 0.0.0.0:443 0.0.0.0:* users:((\"nginx\",pid=812,fd=6))\nLISTEN 0 4096 [::]:80 [::]:* \n")
 	if len(ls) != 2 || ls[0].Port != 443 || ls[0].Describe() != "nginx (pid 812)" || ls[1].Port != 80 || ls[1].Describe() != "an unknown process" {
 		t.Errorf("ParseListeners = %+v", ls)
+	}
+}
+
+func TestStackDirOK(t *testing.T) {
+	for dir, want := range map[string]bool{
+		"/opt/proxier":     true,
+		"/opt/proxier/nl":  true,
+		"/":                false,
+		"/opt":             false,
+		"/opt/":            false,
+		"opt/proxier":      false,
+		"/opt/../etc":      false,
+		"/opt//proxier":    false,
+		"":                 false,
+		"/opt/proxier/./a": false,
+	} {
+		if got := remote.StackDirOK(dir); got != want {
+			t.Errorf("StackDirOK(%q) = %v, want %v", dir, got, want)
+		}
 	}
 }

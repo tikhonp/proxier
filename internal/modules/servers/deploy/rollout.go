@@ -90,7 +90,7 @@ func (s *Service) planRollout(ctx context.Context, serverIDs []int64, params map
 	for _, srv := range servers {
 		it := RolloutItemPlan{ServerID: srv.ID, Name: srv.Name, From: srv.TemplateVersion, To: to.Version}
 		switch {
-		case srv.State != "active":
+		case srv.State != "active" || srv.Retiring():
 			it.Skip = "servers.rollout.skip.not_active"
 		case srv.TemplateVersion == to.Version:
 			it.Skip = "servers.rollout.skip.current"
@@ -252,7 +252,7 @@ func (s *Service) startItem(ctx context.Context, tx *sqlx.Tx, ro store.Rollout, 
 	}
 	skip := ""
 	switch {
-	case srv.State != "active":
+	case srv.State != "active" || srv.Retiring():
 		skip = "servers.rollout.skip.not_active"
 	case srv.TemplateVersion == ro.ToVersion:
 		skip = "servers.rollout.skip.current"
