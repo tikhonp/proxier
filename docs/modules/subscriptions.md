@@ -89,12 +89,13 @@ A link fetched from more networks or apps than one person's devices explain rais
 - **Subscriptions**: name, title, number of servers (with health dots), number of links, formats, hide-unhealthy on/off.
 - **Subscription**: the server list (drag to reorder; add from active servers; each row shows health and whether it is hidden right now), settings, a **preview** of exactly what a link gets right now, the links of this subscription, and activity.
 - **Links**: every link. Columns: name, subscription, state (active / disabled / expired / deleted), expiry, last fetch with app icon, fetches in 24 h, alert badge. Filters: subscription, state, expiring within 7 days, with alerts.
-- **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the fetch log, alerts, actions, activity.
+- **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the alert band while it has an alert, **Who fetches it** (networks with their country and apps, over 24 h or 7 d), the alert limits, the fetch log, actions, activity. **Alert limits** (a page styled as a dialog) raises the limits of one link or mutes its alerts.
+- **Dashboard → Links**: links with a shared-link alert ("Alex · alert · 6 networks, 4 apps in 24 h"), then active links expiring within 7 days ("Masha — Pixel · expiring · 9 Oct · in 4 days"), with **Links →**. Nothing to show, no area.
 - **New link**: a small dialog (name, subscription, optional expiry, language). It ends on the link page with the URL and QR ready to share.
 
 ## Settings
 
-Section `subscriptions` (its page arrives with the expiry and alert settings):
+Section `subscriptions`, on **Settings → Subscriptions**:
 
 | Key | Default | Meaning |
 |---|---|---|

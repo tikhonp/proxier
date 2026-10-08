@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
@@ -26,6 +27,7 @@ import (
 type Deps struct {
 	Subs     *subs.Service
 	Links    *links.Service
+	Alerts   *alerts.Service
 	DB       *db.DB
 	Settings *settings.Store
 	Now      func() time.Time
@@ -33,12 +35,13 @@ type Deps struct {
 
 type handler struct {
 	Deps
-	shell func(c *echo.Context, title, path string) ui.Shell
+	shell         func(c *echo.Context, title, path string) ui.Shell
+	settingsPages func() []ui.SettingsPage
 }
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
-	h := &handler{Deps: d, shell: r.Shell}
+	h := &handler{Deps: d, shell: r.Shell, settingsPages: r.SettingsPages}
 	r.Admin.GET("/subscriptions", h.list)
 	r.Admin.GET("/subscriptions/new", h.newPage)
 	r.Admin.POST("/subscriptions", h.create)
@@ -70,6 +73,11 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/links/:id/edit", h.formPage("edit"))
 	r.Admin.POST("/links/:id/edit", h.editLink)
 	r.Admin.POST("/links/:id/delete", h.deleteLink)
+	r.Admin.GET("/links/:id/alerts", h.alertsPage)
+	r.Admin.POST("/links/:id/alerts", h.saveAlerts)
+
+	r.Admin.GET("/settings/subscriptions", h.settingsPage)
+	r.Admin.POST("/settings/subscriptions", h.saveSettings)
 }
 
 func subHref(id int64) string { return "/subscriptions/" + strconv.FormatInt(id, 10) }

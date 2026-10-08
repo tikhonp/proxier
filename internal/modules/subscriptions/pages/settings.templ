@@ -1,0 +1,24 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ subsSettingsPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, v settingsView) {
+	@ui.SettingsLayout(s, pages, "subscriptions") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.subscriptions") }</h2>
+			<p>{ i18n.T(ctx, "subs.settings.note") }</p>
+		</div>
+		if v.Saved {
+			<div class="form">
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "ui.saved") }
+				}
+			</div>
+		}
+		@ui.SettingsForm(sec, v.Values, v.Errs, "/settings/subscriptions")
+	}
+}

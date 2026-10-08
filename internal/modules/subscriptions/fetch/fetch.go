@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -26,6 +27,8 @@ type Deps struct {
 	Links  *links.Service
 	DB     *db.DB
 	Events *events.Catalog
+	// Alerts queues the country lookup of a new network; nil: none.
+	Alerts *alerts.Service
 	Log    *slog.Logger
 	Now    func() time.Time
 }

@@ -39,9 +39,13 @@ templ linksPage(s ui.Shell, v linksView) {
 					if v.Expiring {
 						<input type="hidden" name="expiring" value="1"/>
 					}
+					if v.Alerts {
+						<input type="hidden" name="alerts" value="1"/>
+					}
 					<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "links.filter.apply") }</button>
 				</form>
 				<a href={ templ.SafeURL(v.ChipHref) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Expiring) }>{ i18n.T(ctx, "links.filter.expiring") }</a>
+				<a href={ templ.SafeURL(v.AlertHref) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Alerts) }>{ i18n.T(ctx, "links.filter.alerts") }</a>
 				if v.ClearHref != "" {
 					<a href={ templ.SafeURL(v.ClearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
 				}
@@ -62,7 +66,12 @@ templ linksPage(s ui.Shell, v linksView) {
 					<span class="caret" aria-hidden="true">›</span>
 					<span class="bold">{ r.Name }</span>
 					<span class="subtle">{ r.Subscription }</span>
-					@ui.Status(r.Kind, r.Word)
+					<span class="lnk-status">
+						@ui.Status(r.Kind, r.Word)
+						if r.Alert {
+							@ui.Status("look", i18n.T(ctx, "alerts.looks_shared"))
+						}
+					</span>
 					<span class="sm subtle">{ r.Expires }</span>
 					<span class="sm subtle">{ r.Last }</span>
 					<span class="subtle">{ strconv.Itoa(r.Fetches) }</span>

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/fetch"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
@@ -21,6 +22,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -35,10 +37,11 @@ type Ports struct {
 // Module is the subscriptions module.
 type Module struct {
 	// Now is the module's clock; every service reads it, so a test replaces it once.
-	Now   func() time.Time
-	Subs  *subs.Service
-	Links *links.Service
-	Fetch *fetch.Service
+	Now    func() time.Time
+	Subs   *subs.Service
+	Links  *links.Service
+	Fetch  *fetch.Service
+	Alerts *alerts.Service
 
 	ports Ports
 	deps  module.Deps
@@ -61,8 +64,24 @@ func (m *Module) Init(d module.Deps) error {
 		DB: d.DB, Vault: d.Vault, Events: d.Events, Settings: d.Settings, I18n: d.I18n, Subs: m.Subs, Now: now,
 		BaseURL: d.Cfg.BaseURL, Log: d.Log,
 	})
-	m.Fetch = fetch.New(fetch.Deps{Links: m.Links, DB: d.DB, Events: d.Events, Log: d.Log, Now: now})
+	m.Alerts = alerts.New(alerts.Deps{DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, Now: now, Log: d.Log})
+	m.Fetch = fetch.New(fetch.Deps{Links: m.Links, DB: d.DB, Events: d.Events, Alerts: m.Alerts, Log: d.Log, Now: now})
 	return nil
+}
+
+// JobTypes: the expiry scan, the shared-link scan and the country lookup.
+func (m *Module) JobTypes() []jobs.Type {
+	return append([]jobs.Type{m.Links.JobType()}, m.Alerts.JobTypes()...)
+}
+
+// Schedules: both scans every 15 minutes.
+func (m *Module) Schedules() []jobs.Schedule {
+	return append([]jobs.Schedule{m.Links.Schedule()}, m.Alerts.Schedules()...)
+}
+
+// SettingsPages: Settings → Subscriptions.
+func (*Module) SettingsPages() []ui.SettingsPage {
+	return []ui.SettingsPage{{Slug: "subscriptions", Title: "settings.subscriptions", Order: 36}}
 }
 
 func (*Module) EventTypes() []events.Type { return Events }
@@ -85,7 +104,11 @@ func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{
 
 func (m *Module) Routes(r web.Routes) {
 	m.Fetch.Register(r.Public)
-	pages.Register(r, pages.Deps{Subs: m.Subs, Links: m.Links, DB: m.deps.DB, Settings: m.deps.Settings, Now: func() time.Time { return m.Now() }})
+	pages.Register(r, m.pageDeps())
+}
+
+func (m *Module) pageDeps() pages.Deps {
+	return pages.Deps{Subs: m.Subs, Links: m.Links, Alerts: m.Alerts, DB: m.deps.DB, Settings: m.deps.Settings, Now: func() time.Time { return m.Now() }}
 }
 
 // Nav adds Subscriptions and Links.
@@ -159,14 +182,18 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 }
 
 var (
-	_ module.Module             = (*Module)(nil)
-	_ module.Initializer        = (*Module)(nil)
-	_ module.EventDeclarer      = (*Module)(nil)
-	_ module.SettingsDeclarer   = (*Module)(nil)
-	_ module.MessagesDeclarer   = (*Module)(nil)
-	_ module.RouteDeclarer      = (*Module)(nil)
-	_ module.NavDeclarer        = (*Module)(nil)
-	_ module.SubscriberDeclarer = (*Module)(nil)
-	_ module.SubjectNamer       = (*Module)(nil)
-	_ module.Searcher           = (*Module)(nil)
+	_ module.Module               = (*Module)(nil)
+	_ module.Initializer          = (*Module)(nil)
+	_ module.EventDeclarer        = (*Module)(nil)
+	_ module.SettingsDeclarer     = (*Module)(nil)
+	_ module.MessagesDeclarer     = (*Module)(nil)
+	_ module.RouteDeclarer        = (*Module)(nil)
+	_ module.NavDeclarer          = (*Module)(nil)
+	_ module.SubscriberDeclarer   = (*Module)(nil)
+	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.Searcher             = (*Module)(nil)
+	_ module.JobDeclarer          = (*Module)(nil)
+	_ module.DashboardDeclarer    = (*Module)(nil)
+	_ module.NotificationRenderer = (*Module)(nil)
+	_ module.SettingsPageDeclarer = (*Module)(nil)
 )

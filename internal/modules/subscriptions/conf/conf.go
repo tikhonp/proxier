@@ -24,7 +24,7 @@ const (
 
 const day = 24 * time.Hour
 
-// Section is the module's settings section; its page arrives in 2c.
+// Section is the module's settings section (Settings → Subscriptions).
 var Section = settings.Section{
 	Name: "subscriptions", Module: "subscriptions",
 	Fields: []settings.Field{

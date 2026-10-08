@@ -30,10 +30,17 @@ A link is what you hand to one person or device: a name and a secret URL serving
 
 ## Steps — expiry (the expiry scan, every 15 min)
 
-1. An active link whose expiry is within 3 days (setting) and that hasn't been warned → notification "Link 'Mom — iPhone' expires on 1 Dec". → `link.expiring_soon{expiry}`
-2. An active link whose expiry has passed and that isn't marked expired → marked expired. → `link.expired` (notifies)
-3. Expiry itself is applied **at fetch time** by comparing with the clock, so a fetch one second after expiry already gets the stub entry. The scan only produces events and notifications.
-4. Deleted links whose tombstone period has passed have their token erased, and their URL is `404` from then on.
+The scan is the job `subscriptions.expiry_scan` (queue `maintenance`, quiet, one attempt: the next scan is the retry), in three steps:
+
+1. **expiry**, in one transaction, in this order:
+   1. An active link whose expiry has passed and that isn't marked expired → marked expired. → `link.expired{expiry}` (notifies: "Mom — iPhone expired on 1 Dec")
+   2. An active link whose expiry is within `subscriptions.expiry_warning` (3 days) and that hasn't been warned → marked warned. → `link.expiring_soon{expiry}` (notifies: "Mom — iPhone expires on 1 Dec")
+
+   Expired links go first, so a link that expires before any scan warned it gets only `link.expired`. Disabled and deleted links are skipped: a disabled link that expires notifies nothing, and once enabled the next scan sends `link.expired`. Changing the expiry re-arms both marks.
+2. **tombstones**: deleted links whose tombstone period has passed have their token erased. This records no event: their URL has answered `404` since the period ended (the fetch checks the clock), so nothing changes for anyone. The row and the read-only page stay.
+3. **prune**: fetches older than `subscriptions.fetch_retention` (90 days) are deleted, and so are network countries past their freshness (a known one after 30 days, an unknown one after a day), so a network still in use is looked up again.
+
+Expiry itself is applied **at fetch time** by comparing with the clock, so a fetch one second after expiry already gets the stub entry. The scan only produces events and notifications.
 
 ## Rules
 

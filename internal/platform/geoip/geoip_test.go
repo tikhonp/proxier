@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tikhonp/proxier/internal/modules/servers/geoip"
+	"github.com/tikhonp/proxier/internal/platform/geoip"
 )
 
 func TestCountryLookup(t *testing.T) {

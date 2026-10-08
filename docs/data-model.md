@@ -127,7 +127,10 @@ erDiagram
 | Jobs and logs | 30 days; failed jobs 90 days |
 | Check results | 30 days |
 | Metric samples | raw 7 days, hourly 90 days |
-| Fetches (links, Shadowrocket) | 90 days |
+| Link fetches | `subscriptions.fetch_retention` (default 90 days), pruned by the expiry scan every 15 minutes |
+| Network countries (of fetching networks) | 30 days; an unknown one (lookup off or failed) 1 day, so it is looked up again |
+| Deleted links (tombstones) | the row forever; the token is erased once `subscriptions.tombstone` (default 30 days) has passed |
+| Shadowrocket fetches | 90 days |
 | Superseded snapshots | 90 days (the current one forever) |
 | Discovery runs | 30 days |
 | Sign-in attempts | 30 days |

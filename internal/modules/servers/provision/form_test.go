@@ -12,9 +12,9 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/tikhonp/proxier/internal/modules/servers/geoip"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
+	"github.com/tikhonp/proxier/internal/platform/geoip"
 )
 
 var bg = context.Background()

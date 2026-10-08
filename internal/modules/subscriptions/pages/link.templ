@@ -1,6 +1,8 @@
 package pages
 
 import (
+	"strconv"
+
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -16,6 +18,9 @@ templ linkPage(s ui.Shell, v linkView) {
 				<div class="jobtitle">
 					<h1>{ v.L.Name }</h1>
 					@ui.Status(v.Kind, v.Word)
+					if v.Who.Alert {
+						@ui.Status("look", i18n.T(ctx, "alerts.looks_shared"))
+					}
 				</div>
 				<p class="subtle">{ v.Line }</p>
 			</div>
@@ -46,6 +51,9 @@ templ linkPage(s ui.Shell, v linkView) {
 				@ui.Band("iris") {
 					{ v.BandText }
 				}
+		}
+		if v.Who.Alert {
+			@alertBand(v)
 		}
 		<div class="subcols">
 			<div class="col-l">
@@ -97,6 +105,13 @@ templ linkPage(s ui.Shell, v linkView) {
 						<dd>{ v.Lang }</dd>
 						<dt>{ i18n.T(ctx, "links.kv.format") }</dt>
 						<dd>{ v.Format }</dd>
+						<dt>{ i18n.T(ctx, "alerts.kv.limits") }</dt>
+						<dd>
+							{ v.Who.Limits }
+							if !v.Deleted {
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/alerts") }>{ i18n.T(ctx, "links.set") }</a>
+							}
+						</dd>
 						<dt>{ i18n.T(ctx, "links.kv.last") }</dt>
 						<dd>{ v.LastFetch }</dd>
 						if v.L.Note != "" {
@@ -107,6 +122,7 @@ templ linkPage(s ui.Shell, v linkView) {
 						<dd>{ v.Created }</dd>
 					</dl>
 				}
+				@whoFetches(v.L.ID, v.Who)
 				@ui.Area(i18n.T(ctx, "links.area.fetches"), v.Retention) {
 					if len(v.Fetches) == 0 {
 						<p class="subtle area-body">{ i18n.T(ctx, "links.fetchlog.none") }</p>
@@ -115,16 +131,14 @@ templ linkPage(s ui.Shell, v linkView) {
 							<span>{ i18n.T(ctx, "links.fetchlog.time") }</span>
 							<span>{ i18n.T(ctx, "links.fetchlog.ip") }</span>
 							<span>{ i18n.T(ctx, "links.fetchlog.app") }</span>
-							<span>{ i18n.T(ctx, "links.fetchlog.format") }</span>
-							<span>{ i18n.T(ctx, "links.fetchlog.outcome") }</span>
+							<span>{ i18n.T(ctx, "links.fetchlog.outcome") } · { i18n.T(ctx, "links.fetchlog.format") }</span>
 						</div>
 						for _, f := range v.Fetches {
 							<div class="row fetch">
 								<span class="subtle">{ f.Time }</span>
-								<span>{ f.IP }</span>
+								<span>{ f.IP }<span class="cc subtle">{ f.Country }</span></span>
 								<span class="ua">{ f.App }</span>
-								<span class="subtle">{ f.Format }</span>
-								<span class={ templ.KV("subtle", f.OK), templ.KV("gold", !f.OK) }>{ f.Outcome }</span>
+								<span><span class={ templ.KV("subtle", f.OK), templ.KV("gold", !f.OK) }>{ f.Outcome }</span><span class="cc subtle">{ f.Format }</span></span>
 							</div>
 						}
 						if v.OlderHref != "" {
@@ -193,4 +207,140 @@ templ qrSlot(id int64, name, url string, shown bool) {
 			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/qr" } hx-target="#link-qr" hx-swap="outerHTML" data-action="links.qr">{ i18n.T(ctx, "links.qr.show") }</button>
 		}
 	</div>
+}
+
+// alertBand is the shared-link alert: the counts of the last 24 hours as they
+// are now, the limits, and what the admin can do about it.
+templ alertBand(v linkView) {
+	<section class="alertband" aria-labelledby="alert-h">
+		<div class="ab-head">
+			<h2 id="alert-h">
+				@ui.Status("look", i18n.T(ctx, "alerts.band.title"))
+			</h2>
+			<span class="flex1"></span>
+			<span class="sm subtle">{ v.Who.AlertAt }</span>
+		</div>
+		<div class="ab-body">
+			<p>{ v.Who.AlertText }</p>
+			<p class="subtle">{ i18n.T(ctx, "alerts.band.why") }</p>
+		</div>
+		<div class="ab-actions">
+			@ui.ActionButton(ui.Action{
+				ID: "alerts.regenerate", Label: "alerts.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate",
+				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
+			})
+			if v.L.State == "active" {
+				@ui.ActionButton(ui.Action{
+					ID: "alerts.disable", Label: "alerts.disable", Method: "POST", Href: linkHref(v.L.ID) + "/disable",
+					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.disable.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.disable.body")},
+				})
+			}
+			<span class="flex1"></span>
+			@ui.ActionButton(ui.Action{ID: "alerts.raise", Label: "alerts.raise", Method: "GET", Href: linkHref(v.L.ID) + "/alerts"})
+			@ui.ActionButton(ui.Action{ID: "alerts.mute", Label: "alerts.mute", Method: "POST", Href: linkHref(v.L.ID) + "/alerts", Fields: map[string]string{"action": "mute"}})
+		</div>
+		<dl class="ab-what">
+			<dt>{ i18n.T(ctx, "alerts.what.regenerate") }</dt>
+			<dd>{ i18n.T(ctx, "alerts.what.regenerate.text", i18n.Args{"name": v.L.Name}) }</dd>
+			if v.L.State == "active" {
+				<dt>{ i18n.T(ctx, "alerts.what.disable") }</dt>
+				<dd>{ i18n.T(ctx, "alerts.what.disable.text") }</dd>
+			}
+			<dt>{ i18n.T(ctx, "alerts.what.raise") }</dt>
+			<dd>{ i18n.T(ctx, "alerts.what.raise.text") }</dd>
+			<dt>{ i18n.T(ctx, "alerts.what.mute") }</dt>
+			<dd>{ i18n.T(ctx, "alerts.what.mute.text") }</dd>
+		</dl>
+	</section>
+}
+
+// whoFetches is the networks (with country) and apps of the link's fetches
+// over 24 h or 7 d. It shows even when alerts are muted.
+templ whoFetches(id int64, w whoView) {
+	<section class="area" aria-label={ i18n.T(ctx, "alerts.who") }>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "alerts.who") }</h2>
+			<span class="flex1"></span>
+			<span class="sbgroup">
+				<a href={ templ.SafeURL(linkHref(id)) } class="pc-sb" aria-pressed={ ui.BoolStr(!w.Week) }>{ i18n.T(ctx, "alerts.who.day") }</a>
+				<a href={ templ.SafeURL(linkHref(id) + "?window=7d") } class="pc-sb" aria-pressed={ ui.BoolStr(w.Week) }>{ i18n.T(ctx, "alerts.who.week") }</a>
+			</span>
+		</div>
+		if len(w.Networks) == 0 {
+			<p class="subtle area-body">{ i18n.T(ctx, "alerts.who.none") }</p>
+		} else {
+			<div class="whocols">
+				<div>
+					<div class="mx-group">{ i18n.T(ctx, "alerts.who.networks", i18n.Args{"n": len(w.Networks)}) }</div>
+					for _, n := range w.Networks {
+						<div class="row who who-net">
+							<span>{ n.Key }</span>
+							<span class="subtle">{ n.Country }</span>
+							<span class="subtle">{ i18n.N(ctx, "alerts.who.fetches", int64(n.Fetches)) }</span>
+						</div>
+					}
+				</div>
+				<div>
+					<div class="mx-group">{ i18n.T(ctx, "alerts.who.apps", i18n.Args{"n": len(w.Apps)}) }</div>
+					for _, a := range w.Apps {
+						<div class="row who who-app">
+							<span class="ua">{ a.Key }</span>
+							<span class="subtle">{ i18n.N(ctx, "alerts.who.fetches", int64(a.Fetches)) }</span>
+						</div>
+					}
+				</div>
+			</div>
+		}
+	</section>
+}
+
+// alertsFormPage raises the limits of one link, or mutes its alerts.
+templ alertsFormPage(s ui.Shell, v alertsFormView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(linkHref(v.L.ID)) }>{ v.L.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "alerts.form") }</span></nav>
+				<h1>{ i18n.T(ctx, "alerts.form.title", i18n.Args{"name": v.L.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "alerts.form.note") }</p>
+			</div>
+			if v.Muted {
+				<div class="actions">
+					@ui.ActionButton(ui.Action{ID: "alerts.unmute", Label: "alerts.unmute", Method: "POST", Href: linkHref(v.L.ID) + "/alerts", Fields: map[string]string{"action": "unmute"}, Kind: ui.Primary})
+				</div>
+			}
+		</div>
+		if v.Muted {
+			@ui.Band("gold") {
+				{ i18n.T(ctx, "alerts.form.muted") }
+			}
+		}
+		<form method="post" action={ linkHref(v.L.ID) + "/alerts" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if len(v.Errs) > 0 {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, "links.refused") }
+				}
+			}
+			<div class="field">
+				<label for="alert-networks">{ i18n.T(ctx, "alerts.field.networks") }</label>
+				<input id="alert-networks" class="pc-inp num" type="number" min="1" max="1000" name="networks" value={ v.Networks } placeholder={ strconv.Itoa(v.DefNetworks) } aria-invalid?={ v.Errs["networks"] != "" }/>
+				@fieldErr(v.Errs, "networks")
+				<p class="help">{ i18n.T(ctx, "alerts.field.networks.help", i18n.Args{"n": v.DefNetworks}) }</p>
+			</div>
+			<div class="field">
+				<label for="alert-apps">{ i18n.T(ctx, "alerts.field.apps") }</label>
+				<input id="alert-apps" class="pc-inp num" type="number" min="1" max="1000" name="apps" value={ v.Apps } placeholder={ strconv.Itoa(v.DefApps) } aria-invalid?={ v.Errs["apps"] != "" }/>
+				@fieldErr(v.Errs, "apps")
+				<p class="help">{ i18n.T(ctx, "alerts.field.apps.help", i18n.Args{"n": v.DefApps}) }</p>
+			</div>
+			<div class="field">
+				<label class="check"><input type="checkbox" name="muted" value="1" checked?={ v.Muted }/>{ i18n.T(ctx, "alerts.field.muted") }</label>
+				<p class="help">{ i18n.T(ctx, "alerts.field.muted.help") }</p>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
 }

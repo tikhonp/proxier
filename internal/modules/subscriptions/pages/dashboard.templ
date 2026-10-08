@@ -1,0 +1,22 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// dashboardLinks is the Links area of the dashboard: alerted links first,
+// then the ones expiring soon.
+templ dashboardLinks(rows []dashRow) {
+	for _, r := range rows {
+		<a href={ templ.SafeURL(linkHref(r.ID)) } class="row dashlnk pc-row">
+			<span class="bold">{ r.Name }</span>
+			@ui.Status(r.Kind, r.Word)
+			<span class="sm subtle">{ r.Note }</span>
+		</a>
+	}
+	<div class="row dashsrv">
+		<span class="flex1"></span>
+		<a href="/links" class="pc-btn pc-sm">{ i18n.T(ctx, "links.dash.all") }</a>
+	</div>
+}

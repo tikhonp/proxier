@@ -19,9 +19,9 @@ import (
 // subscription.all_unhealthy.
 const allUnhealthyEvery = time.Hour
 
-// record stores the fetch, the link's last fetch and, when hiding would have
-// emptied the output, subscription.all_unhealthy (at most hourly), in one
-// transaction.
+// record stores the fetch, the link's last fetch, the country lookup of a
+// network not seen yet and, when hiding would have emptied the output,
+// subscription.all_unhealthy (at most hourly), in one transaction.
 func (s *Service) record(c *echo.Context, l links.Link, format string, resp output.Response) error {
 	ctx := c.Request().Context()
 	ip := c.RealIP()
@@ -38,6 +38,11 @@ func (s *Service) record(c *echo.Context, l links.Link, format string, resp outp
 		}
 		if err := store.SetLastFetch(ctx, tx, l.ID, now, app, network); err != nil {
 			return err
+		}
+		if s.d.Alerts != nil {
+			if err := s.d.Alerts.QueueCountry(ctx, tx, network); err != nil {
+				return err
+			}
 		}
 		if !resp.AllHidden {
 			return nil

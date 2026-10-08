@@ -95,6 +95,7 @@ type linkRow struct {
 	Kind, Word         string
 	Expires, Last      string
 	Fetches            int
+	Alert              bool
 }
 
 type linksView struct {
@@ -104,16 +105,18 @@ type linksView struct {
 	SubID     string
 	State     string
 	Expiring  bool
+	Alerts    bool
 	Subs      []ui.FilterOption
 	States    []ui.FilterOption
 	ChipHref  string
+	AlertHref string
 	ClearHref string
 	Tombs     int
 	TombsHref string
 	Empty     bool // no link at all
 }
 
-func filterURL(name, sub, state string, expiring bool) string {
+func filterURL(name, sub, state string, expiring, alerts bool) string {
 	q := url.Values{}
 	if name != "" {
 		q.Set("name", name)
@@ -127,6 +130,9 @@ func filterURL(name, sub, state string, expiring bool) string {
 	if expiring {
 		q.Set("expiring", "1")
 	}
+	if alerts {
+		q.Set("alerts", "1")
+	}
 	if len(q) == 0 {
 		return "/links"
 	}
@@ -137,7 +143,7 @@ func (h *handler) linkList(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := h.loc(ctx)
 	now := h.Now()
-	v := linksView{Name: c.QueryParam("name"), SubID: c.QueryParam("subscription"), State: c.QueryParam("state"), Expiring: c.QueryParam("expiring") == "1"}
+	v := linksView{Name: c.QueryParam("name"), SubID: c.QueryParam("subscription"), State: c.QueryParam("state"), Expiring: c.QueryParam("expiring") == "1", Alerts: c.QueryParam("alerts") == "1"}
 	switch v.State {
 	case "live", "active", "disabled", "expired", "deleted", "all":
 	default:
@@ -160,8 +166,11 @@ func (h *handler) linkList(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	active, expiring := 0, 0
+	active, expiring, alerted := 0, 0, 0
 	for _, r := range all {
+		if r.State != "deleted" && h.Alerts.HasAlert(r.Link, now) {
+			alerted++
+		}
 		switch st := r.Status(now); {
 		case st == "active":
 			active++
@@ -174,15 +183,22 @@ func (h *handler) linkList(c *echo.Context) error {
 	}
 	v.Empty = len(all) == 0
 	v.Line = loc.N("links.line.active", int64(active)) + " · " + loc.N("links.line.expiring", int64(expiring))
+	if alerted > 0 {
+		v.Line += " · " + loc.N("links.line.alerts", int64(alerted))
+	}
 	if v.State == "deleted" {
 		v.Tombs = 0
 	}
 	v.TombsHref = "/links?state=deleted"
 	for _, r := range rows {
+		alert := h.Alerts.HasAlert(r.Link, now)
+		if v.Alerts && !alert {
+			continue
+		}
 		st := r.Status(now)
 		v.Rows = append(v.Rows, linkRow{
 			ID: r.ID, Name: r.Name, Subscription: r.Subscription, Kind: statusKind(st), Word: loc.T("links.status." + st),
-			Expires: expiryShort(loc, r.Link, now), Last: lastFetch(loc, r.Link), Fetches: r.Fetches24h,
+			Expires: expiryShort(loc, r.Link, now), Last: lastFetch(loc, r.Link), Fetches: r.Fetches24h, Alert: alert,
 		})
 	}
 	subList, err := h.Subs.List(ctx)
@@ -196,8 +212,9 @@ func (h *handler) linkList(c *echo.Context) error {
 	for _, st := range []string{"live", "active", "disabled", "expired", "deleted", "all"} {
 		v.States = append(v.States, ui.FilterOption{Value: st, Label: loc.T("links.filter.state." + st)})
 	}
-	v.ChipHref = filterURL(v.Name, v.SubID, v.State, !v.Expiring)
-	if v.Name != "" || subID != 0 || v.State != "live" || v.Expiring {
+	v.ChipHref = filterURL(v.Name, v.SubID, v.State, !v.Expiring, v.Alerts)
+	v.AlertHref = filterURL(v.Name, v.SubID, v.State, v.Expiring, !v.Alerts)
+	if v.Name != "" || subID != 0 || v.State != "live" || v.Expiring || v.Alerts {
 		v.ClearHref = "/links"
 	}
 	return web.Render(c, http.StatusOK, linksPage(h.shell(c, loc.T("links.title"), "/links"), v))

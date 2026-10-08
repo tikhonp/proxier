@@ -23,8 +23,8 @@ import (
 const fetchPage = 50
 
 type fetchRow struct {
-	Time, IP, App, Format, Outcome string
-	OK                             bool
+	Time, IP, Country, App, Format, Outcome string
+	OK                                      bool
 }
 
 type linkView struct {
@@ -49,6 +49,7 @@ type linkView struct {
 	OlderHref  string
 	Activity   []eventLine
 	Deleted    bool
+	Who        whoView
 }
 
 func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
@@ -124,6 +125,13 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 		v.Preview, v.HasPreview = responseView(ctx, resp, format), true
 	}
 
+	if v.Who, err = h.whoView(ctx, l, c.QueryParam("window") == "7d"); err != nil {
+		return v, err
+	}
+	if v.Deleted {
+		v.Who.Alert = false
+	}
+
 	retention, err := h.Settings.GetDuration(ctx, conf.FetchRetention)
 	if err != nil {
 		return v, err
@@ -140,7 +148,7 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 	}
 	for _, f := range fetches {
 		v.Fetches = append(v.Fetches, fetchRow{
-			Time: loc.Time(f.At.Time), IP: f.IP, App: appName(loc, f.App, f.UserAgent), Format: f.Format,
+			Time: loc.Time(f.At.Time), IP: f.IP, Country: countryText(f.Country), App: appName(loc, f.App, f.UserAgent), Format: f.Format,
 			Outcome: loc.T("links.outcome." + f.Outcome), OK: f.Outcome == output.OK,
 		})
 	}

@@ -270,3 +270,28 @@ func TestImportsOnlyServersPorts(t *testing.T) {
 		t.Fatalf("%d files: %v", n, err)
 	}
 }
+
+func TestEveryJobStepHasATitle(t *testing.T) {
+	h := substest.New(t)
+	want := map[string]bool{"subscriptions.expiry_scan": true, "subscriptions.shared_scan": true, "subscriptions.network_countries": true}
+	n := 0
+	for _, name := range h.App.Jobs.Types() {
+		if !strings.HasPrefix(name, "subscriptions.") {
+			continue
+		}
+		delete(want, name)
+		typ, _ := h.App.Jobs.TypeInfo(name)
+		if !h.App.I18n.Has("job." + name) {
+			t.Errorf("%s has no job.%s", name, name)
+		}
+		for _, st := range typ.Steps {
+			n++
+			if key := "job." + name + ".step." + st.Name; !h.App.I18n.Has(key) {
+				t.Errorf("%s is missing", key)
+			}
+		}
+	}
+	if len(want) > 0 || n != 5 {
+		t.Errorf("missing types %v; %d steps", want, n)
+	}
+}

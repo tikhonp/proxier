@@ -81,11 +81,11 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `link.token_regenerated` | link | — | off | |
 | `link.subscription_changed` | link | from, to (names) | off | |
 | `link.expiry_changed` | link | from, to | off | |
-| `link.expiring_soon` | link | expiry | **on** | Once, 3 days before (setting). |
-| `link.expired` | link | — | **on** | |
+| `link.expiring_soon` | link | expiry | **on** | Once per expiry, `subscriptions.expiry_warning` (3 days) before. Not sent when the link expires before the scan saw it. |
+| `link.expired` | link | expiry | **on** | Once per expiry, by the expiry scan; a disabled link notifies once it is enabled again. |
 | `link.deleted` | link | — | off | |
 | `link.cut_off` | link | servers, skipped (names) | off | The rotations record their own events. |
-| `link.shared_suspected` | link | networks, apps, window | **on** | "Link 'Alex' was fetched from 6 networks and 3 apps in 24 h" |
+| `link.shared_suspected` | link | networks, apps, window | **on** | At most once per link per 24 h; never names an IP. |
 
 ## Routing
 
@@ -142,3 +142,12 @@ An event without a subject (a lockout) links to Activity; any other links to its
 - Messages are short: an emoji for the state, the subject's name, one sentence, and an **Open in Proxier** button to the subject's page.
 - Messages are in the admin's language. Times use the configured time zone.
 - Delivery details (retries, Telegram rate limits, failures): [notifications process](./processes/platform/notifications.md).
+
+Subscriptions' texts (EN; each has its RU twin). The dates are the last day the link works, in the admin's language and time zone; the button opens the link or subscription page.
+
+| Event | Emoji | Title | Sentence |
+|---|---|---|---|
+| `link.expiring_soon` | ⏳ | {subject} expires on {date} | Extend it on its page if it should keep working. |
+| `link.expired` | ⏳ | {subject} expired on {date} | Its app gets the “expired” entry on its next refresh. |
+| `link.shared_suspected` | 🟡 | {subject} looks shared | Fetched from {networks} and {apps} in 24 h ("6 networks", "1 app": the language's plural forms). |
+| `subscription.all_unhealthy` | 🟡 | Every server of {subject} is unhealthy | Hiding them would leave nothing, so all {count} are served. |

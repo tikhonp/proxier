@@ -136,3 +136,63 @@ func SetAllUnhealthy(ctx context.Context, x sqlx.ExtContext, subID int64, at db.
 	_, err := x.ExecContext(ctx, `UPDATE subs_subscriptions SET all_unhealthy_at = ? WHERE id = ?`, at, subID)
 	return err
 }
+
+// Due is a link the expiry scan acts on.
+type Due struct {
+	ID        int64   `db:"id"`
+	ExpiresAt db.Time `db:"expires_at"`
+}
+
+// ExpiredUnmarked are active links whose expiry is at or before now and that
+// aren't marked expired.
+func ExpiredUnmarked(ctx context.Context, q sqlx.QueryerContext, now db.Time) ([]Due, error) {
+	var out []Due
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT id, expires_at FROM subs_links
+		WHERE state = 'active' AND expires_at IS NOT NULL AND expires_at <= ? AND expired_at IS NULL ORDER BY id`, now)
+	return out, err
+}
+
+// ExpiringUnwarned are active links expiring in (now, until] that haven't
+// been warned.
+func ExpiringUnwarned(ctx context.Context, q sqlx.QueryerContext, now, until db.Time) ([]Due, error) {
+	var out []Due
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT id, expires_at FROM subs_links
+		WHERE state = 'active' AND expires_at > ? AND expires_at <= ? AND expiry_warned_at IS NULL ORDER BY id`, now, until)
+	return out, err
+}
+
+// MarkExpired records that link.expired was sent for the current expiry.
+func MarkExpired(ctx context.Context, x sqlx.ExtContext, id int64, at db.Time) error {
+	_, err := x.ExecContext(ctx, `UPDATE subs_links SET expired_at = ? WHERE id = ?`, at, id)
+	return err
+}
+
+// MarkWarned records that link.expiring_soon was sent for the current expiry.
+func MarkWarned(ctx context.Context, x sqlx.ExtContext, id int64, at db.Time) error {
+	_, err := x.ExecContext(ctx, `UPDATE subs_links SET expiry_warned_at = ? WHERE id = ?`, at, id)
+	return err
+}
+
+// EraseTombstones drops the token of deleted links deleted at or before
+// before; their rows stay.
+func EraseTombstones(ctx context.Context, x sqlx.ExtContext, before db.Time) (int64, error) {
+	res, err := x.ExecContext(ctx, `UPDATE subs_links SET token = NULL, token_lookup = NULL
+		WHERE state = 'deleted' AND deleted_at <= ? AND token IS NOT NULL`, before)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
+}
+
+// SetAlertedAt records the last link.shared_suspected.
+func SetAlertedAt(ctx context.Context, x sqlx.ExtContext, id int64, at db.Time) error {
+	_, err := x.ExecContext(ctx, `UPDATE subs_links SET alerted_at = ? WHERE id = ?`, at, id)
+	return err
+}
+
+// SetAlertLimits writes a link's overrides (NULL = the setting) and mute.
+func SetAlertLimits(ctx context.Context, x sqlx.ExtContext, id int64, networks, apps sql.NullInt64, muted bool) error {
+	_, err := x.ExecContext(ctx, `UPDATE subs_links SET alert_networks = ?, alert_apps = ?, alerts_muted = ? WHERE id = ?`,
+		networks, apps, muted, id)
+	return err
+}

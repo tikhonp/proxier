@@ -296,3 +296,27 @@ func TestSubscriptionLinksArea(t *testing.T) {
 		`href="/links/new?subscription=1"`, "2 links")
 	mustNotContain(t, body, ">Alex<", "Old phone", "No links yet.")
 }
+
+func TestLinkListAlerts(t *testing.T) {
+	h := substest.New(t)
+	sub := h.Subscription("Friends", 1)
+	alex, _ := h.Link(sub, "Alex")
+	h.Link(sub, "Mom")
+	shared(t, h, alex, 5)
+
+	body := page(t, h, "/links")
+	mustContain(t, body, "2 active · 0 expiring this week · 1 with an alert", "With alerts", `href="/links?alerts=1"`, ">Mom<", ">Alex<")
+	if n := strings.Count(body, "looks shared"); n != 1 {
+		t.Errorf("%d markers", n)
+	}
+	body = page(t, h, "/links?alerts=1")
+	mustContain(t, body, ">Alex<", `aria-pressed="true"`, `name="alerts" value="1"`)
+	mustNotContain(t, body, ">Mom<")
+
+	// muted: no marker, not counted
+	if err := h.Mod.Alerts.SetLimits(t.Context(), alex, 0, 0, true, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	body = page(t, h, "/links")
+	mustNotContain(t, body, "looks shared", "with an alert")
+}

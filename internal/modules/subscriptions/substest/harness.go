@@ -6,14 +6,18 @@ import (
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/fetch"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
@@ -28,6 +32,9 @@ type Harness struct {
 	Login   *sitetest.Login
 	Catalog *Catalog
 	Now     time.Time // the module's clock (starts 2026-10-07 12:00 UTC); Advance moves it
+
+	mu       sync.Mutex
+	stopJobs func()
 }
 
 // Tunnel is the trusted proxy's address: requests from it carry the client's
@@ -136,4 +143,66 @@ func WithServers(t *testing.T) (*serverstest.Harness, *subscriptions.Module) {
 		return []module.Module{sm}
 	}))
 	return h, sm
+}
+
+// StartJobs runs the job workers with fast polls until the test ends. Job
+// steps read the module's clock, so tests still move time with Advance.
+func (h *Harness) StartJobs() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if h.stopJobs != nil {
+		return
+	}
+	h.App.Jobs.Poll, h.App.Jobs.SchedulerPoll, h.App.Jobs.Grace = 5*time.Millisecond, time.Hour, 300*time.Millisecond
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() { defer close(done); _ = h.App.Jobs.Start(ctx) }()
+	h.stopJobs = func() { cancel(); <-done }
+	h.T.Cleanup(func() {
+		h.mu.Lock()
+		stop := h.stopJobs
+		h.stopJobs = nil
+		h.mu.Unlock()
+		if stop != nil {
+			stop()
+		}
+	})
+}
+
+// Drain waits until no job is queued or running.
+func (h *Harness) Drain() {
+	h.T.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	calm := 0
+	for time.Now().Before(deadline) {
+		var n int
+		if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM jobs WHERE state IN ('running', 'interrupted', 'queued')`); err != nil {
+			h.T.Fatal(err)
+		}
+		if n == 0 {
+			if calm++; calm >= 3 {
+				return
+			}
+		} else {
+			calm = 0
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	h.T.Fatal("jobs did not become idle")
+}
+
+// FetchAt inserts a fetch row directly (link, time, IP, user agent), with the
+// network and app computed as a real fetch would, outcome ok.
+func (h *Harness) FetchAt(linkID int64, at time.Time, ip, ua string) {
+	h.T.Helper()
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		h.T.Fatal(err)
+	}
+	if _, err := store.InsertFetch(context.Background(), h.App.DB.W, store.Fetch{
+		LinkID: linkID, At: db.At(at), IP: ip, Network: fetch.Network(addr), UserAgent: fetch.TrimUA(ua),
+		App: fetch.Detect(ua), Format: "uri-plain", Outcome: "ok",
+	}); err != nil {
+		h.T.Fatal(err)
+	}
 }
