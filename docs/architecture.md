@@ -242,5 +242,6 @@ internal/modules/subscriptions/   conf, store, output (formats, hiding, stubs, h
 internal/modules/routing/         conf, store, change (the sync seam), domain, selector, snapshot (pure), sources (+ sourcestest),
                                   services, own (ownership and the guard, pure), lists, pages, routingtest; later refresh, catalog, shadowrocket, mtvpn,
                                   routeros (+ routerostest), routers, discovery
-internal/modules/routerscripts/
+internal/modules/routerscripts/   migrations, store, params (pure: the PARAMETERS block, literals, Fill, Eval; + paramstest with today's
+                                  fresh-router.rsc), scripts (drafts, publish, versions, diff), pages, rscriptstest; later generations
 ```

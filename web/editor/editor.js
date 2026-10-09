@@ -29,7 +29,7 @@ import { tags as t } from "@lezer/highlight";
 // ---- Rosé Pine, from the page's tokens.css variables -------------------------
 
 const theme = EditorView.theme({
-  "&": { color: "var(--text)", backgroundColor: "var(--black)", fontSize: "12.5px", flex: "1 1 auto", minHeight: "480px", maxHeight: "78vh" },
+  "&": { color: "var(--text)", backgroundColor: "var(--black)", fontSize: "12.5px", flex: "1 1 auto", minWidth: "0", minHeight: "480px", maxHeight: "78vh" },
   ".cm-scroller": { fontFamily: "var(--font)", lineHeight: "20px", overflow: "auto" },
   ".cm-content": { caretColor: "var(--text)", padding: "8px 0 16px" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text)" },
@@ -464,7 +464,74 @@ const shadowrocketMode = {
   },
 };
 
-const codeModes = { shadowrocket: () => StreamLanguage.define(shadowrocketMode) };
+// A mode for RouterOS scripts, coloured like the server's routeros lexer
+// (ui/routeros.go): comment lines, "# @…" annotations, :commands, strings
+// with escapes, $variables, numbers, and a /menu path at the start of a
+// statement.
+const routerosMode = {
+  name: "routeros",
+  startState: () => ({ inString: false, stmtStart: true }),
+  token(stream, state) {
+    if (state.inString) return routerosString(stream, state);
+    if (stream.sol()) {
+      state.stmtStart = true;
+      if (stream.match(/^[ \t]*#[ \t]*@.*/)) return "keyword";
+      if (stream.match(/^[ \t]*#.*/)) return "comment";
+    }
+    if (stream.eatSpace()) return null;
+    if (stream.peek() === '"') {
+      stream.next();
+      state.inString = true;
+      state.stmtStart = false;
+      return routerosString(stream, state);
+    }
+    if (stream.match(/^\$"[^"]*"/) || stream.match(/^\$[A-Za-z_][A-Za-z0-9_]*/)) { state.stmtStart = false; return "variableName"; }
+    if (stream.match(/^:[a-z][a-z-]*/)) { state.stmtStart = false; return "propertyName"; }
+    if (state.stmtStart && stream.match(/^\/[A-Za-z0-9\/-]+/)) { state.stmtStart = false; return "atom"; }
+    if (stream.match(/^[0-9]+(?![A-Za-z0-9_])/)) { state.stmtStart = false; return "number"; }
+    if (stream.match(/^[[;{]/)) { state.stmtStart = true; return "punctuation"; }
+    if (stream.match(/^[=\]()}.]/)) { state.stmtStart = false; return "punctuation"; }
+    if (stream.match(/^[A-Za-z_][A-Za-z0-9_-]*/)) { state.stmtStart = false; return null; }
+    stream.next();
+    state.stmtStart = false;
+    return null;
+  },
+};
+
+// routerosString reads a string up to its closing quote; a backslash at the
+// end of a line continues it on the next.
+function routerosString(stream, state) {
+  while (!stream.eol()) {
+    const c = stream.next();
+    if (c === "\\") { stream.next(); continue; }
+    if (c === '"') { state.inString = false; break; }
+  }
+  return "string";
+}
+
+const codeModes = {
+  shadowrocket: () => StreamLanguage.define(shadowrocketMode),
+  routeros: () => StreamLanguage.define(routerosMode),
+};
+
+// codeFindings shows the rows of [data-code-findings="<textarea id>"] (the
+// router script's parameters panel) as lint markers on their lines.
+function codeFindings(view, ta) {
+  const panel = ta.id && document.querySelector('[data-code-findings="' + CSS.escape(ta.id) + '"]');
+  if (!panel) return;
+  const doc = view.state.doc;
+  const diags = Array.from(panel.querySelectorAll("[data-code-finding]")).map((el) => {
+    const line = doc.line(Math.min(Math.max(parseInt(el.dataset.line, 10) || 1, 1), doc.lines));
+    return { from: line.from, to: line.to, severity: el.dataset.sev === "error" ? "error" : "warning", message: el.dataset.msg || "" };
+  });
+  view.dispatch(setDiagnostics(view.state, diags));
+}
+
+// saveCode submits the form of the page's [data-code-save] button (⌘S).
+function saveCode() {
+  const btn = document.querySelector("[data-code-save]");
+  if (btn && !btn.disabled && btn.form) btn.form.requestSubmit(btn);
+}
 
 // initCodeAreas puts CodeMirror on each textarea[data-code], in a shadow root
 // (the CSP, as for the template editor), and copies the text back into the
@@ -478,19 +545,32 @@ function initCodeAreas() {
     ta.insertAdjacentElement("afterend", host);
     const shadow = host.attachShadow({ mode: "open" });
     const lang = codeModes[ta.dataset.code];
+    // htmx follows the text area (hx-trigger="input …"): tell it when the
+    // text changed, at most every 300 ms
+    let inputTimer = 0;
     const view = new EditorView({
       parent: shadow, root: shadow,
       state: EditorState.create({
         doc: ta.value,
         extensions: [
           lineNumbers(), highlightActiveLineGutter(), highlightSpecialChars(), history(), drawSelection(),
-          highlightActiveLine(), highlightSelectionMatches(), search({ top: true }),
-          keymap.of([indentWithTab, ...searchKeymap, ...historyKeymap, ...defaultKeymap]),
+          highlightActiveLine(), highlightSelectionMatches(), search({ top: true }), lintGutter(), linter(null),
+          keymap.of([
+            { key: "Mod-s", preventDefault: true, run: () => { saveCode(); return true; } },
+            indentWithTab, ...searchKeymap, ...historyKeymap, ...lintKeymap, ...defaultKeymap,
+          ]),
           lang ? lang() : [], theme, highlight,
-          EditorView.updateListener.of((u) => { if (u.docChanged) ta.value = u.state.doc.toString(); }),
+          EditorView.updateListener.of((u) => {
+            if (!u.docChanged) return;
+            ta.value = u.state.doc.toString();
+            clearTimeout(inputTimer);
+            inputTimer = setTimeout(() => ta.dispatchEvent(new Event("input", { bubbles: true })), 300);
+          }),
         ],
       }),
     });
+    codeFindings(view, ta);
+    document.body.addEventListener("htmx:afterSettle", () => codeFindings(view, ta));
     host.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !e.defaultPrevented) view.contentDOM.blur();
       // ⌘↵ still reaches the page and submits the form
@@ -505,6 +585,11 @@ function init() {
   const form = document.querySelector("form[data-ed]");
   if (form && !form.classList.contains("ed-on")) window.proxierEditor = new Editor(form);
   initCodeAreas();
+  if (!form && document.querySelector("[data-code-save]")) {
+    document.addEventListener("keydown", (e) => {
+      if (!e.defaultPrevented && (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "s") { e.preventDefault(); saveCode(); }
+    });
+  }
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

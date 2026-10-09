@@ -30,9 +30,10 @@ type CodeMark struct {
 	Text     string
 }
 
-// LangFor names the language of a template file by its name: yaml, json, bash,
-// nginx, or "" for plain text. A trailing ".template" is looked through, and
-// a ".conf" file is nginx (the only configuration language a template holds).
+// LangFor names the language of a file by its name: yaml, json, bash, nginx,
+// routeros, or "" for plain text. A trailing ".template" is looked through, a
+// ".conf" file is nginx (the only configuration language a template holds)
+// and a ".rsc" file a RouterOS script (our own lexer, routeros.go).
 func LangFor(name string) string {
 	base := strings.ToLower(path.Base(name))
 	base = strings.TrimSuffix(base, ".template")
@@ -45,6 +46,8 @@ func LangFor(name string) string {
 		return "bash"
 	case ".conf":
 		return "nginx"
+	case ".rsc":
+		return "routeros"
 	}
 	return ""
 }

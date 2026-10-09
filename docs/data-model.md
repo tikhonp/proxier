@@ -122,11 +122,11 @@ Tables `routing_*`, all written by the module's first migration ([3a](./build/3a
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Router script** | slug, name, description, current version, archived | |
-| **Router script draft** | script, body, based on version, updated | |
-| **Router script version** | script, number, body, detected parameters, notes, published | Immutable. |
-| **Generation** | version, router name, values (secret ones 🔒), link (ID from subscriptions), router (ID from routing), created | Immutable. |
-| **Fetch URL** | generation, token HMAC, expires, used at, used IP, used user agent | Single use. |
+| **Router script** | name (unique), slug (unique, fixed once a version exists), description, current version (none before the first publish), archived, created | Deleted only while no generation was made from it. |
+| **Router script draft** | script (at most one), body, based on version (none for a new script), revision (from 1, +1 per changing save), updated at and by | A save with an old revision is refused (another tab saved). |
+| **Router script version** | script, number (from 1, no gaps), body byte for byte, its SHA-256, the warnings confirmed at publish (JSON), notes, published at and by | Immutable. Nothing else derived from the body is stored: parameters are parsed from it on demand. |
+| **Generation** | script and version, router name, file name, values (JSON of the non-secret ones), secrets (🔒 one sealed JSON of the `@secret` values and the link's URL), changed parameters, link (ID and name from subscriptions, created or not), router (ID from routing, registered or not), the key fingerprint a `@fill proxier-ssh-key` got, created at and by | Immutable. The file is never stored: it is the version filled with the values whenever it is downloaded or fetched. Its version reference keeps the script from being deleted. |
+| **Fetch URL** | generation, token (🔒 sealed, erased when the URL ends) and its lookup, state (waiting / used / expired / replaced), created, expires, ended, the IP and user agent of the fetch that used it | Single use; at most one waiting per generation. |
 
 ## Retention
 

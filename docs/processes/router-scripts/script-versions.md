@@ -13,16 +13,16 @@
    - **warnings** need a confirmation:
      - no PARAMETERS block at all (the script is still versioned and downloadable, with nothing to fill in);
      - a PARAMETERS block without `# END PARAMETERS`, with the last detected parameters listed so you can see where it stopped;
-     - a parameter that was in the previous version has disappeared.
+     - a parameter that was in the version the draft is based on has disappeared ("vethName was in v3 and is gone here").
 
-   On success the draft becomes version N+1 and the **current** version. → `routerscript.version_published{version, parameters}`
-4. **Edit** creates a draft from the current version. **Discard draft** drops it.
+   **Publish vN…** saves the editor first, then opens the publish page: the errors with their lines, then the warnings, the notes, a tick "Publish with these warnings" when there are any, and what happens. On success the draft becomes version N+1 and the **current** version, the confirmed warnings are kept with it, and the first publish fixes the slug. → `routerscript.version_published{version, parameters, warnings}`
+4. **Edit** creates a draft from the current version (or opens the one there is). **Save draft** keeps a revision: a save from a tab whose draft another tab saved meanwhile is refused with the band "The draft changed since you opened it (another tab saved it)." and **Reload**, and the typed text stays in the editor. **Discard draft** drops it; it needs a version (a script with none is deleted instead). → `routerscript.draft_saved{based_on}`, `routerscript.draft_discarded{based_on}`
 
 ## Steps — versions
 
 1. The script page lists versions: number, published, notes, generations made from it, and which one is current.
 2. **View**, **Diff** (any two), **Download** (unfilled, exactly as written).
-3. **Make current** points generation at an older version, e.g. after a bad release.
+3. **Make current** points generation at an older version, e.g. after a bad release. → `routerscript.current_changed{from, to}`
 
 ## Parameter detection
 

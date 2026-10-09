@@ -1,0 +1,95 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ versionPage(s ui.Shell, v versionView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, "v"+strconv.Itoa(v.V.Number))
+				<h1>{ title }</h1>
+				<p class="subtle">{ v.Info }</p>
+				if v.V.Notes != "" {
+					<p class="notes">{ v.V.Notes }</p>
+				}
+			</div>
+			<div class="actions">
+				<a class="pc-btn" href={ templ.SafeURL(ScriptHref(v.S.ID) + "/versions/" + strconv.Itoa(v.V.Number) + "/download") } download data-action="rs.download">{ i18n.T(ctx, "scripts.version.download") }</a>
+				if !v.V.Current {
+					@ui.ActionButton(ui.Action{
+						ID: "rs.make_current", Label: "scripts.version.make_current", Method: "POST",
+						Href:    ScriptHref(v.S.ID) + "/versions/" + strconv.Itoa(v.V.Number) + "/current",
+						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "scripts.current.title", i18n.Args{"version": strconv.Itoa(v.V.Number)}), Body: i18n.T(ctx, "scripts.current.body", i18n.Args{"version": strconv.Itoa(v.V.Number), "current": strconv.Itoa(v.S.Current)})},
+					})
+				}
+			</div>
+		</div>
+		if len(v.Others) > 0 {
+			<form method="get" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/diff") } class="filters">
+				<input type="hidden" name="to" value={ strconv.Itoa(v.V.Number) }/>
+				<label for="rs-diff-from" class="sm subtle">{ i18n.T(ctx, "scripts.version.diff_with") }</label>
+				<select id="rs-diff-from" name="from" class="pc-inp sel">
+					for _, o := range v.Others {
+						<option value={ strconv.Itoa(o) } selected?={ o == v.DiffFrom }>v{ strconv.Itoa(o) }</option>
+					}
+				</select>
+				<button type="submit" class="pc-btn pc-sm" data-action="rs.diff_with">{ i18n.T(ctx, "scripts.version.diff") }</button>
+			</form>
+		}
+		<div class="rs-editor">
+			<div class="rs-code">
+				@ui.Code("body", v.Lines)
+			</div>
+			@paramsPanel(v.Panel)
+		</div>
+	}
+}
+
+templ diffPage(s ui.Shell, v diffView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, i18n.T(ctx, "scripts.version.diff"))
+				<h1>{ v.Title }</h1>
+			</div>
+		</div>
+		<form method="get" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/diff") } class="filters">
+			<select name="from" class="pc-inp sel" aria-label={ i18n.T(ctx, "scripts.diff.from") }>
+				for _, o := range v.Options {
+					<option value={ o.Value } selected?={ o.Value == v.From }>{ o.Label }</option>
+				}
+			</select>
+			<span aria-hidden="true">→</span>
+			<select name="to" class="pc-inp sel" aria-label={ i18n.T(ctx, "scripts.diff.to") }>
+				for _, o := range v.Options {
+					<option value={ o.Value } selected?={ o.Value == v.To }>{ o.Label }</option>
+				}
+			</select>
+			if v.Split {
+				<input type="hidden" name="view" value="split"/>
+			}
+			<button type="submit" class="pc-btn pc-sm" data-action="rs.compare">{ i18n.T(ctx, "scripts.diff.compare") }</button>
+			<span class="flex1"></span>
+			<a href={ templ.SafeURL(diffHref(v, false)) } class="pc-chip" aria-pressed={ ui.BoolStr(!v.Split) }>{ i18n.T(ctx, "scripts.diff.unified") }</a>
+			<a href={ templ.SafeURL(diffHref(v, true)) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Split) }>{ i18n.T(ctx, "scripts.diff.split") }</a>
+		</form>
+		if v.Same {
+			<p class="subtle area-body">{ i18n.T(ctx, "scripts.diff.same") }</p>
+		} else {
+			@ui.Diff(v.Diff)
+		}
+	}
+}
+
+func diffHref(v diffView, split bool) string {
+	h := ScriptHref(v.S.ID) + "/diff?from=" + v.From + "&to=" + v.To
+	if split {
+		h += "&view=split"
+	}
+	return h
+}

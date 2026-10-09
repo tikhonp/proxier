@@ -52,7 +52,7 @@ Phase 4 ([roadmap](../roadmap.md#phase-4-router-scripts)) is built the same way.
 
 | Sub-phase | Contract | State |
 |---|---|---|
-| 4a Router scripts module, schema, script versions | [4a.md](./4a.md) | planned |
+| 4a Router scripts module, schema, script versions | [4a.md](./4a.md) | done 2026-10-09 (a look at the deployed instance is the user's) |
 | 4b Generation, the two ports | [4b.md](./4b.md) | planned |
 | 4c Fetch URLs, Phase 4 exit | [4c.md](./4c.md) | planned |
 

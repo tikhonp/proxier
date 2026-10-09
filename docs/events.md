@@ -127,12 +127,18 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `routerscript.created` | router script | — | off | |
-| `routerscript.version_published` | router script | version, parameters | off | |
-| `routerscript.generated` | generation | version, router name, link, router | off | |
-| `routerscript.fetch_url_created` | generation | expires | off | |
-| `routerscript.fetched` | generation | IP, user agent | **on** | "fresh-router v4 for 'Parents' was fetched from 198.51.100.4" |
-| `routerscript.fetch_url_expired` | generation | — | off | It was never used. |
+| `routerscript.created` | router script | name | off | 4a |
+| `routerscript.changed` | router script | fields (of name, slug, description) | off | 4a |
+| `routerscript.draft_saved` | router script | based_on (the version number, 0 for none) | off | 4a. Also when Edit makes the draft from the current version. |
+| `routerscript.draft_discarded` | router script | based_on | off | 4a |
+| `routerscript.version_published` | router script | version, parameters (count), warnings (count) | off | 4a |
+| `routerscript.current_changed` | router script | from, to (numbers) | off | 4a. Making the current version current again records nothing. |
+| `routerscript.archived` | router script | archived (bool) | off | 4a |
+| `routerscript.deleted` | router script | name | off | 4a. Only a script no generation was made from. |
+| `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools) | off | 4b |
+| `routerscript.fetch_url_created` | generation | expires, replaced (bool) | off | 4c |
+| `routerscript.fetched` | generation | ip, user_agent | **on** 📥 | 4c. "fresh-router v4 for 'Parents' was fetched from 198.51.100.4" |
+| `routerscript.fetch_url_expired` | generation | expired (the expiry time) | off | 4c. It was never used. |
 
 ## Platform notification texts
 

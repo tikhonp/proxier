@@ -1,0 +1,202 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ crumbs(id int64, name, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(ListPath) }>{ i18n.T(ctx, "rscripts.title") }</a>
+		<span aria-hidden="true">/</span>
+		if id != 0 && last != "" {
+			<a href={ templ.SafeURL(ScriptHref(id)) }>{ name }</a>
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		} else if id != 0 {
+			<span>{ name }</span>
+		} else {
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ listPage(s ui.Shell, v listView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "rscripts.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "rscripts.intro") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "rs.new", Label: "scripts.new", Method: "GET", Href: ListPath + "/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if v.NArch > 0 || v.Archived {
+			<div class="filters">
+				if v.Archived {
+					<a href={ templ.SafeURL(ListPath) } class="pc-chip" aria-pressed="false">{ i18n.T(ctx, "scripts.show_active") }</a>
+					<a href={ templ.SafeURL(ListPath + "?archived=1") } class="pc-chip" aria-pressed="true">{ i18n.T(ctx, "scripts.show_archived", i18n.Args{"n": v.NArch}) }</a>
+				} else {
+					<a href={ templ.SafeURL(ListPath + "?archived=1") } class="pc-chip" aria-pressed="false">{ i18n.T(ctx, "scripts.show_archived", i18n.Args{"n": v.NArch}) }</a>
+				}
+			</div>
+		}
+		if len(v.Rows) == 0 && !v.Archived {
+			@ui.EmptyState(i18n.T(ctx, "scripts.empty"), i18n.T(ctx, "scripts.empty.next"))
+		} else if len(v.Rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "scripts.empty.archived"), "")
+		} else {
+			<div class="colhead rscript" aria-hidden="true">
+				<span>{ i18n.T(ctx, "scripts.col.script") }</span>
+				<span>{ i18n.T(ctx, "scripts.col.current") }</span>
+				<span>{ i18n.T(ctx, "scripts.col.published") }</span>
+				<span>{ i18n.T(ctx, "scripts.col.generations") }</span>
+				<span>{ i18n.T(ctx, "scripts.col.draft") }</span>
+			</div>
+			for _, r := range v.Rows {
+				<a href={ templ.SafeURL(ScriptHref(r.ID)) } class="row rscript pc-row" data-row={ i64(r.ID) } data-href={ ScriptHref(r.ID) } data-hint={ i18n.T(ctx, "scripts.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold">{ r.Name }</span>
+						if r.Description != "" {
+							<span class="sm subtle">{ r.Description }</span>
+						}
+					</span>
+					<span>{ r.Current }</span>
+					<span class="subtle">{ r.Published }</span>
+					<span class="subtle">{ r.Generations }</span>
+					<span class={ "sm", templ.KV("love", r.DraftErrors), templ.KV("subtle", !r.DraftErrors) }>{ r.Draft }</span>
+				</a>
+			}
+		}
+	}
+}
+
+templ fieldErr(msg string) {
+	if msg != "" {
+		<p class="err" role="alert">{ msg }</p>
+	}
+}
+
+// newPage is New script, a page styled as a dialog: the body is pasted or
+// uploaded (an upload wins).
+templ newPage(s ui.Shell, v newView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(0, "", i18n.T(ctx, "scripts.new"))
+				<h1>{ title }</h1>
+				<p class="subtle">{ i18n.T(ctx, "scripts.new.sub") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(ListPath) } enctype="multipart/form-data" class="form rs-form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="rs-name">{ i18n.T(ctx, "scripts.field.name") }</label>
+				<input id="rs-name" class="pc-inp" name="name" value={ v.Name } maxlength="60" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+				@fieldErr(v.Errs["name"])
+			</div>
+			<div class="field">
+				<label for="rs-slug">{ i18n.T(ctx, "scripts.field.slug") }</label>
+				<input id="rs-slug" class="pc-inp" name="slug" value={ v.Slug } maxlength="63" autocomplete="off" placeholder={ scripts.SuggestSlug(v.Name) } aria-invalid?={ v.Errs["slug"] != "" }/>
+				<p class="help">{ i18n.T(ctx, "scripts.field.slug.help") }</p>
+				@fieldErr(v.Errs["slug"])
+			</div>
+			<div class="field">
+				<label for="rs-desc">{ i18n.T(ctx, "scripts.field.description") }</label>
+				<input id="rs-desc" class="pc-inp" name="description" value={ v.Description } maxlength="500" autocomplete="off" aria-invalid?={ v.Errs["description"] != "" }/>
+				@fieldErr(v.Errs["description"])
+			</div>
+			<div class="field">
+				<label for="rs-body">{ i18n.T(ctx, "scripts.field.body") }</label>
+				<textarea id="rs-body" class="pc-inp pc-ta rs-paste" name="body" rows="16" spellcheck="false" aria-invalid?={ v.Errs["body"] != "" }>{ "\n" + v.Body }</textarea>
+				<div class="inline-fields">
+					<label for="rs-file" class="sm subtle">{ i18n.T(ctx, "scripts.field.file") }</label>
+					<input id="rs-file" type="file" name="file" accept=".rsc,.txt,text/plain"/>
+				</div>
+				@fieldErr(v.Errs["body"])
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="rs.create">{ i18n.T(ctx, "scripts.create") }</button>
+				<a href={ templ.SafeURL(ListPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ detailsPage(s ui.Shell, v detailsView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, i18n.T(ctx, "scripts.details"))
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/details") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="rs-name">{ i18n.T(ctx, "scripts.field.name") }</label>
+				<input id="rs-name" class="pc-inp" name="name" value={ v.Name } maxlength="60" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+				@fieldErr(v.Errs["name"])
+			</div>
+			<div class="field">
+				<label for="rs-slug">{ i18n.T(ctx, "scripts.field.slug") }</label>
+				if v.S.Current > 0 {
+					<input id="rs-slug" class="pc-inp" name="slug" value={ v.S.Slug } readonly/>
+					<p class="help">{ i18n.T(ctx, "scripts.field.slug.fixed") }</p>
+				} else {
+					<input id="rs-slug" class="pc-inp" name="slug" value={ v.Slug } maxlength="63" autocomplete="off" aria-invalid?={ v.Errs["slug"] != "" }/>
+					<p class="help">{ i18n.T(ctx, "scripts.field.slug.help") }</p>
+				}
+				@fieldErr(v.Errs["slug"])
+			</div>
+			<div class="field">
+				<label for="rs-desc">{ i18n.T(ctx, "scripts.field.description") }</label>
+				<input id="rs-desc" class="pc-inp" name="description" value={ v.Description } maxlength="500" autocomplete="off" aria-invalid?={ v.Errs["description"] != "" }/>
+				@fieldErr(v.Errs["description"])
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="rs.save_details">{ i18n.T(ctx, "scripts.details.save") }</button>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+// deletePage asks for the slug; with generations the button is off.
+templ deletePage(s ui.Shell, v deleteView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, i18n.T(ctx, "scripts.delete"))
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/delete") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if v.Generations > 0 {
+				@ui.Alert("gold", "status") {
+					{ i18n.N(ctx, "scripts.delete.has_generations", int64(v.Generations), i18n.Args{"slug": v.S.Slug}) }
+				}
+			} else {
+				<p>{ i18n.T(ctx, "scripts.delete.body") }</p>
+				<div class="field">
+					<label for="rs-confirm">{ i18n.T(ctx, "ui.type_name", i18n.Args{"name": v.S.Slug}) }</label>
+					<input id="rs-confirm" class="pc-inp" name="slug" value={ v.Typed } autocomplete="off" autofocus aria-invalid?={ v.Err != "" }/>
+					@fieldErr(v.Err)
+				</div>
+			}
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" data-action="rs.delete_confirm" disabled?={ v.Generations > 0 }>{ i18n.T(ctx, "scripts.delete.go", i18n.Args{"name": v.S.Name}) }</button>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+		if v.Generations > 0 && !v.S.Archived {
+			<div class="form">
+				@ui.ActionButton(ui.Action{ID: "rs.archive_instead", Label: "scripts.archive", Method: "POST", Href: ScriptHref(v.S.ID) + "/archive"})
+			</div>
+		}
+	}
+}

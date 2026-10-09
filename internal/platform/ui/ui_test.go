@@ -148,3 +148,40 @@ func TestQRIsAnSVGWithAQuietZone(t *testing.T) {
 		t.Error("inline style or script in the QR")
 	}
 }
+
+func TestRouterOSHighlight(t *testing.T) {
+	if ui.LangFor("fresh-router.rsc") != "routeros" || ui.LangFor("X.RSC") != "routeros" {
+		t.Fatal(".rsc is not routeros")
+	}
+	src := "# PARAMETERS\n# @fill subscription-link\n:local subUrl \"a\\\"b\\41\"\n:local n 3\n/ip address add address=($lanNet . \".1/24\") interface=$\"lan-if\"\n:local v [/system resource get version]\n"
+	lines := ui.Highlight("fresh-router.rsc", []byte(src))
+	if len(lines) != 6 {
+		t.Fatalf("%d lines", len(lines))
+	}
+	for i, want := range []string{
+		`<span class="c1"># PARAMETERS</span>`,
+		`<span class="cs"># @fill subscription-link</span>`,
+		`<span class="na">:local</span>`,
+		`<span class="se">\&#34;</span>`,
+		`<span class="se">\41</span>`,
+		`<span class="m">3</span>`,
+		`<span class="nb">/ip</span>`,
+		`<span class="nv">$lanNet</span>`,
+		`<span class="nv">$&#34;lan-if&#34;</span>`,
+		`<span class="nb">/system</span>`,
+	} {
+		joined := ""
+		for _, l := range lines {
+			joined += l.HTML + "\n"
+		}
+		if !strings.Contains(joined, want) {
+			t.Errorf("%d: no %s in\n%s", i, want, joined)
+		}
+	}
+	if !strings.Contains(lines[2].HTML, `<span class="s">`) {
+		t.Errorf("string: %s", lines[2].HTML)
+	}
+	if !strings.Contains(lines[4].HTML, `<span class="p">=</span>`) {
+		t.Errorf("punctuation: %s", lines[4].HTML)
+	}
+}
