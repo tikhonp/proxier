@@ -64,18 +64,37 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 ## Reading state
 
 ```
-:foreach i in=[/ip dns static find where address-list="to_vpn_list"] do={:put ([:tostr [/ip dns static get $i comment]] . "|" . [/ip dns static get $i name] . "|" . [:tostr [/ip dns static get $i match-subdomain]])}
+:foreach i in=[/ip dns static find where address-list="to_vpn_list"] do={:put ([:tostr [/ip dns static get $i comment]] . "|" . [/ip dns static get $i name] . "|" . [:tostr [/ip dns static get $i match-subdomain]] . "|" . [:tostr [/ip dns static get $i type]] . "|" . [:tostr [/ip dns static get $i forward-to]])}
 :foreach i in=[/ip firewall address-list find where list="to_vpn_list" dynamic=no] do={:put ([:tostr [/ip firewall address-list get $i comment]] . "|" . [/ip firewall address-list get $i address])}
 ```
 
-Tags are read from the DNS static entries, so the address-list-only `telegram-cidr` entries are never mistaken for a service. An empty comment means untagged.
+- Lines are trimmed of `\r`, and the fields are split from the **right**: a comment written by hand may hold `|`.
+- Tags are read from the DNS static entries, so the address-list-only `telegram-cidr` entries are never mistaken for a service. An empty comment means untagged (DNS and address-list entries are counted). An address-list entry whose comment starts with `mtvpn:` is an infra pin.
+- The DNS read prints `type` and `forward-to` too: a tag is unchanged only when every entry is `type=FWD` to the forwarder with the right `match-subdomain`, and its address-list names are the desired ones. A tag whose entries were edited by hand shows as changed.
+
+Test connection and every sync's connect step also run one check line: the version, board and identity (`/system resource`, `/system identity`), the count of the forwarder in `/ip dns forwarders`, of the `mtvpn:doh` pin and of the address list's static entries, each printed as `key|value`.
 
 ## Pushing
 
-1. Upload the script over SFTP (or SCP, if the router doesn't offer SFTP — to verify, [open questions](../open-questions.md)) as `proxier-sync-<job>-<n>.rsc`, at most 2,000 domains per file.
-2. Run `/import file-name=proxier-sync-<job>-<n>.rsc verbose=no` with a 30-minute timeout. A client timeout mid-import would leave a tag half-installed. The block is idempotent, so a retry heals it, but a long timeout avoids the problem.
-3. `/import` can exit with success when a line failed. Its output is scanned for `syntax error|failure|expected|no such item|does not match|bad command|invalid`, ignoring SSH noise (warnings, post-quantum notices, blank lines).
-4. Always delete the file afterwards: `:do {/file remove [find name="<file>"]} on-error={}`.
+1. Remove any file an earlier, cut-short run of the same job left: `:do {/file remove [find name~"^proxier-sync-<job>-"]} on-error={}`.
+2. Pack the blocks, in push order, into files `proxier-sync-<job>-<n>.rsc` of at most 2 000 domains each. A block that doesn't fit in the current file starts the next one; a block over 2 000 names is split over several files, every part after the first **continued** (no tag-removal lines: only the adoption loops and the adds), so each file stays idempotent. Removal blocks count as no names. Each file starts with a header comment (`# proxier sync · router Home · job #2207 · file 1/2: update openai (+31), update mine (+2)`) and each block with a comment line.
+3. Upload each file over SFTP with a plain write: no temporary file, `chmod`, `fsync` or rename, which RouterOS's SFTP server may lack. (macOS's `scp` speaks SFTP since OpenSSH 9.0, which is what mtvpn used, so the router already accepts it.)
+4. Run `/import file-name=proxier-sync-<job>-<n>.rsc verbose=no` with a 30-minute timeout. A client timeout mid-import would leave a tag half-installed. The block is idempotent, so a retry heals it, but a long timeout avoids the problem.
+5. `/import` can exit with success when a line failed. Its output is scanned for `syntax error|failure|expected|no such item|does not match|bad command|invalid|not enough permissions` (the last one: a user whose group lacks `write` or `ftp`), ignoring SSH noise (warnings, post-quantum notices, blank lines). A non-zero exit fails too.
+6. Always delete the file afterwards: `:do {/file remove [find name="<file>"]} on-error={}`.
+7. After a file succeeds, each of its blocks is recorded as applied (a split block once its last part landed). After a file fails, the router is read again: `/import` stops at the first failing line, so earlier blocks of the file may have run, and each of its tags that now matches is recorded; the others keep their old applied state.
+
+## Proxier's user on the router
+
+Proxier logs in as its own user in a restricted group. The add page shows the commands, **still to verify on the first real router** ([open questions](../open-questions.md), "to verify" 5):
+
+```
+/user group add name=proxier policy=read,write,ftp,ssh
+/user add name=proxier group=proxier
+/user ssh-keys add user=proxier key="<Proxier's public key>"
+```
+
+Test connection uploads and deletes a one-line `proxier-test-<id>.rsc`, so a group without `ftp` fails the test, not the first sync.
 
 ## Names that must match
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -125,9 +126,18 @@ func (h *handler) coverHints(ctx context.Context, v *editorView) error {
 	if err != nil || len(ms) == 0 {
 		return err
 	}
-	var names []string
+	var names, targets []string
 	for _, m := range ms {
 		names = append(names, m.List.Name)
+		ts, err := h.Lists.Targets(ctx, m.List.ID)
+		if err != nil {
+			return err
+		}
+		for _, t := range ts {
+			if t.Kind == "router" && !slices.Contains(targets, t.Name) {
+				targets = append(targets, t.Name)
+			}
+		}
 		view, err := h.Lists.View(ctx, m.List.ID, nil)
 		if err != nil {
 			return err
@@ -147,6 +157,9 @@ func (h *handler) coverHints(ctx context.Context, v *editorView) error {
 		}
 	}
 	v.Footer = i18n.T(ctx, "lists.editor.footer", i18n.Args{"lists": andList(ctx, names)})
+	if len(targets) > 0 {
+		v.Footer = i18n.T(ctx, "lists.editor.footer_routers", i18n.Args{"routers": andList(ctx, targets), "lists": andList(ctx, names)})
+	}
 	return nil
 }
 

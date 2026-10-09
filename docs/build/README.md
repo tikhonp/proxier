@@ -42,7 +42,7 @@ Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cr
 | 3b Routing lists, ownership, server-hostname guard | [3b.md](./3b.md) | done 2026-10-09 (a real-browser look is the user's) |
 | 3c Upstream refresh, catalog, search | [3c.md](./3c.md) | done 2026-10-09 (real upstreams and a real-browser look are the user's) |
 | 3d Shadowrocket config, mtvpn import | [3d.md](./3d.md) | done 2026-10-09 (real phones, a real-browser look at the editor and the real mtvpn.yaml import are the user's) |
-| 3e Router sync | [3e.md](./3e.md) | contract written 2026-10-08 |
+| 3e Router sync | [3e.md](./3e.md) | done 2026-10-09 (a real router, jump host and tailnet, and a real-browser look are the user's) |
 | 3f Drift, unmanaged tags, router lifecycle, dashboard | [3f.md](./3f.md) | contract written 2026-10-08 |
 | 3g Discovery, Phase 3 exit | [3g.md](./3g.md) | contract written 2026-10-08 |
 
@@ -328,7 +328,7 @@ One module, `routing` (`internal/modules/routing`), enabled in `modules()` in `c
 |---|---|
 | servers: `ServerHostnames` becomes `Servers(ctx) ([]ServerHostname, error)` (id, name, hostnames, IP per non-retired server), so the guard names the server | 3b |
 | servers: the `RoutingGuard` port (`Covering(ctx, hostnames)`), set by `srv.SetRouting(rt.Guard())`; the new-server form refuses hostnames a routing list covers, naming the list and the service | 3b |
-| sshx: `Client.Put(ctx, path, data)`: a plain SFTP write (no temporary file, `chmod`, `fsync` or rename), for RouterOS's minimal SFTP server; `SSH.SetSubject(ctx, address, subject)`; `sshxtest` takes relative SFTP paths | 3e |
+| sshx: `Client.Put(ctx, path, data)`: a plain SFTP write (no temporary file, `chmod`, `fsync` or rename), for RouterOS's minimal SFTP server; `SSH.SetSubject(ctx, address, subject)`; `sshxtest` takes relative SFTP paths | 3e (done; also `sshx.HopError` around every hop failure, `SSH.KnownHost`, `sshxtest.Server.Refuse/RefuseUploads`) |
 | sshx: `Target.JumpFirstContact`, so a probe can pin a router's key on first contact while its jump host must already be confirmed | 3f |
 | servers: `ProxyDialer.Dial` returns `servers.DialFunc` (a func type in the root package) instead of `proxy.DialFunc`, so routing imports no other servers package | 3g |
 | `httpx.MaskPath`, the public limiter on `/r/`, `PROXIER_CHROMIUM_URL` | already built (2b, 0a) |

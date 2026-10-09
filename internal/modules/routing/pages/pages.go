@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
+	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
@@ -22,6 +23,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/sshx"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -35,10 +37,13 @@ type Deps struct {
 	// Shadowrocket and Import are 3d's.
 	Shadowrocket *shadowrocket.Service
 	Import       *mtvpn.Service
-	Jobs         *jobs.System
-	Settings     *settings.Store
-	DB           *db.DB
-	Now          func() time.Time
+	// Routers is 3e's; SSH shows Proxier's key and the pinned fingerprints.
+	Routers  *routers.Service
+	SSH      *sshx.SSH
+	Jobs     *jobs.System
+	Settings *settings.Store
+	DB       *db.DB
+	Now      func() time.Time
 }
 
 type handler struct {
@@ -77,6 +82,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerLists(r)
 	h.registerShadowrocket(r)
 	h.registerImport(r)
+	h.registerRouters(r)
 }
 
 const listPath = "/routing/services"

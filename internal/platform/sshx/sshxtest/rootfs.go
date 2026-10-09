@@ -18,9 +18,10 @@ import (
 // path like /opt/proxier/x lands in <root>/opt/proxier/x, so a test can upload
 // to the paths a real server would have. Like OpenSSH, a plain rename refuses
 // to replace and posix-rename replaces.
-type rootFS struct{ root string }
-
-func newRootFS(root string) *rootFS { return &rootFS{root: root} }
+type rootFS struct {
+	root   string
+	refuse func() bool // writes fail while it says so
+}
 
 func (r *rootFS) handlers() sftp.Handlers {
 	return sftp.Handlers{FileGet: r, FilePut: r, FileCmd: r, FileList: r}
@@ -45,6 +46,9 @@ func (r *rootFS) Fileread(req *sftp.Request) (io.ReaderAt, error) {
 }
 
 func (r *rootFS) Filewrite(req *sftp.Request) (io.WriterAt, error) {
+	if r.refuse != nil && r.refuse() {
+		return nil, os.ErrPermission
+	}
 	fl := req.Pflags()
 	flags := os.O_WRONLY
 	if fl.Creat {

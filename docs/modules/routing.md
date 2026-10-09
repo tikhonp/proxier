@@ -89,13 +89,13 @@ Target kinds are pluggable. The first two:
 
 Sync makes a router hold exactly what its routing list says, per tag, using the RouterOS objects mtvpn uses ([RouterOS integration](../integrations/routeros.md)):
 
-1. Read the router: every DNS static FWD entry in the address list, and every non-dynamic address-list entry, grouped by tag (comment).
-2. Compute the desired domains per tag from the routing list (after ownership).
-3. Plan per tag, comparing desired against what Proxier last applied and what the router actually holds: **unchanged** (skip), **update** (one idempotent service block: remove the tag, adopt untagged duplicates, add everything), or **remove** (a tag Proxier installed that is no longer desired).
-4. Tags on the router that Proxier never installed are **unmanaged**. They are listed on the router page with **Adopt** (add the matching service to the list) and **Remove**, and never deleted on their own.
-5. Push the script (upload + `/import`), scan the output for errors, verify the counts, and record what was applied.
+1. Read the router: every DNS static entry in the address list (comment, name, match-subdomain, type, forward-to), and every non-dynamic address-list entry, grouped by tag (the DNS entries' comments).
+2. Compute the desired domains per tag from the routing list (after ownership), the router's infra pins left out.
+3. Plan per tag, comparing desired against what Proxier last applied and what the router actually holds, strictly (name and match-subdomain, `type=FWD` to the forwarder, and the address-list names): **unchanged**, **record** (matches but was never applied: recorded, nothing pushed), **update** (one idempotent service block: remove the tag, adopt untagged duplicates, add everything), **remove** (a tag Proxier installed that left the list, or a tag owning nothing in it), **forget** (applied but gone from the router).
+4. Tags on the router that Proxier never installed are **unmanaged**: reported in the plan and never deleted on their own (3f adds **Adopt**, **Remove** and **Ignore**).
+5. Push the blocks in the order that never loses a name (updates gaining names, other updates, removals), packed into files of at most 2 000 names over SFTP and `/import`; scan the output, delete each file, verify, and record each tag as soon as its file succeeded.
 
-Syncs are triggered by changes (30 s delay, coalesced per router), by **Sync now**, and by repair after a **drift check** (every 6 h, read-only; repair is automatic unless turned off). Entries commented `mtvpn:…` (infra pins) and dynamic entries are never touched. Details: [router sync](../processes/routing/router-sync.md).
+Routers are added through **Test connection** (the jump host's and the router's fingerprints confirmed by the admin) and **Save**, which may also be done untested: such a router waits for its first passing test before any sync. The first hop is direct or through the tailnet node (the default while it runs). Syncs are triggered by changes (30 s delay, coalesced per router), by **Sync now**, and by repair after a **drift check** (3f). Every attempt re-reads the router and re-plans; a failure is recorded per attempt, retried after 5 min, 15 min and 1 h, and notifies only when the job gives up. Entries commented `mtvpn:…` (infra pins) and dynamic entries are never touched. Details: [router sync](../processes/routing/router-sync.md).
 
 ## Shadowrocket config
 

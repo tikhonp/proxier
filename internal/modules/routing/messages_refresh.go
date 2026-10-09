@@ -120,7 +120,7 @@ var refreshMessages = i18n.Messages{
 	"routing.settings.refresh":      {EN: "Upstream refresh", RU: "Обновление источников"},
 	"routing.settings.catalog":      {EN: "Catalog", RU: "Каталог"},
 	"routing.settings.routers":      {EN: "Routers", RU: "Роутеры"},
-	"routing.settings.routers.note": {EN: "Used from router sync on.", RU: "Используется, когда появится синхронизация роутеров."},
+	"routing.settings.routers.note": {EN: "How routers sync after a change and how often they are checked for drift.", RU: "Как роутеры синхронизируются после изменения и как часто проверяются на расхождения."},
 
 	// Jobs
 	"job.routing.refresh":                     {EN: "Refresh a service", RU: "Обновление сервиса"},

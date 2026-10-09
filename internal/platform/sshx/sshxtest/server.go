@@ -56,6 +56,8 @@ type Server struct {
 	handlers   map[string]Handler
 	matchers   []matcher
 	forwarding bool
+	refusing   bool // new connections are closed at once
+	noUploads  bool // SFTP writes fail
 	conns      map[net.Conn]struct{}
 	wg         sync.WaitGroup
 }
@@ -229,6 +231,28 @@ func (s *Server) AllowForwarding() {
 	s.mu.Unlock()
 }
 
+// Refuse makes the server close every new connection at once, as a host that
+// is down (or a closed port) does; open connections go on.
+func (s *Server) Refuse(refuse bool) {
+	s.mu.Lock()
+	s.refusing = refuse
+	s.mu.Unlock()
+}
+
+// RefuseUploads makes SFTP writes fail with a permission error, as RouterOS
+// does for a user whose group lacks the ftp policy.
+func (s *Server) RefuseUploads(refuse bool) {
+	s.mu.Lock()
+	s.noUploads = refuse
+	s.mu.Unlock()
+}
+
+func (s *Server) uploadsRefused() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.noUploads
+}
+
 // Close stops the server and ends its connections.
 func (s *Server) Close() {
 	_ = s.ln.Close()
@@ -248,6 +272,11 @@ func (s *Server) accept() {
 			return
 		}
 		s.mu.Lock()
+		if s.refusing {
+			s.mu.Unlock()
+			_ = conn.Close()
+			continue
+		}
 		s.conns[conn] = struct{}{}
 		s.mu.Unlock()
 		s.wg.Add(1)
@@ -367,7 +396,7 @@ func (s *Server) session(nc ssh.NewChannel, user string) {
 				continue
 			}
 			_ = req.Reply(true, nil)
-			srv := sftp.NewRequestServer(ch, newRootFS(s.dir).handlers())
+			srv := sftp.NewRequestServer(ch, (&rootFS{root: s.dir, refuse: s.uploadsRefused}).handlers())
 			_ = srv.Serve()
 			return
 		default:

@@ -226,7 +226,7 @@ templ importResult(v importView) {
 			if v.Im.Shadowrocket.ID != 0 {
 				<li>{ i18n.T(ctx, "mtvpn.next.shadowrocket") } <a href={ templ.SafeURL(srHref(v.Im.Shadowrocket.ID)) }>{ i18n.T(ctx, "mtvpn.config.open", i18n.Args{"name": v.Im.Shadowrocket.Name}) }</a></li>
 			}
-			<li>{ i18n.T(ctx, "mtvpn.next.routers") }</li>
+			<li><a href={ templ.SafeURL(routersPath + "/new") }>{ i18n.T(ctx, "mtvpn.next.routers") }</a></li>
 			if v.Im.ListID != 0 {
 				<li><a href={ templ.SafeURL(listHref(v.Im.ListID)) }>{ i18n.T(ctx, "mtvpn.next.list", i18n.Args{"name": v.ListName}) }</a></li>
 			}

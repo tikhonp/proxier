@@ -137,7 +137,9 @@ func (h *handler) listPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v.Targets = targetsOf(ctx, ts)
+	if v.Targets, err = h.targetsOf(ctx, ts); err != nil {
+		return err
+	}
 	ws, err := h.Lists.Warnings(ctx, l.ID)
 	if err != nil {
 		return err

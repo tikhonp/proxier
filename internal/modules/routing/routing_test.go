@@ -104,9 +104,10 @@ func TestModuleIsWired(t *testing.T) {
 		t.Errorf("valid values: %v", err)
 	}
 
-	// nav: Lists, Services, Search and Shadowrocket in the routing group, no go-to key
+	// nav: Lists, Services, Search, Routers (g r) and Shadowrocket in the routing group
 	nav := h.Mod.Nav()
-	if len(nav) != 4 || nav[3].Href != "/routing/shadowrocket" || nav[3].Order != 60 || nav[3].GoKey != "" || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
+	if len(nav) != 5 || nav[4].Href != "/routing/shadowrocket" || nav[4].Order != 60 || nav[4].GoKey != "" ||
+		nav[3].Href != "/routing/routers" || nav[3].Order != 50 || nav[3].GoKey != "r" || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
 		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "" || nav[1].GoKey != "" ||
 		nav[2].Href != "/routing/search" || nav[2].Order != 30 || nav[2].GoKey != "" {
 		t.Errorf("nav: %+v", nav)

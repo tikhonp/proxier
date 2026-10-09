@@ -12,9 +12,9 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/notify"
 )
 
-// RenderNotification words the module's refresh and catalog notifications in
-// the admin's language with plural forms. The router ones (3e, 3f) use the
-// default texts. The button opens the subject's page (the platform's).
+// RenderNotification words the module's refresh, catalog and router sync
+// notifications in the admin's language with plural forms. 3f's router ones
+// use the default texts. The button opens the subject's page (the platform's).
 func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i18n.Localizer) (notify.Message, bool, error) {
 	p := e.Payload
 	switch e.Type {
@@ -65,8 +65,31 @@ func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i1
 		}
 		return notify.Message{Title: loc.T("notify.routing.catalog_refresh_failed", args),
 			Body: loc.T("notify.routing.catalog_refresh_failed.body", args)}, true, nil
+	case "routing.router_sync_failed":
+		args := i18n.Args{"subject": m.routerName(ctx, e.Subject), "step": p["step"], "error": p["error"]}
+		body := loc.T("notify.routing.router_sync_failed.body", args)
+		if a := int64(num(p["attempt"])); a > 1 {
+			body += " · " + loc.N("notify.routing.router_sync_failed.attempts", a)
+		}
+		return notify.Message{Title: loc.T("notify.routing.router_sync_failed", args), Body: body}, true, nil
+	case "routing.router_recovered":
+		args := i18n.Args{"subject": m.routerName(ctx, e.Subject)}
+		return notify.Message{
+			Title: loc.T("notify.routing.router_recovered", args),
+			Body:  loc.N("notify.routing.router_recovered.body", int64(num(p["failures"])), args),
+		}, true, nil
 	}
 	return notify.Message{}, false, nil
+}
+
+// routerName names a router subject; a removed one keeps its id.
+func (m *Module) routerName(ctx context.Context, s events.Subject) string {
+	if id, err := strconv.ParseInt(s.ID, 10, 64); err == nil {
+		if r, err := m.Routers.Get(ctx, id); err == nil {
+			return r.Name
+		}
+	}
+	return s.String()
 }
 
 // serviceTag names a service subject; a removed one keeps its id.

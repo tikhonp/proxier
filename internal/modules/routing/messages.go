@@ -250,10 +250,6 @@ var messages = i18n.Messages{
 	"event.routing.discovery_failed":             {EN: "Discovery of {website} failed: {error}", RU: "Поиск доменов {website} не удался: {error}"},
 
 	// Notifications (the refresh and catalog ones are in messages_refresh.go; 3e and 3f refine the routers')
-	"notify.routing.router_sync_failed":        {EN: "{subject}: sync failed", RU: "{subject}: синхронизация не удалась"},
-	"notify.routing.router_sync_failed.body":   {EN: "At {step}: {error}", RU: "На шаге {step}: {error}"},
-	"notify.routing.router_recovered":          {EN: "{subject}: synced again", RU: "{subject}: снова синхронизирован"},
-	"notify.routing.router_recovered.body":     {EN: "After {failures} failed attempts.", RU: "После {failures} неудачных попыток."},
 	"notify.routing.drift_detected":            {EN: "{subject}: entries drifted", RU: "{subject}: записи разошлись"},
 	"notify.routing.drift_detected.body":       {EN: "Tags: {tags}. Repair is off.", RU: "Теги: {tags}. Исправление выключено."},
 	"notify.routing.unmanaged_tags_found":      {EN: "{subject}: tags Proxier didn't install", RU: "{subject}: теги, которые ставил не Proxier"},

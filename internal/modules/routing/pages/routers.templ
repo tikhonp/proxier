@@ -1,0 +1,573 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ routersCrumbs(id int64, name, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(routersPath) }>{ i18n.T(ctx, "routers.title") }</a>
+		<span aria-hidden="true">/</span>
+		if id != 0 && last != "" {
+			<a href={ templ.SafeURL(routerHref(id)) }>{ name }</a>
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		} else if id != 0 {
+			<span>{ name }</span>
+		} else {
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ routersPage(s ui.Shell, rows []routerRow) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "routers.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "routers.intro") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "routers.add", Label: "routers.add", Method: "GET", Href: routersPath + "/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if len(rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "routers.empty"), i18n.T(ctx, "routers.empty.next"))
+		} else {
+			<div class="colhead rtr" aria-hidden="true">
+				<span>{ i18n.T(ctx, "routers.col.router") }</span>
+				<span>{ i18n.T(ctx, "routers.col.state") }</span>
+				<span>{ i18n.T(ctx, "routers.col.list") }</span>
+				<span>{ i18n.T(ctx, "routers.col.last") }</span>
+				<span></span>
+			</div>
+			for _, r := range rows {
+				<div class="row rtr pc-row" data-row={ i64(r.ID) } data-href={ routerHref(r.ID) } data-hint={ i18n.T(ctx, "routers.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<a class="bold" href={ templ.SafeURL(routerHref(r.ID)) }>{ r.Name }</a>
+						<span class="sm subtle">{ r.Addr }</span>
+					</span>
+					<span class="subtle">{ r.State }</span>
+					<span class="subtle">{ r.List }</span>
+					<span class="col">
+						@ui.Status(r.Kind, r.Word)
+						if r.Detail != "" {
+							<span class="sm subtle">{ r.Detail }</span>
+						}
+					</span>
+					<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
+						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+						<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
+					</form>
+				</div>
+			}
+		}
+	}
+}
+
+// connFields are the connection's fields, shared by Add router and Edit.
+templ connFields(f routerForm, errs map[string]string, tailnetUp bool) {
+	<fieldset class="set-group">
+		<legend>{ i18n.T(ctx, "routers.field.router") }</legend>
+		<div class="inline-fields">
+			<div class="field">
+				<label for="rt-host">{ i18n.T(ctx, "routers.field.host") }</label>
+				<input id="rt-host" class="pc-inp" name="host" value={ f.Conn.Host } placeholder="10.230.1.1" autocomplete="off" aria-invalid?={ errs["host"] != "" }/>
+				if errs["host"] != "" {
+					<p class="err" role="alert">{ errs["host"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="rt-port">{ i18n.T(ctx, "routers.field.port") }</label>
+				<input id="rt-port" class="pc-inp" name="port" value={ strconv.Itoa(f.Conn.Port) } inputmode="numeric" size="6" aria-invalid?={ errs["port"] != "" }/>
+				if errs["port"] != "" {
+					<p class="err" role="alert">{ errs["port"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="rt-user">{ i18n.T(ctx, "routers.field.user") }</label>
+				<input id="rt-user" class="pc-inp" name="user" value={ f.Conn.User } autocomplete="off" aria-invalid?={ errs["user"] != "" }/>
+				if errs["user"] != "" {
+					<p class="err" role="alert">{ errs["user"] }</p>
+				}
+			</div>
+		</div>
+	</fieldset>
+	<fieldset class="set-group">
+		<legend>{ i18n.T(ctx, "routers.field.jump") }</legend>
+		<p class="sm subtle">{ i18n.T(ctx, "routers.field.jump.help") }</p>
+		<div class="inline-fields">
+			<div class="field">
+				<label for="rt-jhost">{ i18n.T(ctx, "routers.field.host") }</label>
+				<input id="rt-jhost" class="pc-inp" name="jump_host" value={ f.Conn.JumpHost } placeholder="parents-pi" autocomplete="off" aria-invalid?={ errs["jump_host"] != "" }/>
+				if errs["jump_host"] != "" {
+					<p class="err" role="alert">{ errs["jump_host"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="rt-jport">{ i18n.T(ctx, "routers.field.port") }</label>
+				<input id="rt-jport" class="pc-inp" name="jump_port" value={ strconv.Itoa(f.Conn.JumpPort) } inputmode="numeric" size="6" aria-invalid?={ errs["jump_port"] != "" }/>
+				if errs["jump_port"] != "" {
+					<p class="err" role="alert">{ errs["jump_port"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="rt-juser">{ i18n.T(ctx, "routers.field.user") }</label>
+				<input id="rt-juser" class="pc-inp" name="jump_user" value={ f.Conn.JumpUser } autocomplete="off" aria-invalid?={ errs["jump_user"] != "" }/>
+				if errs["jump_user"] != "" {
+					<p class="err" role="alert">{ errs["jump_user"] }</p>
+				}
+			</div>
+		</div>
+	</fieldset>
+	<fieldset class="set-group">
+		<legend>{ i18n.T(ctx, "routers.field.first_hop") }</legend>
+		<label class="check"><input type="radio" name="first_hop" value="direct" checked?={ f.FirstHop != "tailnet" }/> { i18n.T(ctx, "routers.first_hop.direct") }</label>
+		<label class="check"><input type="radio" name="first_hop" value="tailnet" checked?={ f.FirstHop == "tailnet" }/> { i18n.T(ctx, "routers.first_hop.tailnet") }</label>
+		if !tailnetUp {
+			<p class="sm subtle">{ i18n.T(ctx, "routers.first_hop.off") }</p>
+		}
+	</fieldset>
+	<fieldset class="set-group">
+		<legend>{ i18n.T(ctx, "routers.field.names") }</legend>
+		<div class="inline-fields">
+			<div class="field">
+				<label for="rt-list-name">{ i18n.T(ctx, "routers.field.list_name") }</label>
+				<input id="rt-list-name" class="pc-inp" name="list_name" value={ f.Conn.Names.List } autocomplete="off" aria-invalid?={ errs["list_name"] != "" }/>
+				if errs["list_name"] != "" {
+					<p class="err" role="alert">{ errs["list_name"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="rt-fwd">{ i18n.T(ctx, "routers.field.forwarder") }</label>
+				<input id="rt-fwd" class="pc-inp" name="forwarder" value={ f.Conn.Names.Forwarder } autocomplete="off" aria-invalid?={ errs["forwarder"] != "" }/>
+				if errs["forwarder"] != "" {
+					<p class="err" role="alert">{ errs["forwarder"] }</p>
+				}
+			</div>
+		</div>
+	</fieldset>
+}
+
+templ listSelect(all []lists.List, selected int64, errMsg string) {
+	<div class="field">
+		<label for="rt-list">{ i18n.T(ctx, "routers.field.list") }</label>
+		<select id="rt-list" class="pc-inp" name="list">
+			for _, l := range all {
+				<option value={ i64(l.ID) } selected?={ l.ID == selected }>{ l.Name }</option>
+			}
+		</select>
+		if errMsg != "" {
+			<p class="err" role="alert">{ errMsg }</p>
+		}
+	</div>
+}
+
+templ snippet(id, label, text string) {
+	<div class="snippet">
+		<span class="sm subtle">{ label }</span>
+		<pre id={ id } class="preview-out"><code>{ text }</code></pre>
+		<button type="button" class="pc-btn pc-sm" data-copy-from={ "#" + id }>{ i18n.T(ctx, "routers.copy") }</button>
+	</div>
+}
+
+// routerAddPage is RP-Router-add as a page: the fields, Proxier's key with
+// the install commands, Test connection and Save and sync (always enabled).
+templ routerAddPage(s ui.Shell, v rtAddView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(0, "", i18n.T(ctx, "routers.add"))
+				<h1>{ i18n.T(ctx, "routers.add.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "routers.add.intro") }</p>
+			</div>
+		</div>
+		<div class="subcols">
+			<div class="col-l">
+				<form method="post" action={ templ.SafeURL(routersPath) } class="form" id="router-form">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<input type="hidden" name="test" value={ i64(v.TestID) }/>
+					<div class="field">
+						<label for="rt-name">{ i18n.T(ctx, "routers.field.name") }</label>
+						<input id="rt-name" class="pc-inp" name="name" value={ v.F.Name } maxlength="60" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+						if v.Errs["name"] != "" {
+							<p class="err" role="alert">{ v.Errs["name"] }</p>
+						}
+					</div>
+					@listSelect(v.Lists, v.F.ListID, v.Errs["list"])
+					@connFields(v.F, v.Errs, v.Tailnet)
+					<div class="form-actions">
+						<button type="submit" class="pc-btn" formaction={ templ.SafeURL(routersPath + "/test") } data-action="routers.test" data-key="t">{ i18n.T(ctx, "routers.test") }</button>
+						<button type="submit" class="pc-btn pc-pri" data-action="routers.save">{ i18n.T(ctx, "routers.save") }</button>
+						<a href={ templ.SafeURL(routersPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					</div>
+					<p class="sm subtle">{ i18n.T(ctx, "routers.save.note") }</p>
+				</form>
+			</div>
+			<div class="col-r">
+				if v.Test != nil {
+					@testArea(*v.Test)
+				}
+				@ui.Area(i18n.T(ctx, "routers.area.key"), "") {
+					<div class="area-body">
+						@snippet("key-line", i18n.T(ctx, "routers.key.public"), v.Key)
+						@snippet("key-jump", i18n.T(ctx, "routers.key.jump"), "echo '"+v.Key+"' >> ~/.ssh/authorized_keys")
+						@snippet("key-router", i18n.T(ctx, "routers.key.router"), "/user group add name=proxier policy=read,write,ftp,ssh\n/user add name=proxier group=proxier\n/user ssh-keys add user=proxier key=\""+v.Key+"\"")
+						<p class="sm subtle">{ i18n.T(ctx, "routers.key.verify") }</p>
+					</div>
+				}
+			</div>
+		</div>
+	}
+}
+
+// testArea shows a test: running (it polls itself every second), waiting at
+// a fingerprint, or its checks.
+templ testArea(v testView) {
+	<section
+		class="area"
+		id="test-area"
+		aria-label={ i18n.T(ctx, "routers.area.test") }
+		if v.Running {
+			hx-get={ v.PollHref }
+			hx-trigger="every 1s"
+			hx-target="#test-area"
+			hx-swap="outerHTML"
+		}
+	>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "routers.area.test") }</h2>
+			<span class="note">{ i18n.T(ctx, "routers.test.state." + v.State) }</span>
+			<span class="flex1"></span>
+		</div>
+		<div class="area-body">
+			if v.Running {
+				<p class="subtle">{ i18n.T(ctx, "routers.test.running") }</p>
+			}
+			if v.State == "confirm" {
+				<p>{ i18n.T(ctx, "routers.test.confirm", i18n.Args{"hop": v.Hop, "address": v.Addr}) }</p>
+				<p><code class="fp">{ v.FP }</code></p>
+				<p class="sm subtle">{ i18n.T(ctx, "routers.test.confirm.how") }</p>
+				<form method="post" action={ templ.SafeURL(routersPath + "/tests/" + i64(v.ID) + "/confirm") } class="inline-fields">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<input type="hidden" name="name" value={ v.Name }/>
+					<input type="hidden" name="list" value={ i64(v.ListID) }/>
+					<button type="submit" name="decision" value="trust" class="pc-btn pc-pri" data-action="routers.trust">{ i18n.T(ctx, "routers.trust") }</button>
+					<button type="submit" name="decision" value="stop" class="pc-btn pc-ghost" data-action="routers.stop">{ i18n.T(ctx, "routers.stop") }</button>
+				</form>
+			}
+			if len(v.Checks) > 0 {
+				<ul class="checks">
+					for _, ch := range v.Checks {
+						<li>
+							if ch.OK {
+								@ui.Status("ok", ch.Name)
+							} else if ch.Warn {
+								@ui.Status("look", ch.Name)
+							} else {
+								@ui.Status("broken", ch.Name)
+							}
+							<span class="sm subtle">{ ch.Detail }</span>
+						</li>
+					}
+				</ul>
+			}
+			if v.Error != "" && v.State != "confirm" {
+				<p class={ templ.KV("love", v.State == "failed") }>{ v.Error }</p>
+			}
+		</div>
+	</section>
+}
+
+// routerPage is RP-Router. Areas in this order: the failure band, Sync
+// preview, Tags, Connection, Sync history, Actions, Activity.
+templ routerPage(s ui.Shell, v routerView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, "")
+				<div class="jobtitle">
+					<h1>{ v.R.Name }</h1>
+					@ui.Status(v.Kind, v.Word)
+				</div>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "routers.sync_now", Label: "routers.sync_now", Method: "POST", Href: routerHref(v.R.ID) + "/sync", Key: "s", Kind: ui.Primary})
+				@ui.ActionButton(ui.Action{ID: "routers.preview", Label: "routers.preview", Method: "POST", Href: routerHref(v.R.ID) + "/preview", Key: "p"})
+			</div>
+		</div>
+		if v.Band != nil {
+			<section class="band love rtr-band" aria-label={ i18n.T(ctx, "routers.band.failed") }>
+				<div class="col">
+					<span class="bold">{ i18n.T(ctx, "routers.band.failed") } · { v.Band.Count }</span>
+					<span>{ v.Band.Problem }</span>
+					if v.Band.Retry != "" {
+						<span class="sm">{ v.Band.Retry }</span>
+					}
+				</div>
+				@testButton(v.R.ID)
+			</section>
+		}
+		if v.Waiting {
+			@ui.Band("gold") {
+				<span>{ i18n.T(ctx, "routers.band.waiting") }</span>
+				@testButton(v.R.ID)
+			}
+		}
+		if v.Notice != "" {
+			@ui.Band("pine") {
+				{ v.Notice }
+			}
+		}
+		<div class="subcols">
+			<div class="col-l">
+				if v.Preview != nil {
+					@previewArea(*v.Preview)
+				}
+				@ui.Area(i18n.T(ctx, "routers.area.tags"), v.TagsNote) {
+					if len(v.Tags) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "routers.tags.none") }</p>
+					} else {
+						@planTable(v.Tags)
+					}
+				}
+			</div>
+			<div class="col-r">
+				<section class="area" id="connection" aria-label={ i18n.T(ctx, "routers.area.connection") }>
+					<div class="pc-title">
+						<h2>{ i18n.T(ctx, "routers.area.connection") }</h2>
+						<span class="flex1"></span>
+					</div>
+					<dl class="kv area-body">
+						<dt>{ i18n.T(ctx, "routers.conn.router") }</dt>
+						<dd>{ v.Conn.Router }<br/><span class="sm subtle">{ v.Conn.RouterFP }</span></dd>
+						if v.Conn.Jump != "" {
+							<dt>{ i18n.T(ctx, "routers.conn.jump") }</dt>
+							<dd>{ v.Conn.Jump }<br/><span class="sm subtle">{ v.Conn.JumpFP }</span></dd>
+						}
+						<dt>{ i18n.T(ctx, "routers.conn.first_hop") }</dt>
+						<dd>{ v.Conn.FirstHop }</dd>
+						<dt>{ i18n.T(ctx, "routers.conn.list") }</dt>
+						<dd>{ v.Conn.List }</dd>
+						<dt>{ i18n.T(ctx, "routers.conn.forwarder") }</dt>
+						<dd>{ v.Conn.Forwarder }</dd>
+					</dl>
+					<div class="area-body inline-fields">
+						@testButton(v.R.ID)
+						@ui.ActionButton(ui.Action{ID: "routers.edit", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true, Key: "e"})
+					</div>
+				</section>
+				if v.Test != nil {
+					@testArea(*v.Test)
+				}
+				<section class="area" id="history" aria-label={ i18n.T(ctx, "routers.area.history") }>
+					<div class="pc-title">
+						<h2>{ i18n.T(ctx, "routers.area.history") }</h2>
+						<span class="flex1"></span>
+					</div>
+					if len(v.History) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "routers.history.none") }</p>
+					}
+					for _, r := range v.History {
+						<div class="row rtsync">
+							<span class="sm subtle">{ r.Time }</span>
+							<span class="sm">{ r.Kind }</span>
+							<span class="col">
+								@ui.Status(r.Marker, r.Word)
+								if r.Detail != "" {
+									<span class="sm subtle">{ r.Detail }</span>
+								}
+							</span>
+							<span class="sr-acts">
+								<a class="sm" href={ templ.SafeURL(r.PlanHref) }>{ i18n.T(ctx, "routers.history.plan") }</a>
+								if r.JobHref != "" {
+									<a class="sm" href={ templ.SafeURL(r.JobHref) }>{ i18n.T(ctx, "routers.history.job") }</a>
+								}
+							</span>
+						</div>
+					}
+					if v.OlderHref != "" {
+						<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "routers.history.older") }</a></p>
+					}
+				</section>
+				@ui.Area(i18n.T(ctx, "routers.area.actions"), "") {
+					@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
+					@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
+				}
+				@ui.Area(i18n.T(ctx, "routers.area.activity"), "") {
+					if len(v.Activity) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "routers.activity.none") }</p>
+					}
+					for _, e := range v.Activity {
+						<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+					}
+					<p class="area-body"><a href={ templ.SafeURL("/activity?subject=router:" + i64(v.R.ID)) }>{ i18n.T(ctx, "routers.activity.all") }</a></p>
+				}
+			</div>
+		</div>
+	}
+}
+
+templ testButton(id int64) {
+	<form method="post" action={ templ.SafeURL(routersPath + "/test") } class="inline">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<input type="hidden" name="router" value={ i64(id) }/>
+		<button type="submit" class="pc-btn pc-sm" data-action="routers.test_saved" data-key="t">{ i18n.T(ctx, "routers.test") }</button>
+	</form>
+}
+
+templ planTable(rows []planRow) {
+	<div class="colhead tagplan" aria-hidden="true">
+		<span>{ i18n.T(ctx, "routers.plan.col.tag") }</span>
+		<span>{ i18n.T(ctx, "routers.plan.col.service") }</span>
+		<span>{ i18n.T(ctx, "routers.plan.col.want") }</span>
+		<span>{ i18n.T(ctx, "routers.plan.col.have") }</span>
+		<span>{ i18n.T(ctx, "routers.plan.col.plan") }</span>
+	</div>
+	for _, r := range rows {
+		<div class="row tagplan">
+			<span class="bold">{ r.Tag }</span>
+			<span class="sm subtle">{ r.Service }</span>
+			<span>{ r.Want }</span>
+			<span>{ r.Have }</span>
+			<span class="col">
+				@ui.Status(r.Kind, r.Action)
+				if r.Why != "" {
+					<span class="sm subtle">{ r.Why }</span>
+				}
+			</span>
+		</div>
+	}
+}
+
+// previewArea is the Sync preview; while it runs it polls itself.
+templ previewArea(v rtPreviewView) {
+	<section
+		class="area"
+		id="preview"
+		aria-label={ i18n.T(ctx, "routers.area.preview") }
+		if v.Running {
+			hx-get={ routerHref(v.RouterID) + "/preview" }
+			hx-trigger="every 1s"
+			hx-target="#preview"
+			hx-swap="outerHTML"
+		}
+	>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "routers.area.preview") }</h2>
+			if v.Read != "" {
+				<span class="note">{ v.Read }</span>
+			}
+			<span class="flex1"></span>
+			<a class="sm" href={ templ.SafeURL(routerHref(v.RouterID) + "?closed=" + i64(v.SyncID)) } data-action="routers.preview_close">{ i18n.T(ctx, "routers.preview.close") }</a>
+		</div>
+		if v.Running {
+			<p class="subtle area-body">{ i18n.T(ctx, "routers.preview.running") }</p>
+		} else if v.Failed {
+			<p class="love area-body">{ v.Error }</p>
+		} else {
+			<p class="area-body">{ v.Counts }</p>
+			<p class="sm subtle area-body">{ i18n.T(ctx, "routers.preview.order") }</p>
+			@planTable(v.Rows)
+			if v.Script != "" {
+				<pre id="preview-script" class="preview-out"><code>{ v.Script }</code></pre>
+			}
+			<div class="area-body inline-fields">
+				if v.Script != "" {
+					<button type="button" class="pc-btn pc-sm" data-copy-from="#preview-script">{ i18n.T(ctx, "routers.copy") }</button>
+					<a class="pc-btn pc-sm" href={ templ.SafeURL(v.ScriptHref) } download>{ i18n.T(ctx, "routers.preview.download") }</a>
+				}
+				if v.HasPushes {
+					@ui.ActionButton(ui.Action{ID: "routers.run_preview", Label: "routers.preview.run", Method: "POST", Href: routerHref(v.RouterID) + "/sync", Small: true, Kind: ui.Primary})
+				}
+			</div>
+		}
+	</section>
+}
+
+templ routerSyncPage(s ui.Shell, v syncPageView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, title)
+				<h1>{ title }</h1>
+				<p class="subtle">{ v.Row.Time } · { v.Row.Word }
+					if v.Row.Detail != "" {
+						· { v.Row.Detail }
+					}
+				</p>
+			</div>
+			if v.Row.JobHref != "" {
+				<div class="actions">
+					<a class="pc-btn" href={ templ.SafeURL(v.Row.JobHref) }>{ i18n.T(ctx, "routers.history.job") }</a>
+				</div>
+			}
+		</div>
+		@ui.Area(i18n.T(ctx, "routers.area.plan"), v.Read) {
+			if len(v.Rows) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "routers.plan.none") }</p>
+			} else {
+				@planTable(v.Rows)
+			}
+		}
+		if v.S.Script != "" {
+			@ui.Area(i18n.T(ctx, "routers.area.script"), "") {
+				<pre id="sync-script" class="preview-out"><code>{ v.S.Script }</code></pre>
+			}
+		}
+	}
+}
+
+templ routerEditPage(s ui.Shell, v editView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, i18n.T(ctx, "routers.edit"))
+				<h1>{ title }</h1>
+				<p class="subtle">{ i18n.T(ctx, "routers.edit.what") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(routerHref(v.R.ID) + "/edit") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="rt-name">{ i18n.T(ctx, "routers.field.name") }</label>
+				<input id="rt-name" class="pc-inp" name="name" value={ v.F.Name } maxlength="60" autocomplete="off" aria-invalid?={ v.Errs["name"] != "" }/>
+				if v.Errs["name"] != "" {
+					<p class="err" role="alert">{ v.Errs["name"] }</p>
+				}
+			</div>
+			@connFields(v.F, v.Errs, true)
+			<p class="sm subtle">{ i18n.T(ctx, "routers.edit.names_note") }</p>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="routers.save_edit">{ i18n.T(ctx, "routers.save_edit") }</button>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ routerListPage(s ui.Shell, v listPickView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, i18n.T(ctx, "routers.set_list"))
+				<h1>{ title }</h1>
+				<p class="subtle">{ i18n.T(ctx, "routers.list.what") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(routerHref(v.R.ID) + "/list") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			@listSelect(v.Lists, v.R.ListID, v.Err)
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="routers.save_list">{ i18n.T(ctx, "routers.save_edit") }</button>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

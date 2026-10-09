@@ -49,7 +49,7 @@ func (s *SSH) Connect(ctx context.Context, t Target, log *jobs.Logger) (*Client,
 	var jump *ssh.Client
 	if t.Jump != nil {
 		if jump, err = s.dialHop(ctx, *t.Jump, t.Network, nil, t.FirstContact, signer, log); err != nil {
-			return nil, permanentIfFinal(err)
+			return nil, permanentIfFinal(&HopError{Jump: true, Address: NormalizeAddress(t.Jump.Address), Err: err})
 		}
 	}
 	c, err := s.dialHop(ctx, t.Hop, t.Network, jump, t.FirstContact, signer, log)
@@ -57,12 +57,23 @@ func (s *SSH) Connect(ctx context.Context, t Target, log *jobs.Logger) (*Client,
 		if jump != nil {
 			_ = jump.Close()
 		}
-		return nil, permanentIfFinal(err)
+		return nil, permanentIfFinal(&HopError{Address: NormalizeAddress(t.Address), Err: err})
 	}
 	cl := &Client{ssh: c, jump: jump, log: log, stop: make(chan struct{})}
 	go s.keepAlive(cl)
 	return cl, nil
 }
+
+// HopError says which hop a connection failed at. Its text is the cause's
+// own, so messages read as before; errors.As and errors.Is see through it.
+type HopError struct {
+	Jump    bool   // the jump host; false: the target itself
+	Address string // normalised "host:port"
+	Err     error
+}
+
+func (e *HopError) Error() string { return e.Err.Error() }
+func (e *HopError) Unwrap() error { return e.Err }
 
 func permanentIfFinal(err error) error {
 	var changed *HostKeyChangedError
@@ -402,6 +413,33 @@ func (c *Client) Upload(ctx context.Context, path string, data []byte, mode fs.F
 			_ = sc.Remove(tmp)
 			return fmt.Errorf("sshx: rename %s: %w", tmp, err)
 		}
+	}
+	return nil
+}
+
+// Put writes data to path over SFTP in place: no temporary file, chmod, fsync
+// or rename, which RouterOS's minimal SFTP server may lack. A reader can see
+// half a file, so it is for files nothing reads until the caller says so
+// (a script /import runs afterwards).
+func (c *Client) Put(ctx context.Context, path string, data []byte) error {
+	sc, err := sftp.NewClient(c.ssh)
+	if err != nil {
+		return fmt.Errorf("sshx: start SFTP: %w", err)
+	}
+	defer func() { _ = sc.Close() }()
+	stop := context.AfterFunc(ctx, func() { _ = sc.Close() })
+	defer stop()
+
+	f, err := sc.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+	if err != nil {
+		return fmt.Errorf("sshx: create %s: %w", path, err)
+	}
+	if _, err := f.Write(data); err != nil {
+		_ = f.Close()
+		return fmt.Errorf("sshx: write %s: %w", path, err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("sshx: close %s: %w", path, err)
 	}
 	return nil
 }

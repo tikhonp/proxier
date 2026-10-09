@@ -191,6 +191,34 @@ func (s *SSH) ForgetSubject(ctx context.Context, subject, actor string) error {
 	})
 }
 
+// SetSubject changes whom a pinned address belongs to ("router:new" becomes
+// "router:3" once the router is saved). Bookkeeping: it records nothing.
+func (s *SSH) SetSubject(ctx context.Context, address, subject string) error {
+	address = NormalizeAddress(address)
+	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
+		res, err := tx.ExecContext(ctx, `UPDATE known_hosts SET subject = ? WHERE address = ?`, subject, address)
+		if err != nil {
+			return err
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ErrNotFound
+		}
+		return nil
+	})
+}
+
+// KnownHost reads the pin of one address; ErrNotFound when it has none.
+func (s *SSH) KnownHost(ctx context.Context, address string) (KnownHost, error) {
+	r, err := s.known(ctx, NormalizeAddress(address))
+	if err != nil {
+		return KnownHost{}, err
+	}
+	if r == nil {
+		return KnownHost{}, ErrNotFound
+	}
+	return r.host(), nil
+}
+
 // touch notes that a pinned host was used; it is bookkeeping and records nothing.
 func (s *SSH) touch(ctx context.Context, address string) {
 	err := s.d.Write(ctx, func(tx *sqlx.Tx) error {

@@ -12,11 +12,11 @@ import (
 func TestRoutingSettingsPage(t *testing.T) {
 	h := routingtest.New(t)
 	body := h.Login.Get("/settings/routing").Body.String()
-	has(t, "page", body, "Upstream refresh", "Catalog", "Routers", "Used from router sync on.", `href="/settings/routing"`,
+	has(t, "page", body, "Upstream refresh", "Catalog", "<legend>Routers</legend>", "How routers sync after a change and how often they are checked for drift.", `href="/settings/routing"`,
 		`name="routing.refresh_at" class="pc-inp" value="04:00"`, `name="routing.shrink_min"`, `name="routing.shrink_pct"`,
 		`name="routing.catalog_at"`, `name="routing.github_token" type="password"`, `name="routing.sync_delay"`,
 		`name="routing.drift_every"`, `name="routing.drift_repair"`, "Daily refresh at", "Hold back a loss over, %")
-	if i, j := strings.Index(body, "Upstream refresh"), strings.Index(body, "Routers"); i < 0 || j < i {
+	if i, j := strings.Index(body, "<legend>Upstream refresh</legend>"), strings.Index(body, "<legend>Routers</legend>"); i < 0 || j < i {
 		t.Error("the groups' order")
 	}
 	if strings.Contains(body, "clear.routing.github_token") {

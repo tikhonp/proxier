@@ -11,8 +11,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
+	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources/sourcestest"
 	"github.com/tikhonp/proxier/internal/platform"
@@ -30,11 +32,12 @@ type Harness struct {
 	Login   *sitetest.Login
 	Up      *sourcestest.Upstream
 	Servers *Servers         // fake servers ports (the guard, 3g)
-	Marks   *change.Recorder // the marker until 3e
+	Marks   *change.Recorder // every change marked (the routers' marker gets them too)
 	Now     time.Time        // the module's clock, starting 2026-10-08 12:00 UTC; move it with Advance
 
 	mu       sync.Mutex
 	stopJobs func()
+	fakes    map[int64]*routerostest.Router
 }
 
 // Option changes New.
@@ -78,15 +81,32 @@ func New(t *testing.T, opts ...Option) *Harness {
 		defer h.mu.Unlock()
 		return h.Now
 	}
+	// Init replaced the marker with the routers'; the recorder sees every
+	// change too.
+	mod.Marker = tee{marks, mod.Marker}
+	// Jobs run on the module's clock: a delayed sync or a retry's backoff
+	// comes due when the test moves it.
+	h.App.Jobs.Now = mod.Now
 	h.Login = site.SignIn("")
 	return h
 }
 
-// Advance moves the module's clock.
+// Advance moves the module's clock (the jobs' too) and wakes the workers.
 func (h *Harness) Advance(d time.Duration) {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	h.Now = h.Now.Add(d)
+	h.mu.Unlock()
+	h.App.Jobs.Kick()
+}
+
+// tee marks with both markers.
+type tee struct{ a, b change.Marker }
+
+func (t tee) Mark(ctx context.Context, tx *sqlx.Tx, c change.Change) error {
+	if err := t.a.Mark(ctx, tx, c); err != nil {
+		return err
+	}
+	return t.b.Mark(ctx, tx, c)
 }
 
 // StartJobs runs the job workers (the scheduler polls only hourly: tests

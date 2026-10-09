@@ -2,6 +2,7 @@ package routing_test
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
@@ -77,8 +78,45 @@ func TestRefreshNotificationTexts(t *testing.T) {
 	if body != "HTTP 502. Search shows its catalog of 8 Oct." {
 		t.Errorf("catalog body: %q", body)
 	}
-	// the router texts stay the platform's defaults
-	if _, ok, _ := h.Mod.RenderNotification(ctx, events.Event{Type: "routing.router_sync_failed"}, en); ok {
-		t.Error("the module rendered a router notification")
+	// 3f's router texts stay the platform's defaults
+	if _, ok, _ := h.Mod.RenderNotification(ctx, events.Event{Type: "routing.drift_detected"}, en); ok {
+		t.Error("the module rendered a drift notification")
+	}
+}
+
+func TestRouterNotificationTexts(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	_, id := h.Router("Home", 0)
+	subj := events.Subject{Type: "router", ID: strconv.FormatInt(id, 10)}
+	en := h.App.I18n.Localizer(i18n.EN, time.UTC)
+	ru := h.App.I18n.Localizer(i18n.RU, time.UTC)
+	problem := "Proxier can't reach the router 10.230.1.1:22: connection refused. Nothing was changed on the router."
+	for _, c := range []struct {
+		e                  events.Event
+		enT, enB, ruT, ruB string
+	}{
+		{events.Event{Type: "routing.router_sync_failed", Subject: subj, Payload: map[string]any{"step": "connect", "error": problem, "attempt": 4.0, "final": true}},
+			"Home: sync gave up at connect", problem + " · after 4 attempts",
+			"Home: синхронизация прекращена на шаге connect", problem + " · после 4 попыток"},
+		{events.Event{Type: "routing.router_sync_failed", Subject: subj, Payload: map[string]any{"step": "connect", "error": "The router 10.230.1.1 refused Proxier's key: install it on the router.", "attempt": 1.0, "final": true}},
+			"Home: sync gave up at connect", "The router 10.230.1.1 refused Proxier's key: install it on the router.",
+			"Home: синхронизация прекращена на шаге connect", "The router 10.230.1.1 refused Proxier's key: install it on the router."},
+		{events.Event{Type: "routing.router_recovered", Subject: subj, Payload: map[string]any{"failures": 4.0, "notified": true}},
+			"Home is in sync again", "After 4 failed attempts.",
+			"Home снова синхронизирован", "После 4 неудачных попыток."},
+		{events.Event{Type: "routing.router_recovered", Subject: subj, Payload: map[string]any{"failures": 1.0, "notified": true}},
+			"Home is in sync again", "After 1 failed attempt.",
+			"Home снова синхронизирован", "После 1 неудачной попытки."},
+	} {
+		for _, l := range []struct {
+			loc  *i18n.Localizer
+			t, b string
+		}{{en, c.enT, c.enB}, {ru, c.ruT, c.ruB}} {
+			m, ok, err := h.Mod.RenderNotification(ctx, c.e, l.loc)
+			if err != nil || !ok || m.Title != l.t || m.Body != l.b {
+				t.Errorf("%s (%s): %q / %q, %v %v", c.e.Type, l.loc.Lang, m.Title, m.Body, ok, err)
+			}
+		}
 	}
 }

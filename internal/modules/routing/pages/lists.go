@@ -57,7 +57,10 @@ type targetView struct {
 	Name, Kind, State, Word, Href, Note string
 }
 
-func targetsOf(ctx context.Context, ts []lists.Target) []targetView {
+// targetsOf words the targets: routers with their sync word ("synced 1 h
+// ago", "syncing", "sync failed · connect", "waits 30 s"), configs with
+// their last fetch.
+func (h *handler) targetsOf(ctx context.Context, ts []lists.Target) ([]targetView, error) {
 	out := make([]targetView, 0, len(ts))
 	for _, t := range ts {
 		kind := "ok"
@@ -65,6 +68,17 @@ func targetsOf(ctx context.Context, ts []lists.Target) []targetView {
 			kind = "off"
 		}
 		tv := targetView{Name: t.Name, Kind: kind, State: t.State, Word: i18n.T(ctx, "lists.target."+t.Kind) + " · " + t.State}
+		if t.Kind == "router" && h.Routers != nil {
+			r, err := h.Routers.Get(ctx, t.ID)
+			if err != nil {
+				return nil, err
+			}
+			k, w, err := h.routerWord(ctx, r)
+			if err != nil {
+				return nil, err
+			}
+			tv.Kind, tv.Word, tv.Href = k, i18n.T(ctx, "lists.target.router")+" · "+w, routerHref(t.ID)
+		}
 		if t.Kind == "shadowrocket" {
 			tv.Href = srHref(t.ID)
 			switch {
@@ -80,7 +94,7 @@ func targetsOf(ctx context.Context, ts []lists.Target) []targetView {
 		}
 		out = append(out, tv)
 	}
-	return out
+	return out, nil
 }
 
 // ------------------------------------------------------------------ the lists page
@@ -108,9 +122,13 @@ func (h *handler) lists(c *echo.Context) error {
 	}
 	v := listsView{Line: loc.N("lists.status", int64(len(rows)))}
 	for _, r := range rows {
+		ts, err := h.targetsOf(ctx, r.Targets)
+		if err != nil {
+			return err
+		}
 		lr := listsRow{
 			ID: r.ID, Name: r.Name, Sub: r.Description, Default: r.Default,
-			Services: loc.Number(int64(r.Services)), Domains: loc.Number(int64(r.Domains)), Targets: targetsOf(ctx, r.Targets),
+			Services: loc.Number(int64(r.Services)), Domains: loc.Number(int64(r.Domains)), Targets: ts,
 		}
 		if r.Default {
 			lr.Sub = i18n.T(ctx, "lists.default_line")
@@ -320,7 +338,9 @@ func (h *handler) deleteListView(ctx context.Context, l lists.List) (deleteListV
 	if err != nil {
 		return v, err
 	}
-	v.Targets = targetsOf(ctx, ts)
+	if v.Targets, err = h.targetsOf(ctx, ts); err != nil {
+		return v, err
+	}
 	all, err := h.Lists.All(ctx)
 	if err != nil {
 		return v, err

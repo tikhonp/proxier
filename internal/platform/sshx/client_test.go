@@ -359,3 +359,50 @@ func mustJSON(t *testing.T, v any) []byte {
 	}
 	return b
 }
+
+func TestPutAndSetSubject(t *testing.T) {
+	e := newEnv(t)
+	srv := e.server()
+	c := e.mustConnect(e.target(srv, "router:new"))
+	ctx := context.Background()
+
+	// A relative path lands at the file root, written in place.
+	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("first\n")); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("second\n")); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(srv.Dir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 1 || entries[0].Name() != "proxier-sync-12-1.rsc" {
+		t.Fatalf("only the file itself, no temporary name: %v", entries)
+	}
+	if b, _ := os.ReadFile(filepath.Join(srv.Dir(), "proxier-sync-12-1.rsc")); string(b) != "second\n" {
+		t.Fatalf("content: %q", b)
+	}
+	// A server that refuses writes (a group without ftp) fails the Put.
+	srv.RefuseUploads(true)
+	if err := c.Put(ctx, "x.rsc", []byte("x")); err == nil {
+		t.Fatal("a refused write must fail")
+	}
+
+	if err := e.ssh.SetSubject(ctx, srv.Addr, "router:3"); err != nil {
+		t.Fatal(err)
+	}
+	if h := e.hosts(); len(h) != 1 || h[0].Subject != "router:3" {
+		t.Fatalf("subject: %+v", h)
+	}
+	if len(e.events("ssh.host_key_pinned")) != 1 {
+		t.Fatal("SetSubject records nothing")
+	}
+	if err := e.ssh.SetSubject(ctx, "10.9.9.9:22", "router:4"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("unknown address: %v", err)
+	}
+	k, err := e.ssh.KnownHost(ctx, srv.Addr)
+	if err != nil || k.Fingerprint != fp(srv.HostKey()) {
+		t.Fatalf("KnownHost: %+v %v", k, err)
+	}
+}

@@ -120,3 +120,40 @@ func TestPruneShadowrocketFetchesAndImports(t *testing.T) {
 		t.Errorf("%d fetches, %d imports left", fetches, imports)
 	}
 }
+
+func TestPruneSyncsAndTests(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	_, a := h.Router("A", 0)
+	_, b := h.Router("B", 0)
+	old := h.Clock().Add(-100 * 24 * time.Hour).UTC().Format("2006-01-02T15:04:05.000Z")
+	recent := h.Clock().Add(-time.Hour).UTC().Format("2006-01-02T15:04:05.000Z")
+	// A: 25 old rows (the newest 20 are kept), B: 2 old rows and a recent one
+	for i := 0; i < 25; i++ {
+		h.Exec(`INSERT INTO routing_syncs (router_id, kind, state, started_at) VALUES (?, 'sync', 'done', ?)`, a, old)
+	}
+	for _, at := range []string{old, old, recent} {
+		h.Exec(`INSERT INTO routing_syncs (router_id, kind, state, started_at) VALUES (?, 'sync', 'done', ?)`, b, at)
+	}
+	h.Exec(`INSERT INTO routing_tests (form, state, created_at) VALUES ('{}', 'failed', ?)`, recent)
+	h.Exec(`INSERT INTO routing_tests (form, state, created_at) VALUES ('{}', 'failed', ?)`, h.Clock().Add(-25*time.Hour).UTC().Format("2006-01-02T15:04:05.000Z"))
+	if err := h.Mod.Prune(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	count := func(q string, args ...any) int {
+		var n int
+		if err := h.App.DB.R.Get(&n, q, args...); err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if n := count(`SELECT count(*) FROM routing_syncs WHERE router_id = ?`, a); n != 20 {
+		t.Errorf("A keeps its newest 20: %d", n)
+	}
+	if n := count(`SELECT count(*) FROM routing_syncs WHERE router_id = ?`, b); n != 3 {
+		t.Errorf("B keeps all three (within its newest 20): %d", n)
+	}
+	if n := count(`SELECT count(*) FROM routing_tests`); n != 1 {
+		t.Errorf("tests older than a day go: %d", n)
+	}
+}
