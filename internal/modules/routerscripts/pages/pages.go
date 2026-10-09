@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
@@ -22,9 +23,10 @@ import (
 
 // Deps are what the pages use.
 type Deps struct {
-	Scripts *scripts.Service
-	DB      *db.DB
-	Now     func() time.Time
+	Scripts     *scripts.Service
+	Generations *generations.Service
+	DB          *db.DB
+	Now         func() time.Time
 }
 
 type handler struct {
@@ -59,6 +61,12 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET(ListPath+"/:id/diff", h.diff)
 	r.Admin.POST(ListPath+"/:id/archive", h.archive(true))
 	r.Admin.POST(ListPath+"/:id/unarchive", h.archive(false))
+	r.Admin.GET(ListPath+"/:id/generate", h.generatePage)
+	r.Admin.POST(ListPath+"/:id/generate/summary", h.generateSummary)
+	r.Admin.POST(ListPath+"/:id/generate", h.generate)
+	r.Admin.GET(ListPath+"/generations/:gid", h.generationPage)
+	r.Admin.GET(ListPath+"/generations/:gid/download", h.generationDownload)
+	r.Admin.GET(ListPath+"/generations/:gid/changes", h.generationChanges)
 	r.Admin.GET(ListPath+"/:id/delete", h.deletePage)
 	r.Admin.POST(ListPath+"/:id/delete", h.deletePost)
 }

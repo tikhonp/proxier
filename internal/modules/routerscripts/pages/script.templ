@@ -103,7 +103,12 @@ templ scriptPage(s ui.Shell, v scriptView) {
 					<button type="submit" form="draft-form" class="pc-btn" data-action="rs.save" data-code-save disabled?={ v.Stale }>{ i18n.T(ctx, "scripts.save") }</button>
 					<button type="submit" form="draft-form" name="next" value="publish" class="pc-btn pc-pri" data-action="rs.publish" disabled?={ v.Stale }>{ i18n.T(ctx, "scripts.publish", i18n.Args{"version": strconv.Itoa(v.Next)}) }</button>
 				} else if v.S.Current > 0 {
-					@ui.ActionButton(ui.Action{ID: "rs.edit", Label: "scripts.edit", Method: "POST", Href: ScriptHref(v.S.ID) + "/edit", Key: "e", Kind: ui.Primary})
+					@ui.ActionButton(ui.Action{ID: "rs.edit", Label: "scripts.edit", Method: "POST", Href: ScriptHref(v.S.ID) + "/edit", Key: "e"})
+				}
+				if v.CanGenerate {
+					@ui.ActionButton(ui.Action{ID: "rs.generate", Label: "generations.form.title", Method: "GET", Href: GenerateHref(v.S.ID), Key: "n", Kind: genKind(v.Draft)})
+				} else {
+					<button type="button" class="pc-btn" disabled title={ i18n.T(ctx, "generations.form.off") }>{ i18n.T(ctx, "generations.form.title") }</button>
 				}
 			</div>
 		</div>
@@ -186,7 +191,16 @@ templ scriptPage(s ui.Shell, v scriptView) {
 			</div>
 			<div class="col-r">
 				@ui.Area(i18n.T(ctx, "scripts.area.generations"), "") {
-					<p class="subtle area-body">{ i18n.T(ctx, "scripts.generations.none") }</p>
+					if len(v.GenRows) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "scripts.generations.none") }</p>
+					}
+					for _, g := range v.GenRows {
+						<a class="row rsgen" href={ templ.SafeURL(GenerationHref(g.ID)) } data-row>
+							<span class="bold">{ g.RouterName }</span>
+							<span class="subtle">{ g.Version } · { g.Created }</span>
+							@ui.Status(g.StateSt, g.State)
+						</a>
+					}
 				}
 			</div>
 		</div>

@@ -41,7 +41,7 @@ func modules() []module.Module {
 	srv.SetUsage(subs.Usage())
 	rt := routing.New(routing.Ports{Hostnames: srv.ServerHostnames(), Catalog: srv.EndpointCatalog(), Dialer: srv.ProxyDialer()})
 	srv.SetRouting(rt.Guard())
-	rs := routerscripts.New(routerscripts.Ports{})
+	rs := routerscripts.New(routerscripts.Ports{Links: subs.LinkIssuer(), Routers: rt.RouterRegistrar()})
 	return []module.Module{srv, subs, rt, rs}
 }
 

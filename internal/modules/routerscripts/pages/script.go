@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
@@ -118,7 +119,16 @@ type scriptView struct {
 	Panel          panelView
 	Versions       []versionRow
 	Generations    int
+	GenRows        []genRow
+	CanGenerate    bool
 	Activity       []eventLine
+}
+
+// genRow is a generation in the script page's Generations area.
+type genRow struct {
+	ID                      int64
+	RouterName, Version     string
+	Created, State, StateSt string
 }
 
 func (h *handler) page(c *echo.Context) error {
@@ -171,6 +181,16 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 	if v.Generations, err = h.Scripts.Generations(ctx, s.ID); err != nil {
 		return err
 	}
+	rows, err := h.Generations.OfScript(ctx, s.ID)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		gr := genRow{ID: r.ID, RouterName: r.RouterName, Version: "v" + itoa(r.Version), Created: loc.Date(r.CreatedAt), State: stateWord(ctx, r.RouterState)}
+		gr.StateSt = routerStateKind(r.RouterState)
+		v.GenRows = append(v.GenRows, gr)
+	}
+	v.CanGenerate = !s.Archived && s.Current > 0
 	if v.Draft {
 		p, fs, err := h.Scripts.ReportFor(ctx, s.ID, v.Body, v.BasedOn)
 		if err != nil {
@@ -188,6 +208,38 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 		sh.Scripts = []string{"js/editor.bundle.js"}
 	}
 	return web.Render(c, code, scriptPage(sh, v))
+}
+
+// genKind: Generate for a new router is the page's primary action unless a
+// draft's Publish is.
+func genKind(draft bool) ui.ActionKind {
+	if draft {
+		return ui.Ordinary
+	}
+	return ui.Primary
+}
+
+// stateWord is a router state in words; "" is not registered.
+func stateWord(ctx context.Context, state string) string {
+	if state == "" {
+		state = "none"
+	}
+	return i18n.T(ctx, "generations.router_state."+state)
+}
+
+// routerStateKind is a router state's marker (awaiting setup has the ring).
+func routerStateKind(state string) string {
+	switch state {
+	case "awaiting":
+		return "unknown"
+	case "active":
+		return "ok"
+	case "paused":
+		return "paused"
+	case "removing", "removed":
+		return "gone"
+	}
+	return "off"
 }
 
 // statusLine is "current v4 · draft based on v4 · 3 generations".

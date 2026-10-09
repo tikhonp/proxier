@@ -19,6 +19,9 @@ templ versionPage(s ui.Shell, v versionView, title string) {
 				}
 			</div>
 			<div class="actions">
+				if !v.S.Archived {
+					<a class="pc-btn pc-pri" href={ templ.SafeURL(GenerateHref(v.S.ID) + "?version=" + strconv.Itoa(v.V.Number)) } data-action="rs.generate_version" data-key="n">{ i18n.T(ctx, "generations.form.from_version") }</a>
+				}
 				<a class="pc-btn" href={ templ.SafeURL(ScriptHref(v.S.ID) + "/versions/" + strconv.Itoa(v.V.Number) + "/download") } download data-action="rs.download">{ i18n.T(ctx, "scripts.version.download") }</a>
 				if !v.V.Current {
 					@ui.ActionButton(ui.Action{

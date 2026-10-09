@@ -111,7 +111,7 @@ Section `subscriptions`, on **Settings → Subscriptions**:
 
 | Port | Used by | Contract |
 |---|---|---|
-| `LinkIssuer` (Phase 4: its consumer decides its shape) | router scripts | Create a link with a given name in a given subscription, and return its URL. Used for a new router's mihomo subscription. |
+| `LinkIssuer` (`Module.LinkIssuer()`, `issuer.go`) | router scripts | `Subscriptions` (by name, with their server counts), `Links` (every link not deleted, by name, with its subscription and state, no URL), `Link` (one as it is now, with its URL unless deleted; `ErrLinkNotFound` for no such row), and `Issue(ctx, tx, name, subscription, actor)`: `links.Service.CreateTx` inside the caller's transaction, an active link without expiry in `subscriptions.link_language`, `link.created` recorded with the admin as actor; its field errors (`subscriptions.FieldErrors`: `name`, `subscription`) come before anything is written. Used for a new router's mihomo subscription. |
 
 ## Events
 

@@ -175,6 +175,15 @@ func (s *Service) Get(ctx context.Context, id int64) (Router, error) {
 	return routerOf(r), err
 }
 
+// GetIn reads a router inside q (a transaction that just wrote it).
+func (s *Service) GetIn(ctx context.Context, q sqlx.QueryerContext, id int64) (Router, error) {
+	r, err := store.GetRouter(ctx, q, id)
+	if errors.Is(err, store.ErrNotFound) {
+		return Router{}, ErrNotFound
+	}
+	return routerOf(r), err
+}
+
 // List reads every router by name.
 func (s *Service) List(ctx context.Context) ([]Router, error) {
 	rows, err := store.Routers(ctx, s.d.DB.R)

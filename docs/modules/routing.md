@@ -114,7 +114,7 @@ Proxier renders the config when it's requested: the base config verbatim, with t
 
 | Port | Used by | Contract |
 |---|---|---|
-| `RouterRegistrar` | router scripts | Register a router in `awaiting setup` with a name, routing list and connection. Return the address-list and DoH-forwarder names it must use. |
+| `RouterRegistrar` (`Module.RouterRegistrar()`, `registrar.go`) | router scripts | `Lists` (the default first), `Routers` (every router not being removed), `Router` (one as it is now: state, list, awaiting until, connected, last sync, host and jump host, address-list and forwarder names, and `KeyCommands`, the add page's three commands from `routeros.KeyCommands`; `ErrRouterNotFound` once removed), `JumpHosts` (the distinct jump hosts of routers, with whether Proxier pinned each key), and `Register(ctx, tx, r, actor)`: `routers.Service.RegisterTx` inside the caller's transaction, the router in `awaiting setup` with `created_by = routerscripts` and `routing.router_added{by: routerscripts}` recorded with the admin as actor; its field errors (`routing.FieldErrors`, keyed as Add router's) come before anything is written. New routers get `routing.DefaultAddressList` / `DefaultForwarder`. |
 
 | `RoutingGuard` | servers (provisioning) | `Covering(ctx, hostnames)`: for each hostname a listed name covers (any listed name, installed or not), the name, its service and its list. `Module.Guard()`, set with `srv.SetRouting(rt.Guard())`. |
 

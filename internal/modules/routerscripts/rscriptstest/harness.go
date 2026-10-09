@@ -1,10 +1,12 @@
 // Package rscriptstest is the router scripts module's test harness: the
-// whole app (sitetest) with the module on empty ports (4b: fake ones), the
-// module's clock in the test's hands.
+// whole app (sitetest) with the module on fake ports (New), or with the real
+// subscriptions and routing modules (WithModules), the module's clock in the
+// test's hands.
 package rscriptstest
 
 import (
 	"context"
+	"io"
 	"sync"
 	"testing"
 	"time"
@@ -26,23 +28,58 @@ type Harness struct {
 	Login *sitetest.Login
 	Now   time.Time // the module's clock (starts 2026-10-09 12:00 UTC); Advance moves it
 
-	mu sync.Mutex
+	mu      sync.Mutex
+	links   *FakeLinks
+	routers *FakeRouters
 }
 
-// New opens the app with the module on empty ports. No job workers run.
-func New(t *testing.T) *Harness {
+// Option changes New.
+type Option func(*options)
+
+type options struct {
+	noPorts bool
+	log     io.Writer
+}
+
+// LogTo sends the app's log (the request log included) to w.
+func LogTo(w io.Writer) Option { return func(o *options) { o.log = w } }
+
+// NoPorts builds the module without ports: no link or register section.
+func NoPorts() Option { return func(o *options) { o.noPorts = true } }
+
+// New opens the app with the module on fake ports (FakeLinks, FakeRouters)
+// unless NoPorts. No job workers run.
+func New(t *testing.T, opts ...Option) *Harness {
 	t.Helper()
-	mod := routerscripts.New(routerscripts.Ports{})
-	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}})
-	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Now: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
-	mod.Now = func() time.Time {
-		h.mu.Lock()
-		defer h.mu.Unlock()
-		return h.Now
+	var o options
+	for _, opt := range opts {
+		opt(&o)
 	}
+	h := &Harness{T: t, Now: time.Date(2026, 10, 9, 12, 0, 0, 0, time.UTC)}
+	ports := routerscripts.Ports{}
+	if !o.noPorts {
+		h.links, h.routers = newFakeLinks(), newFakeRouters(h.clock)
+		ports = routerscripts.Ports{Links: h.links, Routers: h.routers}
+	}
+	mod := routerscripts.New(ports)
+	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}, Log: o.log})
+	h.Site, h.App, h.Mod = site, site.App, mod
+	mod.Now = h.clock
 	h.Login = site.SignIn("")
 	return h
 }
+
+func (h *Harness) clock() time.Time {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.Now
+}
+
+// Links is the fake LinkIssuer (nil with NoPorts or WithModules).
+func (h *Harness) Links() *FakeLinks { return h.links }
+
+// Routers is the fake RouterRegistrar (nil with NoPorts or WithModules).
+func (h *Harness) Routers() *FakeRouters { return h.routers }
 
 // Advance moves the module's clock.
 func (h *Harness) Advance(d time.Duration) {

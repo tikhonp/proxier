@@ -12,11 +12,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/migrations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/pages"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/modules/routing"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/module"
@@ -24,15 +27,21 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
-// Ports are what the module uses of other modules (4b). A nil one hides its
-// features.
-type Ports struct{}
+// Ports are what the module uses of other modules. A nil one hides its
+// features: no Subscription link section without Links, no Register for
+// routing section without Routers.
+type Ports struct {
+	Links   subscriptions.LinkIssuer
+	Routers routing.RouterRegistrar
+}
 
 // Module is the router scripts module.
 type Module struct {
 	// Now is the module's clock; every service reads it, so a test replaces it once.
 	Now     func() time.Time
 	Scripts *scripts.Service
+	// Generations fills versions in for routers (4b).
+	Generations *generations.Service
 
 	ports Ports
 	deps  module.Deps
@@ -51,6 +60,10 @@ func (m *Module) Init(d module.Deps) error {
 	m.deps = d
 	now := func() time.Time { return m.Now() }
 	m.Scripts = scripts.NewService(scripts.Deps{DB: d.DB, Events: d.Events, Now: now, Log: d.Log})
+	m.Generations = generations.NewService(generations.Deps{
+		DB: d.DB, Vault: d.Vault, Events: d.Events, SSH: d.SSH, Tailnet: d.Tailnet, Scripts: m.Scripts,
+		Links: m.ports.Links, Routers: m.ports.Routers, I18n: d.I18n, Now: now, Log: d.Log,
+	})
 	return nil
 }
 
@@ -60,11 +73,12 @@ func (*Module) EventTypes() []events.Type { return Events }
 func (*Module) Messages() i18n.Messages {
 	out := maps.Clone(messages)
 	maps.Copy(out, params.Messages())
+	maps.Copy(out, generationMessages)
 	return out
 }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{Scripts: m.Scripts, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
+	pages.Register(r, pages.Deps{Scripts: m.Scripts, Generations: m.Generations, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
 }
 
 // Nav adds Scripts to the router scripts group (no go-to key: one / away).
@@ -72,7 +86,9 @@ func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{{Group: "routerscripts", Label: "rscripts.nav", Href: pages.ListPath, Order: 10}}
 }
 
-// Search finds scripts that aren't archived by name or slug.
+// Search finds scripts that aren't archived by name or slug (with the
+// action Generate for a new router when they have a version), and
+// generations by router name.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	rows, err := m.Scripts.List(ctx, false)
@@ -89,30 +105,53 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			meta = i18n.N(ctx, "rscripts.search.none", int64(r.Generations))
 		}
 		out = append(out, ui.SearchHit{Label: r.Name, Href: pages.ScriptHref(r.ID), Meta: meta})
-		if len(out) == limit {
-			break
+		if r.Current > 0 {
+			out = append(out, ui.SearchHit{Label: i18n.T(ctx, "rscripts.search.generate", i18n.Args{"name": r.Name}),
+				Href: pages.GenerateHref(r.ID), Meta: i18n.T(ctx, "rscripts.search.action")})
 		}
+		if len(out) >= limit {
+			return out[:limit], nil
+		}
+	}
+	gens, err := m.Generations.Search(ctx, q, limit-len(out))
+	if err != nil {
+		return nil, err
+	}
+	for _, g := range gens {
+		out = append(out, ui.SearchHit{Label: g.RouterName, Href: pages.GenerationHref(g.ID),
+			Meta: i18n.T(ctx, "rscripts.search.generation", i18n.Args{"script": g.Script, "version": g.Version})})
 	}
 	return out, nil
 }
 
-// SubjectTypes are the subject types of the module's events (generation: 4b).
-func (*Module) SubjectTypes() []string { return []string{"router_script"} }
+// SubjectTypes are the subject types of the module's events.
+func (*Module) SubjectTypes() []string { return []string{"router_script", "generation"} }
 
-// NameSubjects names scripts by their name. A deleted script has no
-// reference: its events carry its name.
+// NameSubjects names scripts by their name and generations as "Dacha ·
+// fresh-router v4". A deleted script has no reference: its events carry its
+// name.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
 	out := map[string]ui.SubjectRef{}
-	if typ != "router_script" {
-		return out, nil
-	}
 	for _, id := range ids {
 		n, err := strconv.ParseInt(id, 10, 64)
 		if err != nil {
 			continue
 		}
-		if s, err := store.GetScript(ctx, m.deps.DB.R, n); err == nil {
-			out[id] = ui.SubjectRef{Label: s.Name, Href: pages.ScriptHref(n)}
+		switch typ {
+		case "router_script":
+			if s, err := store.GetScript(ctx, m.deps.DB.R, n); err == nil {
+				out[id] = ui.SubjectRef{Label: s.Name, Href: pages.ScriptHref(n)}
+			}
+		case "generation":
+			g, err := store.GetGeneration(ctx, m.deps.DB.R, n)
+			if err != nil {
+				continue
+			}
+			label := g.RouterName
+			if s, err := store.GetScript(ctx, m.deps.DB.R, g.ScriptID); err == nil {
+				label += " · " + s.Name + " v" + strconv.Itoa(g.Version)
+			}
+			out[id] = ui.SubjectRef{Label: label, Href: pages.GenerationHref(n)}
 		}
 	}
 	return out, nil

@@ -43,17 +43,24 @@ What a publish shows:
 
 Annotation lines outside the block are ordinary comments.
 
+`@fill proxier-ssh-key` makes zero-touch registration possible: the parameter gets Proxier's public key line, and the script's own lines can create Proxier's restricted user and add the key (the commands are routing's `routeros.KeyCommands`), so the awaiting-setup probe connects with no manual step.
+
 Annotations are comments, so RouterOS ignores them. Today's `fresh-router.rsc` already gives these parameters: `lanNet`, `wanIface`, `subUrl`, `image`, `timeZone`, `lanIface`, `containerIface`, `vethName`, `lanList`, `wanList`, `vpnList`, `vpnTable`, `vpnMark`, `containerDisk`, `containerNet`, `dohHost`, `dohIP`, `dohForwarder`. The computed one is `vpnGateway`. Adding `@fill subscription-link` above `subUrl`, `@fill routing-address-list` above `vpnList` and `@fill routing-doh-forwarder` above `dohForwarder` connects it to the other modules.
 
 ## Generations
 
-A **generation** is a version filled in with one router's values. Generating:
+A **generation** is a version filled in with one router's values (`generations` package). Generating (**Generate for a new router** on the script page, from the current version unless another is chosen):
 
-1. The form lists the parameters with their defaults, descriptions and annotations.
-2. **Subscription link** (`@fill subscription-link`): create a new link "Router — <name>" in a chosen subscription, or pick an existing one. The link URL becomes the value. The router's mihomo container (`SUB1`) then uses Proxier's servers.
-3. **Register for routing** (optional): name, routing list, and how Proxier will reach it (its LAN address, e.g. `<lanNet>.1`, plus a jump host). The router is created in **awaiting setup**, so it raises no alarms before it exists.
-4. Proxier rewrites only the literal of each parameter line in the PARAMETERS block, quoting and escaping for RouterOS strings. Every other byte is copied from the version.
-5. The generation is saved, immutable. Values marked `@secret` and the link URL are encrypted.
+1. **Router name** (1–60): it names the file, the default link and the registered router.
+2. **Register for routing** (only with the routing module): register a new router (routing list, host, SSH user and port, a jump host picked from the ones routers already use, or another one, and the tailnet first hop), use a router already in Routing, or don't register. A new router's host defaults to `<lanNet>.1` when the version has a `lanNet` parameter of three dotted numbers. It is created in **awaiting setup**, so it raises no alarms before it exists. A jump host Proxier hasn't pinned gets a warning: the router waits until a Test connection confirms it.
+3. **Subscription link** (only with the subscriptions module and a `@fill subscription-link` parameter): create a link (named "Router — <router name>" unless typed, in a chosen subscription), use an existing one (a disabled or expired one gets a warning), or type a URL. The link URL becomes the value. The router's mihomo container (`SUB1`) then uses Proxier's servers.
+4. **Parameters**, grouped as in the script with their headings and descriptions, prefilled with their defaults; `@choices` is a select, `@secret` (and the subscription link) a password field that is never prefilled (empty keeps the default, or, on **Generate again**, the earlier generation's value). Locked fields show their value and source: the `@fill routing-*` ones while a router is registered or chosen, the link while one is created or chosen, and `@fill proxier-ssh-key` always (Proxier's public key line, not secret). Computed values show their value and expression.
+5. The live summary says what generating will do: create the link, register the router, write `<slug>-<router>-v<n>.rsc` with how many lines differ from the version, then every problem by field and the warnings.
+6. Generating checks every value again, then creates the link (`LinkIssuer.Issue`), registers the router (`RouterRegistrar.Register`) and saves the generation **in one transaction**: both ports are asked even when one refuses, their refusals show on the form together, and nothing is created unless everything is. The router's names, the link's URL and Proxier's key then fill their parameters, and `routerscript.generated` is recorded.
+
+A generation stores its values, never its file: the plain values as JSON, the `@secret` ones and the link URL sealed (`generation:<id>:secrets`), the changed parameters, the link and the router by id and name, and the key's fingerprint. The file is `params.Fill(the version's body, the values)` whenever it is downloaded (or fetched, 4c): byte-identical to the version except the literals of the changed parameters.
+
+The **generation page** shows the script and version (and when a newer one is current), the router and the link as they are now (linked; "removed", "deleted" or "not registered"), the file with **View changes** (the version against the file, every secret literal shown as `•••`), the values (changed first, all in a fold, secrets `•••`), and its activity. A band says when the link's URL (token regenerated, link deleted) or Proxier's SSH key changed after the generation, since the file still holds the old one. **Generate again** opens the form with the same version, router name and values, the existing link and router chosen (so nothing is created twice), and the secrets kept unless retyped.
 
 Then:
 
@@ -85,8 +92,9 @@ With the `@fill routing-*` annotations, a generation that registers a router alw
 ## Pages
 
 - **Router scripts**: each script with its current version, last published, generations count.
-- **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters, **Generate for a new router**, and its generations.
-- **Generation page**: version, values (secrets masked), linked link and router, **Download**, **Create fetch URL**, fetch history.
+- **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters, **Generate for a new router**, and its generations (router name, version, date, the router's state now).
+- **Generate** (`/router-scripts/:id/generate`): the form above with its live summary.
+- **Generation page** (`/router-scripts/generations/:id`): version, the router and link as now, values (secrets masked), **View changes**, **Download**, **Generate again**; from 4c **Create fetch URL**, After the import and fetch history.
 
 ## Events
 

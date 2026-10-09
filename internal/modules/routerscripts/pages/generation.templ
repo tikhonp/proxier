@@ -1,0 +1,155 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// generationPage is RP-Script-generation without its fetch areas (4c).
+templ generationPage(s ui.Shell, v generationView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.G.ScriptID, v.G.Script, i18n.T(ctx, "generations.page.crumb", i18n.Args{"id": v.G.ID}))
+				<h1>{ v.G.RouterName }</h1>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+			<div class="actions">
+				<a class="pc-btn pc-pri" href={ templ.SafeURL(GenerationHref(v.G.ID) + "/download") } download data-action="rs.gen_download" data-key="d">{ i18n.T(ctx, "generations.page.download") }</a>
+				if v.CanGenerate {
+					<a class="pc-btn" href={ templ.SafeURL(GenerateHref(v.G.ScriptID) + "?from=" + i64(v.G.ID)) } data-action="rs.gen_again" data-key="a">{ i18n.T(ctx, "generations.page.again") }</a>
+				}
+			</div>
+		</div>
+		if v.G.LinkChanged {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "generations.band.link", i18n.Args{"name": v.G.LinkName}) }</span>
+				<span class="flex1"></span>
+				if v.CanGenerate {
+					<a href={ templ.SafeURL(GenerateHref(v.G.ScriptID) + "?from=" + i64(v.G.ID)) } class="pc-btn pc-sm">{ i18n.T(ctx, "generations.band.again") }</a>
+				}
+			}
+		}
+		if v.G.KeyChanged {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "generations.band.key") }</span>
+				<span class="flex1"></span>
+				if v.CanGenerate {
+					<a href={ templ.SafeURL(GenerateHref(v.G.ScriptID) + "?from=" + i64(v.G.ID)) } class="pc-btn pc-sm">{ i18n.T(ctx, "generations.band.again") }</a>
+				}
+			}
+		}
+		@ui.Area(i18n.T(ctx, "generations.page.area", i18n.Args{"id": v.G.ID}), "") {
+			<dl class="kv area-body gen-kv">
+				<dt>{ i18n.T(ctx, "generations.page.script") }</dt>
+				<dd>
+					<a href={ templ.SafeURL(ScriptHref(v.G.ScriptID) + "/versions/" + strconv.Itoa(v.G.Version)) }>{ v.G.Script } v{ strconv.Itoa(v.G.Version) }</a>
+					if v.Newer != "" {
+						<span class="gold">· { v.Newer }</span>
+					}
+				</dd>
+				if v.HasRouters {
+					<dt>{ i18n.T(ctx, "generations.page.router") }</dt>
+					<dd>
+						if v.G.Router != nil {
+							<a href={ templ.SafeURL("/routing/routers/" + i64(v.G.Router.ID)) }>{ v.G.Router.Name }</a>
+							<span class="subtle">· { v.RouterState } · { v.G.Router.List }</span>
+						} else if v.G.RouterGone {
+							<span class="subtle">{ i18n.T(ctx, "generations.page.router_removed") }</span>
+						} else {
+							<span class="subtle">{ i18n.T(ctx, "generations.page.not_registered") }</span>
+						}
+					</dd>
+				}
+				if v.HasLinks && (v.G.LinkID != 0 || v.G.LinkGone) {
+					<dt>{ i18n.T(ctx, "generations.page.link") }</dt>
+					<dd>
+						if v.G.Link != nil {
+							<a href={ templ.SafeURL("/links/" + i64(v.G.Link.ID)) }>{ v.G.Link.Name }</a>
+							<span class="subtle">· { v.G.Link.Subscription } · { v.LinkState }</span>
+						} else {
+							{ v.G.LinkName }
+							<span class="love">· { i18n.T(ctx, "generations.page.link_deleted") }</span>
+						}
+					</dd>
+				}
+				<dt>{ i18n.T(ctx, "generations.page.file") }</dt>
+				<dd>
+					{ v.G.FileName }
+					<span class="subtle">· { v.Changes }</span>
+					<a href={ templ.SafeURL(GenerationHref(v.G.ID) + "/changes") } data-action="rs.gen_changes">{ i18n.T(ctx, "generations.page.view_changes") }</a>
+				</dd>
+			</dl>
+		}
+		@ui.Area(i18n.T(ctx, "generations.page.values"), i18n.T(ctx, "generations.page.values.note", i18n.Args{"version": v.G.Version})) {
+			if len(v.Changed) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "generations.page.values.none") }</p>
+			}
+			for _, r := range v.Changed {
+				@valueLine(r)
+			}
+			<details class="gen-all">
+				<summary class="area-body">{ i18n.T(ctx, "generations.page.show_all", i18n.Args{"n": len(v.All)}) }</summary>
+				for _, r := range v.All {
+					@valueLine(r)
+				}
+			</details>
+		}
+		@ui.Area(i18n.T(ctx, "scripts.area.activity"), "") {
+			if len(v.Activity) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "scripts.activity.none") }</p>
+			}
+			for _, e := range v.Activity {
+				<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+			}
+			<p class="area-body"><a href={ templ.SafeURL("/activity?subject=generation:" + i64(v.G.ID)) }>{ i18n.T(ctx, "scripts.activity.all") }</a></p>
+		}
+	}
+}
+
+templ valueLine(r valueRow) {
+	<div class="row gen-val">
+		<span class={ "bold", templ.KV("rose", r.Changed) }>{ r.Name }</span>
+		<span class="gen-v">
+			if r.Secret {
+				<span class="muted">•••</span>
+				<span class="subtle">· { i18n.T(ctx, "generations.field.secret") }</span>
+			} else {
+				<span class="gold">{ r.Value }</span>
+			}
+			if r.Note != "" {
+				<span class="subtle">· { r.Note }</span>
+			}
+		</span>
+	</div>
+}
+
+templ changesPage(s ui.Shell, v changesView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb">
+					<a href={ templ.SafeURL(ListPath) }>{ i18n.T(ctx, "rscripts.title") }</a>
+					<span aria-hidden="true">/</span>
+					<a href={ templ.SafeURL(ScriptHref(v.G.ScriptID)) }>{ v.G.Script }</a>
+					<span aria-hidden="true">/</span>
+					<a href={ templ.SafeURL(GenerationHref(v.G.ID)) }>{ i18n.T(ctx, "generations.page.crumb", i18n.Args{"id": v.G.ID}) }</a>
+				</nav>
+				<h1>{ v.Title }</h1>
+				<p class="subtle">{ v.Summary } · { i18n.T(ctx, "generations.changes.masked") }</p>
+			</div>
+		</div>
+		<div class="filters">
+			<span class="flex1"></span>
+			<a href={ templ.SafeURL(GenerationHref(v.G.ID) + "/changes") } class="pc-chip" aria-pressed={ ui.BoolStr(!v.Split) }>{ i18n.T(ctx, "scripts.diff.unified") }</a>
+			<a href={ templ.SafeURL(GenerationHref(v.G.ID) + "/changes?view=split") } class="pc-chip" aria-pressed={ ui.BoolStr(v.Split) }>{ i18n.T(ctx, "scripts.diff.split") }</a>
+		</div>
+		if v.Same {
+			<p class="subtle area-body">{ i18n.T(ctx, "scripts.diff.same") }</p>
+		} else {
+			@ui.Diff(v.Diff)
+		}
+	}
+}

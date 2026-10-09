@@ -94,6 +94,10 @@ Proxier logs in as its own user in a restricted group. The add page shows the co
 /user ssh-keys add user=proxier key="<Proxier's public key>"
 ```
 
+The text lives in one place, `routeros.KeyCommands(user, key)`: the add page shows it, and routing's `RouterRegistrar` hands it to router scripts with every router.
+
+A router script can create the user and add the key itself: a parameter annotated `@fill proxier-ssh-key` is filled with Proxier's public key line (locked, not secret; the generation keeps its fingerprint and says so when the key changed later), and the script's own lines run the commands above with it. Then the router needs no manual step before the awaiting-setup probe connects ([script generation](../processes/router-scripts/script-generation.md)).
+
 Test connection uploads and deletes a one-line `proxier-test-<id>.rsc`, so a group without `ftp` fails the test, not the first sync.
 
 ## Names that must match

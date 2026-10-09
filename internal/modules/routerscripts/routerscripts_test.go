@@ -62,7 +62,8 @@ func TestModuleIsWired(t *testing.T) {
 	}
 	for _, q := range []string{"FRESH", "fr-boot", ""} {
 		hits, err := h.Mod.Search(ctx, q, 10)
-		if err != nil || len(hits) != 1 || hits[0].Label != "fresh-router" || hits[0].Meta != "router script · v1 · 0 generations" || hits[0].Href != "/router-scripts/1" {
+		if err != nil || len(hits) != 2 || hits[0].Label != "fresh-router" || hits[0].Meta != "router script · v1 · 0 generations" || hits[0].Href != "/router-scripts/1" ||
+			hits[1].Label != "Generate for a new router · fresh-router" || hits[1].Href != "/router-scripts/1/generate" {
 			t.Errorf("search %q: %+v %v", q, hits, err)
 		}
 	}
@@ -80,7 +81,7 @@ func TestModuleIsWired(t *testing.T) {
 	}
 }
 
-var keyLiteral = regexp.MustCompile(`"((?:rscripts|scripts|params)\.[a-z0-9_.]*[a-z0-9_])"(\s*\+)?`)
+var keyLiteral = regexp.MustCompile(`"((?:rscripts|scripts|params|generations)\.[a-z0-9_.]*[a-z0-9_])"(\s*\+)?`)
 
 // TestEveryUsedMessageKeyExists scans the module's Go and templ files for
 // literal keys, as the other modules do.
@@ -89,7 +90,7 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 	var files []string
 	_ = filepath.WalkDir(".", func(p string, d os.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && (strings.HasSuffix(p, ".go") || strings.HasSuffix(p, ".templ")) &&
-			!strings.HasSuffix(p, "_templ.go") && !strings.HasSuffix(p, "_test.go") && p != "messages.go" && p != "params/messages.go" &&
+			!strings.HasSuffix(p, "_templ.go") && !strings.HasSuffix(p, "_test.go") && p != "messages.go" && p != "messages_generations.go" && p != "params/messages.go" &&
 			!strings.HasPrefix(p, "rscriptstest/") && !strings.HasPrefix(p, "migrations/") {
 			files = append(files, p)
 		}
@@ -138,6 +139,8 @@ func TestImportsOnlyPorts(t *testing.T) {
 			switch {
 			case path == mods+"servers" || strings.HasPrefix(path, mods+"servers/"):
 				t.Errorf("%s imports %s", p, path)
+			case strings.HasPrefix(p, "rscriptstest/"):
+				// the harness wires the real modules as main.go does
 			case strings.HasPrefix(path, mods+"subscriptions/"), strings.HasPrefix(path, mods+"routing/"):
 				t.Errorf("%s imports %s", p, path)
 			}

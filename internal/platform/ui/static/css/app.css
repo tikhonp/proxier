@@ -757,10 +757,33 @@ a.row.rscript { text-decoration: none; color: inherit; }
 .row.rsver { grid-template-columns: 110px minmax(0, 1fr); align-items: start; border-top: 1px solid var(--overlay); }
 .row.rsver .actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-start; }
 .row.rsver .normal { font-weight: 400; }
+/* generating (4b): a choice's fields show only while it is chosen (:has; without it every field shows) */
+.gen-form .newform { max-width: 680px; }
+.gen-version { padding: 8px 16px; }
+.gen-choice { display: flex; flex-direction: column; gap: 8px; }
+.gen-choice > label.check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.gen-choice > label.check input { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
+.gen-sub { display: flex; flex-direction: column; gap: 12px; margin-left: 26px; padding-left: 12px; border-left: 1px solid var(--overlay); }
+.gen-choice:not(:has(> label input[type="radio"]:checked)) > .gen-sub { display: none; }
+.gen-sub:not(:has(select[name="router_jump"] option[value="other"]:checked)) .gen-jump-other { display: none; }
+.gen-sub .inline .field { flex: 1; min-width: 0; }
+.gen-group { display: flex; flex-direction: column; gap: 12px; padding-top: 8px; border-top: 1px solid var(--overlay); }
+.gen-ro { display: flex; flex-wrap: wrap; gap: 4px 8px; padding: 6px 0; overflow-wrap: anywhere; }
+.gen-steps { margin: 0 0 12px; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.gen-problems { list-style: none; margin: 4px 0 12px; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.gen-secret-note { margin-top: 12px; }
+.gen-kv { grid-template-columns: 80px minmax(0, 1fr); margin: 0; }
+.gen-kv dd { overflow-wrap: anywhere; }
+.row.gen-val { grid-template-columns: 160px minmax(0, 1fr); align-items: baseline; border-top: 1px solid var(--overlay); }
+.row.gen-val .gen-v { display: flex; flex-wrap: wrap; gap: 4px 8px; overflow-wrap: anywhere; min-width: 0; }
+.gen-all > summary { cursor: pointer; color: var(--subtle); }
+a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: none; color: inherit; border-top: 1px solid var(--overlay); }
 @media (max-width: 760px) {
   .colhead.rscript { display: none; }
   .row.rscript, .row.rsver { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .rs-editor { grid-template-columns: minmax(0, 1fr); }
   .rs-panel { border-left: 0; border-top: 1px solid var(--overlay); }
   .rs-draft .rs-body { min-height: 320px; }
+  .row.gen-val, a.row.rsgen { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 16px; }
+  .gen-sub .inline { flex-direction: column; }
 }

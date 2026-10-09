@@ -48,6 +48,15 @@ func (h *handler) list(c *echo.Context) error {
 		if !r.PublishedAt.IsZero() {
 			row.Published = loc.Date(r.PublishedAt)
 		}
+		if r.Generations > 0 {
+			n, err := h.Generations.AwaitingCount(ctx, r.ID)
+			if err != nil {
+				return err
+			}
+			if n > 0 {
+				row.Generations += " · " + loc.N("generations.awaiting", int64(n))
+			}
+		}
 		switch {
 		case r.Draft && r.DraftErrors > 0:
 			row.Draft, row.DraftErrors = loc.N("scripts.draft.problems", int64(r.DraftErrors)), true

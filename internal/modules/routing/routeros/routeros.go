@@ -86,3 +86,17 @@ func Counts(e []Entry) (suffix, exact int) {
 	}
 	return suffix, exact
 }
+
+// Group is the restricted group Proxier's router user is in (open question
+// "to verify" 5: the policies are still to confirm on a real router).
+const Group = "proxier"
+
+// KeyCommands create Proxier's group and user on a router and add its key:
+// the add router page's commands and a generation's, one text so both change
+// together.
+func KeyCommands(user, key string) string {
+	key = strings.TrimSpace(key)
+	return "/user group add name=" + Group + " policy=read,write,ftp,ssh\n" +
+		"/user add name=" + user + " group=" + Group + "\n" +
+		"/user ssh-keys add user=" + user + " key=\"" + key + "\""
+}

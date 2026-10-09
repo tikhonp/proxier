@@ -222,47 +222,60 @@ func (s *Service) nameTaken(ctx context.Context, tx *sqlx.Tx, fe store.FieldErro
 // Create adds an active link with a new token. Errors are store.FieldErrors
 // (nothing created).
 func (s *Service) Create(ctx context.Context, n New, actor string) (int64, error) {
+	var id int64
+	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
+		var err error
+		id, _, err = s.CreateTx(ctx, tx, n, actor)
+		return err
+	})
+	return id, err
+}
+
+// CreateTx is Create inside the caller's transaction (router scripts' link
+// issuer): the new link's id and token. Its field errors come before
+// anything is written.
+func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string) (int64, string, error) {
 	n.Name, n.Note = strings.TrimSpace(n.Name), strings.TrimSpace(n.Note)
 	fe := store.FieldErrors{}
 	checkFields(fe, n.Name, n.Note, n.Lang)
 	if !n.Expires.IsZero() && !n.Expires.After(s.d.Now()) {
 		fe["expiry"] = "links.err.expiry_past"
 	}
+	sub, err := store.GetSubscription(ctx, tx, n.SubscriptionID)
+	if errors.Is(err, store.ErrNotFound) {
+		fe["subscription"] = "links.err.subscription"
+	} else if err != nil {
+		return 0, "", err
+	}
+	if err := s.nameTaken(ctx, tx, fe, n.Name, 0); err != nil {
+		return 0, "", err
+	}
+	if len(fe) > 0 {
+		return 0, "", fe
+	}
 	token := vault.NewToken()
 	lookup := s.d.Vault.Lookup(token)
-	var id int64
-	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		sub, err := store.GetSubscription(ctx, tx, n.SubscriptionID)
-		if errors.Is(err, store.ErrNotFound) {
-			fe["subscription"] = "links.err.subscription"
-		} else if err != nil {
-			return err
+	row := store.Link{
+		SubscriptionID: sql.NullInt64{Int64: n.SubscriptionID, Valid: true}, Name: n.Name, Note: n.Note,
+		ExpiresAt: db.At(n.Expires), Language: string(n.Lang), CreatedAt: s.now(),
+	}
+	if n.Expires.IsZero() {
+		row.ExpiresAt = db.Time{}
+	}
+	id, err := store.InsertLink(ctx, tx, row, lookup)
+	if err != nil {
+		if store.Unique(err, "subs_links.name") {
+			return 0, "", store.FieldErrors{"name": "links.err.name_taken"}
 		}
-		if err := s.nameTaken(ctx, tx, fe, n.Name, 0); err != nil {
-			return err
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		row := store.Link{
-			SubscriptionID: sql.NullInt64{Int64: n.SubscriptionID, Valid: true}, Name: n.Name, Note: n.Note,
-			ExpiresAt: db.At(n.Expires), Language: string(n.Lang), CreatedAt: s.now(),
-		}
-		if n.Expires.IsZero() {
-			row.ExpiresAt = db.Time{}
-		}
-		if id, err = store.InsertLink(ctx, tx, row, lookup); err != nil {
-			if store.Unique(err, "subs_links.name") {
-				return store.FieldErrors{"name": "links.err.name_taken"}
-			}
-			return err
-		}
-		if err := store.SetToken(ctx, tx, id, s.d.Vault.SealString(token, tokenAAD(id)), lookup); err != nil {
-			return err
-		}
-		return s.record(ctx, tx, "link.created", id, actor, map[string]any{"subscription": sub.Name, "expiry": timeText(n.Expires)})
-	})
-	return id, err
+		return 0, "", err
+	}
+	if err := store.SetToken(ctx, tx, id, s.d.Vault.SealString(token, tokenAAD(id)), lookup); err != nil {
+		return 0, "", err
+	}
+	if err := s.record(ctx, tx, "link.created", id, actor, map[string]any{"subscription": sub.Name, "expiry": timeText(n.Expires)}); err != nil {
+		return 0, "", err
+	}
+	return id, token, nil
 }
 
 // Get reads one link.

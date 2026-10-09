@@ -1,0 +1,402 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// generatePage is RP-Script-generate: the form on the left, the live
+// summary on the right. The form works without JS; with htmx the summary
+// follows it, and the fields whose lock or placeholder changes swap
+// themselves out of band.
+templ generatePage(s ui.Shell, v genView, title string) {
+	@ui.Layout(s) {
+		<div id="gen">
+			<div class="titleblock">
+				<div class="head">
+					@crumbs(v.V.Script.ID, v.V.Script.Name, i18n.T(ctx, "generations.form.crumb"))
+					<h1>{ title }</h1>
+					<p class="subtle">{ i18n.T(ctx, "generations.form.sub", i18n.Args{"name": v.V.Script.Name}) }</p>
+				</div>
+			</div>
+			<form method="get" action={ templ.SafeURL(v.Action) } class="filters gen-version">
+				<label for="gen-ver" class="sm subtle">{ i18n.T(ctx, "generations.form.version") }</label>
+				<select
+					id="gen-ver"
+					name="version"
+					class="pc-inp sel"
+					hx-get={ v.Action }
+					hx-trigger="change"
+					hx-target="#gen"
+					hx-select="#gen"
+					hx-swap="outerHTML"
+					hx-push-url="true"
+				>
+					for _, o := range v.Versions {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+				<button type="submit" class="pc-btn pc-sm" data-action="rs.gen_version">{ i18n.T(ctx, "generations.form.open_version") }</button>
+			</form>
+			<form
+				method="post"
+				action={ templ.SafeURL(v.Action) }
+				class="newcols gen-form"
+				hx-post={ v.Action + "/summary" }
+				hx-trigger="input delay:300ms, change"
+				hx-target="#gen-summary"
+				hx-swap="innerHTML"
+			>
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				<input type="hidden" name="version" value={ strconv.Itoa(v.V.Form.Version) }/>
+				if v.V.Form.From != 0 {
+					<input type="hidden" name="from" value={ i64(v.V.Form.From) }/>
+				}
+				<div class="newform form">
+					if len(v.Errs) > 0 {
+						@ui.Alert("love", "alert") {
+							{ i18n.T(ctx, "generations.form.refused") }
+						}
+					}
+					@routerNameField(v, false)
+					if v.V.Form.Router.Mode != "" {
+						@registerSection(v)
+					}
+					if v.V.Form.Link.Mode != "" {
+						@linkSection(v)
+					}
+					<h2 class="grp">{ i18n.T(ctx, "generations.form.params") }</h2>
+					<p class="sm subtle">{ i18n.N(ctx, "generations.form.params.note", int64(v.ParamCount)) }</p>
+					for _, g := range v.Groups {
+						<div class="gen-group">
+							if g.Heading != "" {
+								<p class="rs-heading"># { g.Heading }</p>
+							}
+							for _, it := range g.Items {
+								if it.Computed {
+									@computedField(it)
+								} else {
+									@paramField(it)
+								}
+							}
+						</div>
+					}
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-pri" data-action="rs.generate_go">{ v.GoLabel }</button>
+						<a href={ templ.SafeURL(ScriptHref(v.V.Script.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<span class="sm subtle">{ i18n.T(ctx, "generations.form.keys") }</span>
+					</div>
+				</div>
+				<aside class="newsum" aria-labelledby="gen-sum-h">
+					<h2 id="gen-sum-h">{ i18n.T(ctx, "generations.sum.title") }</h2>
+					<div id="gen-summary">
+						@summaryBody(v)
+					</div>
+				</aside>
+			</form>
+		</div>
+	}
+}
+
+templ routerNameField(v genView, oob bool) {
+	<div class="field" id="router-name-field" if oob { hx-swap-oob="true" }>
+		<label for="gen-router">{ i18n.T(ctx, "generations.field.router_name") }</label>
+		if v.RouterLock != "" {
+			<input type="hidden" name="lock.router_name" value="router"/>
+			<input id="gen-router" class="pc-inp" value={ v.RouterLock } readonly/>
+			<p class="help">{ i18n.T(ctx, "generations.lock.router_name") }</p>
+		} else {
+			<input id="gen-router" class="pc-inp" name="router_name" value={ v.V.Form.RouterName } maxlength="60" autocomplete="off" required aria-invalid?={ v.Errs["router_name"] != "" }/>
+			if v.Errs["router_name"] != "" {
+				@fieldErr(v.Errs["router_name"])
+			} else {
+				<p class="help">{ i18n.T(ctx, "generations.field.router_name.help") }</p>
+			}
+		}
+	</div>
+}
+
+templ choice(name, value, current, label string) {
+	<label class="check">
+		<input type="radio" name={ name } value={ value } checked?={ current == value }/>
+		{ label }
+	</label>
+}
+
+templ registerSection(v genView) {
+	<h2 class="grp">{ i18n.T(ctx, "generations.register.title") }</h2>
+	<div class="gen-choice">
+		@choice("router_mode", generations.RouterNew, v.V.Form.Router.Mode, i18n.T(ctx, "generations.register.new"))
+		<div class="gen-sub">
+			<div class="field">
+				<label for="gen-list">{ i18n.T(ctx, "generations.field.router_list") }</label>
+				<select id="gen-list" class="pc-inp" name="router_list">
+					for _, o := range v.Lists {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+				@fieldErr(v.Errs["router.list"])
+			</div>
+			@hostField(v, false)
+			<div class="inline">
+				<div class="field">
+					<label for="gen-user">{ i18n.T(ctx, "generations.field.router_user") }</label>
+					<input id="gen-user" class="pc-inp" name="router_user" value={ v.V.Form.Router.User } placeholder="proxier" autocomplete="off"/>
+					@fieldErr(v.Errs["router.user"])
+				</div>
+				<div class="field">
+					<label for="gen-port">{ i18n.T(ctx, "generations.field.router_port") }</label>
+					<input id="gen-port" class="pc-inp" name="router_port" value={ portText(v.V.Form.Router.Port) } placeholder="22" inputmode="numeric"/>
+					@fieldErr(v.Errs["router.port"])
+				</div>
+			</div>
+			<div class="field">
+				<label for="gen-jump">{ i18n.T(ctx, "generations.field.jump") }</label>
+				<select id="gen-jump" class="pc-inp" name="router_jump">
+					<option value="" selected?={ v.V.Form.Router.Jump == "" }>{ i18n.T(ctx, "generations.jump.none") }</option>
+					for _, o := range v.Jumps {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+					<option value="other" selected?={ v.V.Form.Router.Jump == "other" }>{ i18n.T(ctx, "generations.jump.other") }</option>
+				</select>
+				@fieldErr(v.Errs["router.jump_host"])
+			</div>
+			<div class="inline gen-jump-other">
+				<div class="field">
+					<label for="gen-jhost">{ i18n.T(ctx, "generations.field.jump_host") }</label>
+					<input id="gen-jhost" class="pc-inp" name="jump_host" value={ v.V.Form.Router.JumpHost } autocomplete="off" placeholder="dacha-pi"/>
+				</div>
+				<div class="field">
+					<label for="gen-jport">{ i18n.T(ctx, "generations.field.jump_port") }</label>
+					<input id="gen-jport" class="pc-inp" name="jump_port" value={ portText(v.V.Form.Router.JumpPort) } placeholder="22" inputmode="numeric"/>
+					@fieldErr(v.Errs["router.jump_port"])
+				</div>
+				<div class="field">
+					<label for="gen-juser">{ i18n.T(ctx, "generations.field.jump_user") }</label>
+					<input id="gen-juser" class="pc-inp" name="jump_user" value={ v.V.Form.Router.JumpUser } autocomplete="off"/>
+					@fieldErr(v.Errs["router.jump_user"])
+				</div>
+			</div>
+			<div class="field">
+				<label class="check"><input type="checkbox" name="router_tailnet" value="1" checked?={ v.V.Form.Router.Tailnet }/> { i18n.T(ctx, "generations.field.tailnet") }</label>
+				if !v.V.TailnetUp {
+					<p class="help">{ i18n.T(ctx, "generations.field.tailnet.off") }</p>
+				}
+			</div>
+			<p class="sm subtle">
+				{ i18n.T(ctx, "generations.register.note") }
+				if v.FillsNote {
+					{ " " + i18n.T(ctx, "generations.register.fills") }
+				}
+			</p>
+		</div>
+	</div>
+	<div class="gen-choice">
+		@choice("router_mode", generations.RouterExisting, v.V.Form.Router.Mode, i18n.T(ctx, "generations.register.existing"))
+		<div class="gen-sub">
+			<div class="field">
+				<label for="gen-rid">{ i18n.T(ctx, "generations.field.router") }</label>
+				<select id="gen-rid" class="pc-inp" name="router_id">
+					<option value="0">{ i18n.T(ctx, "generations.choose") }</option>
+					for _, o := range v.Routers {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+				@fieldErr(v.Errs["router.id"])
+			</div>
+		</div>
+	</div>
+	<div class="gen-choice">
+		@choice("router_mode", generations.RouterNone, v.V.Form.Router.Mode, i18n.T(ctx, "generations.register.none"))
+	</div>
+}
+
+// hostField's placeholder follows lanNet: the summary swaps it while it is
+// empty.
+templ hostField(v genView, oob bool) {
+	<div class="field" id="router-host-field" if oob { hx-swap-oob="true" }>
+		<label for="gen-host">{ i18n.T(ctx, "generations.field.router_host") }</label>
+		<input id="gen-host" class="pc-inp" name="router_host" value={ v.V.Form.Router.Host } placeholder={ v.HostPh } autocomplete="off" spellcheck="false" aria-invalid?={ v.Errs["router.host"] != "" }/>
+		@fieldErr(v.Errs["router.host"])
+	</div>
+}
+
+templ linkSection(v genView) {
+	<h2 class="grp">{ i18n.T(ctx, "generations.link.title") }</h2>
+	<div class="gen-choice">
+		@choice("link_mode", generations.LinkCreate, v.V.Form.Link.Mode, i18n.T(ctx, "generations.link.create"))
+		<div class="gen-sub">
+			<div class="field">
+				<label for="gen-lname">{ i18n.T(ctx, "generations.field.link_name") }</label>
+				<input id="gen-lname" class="pc-inp" name="link_name" value={ v.V.Form.Link.Name } maxlength="60" autocomplete="off" placeholder={ generations.DefaultLinkName(nameOr(v.V.Form.RouterName)) } aria-invalid?={ v.Errs["link.name"] != "" }/>
+				@fieldErr(v.Errs["link.name"])
+			</div>
+			<div class="field">
+				<label for="gen-lsub">{ i18n.T(ctx, "generations.field.link_subscription") }</label>
+				<select id="gen-lsub" class="pc-inp" name="link_sub" aria-invalid?={ v.Errs["link.subscription"] != "" }>
+					<option value="0">{ i18n.T(ctx, "generations.choose") }</option>
+					for _, o := range v.Subs {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+				@fieldErr(v.Errs["link.subscription"])
+			</div>
+		</div>
+	</div>
+	<div class="gen-choice">
+		@choice("link_mode", generations.LinkExisting, v.V.Form.Link.Mode, i18n.T(ctx, "generations.link.existing"))
+		<div class="gen-sub">
+			<div class="field">
+				<label for="gen-lid">{ i18n.T(ctx, "generations.field.link") }</label>
+				<select id="gen-lid" class="pc-inp" name="link_id">
+					<option value="0">{ i18n.T(ctx, "generations.choose") }</option>
+					for _, o := range v.Links {
+						<option value={ o.Value } selected?={ o.Selected }>{ o.Label }</option>
+					}
+				</select>
+				@fieldErr(v.Errs["link.id"])
+			</div>
+		</div>
+	</div>
+	<div class="gen-choice">
+		@choice("link_mode", generations.LinkType, v.V.Form.Link.Mode, i18n.T(ctx, "generations.link.type"))
+	</div>
+}
+
+templ computedField(it genField) {
+	<div class="field gen-computed" id={ "cf-" + it.Name }>
+		<span class="lbl">{ it.Name } <span class="subtle">· { i18n.T(ctx, "generations.field.computed") }</span></span>
+		<div class="gen-ro">
+			<span class="gold" id={ "cv-" + it.Name }>{ it.CompValue }</span>
+			<span class="subtle">· { it.Expr }</span>
+		</div>
+		if it.Desc != "" {
+			<p class="help">{ it.Desc }</p>
+		}
+	</div>
+}
+
+templ computedValue(it genField) {
+	<span class="gold" id={ "cv-" + it.Name } hx-swap-oob="true">{ it.CompValue }</span>
+}
+
+// paramField is one parameter: a text field (a select for @choices, a
+// password field for a secret), or, locked, its value and where it comes
+// from.
+templ paramField(it genField) {
+	<div class="field" id={ "pf-" + it.Name }>
+		@paramFieldInner(it)
+	</div>
+}
+
+templ paramFieldInner(it genField) {
+	<label for={ "p-" + it.Name } class={ templ.KV("changed", it.Changed && it.Lock == "") }>
+		{ it.Name }
+		if it.Required {
+			<span class="subtle">· { i18n.T(ctx, "generations.field.required") }</span>
+		}
+		if it.Secret {
+			<span class="subtle">· { i18n.T(ctx, "generations.field.secret") }</span>
+		}
+	</label>
+	if it.Lockable {
+		<input type="hidden" name={ "lock." + it.Name } value={ it.Lock }/>
+	}
+	if it.Lock != "" {
+		<input id={ "p-" + it.Name } class="pc-inp" value={ it.LockValue } readonly/>
+		<p class="help">{ it.LockNote }</p>
+	} else {
+		if len(it.Choices) > 0 {
+			<select id={ "p-" + it.Name } class="pc-inp" name={ "p." + it.Name } aria-invalid?={ it.Err != "" }>
+				if !it.Required || it.Value == "" {
+					<option value="" selected?={ it.Value == "" }></option>
+				}
+				for _, c := range it.Choices {
+					<option value={ c } selected?={ c == it.Value }>{ c }</option>
+				}
+			</select>
+		} else if it.Secret {
+			<input id={ "p-" + it.Name } class="pc-inp" type="password" name={ "p." + it.Name } placeholder={ it.Placeholder } autocomplete="new-password" spellcheck="false" aria-invalid?={ it.Err != "" }/>
+		} else {
+			<input id={ "p-" + it.Name } class="pc-inp" name={ "p." + it.Name } value={ it.Value } autocomplete="off" spellcheck="false" aria-invalid?={ it.Err != "" }/>
+		}
+		if it.Err != "" {
+			@fieldErr(it.Err)
+		} else if it.Pattern != "" {
+			<p class="help">{ i18n.T(ctx, "generations.field.pattern", i18n.Args{"pattern": it.Pattern}) }</p>
+		}
+	}
+	if it.Desc != "" {
+		<p class="help">{ it.Desc }</p>
+	}
+}
+
+templ summaryBody(v genView) {
+	<ol class="gen-steps">
+		for _, s := range v.Steps {
+			<li>{ s }</li>
+		}
+	</ol>
+	if len(v.Problems) > 0 {
+		<h3 class="grp">{ i18n.T(ctx, "generations.sum.problems") }</h3>
+		<ul class="gen-problems">
+			for _, p := range v.Problems {
+				<li class="love">{ p }</li>
+			}
+		</ul>
+	} else {
+		<p class="pine">{ i18n.T(ctx, "generations.sum.valid") }</p>
+	}
+	if len(v.Warnings) > 0 {
+		<ul class="warnlist">
+			for _, w := range v.Warnings {
+				<li>{ w }</li>
+			}
+		</ul>
+	}
+	<p class="sm subtle gen-secret-note">{ i18n.T(ctx, "generations.sum.secret") }</p>
+}
+
+// summaryAnswer is the live summary's answer: the summary, and, out of
+// band, the computed values and the fields the choices lock or unlock.
+templ summaryAnswer(v genView, swap []genField, name, host bool) {
+	@summaryBody(v)
+	for _, g := range v.Groups {
+		for _, it := range g.Items {
+			if it.Computed {
+				@computedValue(it)
+			}
+		}
+	}
+	for _, it := range swap {
+		<div class="field" id={ "pf-" + it.Name } hx-swap-oob="true">
+			@paramFieldInner(it)
+		</div>
+	}
+	if name {
+		@routerNameField(v, true)
+	}
+	if host {
+		@hostField(v, true)
+	}
+}
+
+// cantPage says why a script can't generate.
+templ cantPage(s ui.Shell, sc scripts.Script, title, reason string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(sc.ID, sc.Name, i18n.T(ctx, "generations.form.crumb"))
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		@ui.Alert("gold", "alert") {
+			{ reason }
+		}
+		<p class="area-body"><a href={ templ.SafeURL(ScriptHref(sc.ID)) }>{ sc.Name }</a></p>
+	}
+}

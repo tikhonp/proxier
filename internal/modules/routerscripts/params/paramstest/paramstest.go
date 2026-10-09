@@ -26,6 +26,25 @@ func WithEnd(b []byte) []byte {
 	return join(b[:loc[1]], []byte("# END PARAMETERS\n"), b[loc[1]:])
 }
 
+// Annotated is today's script as the exit demo changes it: @fill
+// subscription-link above subUrl, @fill routing-address-list above vpnList,
+// @fill routing-doh-forwarder above dohForwarder, then after dohForwarder a
+// blank line and a group of its own (Proxier's public key, @fill
+// proxier-ssh-key, :local proxierKey ""), then "# END PARAMETERS". 8 groups,
+// 19 parameters.
+func Annotated() []byte {
+	b := Today()
+	b = Annotate(b, "subUrl", "@fill subscription-link")
+	b = Annotate(b, "vpnList", "@fill routing-address-list")
+	b = Annotate(b, "dohForwarder", "@fill routing-doh-forwarder")
+	loc := regexp.MustCompile(`(?m)^:local dohForwarder .*\n`).FindIndex(b)
+	if loc == nil {
+		panic("paramstest: no :local dohForwarder line")
+	}
+	key := "\n# Proxier's public key: the proxier user logs in with it\n# @fill proxier-ssh-key\n:local proxierKey \"\"\n# END PARAMETERS\n"
+	return join(b[:loc[1]], []byte(key), b[loc[1]:])
+}
+
 // Annotate inserts a line "# <comment>" directly above :local <name>.
 func Annotate(b []byte, name, comment string) []byte {
 	loc := regexp.MustCompile(`(?m)^:local ` + regexp.QuoteMeta(name) + `[ \t]`).FindIndex(b)

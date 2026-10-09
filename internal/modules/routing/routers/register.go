@@ -31,45 +31,53 @@ type Registered struct {
 // Register saves a router in awaiting setup: no test runs, it gets no sync
 // from changes and never notifies; the probe connects it within AwaitingFor.
 // Name, list and connection are validated as Add router's (store.FieldErrors).
-// Phase 4's RouterRegistrar wraps it.
 func (s *Service) Register(ctx context.Context, r Registration, by string) (Registered, error) {
+	var out Registered
+	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
+		var err error
+		out, err = s.RegisterTx(ctx, tx, r, by, by)
+		return err
+	})
+	return out, err
+}
+
+// RegisterTx is Register inside the caller's transaction (Phase 4's
+// RouterRegistrar): by is the router's created_by and router_added's "by",
+// actor the event's actor. Its field errors come before anything is written.
+func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, r Registration, by, actor string) (Registered, error) {
 	name := strings.TrimSpace(r.Name)
 	c := r.Conn.Normalize()
 	fe := c.Validate()
 	if fe == nil {
 		fe = store.FieldErrors{}
 	}
-	var id int64
-	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if err := checkName(ctx, tx, name, 0, fe); err != nil {
-			return err
-		}
-		var l store.List
-		var err error
-		if r.ListID == 0 {
-			l, err = store.DefaultList(ctx, tx)
-		} else {
-			l, err = store.GetList(ctx, tx, r.ListID)
-		}
-		if errors.Is(err, store.ErrNotFound) {
-			fe["list"] = "routers.err.list"
-		} else if err != nil {
-			return err
-		}
-		if len(fe) > 0 {
-			return fe
-		}
-		now := s.now()
-		if id, err = store.InsertRouter(ctx, tx, store.Router{
-			Name: name, ListID: l.ID, State: StateAwaiting, Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
-			JumpPort: c.JumpPort, JumpUser: c.JumpUser, Tailnet: c.Tailnet, AddressList: c.Names.List, Forwarder: c.Names.Forwarder,
-			AwaitingUntil: db.At(s.d.Now().Add(AwaitingFor)), CreatedBy: by, CreatedAt: now,
-		}); err != nil {
-			return err
-		}
-		return s.record(ctx, tx, "routing.router_added", id, by, map[string]any{"list": l.Name, "host": c.Host, "by": by})
+	if err := checkName(ctx, tx, name, 0, fe); err != nil {
+		return Registered{}, err
+	}
+	var l store.List
+	var err error
+	if r.ListID == 0 {
+		l, err = store.DefaultList(ctx, tx)
+	} else {
+		l, err = store.GetList(ctx, tx, r.ListID)
+	}
+	if errors.Is(err, store.ErrNotFound) {
+		fe["list"] = "routers.err.list"
+	} else if err != nil {
+		return Registered{}, err
+	}
+	if len(fe) > 0 {
+		return Registered{}, fe
+	}
+	id, err := store.InsertRouter(ctx, tx, store.Router{
+		Name: name, ListID: l.ID, State: StateAwaiting, Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
+		JumpPort: c.JumpPort, JumpUser: c.JumpUser, Tailnet: c.Tailnet, AddressList: c.Names.List, Forwarder: c.Names.Forwarder,
+		AwaitingUntil: db.At(s.d.Now().Add(AwaitingFor)), CreatedBy: by, CreatedAt: s.now(),
 	})
 	if err != nil {
+		return Registered{}, err
+	}
+	if err := s.record(ctx, tx, "routing.router_added", id, actor, map[string]any{"list": l.Name, "host": c.Host, "by": by}); err != nil {
 		return Registered{}, err
 	}
 	return Registered{ID: id, Names: c.Names}, nil

@@ -135,7 +135,7 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 | `routerscript.current_changed` | router script | from, to (numbers) | off | 4a. Making the current version current again records nothing. |
 | `routerscript.archived` | router script | archived (bool) | off | 4a |
 | `routerscript.deleted` | router script | name | off | 4a. Only a script no generation was made from. |
-| `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools) | off | 4b |
+| `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | 4b |
 | `routerscript.fetch_url_created` | generation | expires, replaced (bool) | off | 4c |
 | `routerscript.fetched` | generation | ip, user_agent | **on** 📥 | 4c. "fresh-router v4 for 'Parents' was fetched from 198.51.100.4" |
 | `routerscript.fetch_url_expired` | generation | expired (the expiry time) | off | 4c. It was never used. |

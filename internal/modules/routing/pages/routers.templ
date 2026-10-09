@@ -4,6 +4,8 @@ import (
 	"strconv"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
+	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -224,7 +226,7 @@ templ routerAddPage(s ui.Shell, v rtAddView) {
 					<div class="area-body">
 						@snippet("key-line", i18n.T(ctx, "routers.key.public"), v.Key)
 						@snippet("key-jump", i18n.T(ctx, "routers.key.jump"), "echo '"+v.Key+"' >> ~/.ssh/authorized_keys")
-						@snippet("key-router", i18n.T(ctx, "routers.key.router"), "/user group add name=proxier policy=read,write,ftp,ssh\n/user add name=proxier group=proxier\n/user ssh-keys add user=proxier key=\""+v.Key+"\"")
+						@snippet("key-router", i18n.T(ctx, "routers.key.router"), routeros.KeyCommands(routers.DefaultUser, v.Key))
 						<p class="sm subtle">{ i18n.T(ctx, "routers.key.verify") }</p>
 					</div>
 				}
