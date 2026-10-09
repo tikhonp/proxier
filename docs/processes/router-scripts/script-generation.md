@@ -29,7 +29,7 @@ Setting up a new MikroTik means filling in the current router script for it, get
    6. the generation is saved: version, router name, values (secret ones and the link URL sealed), changed parameters, link and router, the key's fingerprint.
 
    → `routerscript.generated{script, version, router, link, registered, link_created}`
-8. The generation page opens with **Download** and **Generate again** (and, from 4c, **Create fetch URL**).
+8. The generation page opens with **Download**, **Generate again** and **Create fetch URL**.
 
 The file is never stored: it is the version's body with the values filled in, made whenever it is downloaded or fetched. Its name is `<slug>-<router>-v<version>.rsc`, the router name's characters outside `A-Za-z0-9._-` turned into `-` (runs collapsed, trimmed; `router` when nothing is left).
 
@@ -40,18 +40,22 @@ The generation page says when the link's URL changed after the generation (its t
 ## Steps — getting it onto the router
 
 1. **Download** (signed-in admin) → `fresh-router-<router>-v<version>.rsc`, `no-store`. It records nothing (the request log has it).
-2. **Create fetch URL** → a token valid for **1 hour** and **one** successful download. The page shows the URL, its expiry, and the commands to paste into the new router's terminal:
+2. **Create fetch URL** (the generation page's Fetch URL area; **New fetch URL…** with a confirmation while one waits: "A new URL makes this one stop working.") → a token (`vault.NewToken()`, sealed as `fetch_url:<id>:token`, found by its lookup) valid for **1 hour** and **one** successful download. In the same transaction a URL of the generation that still waited ends first: as *replaced* when it still worked, as *expired* (with its `routerscript.fetch_url_expired`) when its hour had passed before the scan saw it. A generation of an archived script can still get one. The page shows the URL masked (`https://proxier.tikhonnnnn.com/f/••••••••`) with **Reveal** / **Hide** and **Copy**, the state line ("expires at 17:30 · in 58 min"), and the commands to paste into the new router's terminal, each with **Copy**, and **Copy both lines** (`y`):
 
    ```
    /tool fetch url="https://proxier.tikhonnnnn.com/f/<token>" dst-path=fresh-router.rsc
    /import fresh-router.rsc
    ```
 
-   → `routerscript.fetch_url_created{expires}`
-3. The router requests the URL, and Proxier answers with the generation's body (`text/plain`). The token is used up. → `routerscript.fetched{ip, user_agent}` (notifies)
-4. Any request after that, after the expiry, or with an unknown token → `404`.
-5. An unused fetch URL that expired → `routerscript.fetch_url_expired`
+   The file is saved under the script's slug. The router needs the internet to fetch: after a reset with `no-defaults`, give its WAN port a DHCP client first (open question "to verify" 9).
+
+   → `routerscript.fetch_url_created{expires, replaced}`
+3. The router requests the URL with `GET`, and Proxier answers with the generation's file (`200`, `text/plain`, as an attachment named like the download, byte for byte what **Download** gives). The URL is used up when Proxier answers, so a download cut short needs a new URL; the file is made before, and a failure to make it leaves the URL working. The URL's token is erased. → `routerscript.fetched{ip, user_agent}` (actor `system`, notifies)
+4. Any request after that, after the expiry (at once, without waiting for the scan), with an unknown or malformed token, or with any method but `GET` (`HEAD` included, which uses nothing) → the plain `404`. Two fetches at once: one gets the file, the other `404`.
+5. An unused fetch URL that expired → `routerscript.fetch_url_expired{expired}`, recorded by the scan `routerscripts.fetch_urls` every 5 minutes, which also erases its token.
 6. After the import, the router has Proxier's user and key when the script used `@fill proxier-ssh-key`; otherwise the admin installs them with the commands the generation page shows. Routing's awaiting-setup probe then connects within 10 minutes, and the first sync runs ([router sync](../routing/router-sync.md)).
+
+The generation page follows it in **After the import**, three steps: **the router fetches the file** (waiting while a URL is live, then "fetched at 16:41 from 198.51.100.4 · Mikrotik/7.24.5 Fetch", or "the fetch URL expired unused"), **Proxier's key** (the script's key parameter, or the router's key commands with **Copy**, or not needed without a router) and **Proxier connects and runs the first sync** (awaiting setup until its deadline and through which jump host, never connected, connected and synced, first sync queued or failed, paused, removed, not registered). The area polls every 10 seconds only while something waits (a live URL, an awaiting router before its deadline, a first sync queued) and stops by itself; each answer also refreshes the Fetch URL area's state line. **Fetch history** lists every fetch URL of the generation, newest first: created (time, by), expires, and waiting, used (time, IP, user agent), expired unused or replaced by a newer one, with the time. Generations and their fetch URLs are kept.
 
 ## Rules
 

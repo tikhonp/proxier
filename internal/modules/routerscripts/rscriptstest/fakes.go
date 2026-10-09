@@ -204,6 +204,7 @@ func (f *FakeRouters) Register(_ context.Context, _ *sqlx.Tx, r routing.RouterRe
 	rt := routing.RegisteredRouter{
 		ID: int64(len(f.routers) + 1), Name: name, List: list, State: "awaiting", AwaitingUntil: f.Now().Add(7 * 24 * time.Hour),
 		Host: r.Host + ":" + strconv.Itoa(port), AddressList: routing.DefaultAddressList, Forwarder: routing.DefaultForwarder,
+		KeyCommands: FakeKeyCommands,
 	}
 	if r.JumpHost != "" {
 		rt.Jump = r.JumpHost + ":" + strconv.Itoa(r.JumpPort)
@@ -219,6 +220,20 @@ func (f *FakeRouters) Add(name, state, addressList, forwarder string) int64 {
 	rt := routing.RegisteredRouter{ID: int64(len(f.routers) + 1), Name: name, List: "Main", State: state, AddressList: addressList, Forwarder: forwarder}
 	f.routers = append(f.routers, rt)
 	return rt.ID
+}
+
+// FakeKeyCommands are what every fake router gives as its key commands.
+const FakeKeyCommands = "/user ssh-keys add user=proxier key=\"ssh-ed25519 AAAAfake proxier\""
+
+// Update changes a router in place (its sync, its deadline).
+func (f *FakeRouters) Update(id int64, fn func(*routing.RegisteredRouter)) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for i := range f.routers {
+		if f.routers[i].ID == id {
+			fn(&f.routers[i])
+		}
+	}
 }
 
 // SetState moves a router ("removed" makes it gone).

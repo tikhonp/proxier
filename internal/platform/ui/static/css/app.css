@@ -778,6 +778,19 @@ a.row.rscript { text-decoration: none; color: inherit; }
 .row.gen-val .gen-v { display: flex; flex-wrap: wrap; gap: 4px 8px; overflow-wrap: anywhere; min-width: 0; }
 .gen-all > summary { cursor: pointer; color: var(--subtle); }
 a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: none; color: inherit; border-top: 1px solid var(--overlay); }
+/* the generation page (4c): fetch areas on the left, the generation on the right; one column on phones, fetch first */
+.gen-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1px; background: var(--overlay); border-bottom: 1px solid var(--overlay); }
+.gen-col { background: var(--black); min-width: 0; }
+.gen-col > .area:last-child { border-bottom: 0; }
+.gen-fetch, .gen-fetchbox { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.gen-fstate { margin: 0; }
+.gen-cmds { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.gen-cmds li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.gen-cmds code, .gen-key { font-family: inherit; overflow-wrap: anywhere; word-break: break-all; }
+.gen-key { white-space: pre-wrap; margin: 0; padding: 8px 10px; background: var(--base); }
+.gen-after { margin: 0; padding-left: 36px; display: flex; flex-direction: column; gap: 12px; overflow-wrap: anywhere; }
+.gen-after li { display: flex; flex-direction: column; gap: 4px; }
+.row.gen-hist { grid-template-columns: minmax(0, 1fr) minmax(0, .8fr) minmax(0, 1.2fr); border-top: 1px solid var(--overlay); overflow-wrap: anywhere; }
 @media (max-width: 760px) {
   .colhead.rscript { display: none; }
   .row.rscript, .row.rsver { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
@@ -786,4 +799,7 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
   .rs-draft .rs-body { min-height: 320px; }
   .row.gen-val, a.row.rsgen { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 16px; }
   .gen-sub .inline { flex-direction: column; }
+  .gen-cols { grid-template-columns: minmax(0, 1fr); }
+  .row.gen-hist { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 16px; }
+  .gen-fetch .btns > *, .gen-fetch .btns form, .gen-fetch .btns .pc-btn { width: 100%; }
 }

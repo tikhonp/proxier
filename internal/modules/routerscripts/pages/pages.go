@@ -67,6 +67,9 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET(ListPath+"/generations/:gid", h.generationPage)
 	r.Admin.GET(ListPath+"/generations/:gid/download", h.generationDownload)
 	r.Admin.GET(ListPath+"/generations/:gid/changes", h.generationChanges)
+	r.Admin.POST(ListPath+"/generations/:gid/fetch-url", h.fetchURLCreate)
+	r.Admin.GET(ListPath+"/generations/:gid/fetch-url/reveal", h.fetchURLReveal)
+	r.Admin.GET(ListPath+"/generations/:gid/after", h.afterArea)
 	r.Admin.GET(ListPath+"/:id/delete", h.deletePage)
 	r.Admin.POST(ListPath+"/:id/delete", h.deletePost)
 }

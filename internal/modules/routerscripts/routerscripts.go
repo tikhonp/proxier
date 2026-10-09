@@ -22,6 +22,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -62,7 +63,7 @@ func (m *Module) Init(d module.Deps) error {
 	m.Scripts = scripts.NewService(scripts.Deps{DB: d.DB, Events: d.Events, Now: now, Log: d.Log})
 	m.Generations = generations.NewService(generations.Deps{
 		DB: d.DB, Vault: d.Vault, Events: d.Events, SSH: d.SSH, Tailnet: d.Tailnet, Scripts: m.Scripts,
-		Links: m.ports.Links, Routers: m.ports.Routers, I18n: d.I18n, Now: now, Log: d.Log,
+		Links: m.ports.Links, Routers: m.ports.Routers, I18n: d.I18n, BaseURL: d.Cfg.BaseURL, Now: now, Log: d.Log,
 	})
 	return nil
 }
@@ -78,8 +79,15 @@ func (*Module) Messages() i18n.Messages {
 }
 
 func (m *Module) Routes(r web.Routes) {
+	m.Generations.Register(r.Public)
 	pages.Register(r, pages.Deps{Scripts: m.Scripts, Generations: m.Generations, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
 }
+
+// JobTypes is the fetch URLs' expiry scan.
+func (m *Module) JobTypes() []jobs.Type { return m.Generations.JobTypes() }
+
+// Schedules runs it every 5 minutes.
+func (m *Module) Schedules() []jobs.Schedule { return m.Generations.Schedules() }
 
 // Nav adds Scripts to the router scripts group (no go-to key: one / away).
 func (*Module) Nav() []ui.NavItem {
@@ -158,12 +166,14 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 }
 
 var (
-	_ module.Module           = (*Module)(nil)
-	_ module.Initializer      = (*Module)(nil)
-	_ module.EventDeclarer    = (*Module)(nil)
-	_ module.MessagesDeclarer = (*Module)(nil)
-	_ module.RouteDeclarer    = (*Module)(nil)
-	_ module.NavDeclarer      = (*Module)(nil)
-	_ module.Searcher         = (*Module)(nil)
-	_ module.SubjectNamer     = (*Module)(nil)
+	_ module.Module               = (*Module)(nil)
+	_ module.Initializer          = (*Module)(nil)
+	_ module.EventDeclarer        = (*Module)(nil)
+	_ module.MessagesDeclarer     = (*Module)(nil)
+	_ module.RouteDeclarer        = (*Module)(nil)
+	_ module.NavDeclarer          = (*Module)(nil)
+	_ module.Searcher             = (*Module)(nil)
+	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.JobDeclarer          = (*Module)(nil)
+	_ module.NotificationRenderer = (*Module)(nil)
 )

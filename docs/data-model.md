@@ -145,6 +145,7 @@ Tables `routing_*`, all written by the module's first migration ([3a](./build/3a
 | Rejected snapshots | 90 days after they were fetched once settled (dismissed, or older than the accepted snapshot, or no longer the newest rejection); the one waiting for a decision is kept |
 | Catalog generations | only the one in force; the previous one is deleted right after a refresh switches, a cut-short one by the next refresh (and by the prune job while no catalog refresh runs) |
 | Discovery runs | 30 days, with their screenshot files (`<data dir>/discovery/<run>/`), by the daily `routing.prune` job: the directory first, then the row; a directory without a run goes too |
+| Router script generations and their fetch URLs | forever (a few rows per router); a fetch URL's token is erased the moment the URL ends (used, expired, replaced), so none outlives its hour |
 | Sign-in attempts | 30 days |
 | Backups | 14 daily snapshots |
 | Deployments and deployed files of retired servers | kept (sealed, never shown); no pruning rule exists yet |

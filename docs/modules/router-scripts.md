@@ -58,7 +58,7 @@ A **generation** is a version filled in with one router's values (`generations` 
 5. The live summary says what generating will do: create the link, register the router, write `<slug>-<router>-v<n>.rsc` with how many lines differ from the version, then every problem by field and the warnings.
 6. Generating checks every value again, then creates the link (`LinkIssuer.Issue`), registers the router (`RouterRegistrar.Register`) and saves the generation **in one transaction**: both ports are asked even when one refuses, their refusals show on the form together, and nothing is created unless everything is. The router's names, the link's URL and Proxier's key then fill their parameters, and `routerscript.generated` is recorded.
 
-A generation stores its values, never its file: the plain values as JSON, the `@secret` ones and the link URL sealed (`generation:<id>:secrets`), the changed parameters, the link and the router by id and name, and the key's fingerprint. The file is `params.Fill(the version's body, the values)` whenever it is downloaded (or fetched, 4c): byte-identical to the version except the literals of the changed parameters.
+A generation stores its values, never its file: the plain values as JSON, the `@secret` ones and the link URL sealed (`generation:<id>:secrets`), the changed parameters, the link and the router by id and name, and the key's fingerprint. The file is `params.Fill(the version's body, the values)` whenever it is downloaded or fetched: byte-identical to the version except the literals of the changed parameters.
 
 The **generation page** shows the script and version (and when a newer one is current), the router and the link as they are now (linked; "removed", "deleted" or "not registered"), the file with **View changes** (the version against the file, every secret literal shown as `•••`), the values (changed first, all in a fold, secrets `•••`), and its activity. A band says when the link's URL (token regenerated, link deleted) or Proxier's SSH key changed after the generation, since the file still holds the old one. **Generate again** opens the form with the same version, router name and values, the existing link and router chosen (so nothing is created twice), and the secrets kept unless retyped.
 
@@ -72,7 +72,9 @@ Then:
   /import fresh-router.rsc
   ```
 
-  The first successful download uses it up. Later requests get `404`. Each download is recorded (IP, user agent) and sends a notification.
+  The first successful `GET` uses it up (the URL is used when Proxier answers); later requests, any other method, and the URL after its hour get `404`. The fetch is recorded (IP, user agent) and sends a notification. A new URL ends the one that waited. The token is sealed so the page can show and copy the URL during its hour, and erased the moment the URL ends; the scan `routerscripts.fetch_urls` (every 5 minutes) records the ones that expired unused.
+
+  **After the import** on the generation page follows the router: the fetch, Proxier's key (the script's own key parameter, or the router's key commands), and routing's awaiting-setup probe and first sync; it polls only while something waits. **Fetch history** lists every fetch URL with its state. Generations and fetch URLs are kept.
 
 A generation holds the router's subscription link, so the file is a secret. That is why fetch URLs are single-use and short-lived, and why downloads need a session.
 
@@ -94,7 +96,7 @@ With the `@fill routing-*` annotations, a generation that registers a router alw
 - **Router scripts**: each script with its current version, last published, generations count.
 - **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters, **Generate for a new router**, and its generations (router name, version, date, the router's state now).
 - **Generate** (`/router-scripts/:id/generate`): the form above with its live summary.
-- **Generation page** (`/router-scripts/generations/:id`): version, the router and link as now, values (secrets masked), **View changes**, **Download**, **Generate again**; from 4c **Create fetch URL**, After the import and fetch history.
+- **Generation page** (`/router-scripts/generations/:id`): version, the router and link as now, values (secrets masked), **View changes**, **Download**, **Generate again**, the Fetch URL area (**Create fetch URL**, Reveal, Copy, the two commands), After the import and Fetch history. Fetch URL and After the import come first on the left (first on a phone), the generation and its values on the right.
 
 ## Events
 

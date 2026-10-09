@@ -7,7 +7,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-// generationPage is RP-Script-generation without its fetch areas (4c).
+// generationPage is RP-Script-generation: the fetch areas on the left, the
+// generation and its values on the right, history and activity below.
 templ generationPage(s ui.Shell, v generationView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -41,61 +42,81 @@ templ generationPage(s ui.Shell, v generationView) {
 				}
 			}
 		}
-		@ui.Area(i18n.T(ctx, "generations.page.area", i18n.Args{"id": v.G.ID}), "") {
-			<dl class="kv area-body gen-kv">
-				<dt>{ i18n.T(ctx, "generations.page.script") }</dt>
-				<dd>
-					<a href={ templ.SafeURL(ScriptHref(v.G.ScriptID) + "/versions/" + strconv.Itoa(v.G.Version)) }>{ v.G.Script } v{ strconv.Itoa(v.G.Version) }</a>
-					if v.Newer != "" {
-						<span class="gold">· { v.Newer }</span>
+		<div class="gen-cols">
+			<div class="gen-col">
+				@fetchArea(v.Fetch)
+				@afterFragment(v.After, false)
+			</div>
+			<div class="gen-col">
+				@ui.Area(i18n.T(ctx, "generations.page.area", i18n.Args{"id": v.G.ID}), "") {
+					<dl class="kv area-body gen-kv">
+						<dt>{ i18n.T(ctx, "generations.page.script") }</dt>
+						<dd>
+							<a href={ templ.SafeURL(ScriptHref(v.G.ScriptID) + "/versions/" + strconv.Itoa(v.G.Version)) }>{ v.G.Script } v{ strconv.Itoa(v.G.Version) }</a>
+							if v.Newer != "" {
+								<span class="gold">· { v.Newer }</span>
+							}
+						</dd>
+						if v.HasRouters {
+							<dt>{ i18n.T(ctx, "generations.page.router") }</dt>
+							<dd>
+								if v.G.Router != nil {
+									<a href={ templ.SafeURL("/routing/routers/" + i64(v.G.Router.ID)) }>{ v.G.Router.Name }</a>
+									<span class="subtle">· { v.RouterState } · { v.G.Router.List }</span>
+								} else if v.G.RouterGone {
+									<span class="subtle">{ i18n.T(ctx, "generations.page.router_removed") }</span>
+								} else {
+									<span class="subtle">{ i18n.T(ctx, "generations.page.not_registered") }</span>
+								}
+							</dd>
+						}
+						if v.HasLinks && (v.G.LinkID != 0 || v.G.LinkGone) {
+							<dt>{ i18n.T(ctx, "generations.page.link") }</dt>
+							<dd>
+								if v.G.Link != nil {
+									<a href={ templ.SafeURL("/links/" + i64(v.G.Link.ID)) }>{ v.G.Link.Name }</a>
+									<span class="subtle">· { v.G.Link.Subscription } · { v.LinkState }</span>
+								} else {
+									{ v.G.LinkName }
+									<span class="love">· { i18n.T(ctx, "generations.page.link_deleted") }</span>
+								}
+							</dd>
+						}
+						<dt>{ i18n.T(ctx, "generations.page.file") }</dt>
+						<dd>
+							{ v.G.FileName }
+							<span class="subtle">· { v.Changes }</span>
+							<a href={ templ.SafeURL(GenerationHref(v.G.ID) + "/changes") } data-action="rs.gen_changes">{ i18n.T(ctx, "generations.page.view_changes") }</a>
+						</dd>
+					</dl>
+				}
+				@ui.Area(i18n.T(ctx, "generations.page.values"), i18n.T(ctx, "generations.page.values.note", i18n.Args{"version": v.G.Version})) {
+					if len(v.Changed) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "generations.page.values.none") }</p>
 					}
-				</dd>
-				if v.HasRouters {
-					<dt>{ i18n.T(ctx, "generations.page.router") }</dt>
-					<dd>
-						if v.G.Router != nil {
-							<a href={ templ.SafeURL("/routing/routers/" + i64(v.G.Router.ID)) }>{ v.G.Router.Name }</a>
-							<span class="subtle">· { v.RouterState } · { v.G.Router.List }</span>
-						} else if v.G.RouterGone {
-							<span class="subtle">{ i18n.T(ctx, "generations.page.router_removed") }</span>
-						} else {
-							<span class="subtle">{ i18n.T(ctx, "generations.page.not_registered") }</span>
+					for _, r := range v.Changed {
+						@valueLine(r)
+					}
+					<details class="gen-all">
+						<summary class="area-body">{ i18n.T(ctx, "generations.page.show_all", i18n.Args{"n": len(v.All)}) }</summary>
+						for _, r := range v.All {
+							@valueLine(r)
 						}
-					</dd>
+					</details>
 				}
-				if v.HasLinks && (v.G.LinkID != 0 || v.G.LinkGone) {
-					<dt>{ i18n.T(ctx, "generations.page.link") }</dt>
-					<dd>
-						if v.G.Link != nil {
-							<a href={ templ.SafeURL("/links/" + i64(v.G.Link.ID)) }>{ v.G.Link.Name }</a>
-							<span class="subtle">· { v.G.Link.Subscription } · { v.LinkState }</span>
-						} else {
-							{ v.G.LinkName }
-							<span class="love">· { i18n.T(ctx, "generations.page.link_deleted") }</span>
-						}
-					</dd>
-				}
-				<dt>{ i18n.T(ctx, "generations.page.file") }</dt>
-				<dd>
-					{ v.G.FileName }
-					<span class="subtle">· { v.Changes }</span>
-					<a href={ templ.SafeURL(GenerationHref(v.G.ID) + "/changes") } data-action="rs.gen_changes">{ i18n.T(ctx, "generations.page.view_changes") }</a>
-				</dd>
-			</dl>
-		}
-		@ui.Area(i18n.T(ctx, "generations.page.values"), i18n.T(ctx, "generations.page.values.note", i18n.Args{"version": v.G.Version})) {
-			if len(v.Changed) == 0 {
-				<p class="subtle area-body">{ i18n.T(ctx, "generations.page.values.none") }</p>
+			</div>
+		</div>
+		@ui.Area(i18n.T(ctx, "generations.history"), "") {
+			if len(v.History) == 0 {
+				<p class="subtle area-body">{ i18n.T(ctx, "generations.history.none") }</p>
 			}
-			for _, r := range v.Changed {
-				@valueLine(r)
+			for _, r := range v.History {
+				<div class="row gen-hist">
+					<span>{ r.Created }</span>
+					<span class="subtle">{ r.Expires }</span>
+					<span class={ r.Class }>{ r.State }</span>
+				</div>
 			}
-			<details class="gen-all">
-				<summary class="area-body">{ i18n.T(ctx, "generations.page.show_all", i18n.Args{"n": len(v.All)}) }</summary>
-				for _, r := range v.All {
-					@valueLine(r)
-				}
-			</details>
 		}
 		@ui.Area(i18n.T(ctx, "scripts.area.activity"), "") {
 			if len(v.Activity) == 0 {
@@ -151,5 +172,137 @@ templ changesPage(s ui.Shell, v changesView) {
 		} else {
 			@ui.Diff(v.Diff)
 		}
+	}
+}
+
+// fetchArea is RP-Script-generation's "Fetch URL · works once".
+templ fetchArea(v fetchView) {
+	<section class="area" aria-label={ i18n.T(ctx, "generations.fetch") } id="fetch-url-area">
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "generations.fetch") }</h2>
+			<span class="note">{ i18n.T(ctx, "generations.fetch.once") }</span>
+			<span class="flex1"></span>
+		</div>
+		<div class="area-body gen-fetch">
+			@fetchStateLine(v, false)
+			if v.Live {
+				@fetchURLBox(v)
+				<div class="btns">
+					@ui.ActionButton(ui.Action{
+						ID: "rs.fetch_new", Label: "generations.fetch.new", Method: "POST", Small: true,
+						Href:    GenerationHref(v.GID) + "/fetch-url",
+						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "generations.fetch.new.title"), Body: i18n.T(ctx, "generations.fetch.new.body")},
+					})
+				</div>
+			} else {
+				if !v.Expired {
+					<p class="subtle">{ i18n.T(ctx, "generations.fetch.what") }</p>
+				}
+				<div class="btns">
+					@ui.ActionButton(ui.Action{ID: "rs.fetch_create", Label: "generations.fetch.create", Method: "POST", Href: GenerationHref(v.GID) + "/fetch-url", Kind: ui.Primary})
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// fetchStateLine is #fetch-url-state, swapped out of band while the After
+// the import area polls.
+templ fetchStateLine(v fetchView, oob bool) {
+	if oob {
+		<p id="fetch-url-state" class={ "gen-fstate", v.StateClass } hx-swap-oob="true">{ v.State }</p>
+	} else {
+		<p id="fetch-url-state" class={ "gen-fstate", v.StateClass }>{ v.State }</p>
+	}
+}
+
+// fetchURLBox is the URL with Reveal / Hide and Copy, the note and the two
+// commands (the Reveal fragment, answered with no-store).
+templ fetchURLBox(v fetchView) {
+	<div id="fetch-url" class="gen-fetchbox">
+		if v.Live {
+			<div class="urlfield">
+				if v.Revealed {
+					<code>{ v.URL }</code>
+					<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal?hide=1" } hx-target="#fetch-url" hx-swap="outerHTML">{ i18n.T(ctx, "generations.fetch.hide") }</button>
+				} else {
+					<code class="masked">{ v.Masked }</code>
+					<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal" } hx-target="#fetch-url" hx-swap="outerHTML" data-action="rs.fetch_reveal">{ i18n.T(ctx, "generations.fetch.reveal") }</button>
+				}
+				<button type="button" class="pc-btn pc-sm" data-copy={ v.URL }>{ i18n.T(ctx, "generations.fetch.copy") }</button>
+			</div>
+			<p class="subtle">{ i18n.T(ctx, "generations.fetch.note") }</p>
+			<ol class="gen-cmds">
+				<li>
+					if v.Revealed {
+						<code>{ v.Fetch }</code>
+					} else {
+						<code>{ v.MFetch }</code>
+					}
+					<button type="button" class="pc-btn pc-sm" data-copy={ v.Fetch }>{ i18n.T(ctx, "generations.fetch.copy") }</button>
+				</li>
+				<li>
+					<code>{ v.Import }</code>
+					<button type="button" class="pc-btn pc-sm" data-copy={ v.Import }>{ i18n.T(ctx, "generations.fetch.copy") }</button>
+				</li>
+			</ol>
+			<div class="btns">
+				<button type="button" class="pc-btn pc-pri" data-copy={ v.Both } data-action="rs.fetch_copy_both" data-key="y">{ i18n.T(ctx, "generations.fetch.copy_both") }</button>
+			</div>
+		}
+	</div>
+}
+
+// afterFragment is RP-Script-generation's "After the import": it polls only
+// while something waits, so the answer without a trigger stops it. A polled
+// answer (oob) also brings the Fetch URL area's state line.
+templ afterFragment(a afterView, oob bool) {
+	<section
+		class="area"
+		id="after-import"
+		aria-label={ i18n.T(ctx, "generations.after") }
+		if a.Poll {
+			hx-get={ GenerationHref(a.GID) + "/after" }
+			hx-trigger="every 10s"
+			hx-swap="outerHTML"
+		}
+	>
+		<div class="pc-title">
+			<h2>{ i18n.T(ctx, "generations.after") }</h2>
+			<span class="flex1"></span>
+		</div>
+		<ol class="gen-after area-body">
+			<li>
+				<span class="bold">{ i18n.T(ctx, "generations.after.fetch") }</span>
+				<span class={ a.FetchClass }>{ a.Fetch }</span>
+				if a.FetchNote != "" {
+					<span class="subtle sm">{ a.FetchNote }</span>
+				}
+			</li>
+			<li>
+				if a.KeyParam != "" {
+					<span class="bold">{ i18n.T(ctx, "generations.after.key") }</span>
+					<span class="foam">{ i18n.T(ctx, "generations.after.key.script", i18n.Args{"name": a.KeyParam}) }</span>
+				} else if a.KeyCommands != "" {
+					<span class="bold">{ i18n.T(ctx, "generations.after.key.add") }</span>
+					<pre class="gen-key">{ a.KeyCommands }</pre>
+					<span><button type="button" class="pc-btn pc-sm" data-copy={ a.KeyCommands }>{ i18n.T(ctx, "generations.fetch.copy") }</button></span>
+				} else {
+					<span class="bold">{ i18n.T(ctx, "generations.after.key") }</span>
+					<span class="subtle">{ i18n.T(ctx, "generations.after.key.none") }</span>
+				}
+			</li>
+			<li>
+				<span class="bold">{ i18n.T(ctx, "generations.after.router") }</span>
+				if a.RouterHref != "" {
+					<a href={ templ.SafeURL(a.RouterHref) } class={ a.RouterClass }>{ a.Router }</a>
+				} else {
+					<span class={ a.RouterClass }>{ a.Router }</span>
+				}
+			</li>
+		</ol>
+	</section>
+	if oob {
+		@fetchStateLine(a.State, true)
 	}
 }

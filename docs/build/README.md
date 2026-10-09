@@ -54,7 +54,7 @@ Phase 4 ([roadmap](../roadmap.md#phase-4-router-scripts)) is built the same way.
 |---|---|---|
 | 4a Router scripts module, schema, script versions | [4a.md](./4a.md) | done 2026-10-09 (a look at the deployed instance is the user's) |
 | 4b Generation, the two ports | [4b.md](./4b.md) | done 2026-10-09 (a real-browser look at the form is the user's) |
-| 4c Fetch URLs, Phase 4 exit | [4c.md](./4c.md) | planned |
+| 4c Fetch URLs, Phase 4 exit | [4c.md](./4c.md) | done 2026-10-09 (the exit demo with a real router, open questions "to verify" 5 and 9, and a look on the deployed instance and a phone are the user's) |
 
 Each sub-phase is one of the process docs' parts: [script versions](../processes/router-scripts/script-versions.md) (4a), [script generation](../processes/router-scripts/script-generation.md) "generating" (4b) and "getting it onto the router" (4c).
 

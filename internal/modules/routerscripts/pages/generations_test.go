@@ -255,3 +255,193 @@ func TestGenerationsListed(t *testing.T) {
 		t.Error("Activity doesn't link the generation")
 	}
 }
+
+// fetchToken is the token of the generation's live fetch URL.
+func fetchToken(t *testing.T, h *rscriptstest.Harness, gid int64) string {
+	t.Helper()
+	_, link, ok, err := h.Mod.Generations.Live(ctx, gid)
+	if err != nil || !ok {
+		t.Fatalf("no live URL: %v", err)
+	}
+	return strings.TrimPrefix(link, "http://proxier.test/f/")
+}
+
+// routerFetch is the router fetching the URL.
+func routerFetch(t *testing.T, h *rscriptstest.Harness, token string) {
+	t.Helper()
+	res := h.Site.Do(sitetest.Req{Path: "/f/" + token, Header: http.Header{"User-Agent": {"Mikrotik/7.24.5 Fetch"}}, Addr: "198.51.100.4:51000"})
+	if res.Code != http.StatusOK {
+		t.Fatalf("fetch: %d", res.Code)
+	}
+}
+
+func TestFetchURLArea(t *testing.T) {
+	h := rscriptstest.New(t)
+	gid := dacha(t, h)
+	page := h.Login.Get("/router-scripts/generations/1").Body.String()
+	contains(t, "none", page, "Fetch URL", "works once", `id="fetch-url-state"`, "No fetch URL. One works once, for 1 hour.", "Create fetch URL",
+		`action="/router-scripts/generations/1/fetch-url"`)
+	if strings.Contains(page, "/f/") || strings.Contains(page, "New fetch URL") {
+		t.Error("a URL without one")
+	}
+
+	res := h.Login.Post("/router-scripts/generations/1/fetch-url", url.Values{})
+	if res.Code != http.StatusSeeOther || res.Header().Get("Location") != "/router-scripts/generations/1#fetch-url" {
+		t.Fatalf("create: %d %s", res.Code, res.Header().Get("Location"))
+	}
+	token := fetchToken(t, h, gid)
+	h.Advance(2 * time.Minute)
+	page = h.Login.Get("/router-scripts/generations/1").Body.String()
+	contains(t, "waiting", page, "http://proxier.test/f/••••••••", "expires at 16:00 · in 58 min", "Reveal",
+		`hx-get="/router-scripts/generations/1/fetch-url/reveal"`,
+		`/tool fetch url="http://proxier.test/f/••••••••" dst-path=fresh-router.rsc`, "/import fresh-router.rsc",
+		`data-copy="http://proxier.test/f/`+token+`"`, `data-copy="/tool fetch url="http://proxier.test/f/`+token+`" dst-path=fresh-router.rsc"`,
+		`data-copy="/import fresh-router.rsc"`, "Copy both lines", `data-key="y"`, "after a reset with no-defaults, give its WAN port a DHCP client first",
+		"New fetch URL…", "A new URL makes this one stop working.")
+	if strings.Contains(page, "No fetch URL.") {
+		t.Error("the none line with a URL")
+	}
+	checkNoInline(t, "fetch area", page)
+	reveal := h.Login.Get("/router-scripts/generations/1/fetch-url/reveal").Body.String()
+	contains(t, "reveal", reveal, "<code>http://proxier.test/f/"+token+"</code>", "Hide", `fetch-url/reveal?hide=1`,
+		`/tool fetch url="http://proxier.test/f/`+token+`" dst-path=fresh-router.rsc`)
+	if strings.Contains(reveal, "<html") {
+		t.Error("the reveal is a whole page")
+	}
+
+	// New fetch URL… replaces it
+	h.Login.Post("/router-scripts/generations/1/fetch-url", url.Values{})
+	if fetchToken(t, h, gid) == token {
+		t.Fatal("not replaced")
+	}
+
+	// past its hour
+	h.Advance(61 * time.Minute)
+	page = h.Login.Get("/router-scripts/generations/1").Body.String()
+	contains(t, "expired", page, "expired · create a new one", "Create fetch URL")
+	if strings.Contains(page, "/f/") {
+		t.Error("an expired URL shown")
+	}
+
+	// used
+	h.Login.Post("/router-scripts/generations/1/fetch-url", url.Values{})
+	routerFetch(t, h, fetchToken(t, h, gid))
+	contains(t, "used", h.Login.Get("/router-scripts/generations/1").Body.String(), "used at 16:03", "Create fetch URL")
+}
+
+// keyless generates "Office" from a script without @fill proxier-ssh-key,
+// registering a new router.
+func keyless(t *testing.T, h *rscriptstest.Harness) int64 {
+	t.Helper()
+	id := h.Script("plain", paramstest.WithEnd(paramstest.Today()))
+	v, err := h.Mod.Generations.Form(ctx, id, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := v.Form
+	f.RouterName, f.Link.Mode = "Office", generations.LinkType
+	gid, err := h.Mod.Generations.Generate(ctx, id, f, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return gid
+}
+
+func TestAfterTheImport(t *testing.T) {
+	h := rscriptstest.New(t)
+	gid := dacha(t, h)
+	after := func() string { return h.Login.Get("/router-scripts/generations/1/after").Body.String() }
+	page := h.Login.Get("/router-scripts/generations/1").Body.String()
+	contains(t, "start", page, "After the import", "The router fetches the file", "no fetch URL yet: create one above, or download the file",
+		"The script lets Proxier's user log in with Proxier's key (proxierKey).",
+		"Proxier connects and runs the first sync", "awaiting setup · Proxier tries Dacha every 10 min until 16 Oct.",
+		`hx-get="/router-scripts/generations/1/after"`, `hx-trigger="every 10s"`)
+	if strings.Contains(page, `hx-swap-oob`) {
+		t.Error("the page swaps out of band")
+	}
+
+	if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Routers().Update(1, func(r *routing.RegisteredRouter) { r.Jump = "dacha-pi:22" })
+	a := after()
+	contains(t, "waiting", a, "waiting", "You get a Telegram message with the router's IP when it happens.", ", through dacha-pi.",
+		`hx-trigger="every 10s"`, `id="fetch-url-state"`, `hx-swap-oob="true"`, "expires at 16:00 · in 60 min")
+	if strings.Contains(a, "<html") || h.Login.Get("/router-scripts/generations/1/after").Header().Get("Cache-Control") != "no-store" {
+		t.Error("the area is a whole page, or stored")
+	}
+
+	routerFetch(t, h, fetchToken(t, h, gid))
+	contains(t, "fetched", after(), "fetched at 15:00 from 198.51.100.4 · Mikrotik/7.24.5 Fetch", "used at 15:00", `hx-trigger="every 10s"`)
+
+	// the deadline passes: nothing waits, the polling stops
+	h.Advance(8 * 24 * time.Hour)
+	a = after()
+	contains(t, "never", a, "never connected · open the router and run Test connection", `href="/routing/routers/1"`)
+	if strings.Contains(a, "hx-trigger") {
+		t.Error("still polling")
+	}
+
+	connected := h.Now.Add(-time.Hour)
+	h.Routers().Update(1, func(r *routing.RegisteredRouter) { r.State, r.ConnectedAt = "active", connected })
+	contains(t, "queued", after(), "connected at 14:00 · first sync queued", `hx-trigger="every 10s"`)
+	h.Routers().Update(1, func(r *routing.RegisteredRouter) { r.LastResult, r.LastError = "failed", "connect: refused" })
+	contains(t, "failed", after(), "connected at 14:00 · first sync failed: connect: refused")
+	h.Routers().Update(1, func(r *routing.RegisteredRouter) {
+		r.LastResult, r.LastError, r.LastSyncAt = "synced", "", connected.Add(time.Minute)
+	})
+	a = after()
+	contains(t, "synced", a, "connected at 14:00 · synced at 14:01")
+	if strings.Contains(a, "hx-trigger") {
+		t.Error("polling when everything is done")
+	}
+	h.Routers().SetState(1, "removed", time.Time{})
+	contains(t, "removed", after(), "removed from Routing")
+
+	// a script without the key parameter: the manual commands; without a router: not needed
+	keyless(t, h)
+	contains(t, "keyless", h.Login.Get("/router-scripts/generations/2/after").Body.String(), "Add Proxier's key to the router",
+		`data-copy="`+rscriptstest.FakeKeyCommands+`"`)
+	v, err := h.Mod.Generations.Form(ctx, 2, 0, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := v.Form
+	f.RouterName, f.Link.Mode, f.Router.Mode = "Nobody", generations.LinkType, generations.RouterNone
+	if _, err := h.Mod.Generations.Generate(ctx, 2, f, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	contains(t, "no router", h.Login.Get("/router-scripts/generations/3/after").Body.String(), "Not needed: the router isn't registered for routing.",
+		"not registered for routing")
+}
+
+func TestFetchHistory(t *testing.T) {
+	h := rscriptstest.New(t)
+	gid := dacha(t, h)
+	contains(t, "none", h.Login.Get("/router-scripts/generations/1").Body.String(), "Fetch history", "No fetch URLs yet.")
+	create := func() {
+		if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, "admin"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	create()                    // 15:00, replaced at 15:10
+	h.Advance(10 * time.Minute) //
+	create()                    // 15:10, expires 16:10 unused
+	h.Advance(70 * time.Minute) // 16:20
+	if _, err := h.Mod.Generations.Expire(ctx, "job:1"); err != nil {
+		t.Fatal(err)
+	}
+	create() // 16:20, used at 16:25
+	h.Advance(5 * time.Minute)
+	routerFetch(t, h, fetchToken(t, h, gid))
+	create() // 16:25, waiting
+	page := h.Login.Get("/router-scripts/generations/1").Body.String()
+	contains(t, "history", page, "created 2026-10-09 15:00 by admin", "expires 2026-10-09 16:00", "replaced by a newer one · 2026-10-09 15:10",
+		"expired unused · 2026-10-09 16:20", "used 2026-10-09 16:25 from 198.51.100.4 · Mikrotik/7.24.5 Fetch", ">waiting<")
+	if strings.Count(page, `class="row gen-hist"`) != 4 {
+		t.Error("not every URL listed")
+	}
+	if strings.Index(page, ">waiting<") > strings.Index(page, "replaced by a newer one") {
+		t.Error("newest first")
+	}
+}

@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -99,6 +100,8 @@ type Deps struct {
 	Links   subscriptions.LinkIssuer // may be nil
 	Routers routing.RouterRegistrar  // may be nil
 	I18n    *i18n.Catalog
+	// BaseURL is Proxier's address, the start of every fetch URL.
+	BaseURL *url.URL
 	Now     func() time.Time
 	Log     *slog.Logger
 }

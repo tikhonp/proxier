@@ -63,7 +63,7 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - Versions of `fresh-router.rsc` with parameter detection ([script versions](./processes/router-scripts/script-versions.md)).
 - Generation with a router link and router registration, download, fetch URL ([script generation](./processes/router-scripts/script-generation.md)).
 
-**Status (2026-10-09):** planned in three sub-phases, 4a–4c (contracts and cross-cutting decisions in [build/](./build/README.md#phase-4-router-scripts)); not built yet. Zero-touch key install is part of it (open question 2, settled), so the exit needs no manual step at all.
+**Status (2026-10-09):** built in three sub-phases, 4a–4c (contracts and **As built** notes in [build/](./build/README.md#phase-4-router-scripts)). Zero-touch key install is part of it (open question 2, settled), so the exit needs no manual step at all. Left for the user: the exit demo below with a spare MikroTik on the real deployment (steps in [4c](./build/4c.md#phase-4-exit-demo)), which also answers open questions "to verify" 5 and 9, and a look at the new pages in a real browser and on the phone.
 
 **Exit:** a factory-reset router fetches its generation with `/tool fetch`, imports it, appears in Routing, and is synced without any manual step except installing Proxier's key.
 

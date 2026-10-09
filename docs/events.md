@@ -136,9 +136,9 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 | `routerscript.archived` | router script | archived (bool) | off | 4a |
 | `routerscript.deleted` | router script | name | off | 4a. Only a script no generation was made from. |
 | `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | 4b |
-| `routerscript.fetch_url_created` | generation | expires, replaced (bool) | off | 4c |
-| `routerscript.fetched` | generation | ip, user_agent | **on** 📥 | 4c. "fresh-router v4 for 'Parents' was fetched from 198.51.100.4" |
-| `routerscript.fetch_url_expired` | generation | expired (the expiry time) | off | 4c. It was never used. |
+| `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | 4c. Actor `admin`. |
+| `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | 4c. Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
+| `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | 4c. It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
 
 ## Platform notification texts
 
