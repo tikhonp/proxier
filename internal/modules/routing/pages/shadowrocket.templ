@@ -1,0 +1,398 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ srCrumbs(id int64, name, last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(srPath) }>{ i18n.T(ctx, "shadowrocket.title") }</a>
+		<span aria-hidden="true">/</span>
+		if id != 0 && last != "" {
+			<a href={ templ.SafeURL(srHref(id)) }>{ name }</a>
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		} else if id != 0 {
+			<span>{ name }</span>
+		} else {
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ srListPage(s ui.Shell, rows []srRow) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "shadowrocket.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "shadowrocket.intro") }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "shadowrocket.new", Label: "shadowrocket.new", Method: "GET", Href: srPath + "/new", Key: "n", Kind: ui.Primary})
+			</div>
+		</div>
+		if len(rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "shadowrocket.empty"), i18n.T(ctx, "shadowrocket.empty.next"))
+		} else {
+			<div class="colhead srcfg" aria-hidden="true">
+				<span>{ i18n.T(ctx, "shadowrocket.col.config") }</span>
+				<span>{ i18n.T(ctx, "shadowrocket.col.list") }</span>
+				<span>{ i18n.T(ctx, "shadowrocket.col.policy") }</span>
+				<span>{ i18n.T(ctx, "shadowrocket.col.url") }</span>
+				<span>{ i18n.T(ctx, "shadowrocket.col.last") }</span>
+			</div>
+			for _, r := range rows {
+				<a href={ templ.SafeURL(srHref(r.ID)) } class="row srcfg pc-row" data-row={ i64(r.ID) } data-href={ srHref(r.ID) } data-hint={ i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold">{ r.Name }</span>
+						<span class="sm subtle">{ r.Sub }</span>
+					</span>
+					<span class="subtle">{ r.List }</span>
+					<span class="subtle">{ r.Policy }</span>
+					<span class="sm muted">{ r.URL }</span>
+					<span class="sm subtle">
+						if r.Disabled {
+							@ui.Status("off", i18n.T(ctx, "shadowrocket.disabled"))
+						}
+						{ r.Last }
+					</span>
+				</a>
+			}
+		}
+	}
+}
+
+// srFormPage is New config (C zero) or Edit base config: the base config is
+// a textarea the editor bundle puts CodeMirror on; the form works without it.
+templ srFormPage(s ui.Shell, v srFormView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				if v.C.ID == 0 {
+					@srCrumbs(0, "", i18n.T(ctx, "shadowrocket.new"))
+				} else {
+					@srCrumbs(v.C.ID, v.C.Name, i18n.T(ctx, "shadowrocket.base.crumb"))
+				}
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		<form
+			method="post"
+			if v.C.ID == 0 {
+				action={ templ.SafeURL(srPath) }
+			} else {
+				action={ templ.SafeURL(srHref(v.C.ID) + "/base") }
+			}
+			enctype="multipart/form-data"
+			class="form sr-form"
+		>
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<input type="hidden" name="config" value={ i64(v.C.ID) }/>
+			if v.C.ID == 0 {
+				<div class="field">
+					<label for="sr-name">{ i18n.T(ctx, "shadowrocket.field.name") }</label>
+					<input id="sr-name" class="pc-inp" name="name" value={ v.Name } maxlength="63" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+					<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.name.help") }</p>
+					if v.Errs["name"] != "" {
+						<p class="err" role="alert">{ v.Errs["name"] }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="sr-list">{ i18n.T(ctx, "shadowrocket.field.list") }</label>
+					<select id="sr-list" class="pc-inp" name="list">
+						for _, l := range v.Lists {
+							<option value={ i64(l.ID) } selected?={ l.ID == v.ListID }>{ l.Name }</option>
+						}
+					</select>
+					if v.Errs["list"] != "" {
+						<p class="err" role="alert">{ v.Errs["list"] }</p>
+					}
+				</div>
+				<div class="field">
+					<label for="sr-policy">{ i18n.T(ctx, "shadowrocket.field.policy") }</label>
+					<input id="sr-policy" class="pc-inp" name="policy" value={ v.Policy } maxlength="64" autocomplete="off" aria-invalid?={ v.Errs["policy"] != "" }/>
+					<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.policy.help") }</p>
+					if v.Errs["policy"] != "" {
+						<p class="err" role="alert">{ v.Errs["policy"] }</p>
+					}
+				</div>
+			}
+			<div class="field">
+				<label for="sr-base">{ i18n.T(ctx, "shadowrocket.field.base") }</label>
+				if v.Errs["base"] != "" {
+					<p class="err" role="alert">{ v.Errs["base"] }</p>
+				}
+				<textarea id="sr-base" class="pc-inp sr-base" name="base" rows="24" spellcheck="false" data-code="shadowrocket" aria-invalid?={ v.Errs["base"] != "" }>{ v.Base }</textarea>
+				<div class="inline-fields">
+					<label for="sr-file" class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.file") }</label>
+					<input id="sr-file" type="file" name="base_file" accept=".conf,.txt,text/plain"/>
+				</div>
+				<div class="inline-fields">
+					<label for="sr-import" class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.import_url") }</label>
+					<input id="sr-import" class="pc-inp" name="import_url" value={ v.ImportURL } placeholder="https://…/base.conf" autocomplete="off" aria-invalid?={ v.Errs["import_url"] != "" }/>
+					<button type="submit" class="pc-btn pc-sm" formaction={ templ.SafeURL(srPath + "/import-base") } formenctype="application/x-www-form-urlencoded" data-action="shadowrocket.import_base">{ i18n.T(ctx, "shadowrocket.import_base") }</button>
+				</div>
+				if v.Errs["import_url"] != "" {
+					<p class="err" role="alert">{ v.Errs["import_url"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="sr-note">{ i18n.T(ctx, "shadowrocket.field.note") }</label>
+				<input id="sr-note" class="pc-inp" name="note" value={ v.Note } maxlength="200" autocomplete="off" aria-invalid?={ v.Errs["note"] != "" }/>
+				if v.Errs["note"] != "" {
+					<p class="err" role="alert">{ v.Errs["note"] }</p>
+				}
+			</div>
+			<div class="form-actions">
+				if v.C.ID == 0 {
+					<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.create">{ i18n.T(ctx, "shadowrocket.create") }</button>
+					<a href={ templ.SafeURL(srPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				} else {
+					<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.save">{ i18n.T(ctx, "shadowrocket.save") }</button>
+					<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				}
+			</div>
+		</form>
+	}
+}
+
+templ srURLField(id int64, full, masked string, revealed bool) {
+	<div class="urlfield" id="sr-url">
+		if revealed {
+			<code>{ full }</code>
+			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url?hide=1" } hx-target="#sr-url" hx-swap="outerHTML">{ i18n.T(ctx, "shadowrocket.url.hide") }</button>
+		} else {
+			<code class="masked">{ masked }</code>
+			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url" } hx-target="#sr-url" hx-swap="outerHTML" data-action="shadowrocket.reveal">{ i18n.T(ctx, "shadowrocket.url.reveal") }</button>
+		}
+		<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "shadowrocket.url.copy") }</button>
+	</div>
+}
+
+templ srQRSlot(id int64, name, url string, shown bool) {
+	<div id="sr-qr">
+		if shown {
+			@ui.QR(url, i18n.T(ctx, "shadowrocket.qr.label", i18n.Args{"name": name}))
+			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/qr?hide=1" } hx-target="#sr-qr" hx-swap="outerHTML">{ i18n.T(ctx, "shadowrocket.qr.hide") }</button>
+		} else {
+			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/qr" } hx-target="#sr-qr" hx-swap="outerHTML" data-action="shadowrocket.qr">{ i18n.T(ctx, "shadowrocket.qr.show") }</button>
+		}
+	</div>
+}
+
+// srPage: the URL first (a phone shows it first), then what the phone gets,
+// versions, fetches, actions and activity.
+templ srPage(s ui.Shell, v srView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@srCrumbs(v.C.ID, v.C.Name, "")
+				<div class="jobtitle">
+					<h1>{ v.C.Name }</h1>
+					if !v.C.Enabled {
+						@ui.Status("off", i18n.T(ctx, "shadowrocket.disabled"))
+					}
+				</div>
+				<p class="subtle">{ v.Line }</p>
+			</div>
+			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "shadowrocket.edit_base", Label: "shadowrocket.edit_base", Method: "GET", Href: srHref(v.C.ID) + "/base", Key: "e", Kind: ui.Primary})
+				<button type="button" class="pc-btn" data-copy={ v.URL } data-action="shadowrocket.copy" data-key="y">{ i18n.T(ctx, "shadowrocket.url.copy") }</button>
+			</div>
+		</div>
+		if v.Band != "" {
+			@ui.Band(v.BandKind) {
+				{ v.Band }
+			}
+		}
+		<div class="subcols">
+			<div class="col-l">
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.url"), "") {
+					<div class="area-body">
+						@srURLField(v.C.ID, v.URL, v.Masked, false)
+						@srQRSlot(v.C.ID, v.C.Name, "", false)
+						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.url.note") }</p>
+					</div>
+				}
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.preview"), i18n.T(ctx, "shadowrocket.area.preview.note")) {
+					<div class="sr-preview">
+						for _, l := range v.Preview {
+							<div class={ "sr-line", templ.KV("sr-ours", l.Ours) }><span class="ln">{ l.N }</span><span class="tx">{ l.Text }</span></div>
+						}
+					</div>
+					<p class="area-body"><a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/output") } download data-action="shadowrocket.download">{ i18n.T(ctx, "shadowrocket.download", i18n.Args{"file": v.C.File()}) }</a></p>
+				}
+			</div>
+			<div class="col-r">
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.versions"), "") {
+					for _, ver := range v.Versions {
+						<div class="row srver">
+							<span class="bold">v{ strconv.Itoa(ver.Number) }</span>
+							<span class="col">
+								<span class="sm subtle">{ ver.Time }</span>
+								if ver.Note != "" {
+									<span class="sm">{ ver.Note }</span>
+								}
+							</span>
+							<span class="sr-acts">
+								if ver.Current {
+									<span class="sm pine">{ i18n.T(ctx, "shadowrocket.version.current") }</span>
+								}
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number)) }>{ i18n.T(ctx, "shadowrocket.version.view") }</a>
+								if ver.Prev {
+									<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number) + "/diff") }>{ i18n.T(ctx, "shadowrocket.version.diff") }</a>
+								}
+								if !ver.Current {
+									@ui.ActionButton(ui.Action{
+										ID: "shadowrocket.restore." + strconv.Itoa(ver.Number), Label: "shadowrocket.version.restore", Method: "POST", Small: true,
+										Href:    srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number) + "/restore",
+										Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "shadowrocket.restore.title", i18n.Args{"version": ver.Number}), Body: i18n.T(ctx, "shadowrocket.restore.body", i18n.Args{"version": ver.Number})},
+									})
+								}
+							</span>
+						</div>
+					}
+				}
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.fetches"), i18n.T(ctx, "shadowrocket.fetches.kept")) {
+					if len(v.Fetches) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "shadowrocket.fetches.none") }</p>
+					}
+					for _, f := range v.Fetches {
+						<div class="row srfetch">
+							<span class="subtle">{ f.Time }</span>
+							<span>{ f.IP }</span>
+							<span class="ua">{ f.UA }</span>
+						</div>
+					}
+					if v.OlderHref != "" {
+						<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "shadowrocket.fetches.older") }</a></p>
+					}
+				}
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.actions"), "") {
+					@actionRow(ui.Action{ID: "shadowrocket.edit", Label: "shadowrocket.edit", Method: "GET", Href: srHref(v.C.ID) + "/edit", Small: true}, i18n.T(ctx, "shadowrocket.edit.what"))
+					@actionRow(ui.Action{
+						ID: "shadowrocket.regenerate", Label: "shadowrocket.regenerate", Method: "POST", Href: srHref(v.C.ID) + "/token", Small: true,
+						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.regenerate.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.regenerate.body")},
+					}, i18n.T(ctx, "shadowrocket.regenerate.what"))
+					if v.C.Enabled {
+						@actionRow(ui.Action{
+							ID: "shadowrocket.disable", Label: "shadowrocket.disable", Method: "POST", Href: srHref(v.C.ID) + "/disable", Small: true,
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.disable.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.disable.body")},
+						}, i18n.T(ctx, "shadowrocket.disable.what"))
+					} else {
+						@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
+					}
+					@actionRow(ui.Action{
+						ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
+						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
+					}, i18n.T(ctx, "shadowrocket.delete.what"))
+				}
+				@ui.Area(i18n.T(ctx, "shadowrocket.area.activity"), "") {
+					if len(v.Activity) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "shadowrocket.activity.none") }</p>
+					}
+					for _, e := range v.Activity {
+						<div class="row evt"><span class="subtle">{ e.Time }</span><span>{ e.Text }</span></div>
+					}
+					<p class="area-body"><a href={ templ.SafeURL("/activity?subject=shadowrocket:" + i64(v.C.ID)) }>{ i18n.T(ctx, "shadowrocket.activity.all") }</a></p>
+				}
+			</div>
+		</div>
+	}
+}
+
+templ actionRow(a ui.Action, what string) {
+	<div class="row act">
+		@ui.ActionButton(a)
+		<span class="sm subtle">{ what }</span>
+	</div>
+}
+
+templ srVersionPage(s ui.Shell, c shadowrocket.Config, ver shadowrocket.Version, title string, lines []ui.CodeLine) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@srCrumbs(c.ID, c.Name, "v"+strconv.Itoa(ver.Number))
+				<h1>{ title }</h1>
+				if ver.Note != "" {
+					<p class="subtle">{ ver.Note }</p>
+				}
+			</div>
+		</div>
+		@ui.Code("base", lines)
+	}
+}
+
+templ srDiffPage(s ui.Shell, c shadowrocket.Config, title string, d ui.DiffView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@srCrumbs(c.ID, c.Name, i18n.T(ctx, "shadowrocket.version.diff"))
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		@ui.Diff(d)
+	}
+}
+
+templ srEditPage(s ui.Shell, v srEditView, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@srCrumbs(v.C.ID, v.C.Name, i18n.T(ctx, "shadowrocket.edit"))
+				<h1>{ title }</h1>
+				<p class="subtle">{ i18n.T(ctx, "shadowrocket.edit.what") }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(srHref(v.C.ID) + "/edit") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="sr-list">{ i18n.T(ctx, "shadowrocket.field.list") }</label>
+				<select id="sr-list" class="pc-inp" name="list">
+					for _, l := range v.Lists {
+						<option value={ i64(l.ID) } selected?={ l.ID == v.ListID }>{ l.Name }</option>
+					}
+				</select>
+				if v.Errs["list"] != "" {
+					<p class="err" role="alert">{ v.Errs["list"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="sr-policy">{ i18n.T(ctx, "shadowrocket.field.policy") }</label>
+				<input id="sr-policy" class="pc-inp" name="policy" value={ v.Policy } maxlength="64" autocomplete="off" aria-invalid?={ v.Errs["policy"] != "" }/>
+				<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.policy.help") }</p>
+				if v.Errs["policy"] != "" {
+					<p class="err" role="alert">{ v.Errs["policy"] }</p>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.save_edit">{ i18n.T(ctx, "shadowrocket.save") }</button>
+				<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ srDeletePage(s ui.Shell, c shadowrocket.Config, title string) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@srCrumbs(c.ID, c.Name, i18n.T(ctx, "shadowrocket.delete"))
+				<h1>{ title }</h1>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(srHref(c.ID) + "/delete") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<p>{ i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": c.Name}) }</p>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" data-action="shadowrocket.delete_confirm">{ i18n.T(ctx, "shadowrocket.delete") }</button>
+				<a href={ templ.SafeURL(srHref(c.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}

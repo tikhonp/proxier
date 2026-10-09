@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 )
 
 func lines(prefix string, n int) string {
@@ -89,5 +90,33 @@ func TestPruneSnapshotsAndGenerations(t *testing.T) {
 	}
 	if w, ok, _ := h.Mod.Refresh.Waiting(ctx, b); !ok || w.Count() != 5 {
 		t.Error("the waiting snapshot was pruned")
+	}
+}
+
+func TestPruneShadowrocketFetchesAndImports(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	id, err := h.Mod.Shadowrocket.Create(ctx, shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: "[Rule]\n"}, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := h.Now.Add(-91 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	recent := h.Now.Add(-89 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	for _, at := range []string{old, recent} {
+		h.Exec(`INSERT INTO routing_shadowrocket_fetches (config_id, at, ip) VALUES (?, ?, '192.0.2.9')`, id, at)
+	}
+	importOld := h.Now.Add(-31 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	importNew := h.Now.Add(-29 * 24 * time.Hour).Format("2006-01-02T15:04:05.000Z")
+	for _, c := range []struct{ state, at string }{{"done", importOld}, {"preview", importOld}, {"running", importOld}, {"done", importNew}} {
+		h.Exec(`INSERT INTO routing_imports (state, created_at) VALUES (?, ?)`, c.state, c.at)
+	}
+	if err := h.Mod.Prune(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	var fetches, imports int
+	_ = h.App.DB.R.Get(&fetches, `SELECT count(*) FROM routing_shadowrocket_fetches`)
+	_ = h.App.DB.R.Get(&imports, `SELECT count(*) FROM routing_imports`)
+	if fetches != 1 || imports != 2 {
+		t.Errorf("%d fetches, %d imports left", fetches, imports)
 	}
 }

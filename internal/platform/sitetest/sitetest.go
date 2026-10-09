@@ -37,6 +37,9 @@ type Options struct {
 	TrustedProxies []netip.Prefix
 	Modules        []module.Module
 	NoAdmin        bool
+	// Log receives the app's log as text (the request log included); nil
+	// discards it.
+	Log io.Writer
 }
 
 // Site is a running app.
@@ -62,7 +65,11 @@ func New(t *testing.T, o Options) *Site {
 		TrustedProxies: o.TrustedProxies,
 		TZ:             tz,
 	}
-	app, err := platform.Open(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), o.Modules...)
+	logTo := o.Log
+	if logTo == nil {
+		logTo = io.Discard
+	}
+	app, err := platform.Open(cfg, slog.New(slog.NewTextHandler(logTo, nil)), o.Modules...)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

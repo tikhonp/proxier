@@ -5,6 +5,7 @@ package routingtest
 
 import (
 	"context"
+	"io"
 	"strings"
 	"sync"
 	"testing"
@@ -39,7 +40,13 @@ type Harness struct {
 // Option changes New.
 type Option func(*options)
 
-type options struct{ noServers bool }
+type options struct {
+	noServers bool
+	log       io.Writer
+}
+
+// LogTo sends the app's log (the request log included) to w.
+func LogTo(w io.Writer) Option { return func(o *options) { o.log = w } }
 
 // NoServers builds the module without servers ports: nothing to guard,
 // discovery direct only.
@@ -63,7 +70,7 @@ func New(t *testing.T, opts ...Option) *Harness {
 	mod.Endpoints = up.Endpoints()
 	marks := &change.Recorder{}
 	mod.Marker = marks
-	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}})
+	site := sitetest.New(t, sitetest.Options{Modules: []module.Module{mod}, Log: o.log})
 	h := &Harness{T: t, Site: site, App: site.App, Mod: mod, Up: up, Servers: srv, Marks: marks,
 		Now: time.Date(2026, 10, 8, 12, 0, 0, 0, time.UTC)}
 	mod.Now = func() time.Time {

@@ -77,6 +77,15 @@ func TestRoutingMigrationsRoundTrip(t *testing.T) {
 	if n := count(t, d, `SELECT count(*) FROM routing_catalog_sources`); n != 4 {
 		t.Fatalf("%d catalog sources", n)
 	}
+	if n := count(t, d, `SELECT count(*) FROM pragma_table_info('routing_imports') WHERE name = 'list_failures'`); n != 1 {
+		t.Fatalf("00002: list_failures %d", n)
+	}
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatalf("down 00002: %v", err)
+	}
+	if n := count(t, d, `SELECT count(*) FROM pragma_table_info('routing_imports') WHERE name = 'list_failures'`); n != 0 {
+		t.Fatalf("list_failures after down: %d", n)
+	}
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 		t.Fatalf("down: %v", err)
 	}

@@ -23,9 +23,19 @@ func (s *Service) Add(ctx context.Context, id int64, serviceIDs []int64, actor s
 	return err
 }
 
-// AddTx is Add in the caller's transaction (Add service with lists, the
-// import). The caller records a refusal after its transaction rolled back.
+// AddTx is Add in the caller's transaction (Add service with lists,
+// discovery). The caller records a refusal after its transaction rolled back.
 func (s *Service) AddTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, actor string) error {
+	return s.addTx(ctx, tx, id, serviceIDs, true, actor)
+}
+
+// AppendTx is AddTx keeping the order of serviceIDs instead of sorting by
+// tag (the import adds in its preview's order).
+func (s *Service) AppendTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, actor string) error {
+	return s.addTx(ctx, tx, id, serviceIDs, false, actor)
+}
+
+func (s *Service) addTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, byTag bool, actor string) error {
 	l, err := getList(ctx, tx, id)
 	if err != nil {
 		return err
@@ -56,7 +66,9 @@ func (s *Service) AddTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs [
 	if len(add) == 0 {
 		return nil
 	}
-	sort.Slice(add, func(i, j int) bool { return add[i].Tag < add[j].Tag })
+	if byTag {
+		sort.Slice(add, func(i, j int) bool { return add[i].Tag < add[j].Tag })
+	}
 	srv, err := s.servers(ctx)
 	if err != nil {
 		return err

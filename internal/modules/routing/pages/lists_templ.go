@@ -288,6 +288,10 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
+			templ_7745c5c3_Err = ui.ActionButton(ui.Action{ID: "mtvpn.open", Label: "mtvpn.open", Method: "GET", Href: importPath}).Render(ctx, templ_7745c5c3_Buffer)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 22, "</div></div><div class=\"colhead rlist\" aria-hidden=\"true\"><span>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
@@ -295,7 +299,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var15 string
 			templ_7745c5c3_Var15, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.col.list"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 51, Col: 40}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 52, Col: 40}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var15))
 			if templ_7745c5c3_Err != nil {
@@ -308,7 +312,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var16 string
 			templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.col.services"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 52, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 53, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 			if templ_7745c5c3_Err != nil {
@@ -321,7 +325,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var17 string
 			templ_7745c5c3_Var17, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.col.domains"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 53, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 54, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var17))
 			if templ_7745c5c3_Err != nil {
@@ -334,7 +338,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var18 string
 			templ_7745c5c3_Var18, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.col.targets"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 54, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 55, Col: 43}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var18))
 			if templ_7745c5c3_Err != nil {
@@ -347,7 +351,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var19 string
 			templ_7745c5c3_Var19, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.col.warnings"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 55, Col: 44}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 56, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var19))
 			if templ_7745c5c3_Err != nil {
@@ -365,7 +369,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var20 templ.SafeURL
 				templ_7745c5c3_Var20, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(r.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 58, Col: 42}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 59, Col: 42}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var20))
 				if templ_7745c5c3_Err != nil {
@@ -378,7 +382,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var21 string
 				templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(i64(r.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 58, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 59, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 				if templ_7745c5c3_Err != nil {
@@ -391,7 +395,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.ResolveAttributeValue(listHref(r.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 58, Col: 119}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 59, Col: 119}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var22)
 				if templ_7745c5c3_Err != nil {
@@ -404,7 +408,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var23 string
 				templ_7745c5c3_Var23, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 58, Col: 191}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 59, Col: 191}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var23)
 				if templ_7745c5c3_Err != nil {
@@ -417,7 +421,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var24 string
 				templ_7745c5c3_Var24, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 61, Col: 32}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 62, Col: 32}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var24))
 				if templ_7745c5c3_Err != nil {
@@ -435,7 +439,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 					var templ_7745c5c3_Var25 string
 					templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.JoinStringErrs(r.Sub)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 63, Col: 37}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 64, Col: 37}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var25))
 					if templ_7745c5c3_Err != nil {
@@ -453,7 +457,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var26 string
 				templ_7745c5c3_Var26, templ_7745c5c3_Err = templ.JoinStringErrs(r.Services)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 66, Col: 37}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 67, Col: 37}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var26))
 				if templ_7745c5c3_Err != nil {
@@ -466,7 +470,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 				var templ_7745c5c3_Var27 string
 				templ_7745c5c3_Var27, templ_7745c5c3_Err = templ.JoinStringErrs(r.Domains)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 67, Col: 36}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 68, Col: 36}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var27))
 				if templ_7745c5c3_Err != nil {
@@ -488,7 +492,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 					var templ_7745c5c3_Var28 string
 					templ_7745c5c3_Var28, templ_7745c5c3_Err = templ.JoinStringErrs(r.Warn)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 70, Col: 39}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 71, Col: 39}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var28))
 					if templ_7745c5c3_Err != nil {
@@ -506,7 +510,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 					var templ_7745c5c3_Var29 string
 					templ_7745c5c3_Var29, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.none"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 72, Col: 55}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 73, Col: 55}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var29))
 					if templ_7745c5c3_Err != nil {
@@ -529,7 +533,7 @@ func listsPage(s ui.Shell, v listsView) templ.Component {
 			var templ_7745c5c3_Var30 string
 			templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(v.Line)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 76, Col: 27}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 77, Col: 27}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 			if templ_7745c5c3_Err != nil {
@@ -604,7 +608,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var33 string
 			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(title)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 89, Col: 15}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 90, Col: 15}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 			if templ_7745c5c3_Err != nil {
@@ -617,7 +621,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var34 templ.SafeURL
 			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listFormAction(v)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 92, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 93, Col: 63}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -630,7 +634,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.CSRF(ctx))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 93, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 94, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 			if templ_7745c5c3_Err != nil {
@@ -643,7 +647,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var36 string
 			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.field.name"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 95, Col: 60}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 96, Col: 60}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
@@ -656,7 +660,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var37 string
 			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue(v.Name)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 96, Col: 67}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 97, Col: 67}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 			if templ_7745c5c3_Err != nil {
@@ -684,7 +688,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(v.Errs["name"])
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 98, Col: 49}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 99, Col: 49}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -702,7 +706,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var39 string
 			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.field.description"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 102, Col: 74}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 103, Col: 74}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var39))
 			if templ_7745c5c3_Err != nil {
@@ -725,7 +729,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 			var templ_7745c5c3_Var40 string
 			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(v.Description)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 103, Col: 157}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 104, Col: 157}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 			if templ_7745c5c3_Err != nil {
@@ -743,7 +747,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var41 string
 				templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(v.Errs["description"])
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 105, Col: 56}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 106, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 				if templ_7745c5c3_Err != nil {
@@ -766,7 +770,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var42 string
 				templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.create"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 110, Col: 105}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 111, Col: 105}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 				if templ_7745c5c3_Err != nil {
@@ -779,7 +783,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var43 templ.SafeURL
 				templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listsPath))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 111, Col: 39}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 112, Col: 39}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
 				if templ_7745c5c3_Err != nil {
@@ -792,7 +796,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var44 string
 				templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 111, Col: 92}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 112, Col: 92}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var44))
 				if templ_7745c5c3_Err != nil {
@@ -810,7 +814,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var45 string
 				templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.save"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 113, Col: 101}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 114, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 				if templ_7745c5c3_Err != nil {
@@ -823,7 +827,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var46 templ.SafeURL
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 114, Col: 46}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 115, Col: 46}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -836,7 +840,7 @@ func listFormPage(s ui.Shell, v listFormView, title string) templ.Component {
 				var templ_7745c5c3_Var47 string
 				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 114, Col: 99}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 115, Col: 99}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
 				if templ_7745c5c3_Err != nil {
@@ -916,7 +920,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var50 string
 			templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.title", i18n.Args{"name": v.L.Name}))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 133, Col: 69}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 134, Col: 69}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 			if templ_7745c5c3_Err != nil {
@@ -929,7 +933,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var51 string
 			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.note"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 134, Col: 53}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 135, Col: 53}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
@@ -955,7 +959,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 					var templ_7745c5c3_Var53 string
 					templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(v.Err)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 139, Col: 11}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 140, Col: 11}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 					if templ_7745c5c3_Err != nil {
@@ -975,7 +979,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var54 templ.SafeURL
 			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID) + "/add"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 142, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 143, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
@@ -988,7 +992,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var55 string
 			templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.ResolveAttributeValue(listHref(v.L.ID) + "/add")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 142, Col: 139}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 143, Col: 139}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var55)
 			if templ_7745c5c3_Err != nil {
@@ -1001,7 +1005,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(v.Q)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 143, Col: 59}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 144, Col: 59}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 			if templ_7745c5c3_Err != nil {
@@ -1014,7 +1018,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var57 string
 			templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "lists.add.filter"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 143, Col: 107}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 144, Col: 107}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var57)
 			if templ_7745c5c3_Err != nil {
@@ -1027,7 +1031,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var58 string
 			templ_7745c5c3_Var58, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "lists.add.filter"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 143, Col: 154}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 144, Col: 154}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var58)
 			if templ_7745c5c3_Err != nil {
@@ -1040,7 +1044,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var59 string
 			templ_7745c5c3_Var59, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.domains.apply"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 144, Col: 85}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 145, Col: 85}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var59))
 			if templ_7745c5c3_Err != nil {
@@ -1053,7 +1057,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var60 templ.SafeURL
 			templ_7745c5c3_Var60, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID) + "/services"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 146, Col: 76}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 147, Col: 76}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var60))
 			if templ_7745c5c3_Err != nil {
@@ -1066,7 +1070,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var61 string
 			templ_7745c5c3_Var61, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.CSRF(ctx))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 147, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 148, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var61)
 			if templ_7745c5c3_Err != nil {
@@ -1084,7 +1088,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var62 string
 				templ_7745c5c3_Var62, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.none"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 150, Col: 54}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 151, Col: 54}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var62))
 				if templ_7745c5c3_Err != nil {
@@ -1103,7 +1107,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var63 string
 				templ_7745c5c3_Var63, templ_7745c5c3_Err = templ.ResolveAttributeValue(i64(r.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 154, Col: 61}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 155, Col: 61}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var63)
 				if templ_7745c5c3_Err != nil {
@@ -1126,7 +1130,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var64 string
 				templ_7745c5c3_Var64, templ_7745c5c3_Err = templ.JoinStringErrs(r.Tag)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 156, Col: 33}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 157, Col: 33}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var64))
 				if templ_7745c5c3_Err != nil {
@@ -1139,7 +1143,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var65 string
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(r.Selector)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 157, Col: 51}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 158, Col: 51}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
@@ -1152,7 +1156,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var66 string
 				templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.JoinStringErrs(r.Source)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 159, Col: 40}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 160, Col: 40}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var66))
 				if templ_7745c5c3_Err != nil {
@@ -1165,7 +1169,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var67 string
 				templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.domains", i18n.Args{"n": r.Domains}))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 160, Col: 91}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 161, Col: 91}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var67))
 				if templ_7745c5c3_Err != nil {
@@ -1183,7 +1187,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var68 string
 			templ_7745c5c3_Var68, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.submit"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 165, Col: 112}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 166, Col: 112}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var68))
 			if templ_7745c5c3_Err != nil {
@@ -1196,7 +1200,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var69 templ.SafeURL
 			templ_7745c5c3_Var69, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 166, Col: 45}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 167, Col: 45}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var69))
 			if templ_7745c5c3_Err != nil {
@@ -1209,7 +1213,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 			var templ_7745c5c3_Var70 string
 			templ_7745c5c3_Var70, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 166, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 167, Col: 98}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var70))
 			if templ_7745c5c3_Err != nil {
@@ -1238,7 +1242,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var72 templ.SafeURL
 				templ_7745c5c3_Var72, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listPath))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 170, Col: 55}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 171, Col: 55}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var72))
 				if templ_7745c5c3_Err != nil {
@@ -1251,7 +1255,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var73 string
 				templ_7745c5c3_Var73, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.CSRF(ctx))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 171, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 172, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var73)
 				if templ_7745c5c3_Err != nil {
@@ -1264,7 +1268,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var74 string
 				templ_7745c5c3_Var74, templ_7745c5c3_Err = templ.ResolveAttributeValue(i64(v.L.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 172, Col: 57}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 173, Col: 57}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var74)
 				if templ_7745c5c3_Err != nil {
@@ -1277,7 +1281,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var75 string
 				templ_7745c5c3_Var75, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.field.selector"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 175, Col: 71}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 176, Col: 71}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var75))
 				if templ_7745c5c3_Err != nil {
@@ -1290,7 +1294,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var76 string
 				templ_7745c5c3_Var76, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.field.selector.help"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 177, Col: 66}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 178, Col: 66}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var76))
 				if templ_7745c5c3_Err != nil {
@@ -1303,7 +1307,7 @@ func addToListPage(s ui.Shell, v addToListView) templ.Component {
 				var templ_7745c5c3_Var77 string
 				templ_7745c5c3_Var77, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.add.new_submit", i18n.Args{"name": v.L.Name}))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 180, Col: 143}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 181, Col: 143}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var77))
 				if templ_7745c5c3_Err != nil {
@@ -1377,7 +1381,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 			var templ_7745c5c3_Var80 string
 			templ_7745c5c3_Var80, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.delete.title", i18n.Args{"name": v.L.Name}))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 192, Col: 72}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 193, Col: 72}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var80))
 			if templ_7745c5c3_Err != nil {
@@ -1403,7 +1407,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var82 string
 					templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinStringErrs(v.Err)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 197, Col: 11}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 198, Col: 11}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 					if templ_7745c5c3_Err != nil {
@@ -1428,7 +1432,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 				var templ_7745c5c3_Var83 string
 				templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.delete.default"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 201, Col: 43}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 202, Col: 43}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 				if templ_7745c5c3_Err != nil {
@@ -1441,7 +1445,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 				var templ_7745c5c3_Var84 templ.SafeURL
 				templ_7745c5c3_Var84, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID)))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 203, Col: 45}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 204, Col: 45}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var84))
 				if templ_7745c5c3_Err != nil {
@@ -1454,7 +1458,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 				var templ_7745c5c3_Var85 string
 				templ_7745c5c3_Var85, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 203, Col: 98}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 204, Col: 98}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var85))
 				if templ_7745c5c3_Err != nil {
@@ -1472,7 +1476,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 				var templ_7745c5c3_Var86 templ.SafeURL
 				templ_7745c5c3_Var86, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID) + "/delete"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 206, Col: 75}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 207, Col: 75}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var86))
 				if templ_7745c5c3_Err != nil {
@@ -1485,7 +1489,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 				var templ_7745c5c3_Var87 string
 				templ_7745c5c3_Var87, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.CSRF(ctx))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 207, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 208, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var87)
 				if templ_7745c5c3_Err != nil {
@@ -1511,7 +1515,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 						var templ_7745c5c3_Var89 string
 						templ_7745c5c3_Var89, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "lists.delete.has_targets", int64(len(v.Targets)), i18n.Args{"name": v.L.Name}))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 210, Col: 99}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 211, Col: 99}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var89))
 						if templ_7745c5c3_Err != nil {
@@ -1539,7 +1543,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 						var templ_7745c5c3_Var90 string
 						templ_7745c5c3_Var90, templ_7745c5c3_Err = templ.JoinStringErrs(t.Word)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 215, Col: 39}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 216, Col: 39}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var90))
 						if templ_7745c5c3_Err != nil {
@@ -1557,7 +1561,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var91 string
 					templ_7745c5c3_Var91, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.delete.move_to_field"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 219, Col: 70}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 220, Col: 70}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var91))
 					if templ_7745c5c3_Err != nil {
@@ -1575,7 +1579,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 						var templ_7745c5c3_Var92 string
 						templ_7745c5c3_Var92, templ_7745c5c3_Err = templ.ResolveAttributeValue(i64(o.ID))
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 222, Col: 33}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 223, Col: 33}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var92)
 						if templ_7745c5c3_Err != nil {
@@ -1598,7 +1602,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 						var templ_7745c5c3_Var93 string
 						templ_7745c5c3_Var93, templ_7745c5c3_Err = templ.JoinStringErrs(o.Name)
 						if templ_7745c5c3_Err != nil {
-							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 222, Col: 75}
+							return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 223, Col: 75}
 						}
 						_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var93))
 						if templ_7745c5c3_Err != nil {
@@ -1616,7 +1620,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var94 string
 					templ_7745c5c3_Var94, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.delete.move_submit", i18n.Args{"name": v.L.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 227, Col: 152}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 228, Col: 152}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var94))
 					if templ_7745c5c3_Err != nil {
@@ -1629,7 +1633,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var95 templ.SafeURL
 					templ_7745c5c3_Var95, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 228, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 229, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var95))
 					if templ_7745c5c3_Err != nil {
@@ -1642,7 +1646,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var96 string
 					templ_7745c5c3_Var96, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 228, Col: 100}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 229, Col: 100}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var96))
 					if templ_7745c5c3_Err != nil {
@@ -1660,7 +1664,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var97 string
 					templ_7745c5c3_Var97, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "lists.delete.body", int64(v.Size), i18n.Args{"name": v.L.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 231, Col: 86}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 232, Col: 86}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var97))
 					if templ_7745c5c3_Err != nil {
@@ -1673,7 +1677,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var98 string
 					templ_7745c5c3_Var98, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.delete.submit", i18n.Args{"name": v.L.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 233, Col: 149}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 234, Col: 149}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var98))
 					if templ_7745c5c3_Err != nil {
@@ -1686,7 +1690,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var99 templ.SafeURL
 					templ_7745c5c3_Var99, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(listHref(v.L.ID)))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 234, Col: 47}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 235, Col: 47}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var99))
 					if templ_7745c5c3_Err != nil {
@@ -1699,7 +1703,7 @@ func deleteListPage(s ui.Shell, v deleteListView) templ.Component {
 					var templ_7745c5c3_Var100 string
 					templ_7745c5c3_Var100, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 234, Col: 100}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 235, Col: 100}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var100))
 					if templ_7745c5c3_Err != nil {
@@ -1773,7 +1777,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var103 string
 			templ_7745c5c3_Var103, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.to_lists.title", i18n.Args{"tag": v.Tag}))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 247, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 248, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var103))
 			if templ_7745c5c3_Err != nil {
@@ -1786,7 +1790,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var104 string
 			templ_7745c5c3_Var104, templ_7745c5c3_Err = templ.JoinStringErrs(v.In)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 248, Col: 28}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 249, Col: 28}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var104))
 			if templ_7745c5c3_Err != nil {
@@ -1812,7 +1816,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 					var templ_7745c5c3_Var106 string
 					templ_7745c5c3_Var106, templ_7745c5c3_Err = templ.JoinStringErrs(v.Err)
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 253, Col: 11}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 254, Col: 11}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var106))
 					if templ_7745c5c3_Err != nil {
@@ -1832,7 +1836,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var107 templ.SafeURL
 			templ_7745c5c3_Var107, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(svcHref(v.ID) + "/lists"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 256, Col: 70}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 257, Col: 70}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var107))
 			if templ_7745c5c3_Err != nil {
@@ -1845,7 +1849,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var108 string
 			templ_7745c5c3_Var108, templ_7745c5c3_Err = templ.ResolveAttributeValue(ui.CSRF(ctx))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 257, Col: 57}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 258, Col: 57}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var108)
 			if templ_7745c5c3_Err != nil {
@@ -1863,7 +1867,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 				var templ_7745c5c3_Var109 string
 				templ_7745c5c3_Var109, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.to_lists.none"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 259, Col: 58}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 260, Col: 58}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var109))
 				if templ_7745c5c3_Err != nil {
@@ -1886,7 +1890,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 				var templ_7745c5c3_Var110 string
 				templ_7745c5c3_Var110, templ_7745c5c3_Err = templ.ResolveAttributeValue(i64(l.ID))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 263, Col: 78}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 264, Col: 78}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var110)
 				if templ_7745c5c3_Err != nil {
@@ -1899,7 +1903,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 				var templ_7745c5c3_Var111 string
 				templ_7745c5c3_Var111, templ_7745c5c3_Err = templ.JoinStringErrs(l.Name)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 263, Col: 90}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 264, Col: 90}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var111))
 				if templ_7745c5c3_Err != nil {
@@ -1927,7 +1931,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var112 string
 			templ_7745c5c3_Var112, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "lists.to_lists.submit"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 267, Col: 154}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 268, Col: 154}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var112))
 			if templ_7745c5c3_Err != nil {
@@ -1940,7 +1944,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var113 templ.SafeURL
 			templ_7745c5c3_Var113, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(svcHref(v.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 268, Col: 42}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 269, Col: 42}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var113))
 			if templ_7745c5c3_Err != nil {
@@ -1953,7 +1957,7 @@ func serviceListsPage(s ui.Shell, v serviceListsView) templ.Component {
 			var templ_7745c5c3_Var114 string
 			templ_7745c5c3_Var114, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 268, Col: 95}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/lists.templ`, Line: 269, Col: 95}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var114))
 			if templ_7745c5c3_Err != nil {

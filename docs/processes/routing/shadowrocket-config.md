@@ -28,9 +28,14 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 3. **Change routing list**, **change rule policy**: from the next fetch on.
 4. **Regenerate token**: the old URL returns `404`, and the new URL is shown.
 5. **Disable**: the URL returns `404` until enabled.
+6. **Delete**: the URL returns `404`; its versions and fetch log are deleted with it. → `routing.shadowrocket_deleted`
 
 ## Rules
 
+- Within one service too, a rule another rule of the config covers is dropped (mtvpn's `shadowrocket_rules`): a suffix name under any suffix name of the config, an exact name equal to or under one. Routers keep those names; Shadowrocket's `DOMAIN-SUFFIX` already matches them.
+- The header's time is the render time, in UTC, to the minute.
+- The base's line endings are kept: a base whose first line ends in CRLF gets CRLF inserted lines.
+- **Preview** can be downloaded as `<name>.conf` (the same bytes; rendering it records nothing). The fetch log keeps 90 days.
 - The output is computed on every fetch from the current base version and the accepted snapshots. A sync never needs to run.
 - Everything outside the inserted block is copied byte for byte from the base config, comments and blank lines included.
 - The inserted block always comes before `FINAL`. Rules after `FINAL` would never match.

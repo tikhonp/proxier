@@ -245,3 +245,50 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 	}
 	return saved, nil
 }
+
+// CreateCustomTx makes a custom service already holding names (the import's
+// "Copy into a custom service"), in the caller's transaction: its rows are
+// the set's names, absorbed under its own suffixes as a save would, and its
+// first snapshot holds them. Errors are store.FieldErrors (nothing written).
+func (s *Service) CreateCustomTx(ctx context.Context, tx *sqlx.Tx, c Custom, set snapshot.Set, actor string) (int64, error) {
+	name, tag, desc := strings.TrimSpace(c.Name), strings.ToLower(strings.TrimSpace(c.Tag)), strings.TrimSpace(c.Description)
+	if !slices.Contains(origins, c.Origin) {
+		return 0, fmt.Errorf("services: unknown origin %q", c.Origin)
+	}
+	in := make([]DomainRow, 0, set.Count())
+	for _, n := range set.Suffix {
+		in = append(in, DomainRow{Domain: n})
+	}
+	for _, n := range set.Exact {
+		in = append(in, DomainRow{Domain: n, Exact: true})
+	}
+	fe := store.FieldErrors{}
+	rows := checkRows(in, fe)
+	rows, _ = merge(rows)
+	tag, err := s.fields(ctx, tx, 0, name, tag, desc, fe)
+	if err != nil {
+		return 0, err
+	}
+	if len(fe) > 0 {
+		return 0, fe
+	}
+	id, err := store.InsertService(ctx, tx, store.Service{
+		Tag: tag, Source: string(selector.Custom), Name: name, Description: desc, Origin: c.Origin, CreatedAt: nowAt(s),
+	})
+	if err != nil {
+		return 0, err
+	}
+	if err := store.ReplaceCustomDomains(ctx, tx, id, storedRows(rows)); err != nil {
+		return 0, err
+	}
+	snap, err := s.newSnapshot(id, "", "", "", rowSet(rows), nil)
+	if err != nil {
+		return 0, err
+	}
+	if _, err := store.InsertSnapshot(ctx, tx, snap); err != nil {
+		return 0, err
+	}
+	return id, s.record(ctx, tx, "routing.service_added", id, actor, map[string]any{
+		"selector": "", "tag": tag, "source": string(selector.Custom), "origin": c.Origin,
+	})
+}

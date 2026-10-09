@@ -11,9 +11,11 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -30,10 +32,13 @@ type Deps struct {
 	Lists    *lists.Service
 	Refresh  *refresh.Service
 	Catalog  *catalog.Service
-	Jobs     *jobs.System
-	Settings *settings.Store
-	DB       *db.DB
-	Now      func() time.Time
+	// Shadowrocket and Import are 3d's.
+	Shadowrocket *shadowrocket.Service
+	Import       *mtvpn.Service
+	Jobs         *jobs.System
+	Settings     *settings.Store
+	DB           *db.DB
+	Now          func() time.Time
 }
 
 type handler struct {
@@ -70,6 +75,8 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.GET("/settings/routing", h.settingsPage)
 	r.Admin.POST("/settings/routing", h.saveSettings)
 	h.registerLists(r)
+	h.registerShadowrocket(r)
+	h.registerImport(r)
 }
 
 const listPath = "/routing/services"

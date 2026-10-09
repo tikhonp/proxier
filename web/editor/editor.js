@@ -434,9 +434,77 @@ class Editor {
   }
 }
 
+// ---- single code fields: textarea[data-code] --------------------------------------
+
+// A small mode for Shadowrocket configs: [Section] headers, comment lines
+// (# and ;), key = value lines and rule lines TYPE,value[,policy].
+const shadowrocketMode = {
+  name: "shadowrocket",
+  startState: () => ({ inRule: false, pos: 0 }),
+  token(stream, state) {
+    if (stream.sol()) {
+      state.pos = 0;
+      stream.eatSpace();
+      if (stream.peek() === "#" || stream.peek() === ";") { stream.skipToEnd(); return "comment"; }
+      if (stream.match(/^\[[^\]]+\]\s*$/)) {
+        state.inRule = /^\[rule\]/i.test(stream.current().trim());
+        return "heading";
+      }
+    }
+    if (stream.eatSpace()) return null;
+    if (state.pos === 0 && stream.match(/^[A-Za-z0-9_-]+(?=\s*=)/)) { state.pos = 1; return "propertyName"; }
+    if (state.pos === 0 && stream.match(/^[A-Z][A-Z0-9-]*(?=,)/)) { state.pos = 2; return "keyword"; }
+    if (stream.eat("=") || stream.eat(",")) { if (state.pos === 0) state.pos = 1; return "punctuation"; }
+    if (stream.match(/^[^,]+/)) {
+      if (state.pos >= 2) { state.pos++; return state.pos === 3 ? "string" : "atom"; }
+      return "string";
+    }
+    stream.next();
+    return null;
+  },
+};
+
+const codeModes = { shadowrocket: () => StreamLanguage.define(shadowrocketMode) };
+
+// initCodeAreas puts CodeMirror on each textarea[data-code], in a shadow root
+// (the CSP, as for the template editor), and copies the text back into the
+// textarea on every change and before submit, so the form posts what is shown.
+function initCodeAreas() {
+  for (const ta of document.querySelectorAll("textarea[data-code]")) {
+    if (ta.dataset.codeOn) continue;
+    ta.dataset.codeOn = "1";
+    const host = document.createElement("div");
+    host.className = "code-host";
+    ta.insertAdjacentElement("afterend", host);
+    const shadow = host.attachShadow({ mode: "open" });
+    const lang = codeModes[ta.dataset.code];
+    const view = new EditorView({
+      parent: shadow, root: shadow,
+      state: EditorState.create({
+        doc: ta.value,
+        extensions: [
+          lineNumbers(), highlightActiveLineGutter(), highlightSpecialChars(), history(), drawSelection(),
+          highlightActiveLine(), highlightSelectionMatches(), search({ top: true }),
+          keymap.of([indentWithTab, ...searchKeymap, ...historyKeymap, ...defaultKeymap]),
+          lang ? lang() : [], theme, highlight,
+          EditorView.updateListener.of((u) => { if (u.docChanged) ta.value = u.state.doc.toString(); }),
+        ],
+      }),
+    });
+    host.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !e.defaultPrevented) view.contentDOM.blur();
+      // ⌘↵ still reaches the page and submits the form
+      if (!((e.metaKey || e.ctrlKey) && e.key === "Enter")) e.stopPropagation();
+    });
+    ta.style.display = "none";
+    if (ta.form) ta.form.addEventListener("submit", () => { ta.value = view.state.doc.toString(); });
+  }
+}
+
 function init() {
   const form = document.querySelector("form[data-ed]");
   if (form && !form.classList.contains("ed-on")) window.proxierEditor = new Editor(form);
+  initCodeAreas();
 }
 
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();

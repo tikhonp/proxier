@@ -114,7 +114,7 @@ Tables `routing_*`, all written by the module's first migration ([3a](./build/3a
 | **Shadowrocket config** | name (also the file name), routing list, rule policy (default `PROXY`), token 🔒 + HMAC, enabled, created, last fetch (time, user agent) | |
 | **Base config version** | config, number, content, note, created | |
 | **Shadowrocket fetch** | config, time, IP, user agent | Retention 90 days. |
-| **Import** | state (preview / running / done / failed), routing list, rows (JSON), ignored keys, fetched base config and its URL, Shadowrocket choice and outcome (JSON), job, times | Never the imported file's text. |
+| **Import** | state (preview / running / done / failed), routing list, rows (JSON), ignored keys, fetched base config and its URL, Shadowrocket choice and outcome (JSON), service lists that failed (JSON, migration 00002), job, times | Never the imported file's text. |
 | **Discovery run** | input, URL visited, host, registrable domain, via (direct / server / auto), server (ID from servers, and its name), depth, state, job, title, suggestions (JSON), visits (JSON), capped, error, created, finished | Retention 30 days; screenshots are files under the data directory. |
 | **Discovered host** | run, hostname, registrable domain, class (first-party / CDN / tracker / third-party / IP literal), requests, failure on the direct visit, the visits that saw it | |
 
@@ -139,7 +139,8 @@ Tables `routing_*`, all written by the module's first migration ([3a](./build/3a
 | Link fetches | `subscriptions.fetch_retention` (default 90 days), pruned by the expiry scan every 15 minutes |
 | Network countries (of fetching networks) | 30 days; an unknown one (lookup off or failed) 1 day, so it is looked up again |
 | Deleted links (tombstones) | the row forever; the token is erased once `subscriptions.tombstone` (default 30 days) has passed |
-| Shadowrocket fetches | 90 days |
+| Shadowrocket fetches | 90 days, by the daily `routing.prune` job |
+| mtvpn imports (preview and result) | 30 days, by the daily `routing.prune` job (a running one is kept) |
 | Superseded snapshots | 90 days after they were fetched (the accepted one forever), by the daily `routing.prune` job |
 | Rejected snapshots | 90 days after they were fetched once settled (dismissed, or older than the accepted snapshot, or no longer the newest rejection); the one waiting for a decision is kept |
 | Catalog generations | only the one in force; the previous one is deleted right after a refresh switches, a cut-short one by the next refresh (and by the prune job while no catalog refresh runs) |

@@ -45,6 +45,7 @@ templ listsPage(s ui.Shell, v listsView) {
 			</div>
 			<div class="actions">
 				@ui.ActionButton(ui.Action{ID: "lists.new", Label: "lists.new", Method: "GET", Href: listsPath + "/new", Key: "n", Kind: ui.Primary})
+				@ui.ActionButton(ui.Action{ID: "mtvpn.open", Label: "mtvpn.open", Method: "GET", Href: importPath})
 			</div>
 		</div>
 		<div class="colhead rlist" aria-hidden="true">

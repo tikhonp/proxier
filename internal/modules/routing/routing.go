@@ -17,9 +17,11 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/migrations"
+	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/pages"
 	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
@@ -53,6 +55,9 @@ type Module struct {
 	Lists    *lists.Service
 	Refresh  *refresh.Service
 	Catalog  *catalog.Service
+	// Shadowrocket hosts the configs (3d); Import is the mtvpn import (3d).
+	Shadowrocket *shadowrocket.Service
+	Import       *mtvpn.Service
 
 	ports Ports
 	deps  module.Deps
@@ -101,12 +106,22 @@ func (m *Module) Init(d module.Deps) error {
 		DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, Services: m.Services, Lists: m.Lists,
 		Fetch: jobFetch, Endpoints: m.Endpoints, Now: now, Log: d.Log,
 	})
+	interactiveFetch := &sources.Fetcher{Timeout: interactiveRequest}
+	m.Shadowrocket = shadowrocket.NewService(shadowrocket.Deps{
+		DB: d.DB, Vault: d.Vault, Events: d.Events, Lists: m.Lists, Fetch: interactiveFetch, BaseURL: d.Cfg.BaseURL, Now: now, Log: d.Log,
+	})
+	m.Import = mtvpn.New(mtvpn.Deps{
+		DB: d.DB, Events: d.Events, Jobs: d.Jobs, Services: m.Services, Lists: m.Lists, Shadowrocket: m.Shadowrocket,
+		Resolver: &sources.Resolver{Endpoints: m.Endpoints, Fetch: jobFetch}, Fetch: interactiveFetch, Now: now, Log: d.Log,
+	})
 	return nil
 }
 
-// JobTypes: the refresh, the daily round, the catalog refresh and the prune job.
+// JobTypes: the refresh, the daily round, the catalog refresh, the import
+// and the prune job.
 func (m *Module) JobTypes() []jobs.Type {
 	out := append(m.Refresh.JobTypes(), m.Catalog.JobTypes()...)
+	out = append(out, m.Import.JobTypes()...)
 	return append(out, m.pruneType())
 }
 
@@ -136,20 +151,23 @@ func (*Module) Messages() i18n.Messages { return messages }
 func (m *Module) Routes(r web.Routes) {
 	pages.Register(r, pages.Deps{
 		Services: m.Services, Lists: m.Lists, Refresh: m.Refresh, Catalog: m.Catalog, Jobs: m.deps.Jobs, Settings: m.deps.Settings,
-		DB: m.deps.DB, Now: func() time.Time { return m.Now() },
+		Shadowrocket: m.Shadowrocket, Import: m.Import, DB: m.deps.DB, Now: func() time.Time { return m.Now() },
 	})
+	m.Shadowrocket.Register(r.Public)
 }
 
-// Nav adds Lists, Services and Search; Discover, Routers and Shadowrocket come later.
+// Nav adds Lists, Services, Search and Shadowrocket; Discover and Routers come later.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "routing", Label: "lists.nav", Href: "/routing/lists", Order: 10},
 		{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20},
 		{Group: "routing", Label: "catalog.nav", Href: "/routing/search", Order: 30},
+		{Group: "routing", Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60},
 	}
 }
 
-// Search finds routing lists by name, and services by tag, selector or name.
+// Search finds routing lists by name, services by tag, selector or name, and
+// Shadowrocket configs by name.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	var out []ui.SearchHit
@@ -184,6 +202,22 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			Meta: i18n.N(ctx, "services.search", int64(r.Count), i18n.Args{"source": string(r.Source)}),
 		})
 		if len(out) == limit {
+			return out, nil
+		}
+	}
+	configs, err := m.Shadowrocket.List(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range configs {
+		if q != "" && !strings.Contains(c.Name, q) {
+			continue
+		}
+		out = append(out, ui.SearchHit{
+			Label: c.Name, Href: "/routing/shadowrocket/" + strconv.FormatInt(c.ID, 10),
+			Meta: i18n.T(ctx, "shadowrocket.search", i18n.Args{"list": c.List}),
+		})
+		if len(out) == limit {
 			break
 		}
 	}
@@ -192,7 +226,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 
 // SubjectTypes are the subject types of the module's events.
 func (*Module) SubjectTypes() []string {
-	return []string{"service", "routing_list", "routing"}
+	return []string{"service", "routing_list", "routing", "shadowrocket"}
 }
 
 // NameSubjects names subjects for Activity, Jobs and notifications.
@@ -216,6 +250,10 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 		case "service":
 			if s, err := m.Services.Get(ctx, n); err == nil {
 				out[id] = ui.SubjectRef{Label: s.Tag, Href: "/routing/services/" + id}
+			}
+		case "shadowrocket":
+			if c, err := store.GetShadowrocket(ctx, m.deps.DB.R, n); err == nil {
+				out[id] = ui.SubjectRef{Label: c.Name, Href: "/routing/shadowrocket/" + id}
 			}
 		case "routing_list":
 			if name, err := store.ListName(ctx, m.deps.DB.R, n); err == nil {

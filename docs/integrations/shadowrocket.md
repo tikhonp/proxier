@@ -9,6 +9,8 @@ The hosted Shadowrocket config is mtvpn's `shadowrocket` command, served at a UR
    - before the first `FINAL,` line in the section, if there is one, because Shadowrocket stops at the first matching rule and anything after `FINAL` is dead;
    - otherwise at the end of the section, followed by `FINAL,DIRECT`, and a blank line if a section header comes right after;
    - in both cases above any trailing blank lines of the section.
+
+   As built (3d): lines are split keeping their terminators and copied byte for byte. `[Rule]` is the first line whose trimmed text is `[rule]` in any case; the section ends at the next line that is `[…]` when trimmed. `FINAL,` is matched in any case. The inserted lines use the base's line ending (CRLF when its first line ends so). Without `FINAL`, the block is followed by `FINAL,DIRECT` and, when a section header comes right after, an empty line. A base whose last line has no terminator gets one only where the block is appended after it.
 3. The block:
 
    ```

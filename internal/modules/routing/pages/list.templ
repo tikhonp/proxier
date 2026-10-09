@@ -37,8 +37,19 @@ templ rlistPage(s ui.Shell, v listPageView) {
 					}
 					for _, t := range v.Targets {
 						<div class="row">
-							@ui.Status(t.Kind, t.Name)
-							<span class="sm subtle">{ t.Word }</span>
+							if t.Href != "" {
+								<a href={ templ.SafeURL(t.Href) }>
+									@ui.Status(t.Kind, t.Name)
+								</a>
+							} else {
+								@ui.Status(t.Kind, t.Name)
+							}
+							<span class="sm subtle">
+								{ t.Word }
+								if t.Note != "" {
+									· { t.Note }
+								}
+							</span>
 						</div>
 					}
 				}

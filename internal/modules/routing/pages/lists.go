@@ -54,7 +54,7 @@ func (h *handler) loadList(c *echo.Context) (lists.List, error) {
 
 // targetView is a target with its status marker.
 type targetView struct {
-	Name, Kind, State, Word string
+	Name, Kind, State, Word, Href, Note string
 }
 
 func targetsOf(ctx context.Context, ts []lists.Target) []targetView {
@@ -64,7 +64,21 @@ func targetsOf(ctx context.Context, ts []lists.Target) []targetView {
 		if t.State != "active" && t.State != "enabled" {
 			kind = "off"
 		}
-		out = append(out, targetView{Name: t.Name, Kind: kind, State: t.State, Word: i18n.T(ctx, "lists.target."+t.Kind) + " · " + t.State})
+		tv := targetView{Name: t.Name, Kind: kind, State: t.State, Word: i18n.T(ctx, "lists.target."+t.Kind) + " · " + t.State}
+		if t.Kind == "shadowrocket" {
+			tv.Href = srHref(t.ID)
+			switch {
+			case t.State == "disabled":
+				tv.Word = i18n.T(ctx, "lists.target.shadowrocket") + " · " + i18n.T(ctx, "shadowrocket.disabled")
+			case t.LastFetch.IsZero():
+				tv.Word = i18n.T(ctx, "lists.target.shadowrocket") + " · " + i18n.T(ctx, "shadowrocket.never_fetched")
+				tv.Note = i18n.T(ctx, "shadowrocket.target.note")
+			default:
+				tv.Word = i18n.T(ctx, "lists.target.shadowrocket") + " · " + i18n.T(ctx, "shadowrocket.fetched", i18n.Args{"ago": i18n.From(ctx).Ago(t.LastFetch)})
+				tv.Note = i18n.T(ctx, "shadowrocket.target.note")
+			}
+		}
+		out = append(out, tv)
 	}
 	return out
 }

@@ -78,14 +78,6 @@ type Row struct {
 	Warnings int
 }
 
-// Target is a router or a Shadowrocket config following a list.
-type Target struct {
-	Kind  string // router, shadowrocket
-	ID    int64
-	Name  string
-	State string // the target's status word from its row; 3d and 3e word it
-}
-
 // Membership is a list holding a service, and where.
 type Membership struct {
 	List     List
@@ -306,19 +298,6 @@ func (s *Service) Memberships(ctx context.Context, serviceID int64) ([]Membershi
 	out := make([]Membership, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, Membership{List: List{ID: r.ListID, Name: r.Name, Default: r.IsDefault}, Position: r.Position})
-	}
-	return out, nil
-}
-
-// Targets reads the routers and Shadowrocket configs following a list.
-func (s *Service) Targets(ctx context.Context, id int64) ([]Target, error) {
-	rows, err := store.ListTargets(ctx, s.d.DB.R, id)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]Target, 0, len(rows))
-	for _, r := range rows {
-		out = append(out, Target(r))
 	}
 	return out, nil
 }

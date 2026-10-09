@@ -1,0 +1,235 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ importHead(step int) {
+	<div class="titleblock">
+		<div class="head">
+			@listCrumbs(0, "", i18n.T(ctx, "mtvpn.title"))
+			<h1>{ i18n.T(ctx, "mtvpn.title") }</h1>
+			<p class="subtle">{ i18n.T(ctx, "mtvpn.intro") }</p>
+		</div>
+	</div>
+	<ol class="stepstrip" aria-label={ i18n.T(ctx, "mtvpn.steps") }>
+		for i, k := range []string{"mtvpn.step.paste", "mtvpn.step.preview", "mtvpn.step.result"} {
+			<li
+				class={ templ.KV("on", i+1 == step), templ.KV("done", i+1 < step) }
+				if i+1 == step {
+					aria-current="step"
+				}
+			>{ strconv.Itoa(i+1) } · { i18n.T(ctx, k) }</li>
+		}
+	</ol>
+}
+
+templ importPastePage(s ui.Shell, v importPasteView) {
+	@ui.Layout(s) {
+		@importHead(1)
+		<form method="post" action={ templ.SafeURL(importPath) } enctype="multipart/form-data" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="imp-text">{ i18n.T(ctx, "mtvpn.field.text") }</label>
+				if v.Err != "" {
+					<p class="err" role="alert">{ v.Err }</p>
+				}
+				<textarea id="imp-text" class="pc-inp" name="text" rows="16" spellcheck="false" autofocus aria-invalid?={ v.Err != "" }>{ v.Text }</textarea>
+				<p class="sm subtle">{ i18n.T(ctx, "mtvpn.field.text.help") }</p>
+			</div>
+			<div class="field">
+				<label for="imp-file">{ i18n.T(ctx, "mtvpn.field.file") }</label>
+				<input id="imp-file" type="file" name="file" accept=".yaml,.yml,text/plain"/>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="mtvpn.preview">{ i18n.T(ctx, "mtvpn.preview") }</button>
+				<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ importStepPage(s ui.Shell, v importView) {
+	@ui.Layout(s) {
+		switch v.Im.State {
+			case "preview":
+				@importHead(2)
+				@importPreviewForm(v)
+			case "running":
+				@importHead(3)
+				@importProgress(v)
+			default:
+				@importHead(3)
+				@importResult(v)
+		}
+	}
+}
+
+templ importPreviewForm(v importView) {
+	<p class="bold">{ v.Counts }</p>
+	if v.Ignored != "" {
+		<p class="sm subtle">{ v.Ignored }</p>
+	}
+	for _, f := range v.Failures {
+		@ui.Alert("gold", "status") {
+			{ i18n.T(ctx, "mtvpn.list_failed", i18n.Args{"url": f.URL, "error": f.Error}) }
+		}
+	}
+	<form method="post" action={ templ.SafeURL(importHref(v.Im.ID)) } class="form wide">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<div class="colhead improw" aria-hidden="true">
+			<span></span>
+			<span>{ i18n.T(ctx, "mtvpn.col.selector") }</span>
+			<span>{ i18n.T(ctx, "mtvpn.col.from") }</span>
+			<span>{ i18n.T(ctx, "mtvpn.col.status") }</span>
+			<span>{ i18n.T(ctx, "mtvpn.col.choice") }</span>
+		</div>
+		for _, r := range v.Rows {
+			<div class="row improw">
+				<span>
+					if r.Row.Status != "invalid" {
+						<input type="checkbox" name="include" value={ strconv.Itoa(r.I) } checked?={ r.Row.Include } aria-label={ r.Row.Selector }/>
+					}
+				</span>
+				<span class="col">
+					<span>{ r.Row.Selector }</span>
+					if r.Row.Tag != "" {
+						<span class="sm subtle">{ i18n.T(ctx, "mtvpn.tag", i18n.Args{"tag": r.Row.Tag}) }</span>
+					}
+				</span>
+				<span class="sm subtle">{ r.Row.From }</span>
+				<span class="col">
+					@ui.Status(r.StatusKind, r.Status)
+					if r.Row.Status == "exists" && r.Row.ExistingAs != "" && r.Row.ExistingAs != r.Row.Selector {
+						<span class="sm subtle">{ i18n.T(ctx, "mtvpn.existing_as", i18n.Args{"selector": r.Row.ExistingAs}) }</span>
+					}
+					if r.Problem != "" {
+						<span class="sm love">{ r.Problem }</span>
+					}
+				</span>
+				<span>
+					if r.Row.URL && r.Row.Status == "new" {
+						<select class="pc-inp pc-sm" name={ "convert." + strconv.Itoa(r.I) } aria-label={ i18n.T(ctx, "mtvpn.col.choice") }>
+							<option value="0" selected?={ !r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.keep") }</option>
+							<option value="1" selected?={ r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.convert") }</option>
+						</select>
+					} else {
+						<span class="sm muted">—</span>
+					}
+				</span>
+			</div>
+		}
+		<div class="field">
+			<label for="imp-list">{ i18n.T(ctx, "mtvpn.field.list") }</label>
+			<select id="imp-list" class="pc-inp" name="list">
+				for _, l := range v.Lists {
+					<option value={ i64(l.ID) } selected?={ l.ID == v.Im.ListID }>{ l.Name }</option>
+				}
+			</select>
+			if v.Errs["list"] != "" {
+				<p class="err" role="alert">{ v.Errs["list"] }</p>
+			}
+		</div>
+		if v.Base != "" {
+			<div class="area-body sr-offer">
+				<p>{ v.Base }</p>
+				if v.Im.Shadowrocket.Offered {
+					<label class="check">
+						<input type="checkbox" name="config_create" value="1" checked?={ v.Im.Shadowrocket.Create }/>
+						{ i18n.T(ctx, "mtvpn.config.create") }
+					</label>
+					<div class="inline-fields">
+						<label for="imp-cfg-name" class="sm subtle">{ i18n.T(ctx, "mtvpn.config.named") }</label>
+						<input id="imp-cfg-name" class="pc-inp" name="config_name" value={ v.Im.Shadowrocket.Name } maxlength="63" autocomplete="off" aria-invalid?={ v.Errs["config_name"] != "" }/>
+						<label for="imp-cfg-list" class="sm subtle">{ i18n.T(ctx, "mtvpn.config.following") }</label>
+						<select id="imp-cfg-list" class="pc-inp" name="config_list">
+							for _, l := range v.Lists {
+								<option value={ i64(l.ID) } selected?={ l.ID == v.Im.Shadowrocket.ListID }>{ l.Name }</option>
+							}
+						</select>
+					</div>
+					if v.Errs["config_name"] != "" {
+						<p class="err" role="alert">{ v.Errs["config_name"] }</p>
+					}
+				}
+			</div>
+		}
+		<div class="form-actions">
+			<button type="submit" class="pc-btn pc-pri" data-action="mtvpn.import">{ v.Button }</button>
+			<a href={ templ.SafeURL(importPath) } class="pc-btn">{ i18n.T(ctx, "mtvpn.back") }</a>
+			<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+		</div>
+		<p class="sm subtle">{ i18n.T(ctx, "mtvpn.resync", i18n.Args{"name": v.ListName}) }</p>
+	</form>
+}
+
+templ importProgress(v importView) {
+	<div id="import-progress" hx-get={ importHref(v.Im.ID) + "/status" } hx-trigger="every 2s" hx-swap="outerHTML">
+		@ui.Area(i18n.T(ctx, "mtvpn.importing"), "") {
+			<div class="area-body">
+				@ui.JobSteps(v.Steps)
+				if v.Im.JobID != 0 {
+					<p class="sm"><a href={ templ.SafeURL("/jobs/" + i64(v.Im.JobID)) }>{ i18n.T(ctx, "mtvpn.job") }</a></p>
+				}
+			</div>
+		}
+	</div>
+}
+
+templ importResult(v importView) {
+	if v.Im.State == "failed" {
+		@ui.Band("love") {
+			{ i18n.T(ctx, "mtvpn.failed") }
+			if v.Im.JobID != 0 {
+				<a href={ templ.SafeURL("/jobs/" + i64(v.Im.JobID)) }>{ i18n.T(ctx, "mtvpn.job") }</a>
+			}
+		}
+	}
+	<p class="bold">{ v.Totals }</p>
+	@ui.Area(i18n.T(ctx, "mtvpn.area.services"), v.ListName) {
+		for _, r := range v.Rows {
+			if r.Outcome != "" {
+				<div class="row impres">
+					<span class="col">
+						if r.Row.ServiceID != 0 {
+							<a href={ templ.SafeURL(svcHref(r.Row.ServiceID)) }>{ r.Row.Tag }</a>
+						} else {
+							<span>{ r.Row.Tag }</span>
+						}
+						<span class="sm subtle">{ r.Row.Selector }</span>
+					</span>
+					<span class="col">
+						@ui.Status(r.OutcomeKind, r.Outcome)
+						if r.OutcomeErr != "" {
+							<span class="sm subtle">{ r.OutcomeErr }</span>
+						}
+					</span>
+				</div>
+			}
+		}
+	}
+	if v.Config != "" {
+		@ui.Area(i18n.T(ctx, "mtvpn.area.config"), "") {
+			<p class="area-body">
+				{ v.Config }
+				if v.Im.Shadowrocket.ID != 0 {
+					<a href={ templ.SafeURL(srHref(v.Im.Shadowrocket.ID)) }>{ i18n.T(ctx, "mtvpn.config.open", i18n.Args{"name": v.Im.Shadowrocket.Name}) }</a>
+				}
+			</p>
+		}
+	}
+	@ui.Area(i18n.T(ctx, "mtvpn.area.next"), "") {
+		<ul class="area-body">
+			if v.Im.Shadowrocket.ID != 0 {
+				<li>{ i18n.T(ctx, "mtvpn.next.shadowrocket") } <a href={ templ.SafeURL(srHref(v.Im.Shadowrocket.ID)) }>{ i18n.T(ctx, "mtvpn.config.open", i18n.Args{"name": v.Im.Shadowrocket.Name}) }</a></li>
+			}
+			<li>{ i18n.T(ctx, "mtvpn.next.routers") }</li>
+			if v.Im.ListID != 0 {
+				<li><a href={ templ.SafeURL(listHref(v.Im.ListID)) }>{ i18n.T(ctx, "mtvpn.next.list", i18n.Args{"name": v.ListName}) }</a></li>
+			}
+		</ul>
+	}
+}

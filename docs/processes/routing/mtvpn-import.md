@@ -21,6 +21,12 @@ A one-time move of the current mtvpn setup into Proxier: the services and hosted
 ## Rules
 
 - The import never contacts a router.
+- The preview is stored (30 days) without the file's text: only the rows, the ignored keys' names, the fetched base and the failing lists. Parse errors name the line number only.
+- Every row goes into the one routing list chosen at the top (default "Main").
+- A service list must be an `http`/`https` URL; a path on the admin's computer is reported as a failing list ("paste its lines into services: instead").
+- A row whose tag already exists reuses that service as it is, even when its selector differs.
+- A row whose service would cover a server's hostname is skipped with the guard's message (the refusal is recorded); the others are added.
+- The offered config is named `iphone` (`iphone-2`, … when taken) and is unticked when a config already serves the same base.
 - Selectors are deduplicated by tag, and the first spelling wins (mtvpn's rule).
 - Credentials in the file are never stored, not even temporarily in a job payload.
 - Running the import again is harmless: existing services are reused, and a service already in the list isn't added twice.

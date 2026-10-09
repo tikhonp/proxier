@@ -95,10 +95,11 @@ func ListName(ctx context.Context, q sqlx.QueryerContext, id int64) (string, err
 
 // ListTarget is a router or a Shadowrocket config that follows a list.
 type ListTarget struct {
-	Kind  string `db:"kind"` // router, shadowrocket
-	ID    int64  `db:"id"`
-	Name  string `db:"name"`
-	State string `db:"state"`
+	Kind      string  `db:"kind"` // router, shadowrocket
+	ID        int64   `db:"id"`
+	Name      string  `db:"name"`
+	State     string  `db:"state"`
+	LastFetch db.Time `db:"last_fetch"` // Shadowrocket: the last fetch; zero for none and for routers
 }
 
 // ListTargets reads the routers and Shadowrocket configs following a list:
@@ -106,9 +107,9 @@ type ListTarget struct {
 func ListTargets(ctx context.Context, q sqlx.QueryerContext, listID int64) ([]ListTarget, error) {
 	var out []ListTarget
 	err := sqlx.SelectContext(ctx, q, &out, `
-		SELECT 'router' AS kind, id, name, state FROM routing_routers WHERE list_id = ?
+		SELECT 'router' AS kind, id, name, state, NULL AS last_fetch FROM routing_routers WHERE list_id = ?
 		UNION ALL
-		SELECT 'shadowrocket', id, name, CASE enabled WHEN 1 THEN 'enabled' ELSE 'disabled' END FROM routing_shadowrocket WHERE list_id = ?
+		SELECT 'shadowrocket', id, name, CASE enabled WHEN 1 THEN 'enabled' ELSE 'disabled' END, last_fetch_at FROM routing_shadowrocket WHERE list_id = ?
 		ORDER BY 1, 3`, listID, listID)
 	return out, err
 }
