@@ -1,6 +1,6 @@
 module github.com/tikhonp/proxier
 
-go 1.27.1
+go 1.27.2
 
 require (
 	github.com/a-h/templ v0.3.1020
@@ -21,7 +21,7 @@ require (
 	github.com/xtls/xray-core v1.260327.0
 	go.yaml.in/yaml/v3 v3.0.5
 	golang.org/x/crypto v0.57.0
-	golang.org/x/net v0.59.0
+	golang.org/x/net v0.60.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
 	modernc.org/sqlite v1.60.1
