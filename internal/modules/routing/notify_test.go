@@ -78,10 +78,6 @@ func TestRefreshNotificationTexts(t *testing.T) {
 	if body != "HTTP 502. Search shows its catalog of 8 Oct." {
 		t.Errorf("catalog body: %q", body)
 	}
-	// 3f's router texts stay the platform's defaults
-	if _, ok, _ := h.Mod.RenderNotification(ctx, events.Event{Type: "routing.drift_detected"}, en); ok {
-		t.Error("the module rendered a drift notification")
-	}
 }
 
 func TestRouterNotificationTexts(t *testing.T) {
@@ -108,6 +104,42 @@ func TestRouterNotificationTexts(t *testing.T) {
 		{events.Event{Type: "routing.router_recovered", Subject: subj, Payload: map[string]any{"failures": 1.0, "notified": true}},
 			"Home is in sync again", "After 1 failed attempt.",
 			"Home снова синхронизирован", "После 1 неудачной попытки."},
+	} {
+		for _, l := range []struct {
+			loc  *i18n.Localizer
+			t, b string
+		}{{en, c.enT, c.enB}, {ru, c.ruT, c.ruB}} {
+			m, ok, err := h.Mod.RenderNotification(ctx, c.e, l.loc)
+			if err != nil || !ok || m.Title != l.t || m.Body != l.b {
+				t.Errorf("%s (%s): %q / %q, %v %v", c.e.Type, l.loc.Lang, m.Title, m.Body, ok, err)
+			}
+		}
+	}
+}
+
+func TestDriftAndUnmanagedTexts(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	_, id := h.Router("Home", 0)
+	subj := events.Subject{Type: "router", ID: strconv.FormatInt(id, 10)}
+	en := h.App.I18n.Localizer(i18n.EN, time.UTC)
+	ru := h.App.I18n.Localizer(i18n.RU, time.UTC)
+	drift := events.Event{Type: "routing.drift_detected", Subject: subj, Payload: map[string]any{"tags": "youtube", "repair": false}}
+	drift2 := events.Event{Type: "routing.drift_detected", Subject: subj, Payload: map[string]any{"tags": "youtube, netflix", "repair": false}}
+	one := events.Event{Type: "routing.unmanaged_tags_found", Subject: subj, Payload: map[string]any{"tags": "netflix"}}
+	two := events.Event{Type: "routing.unmanaged_tags_found", Subject: subj, Payload: map[string]any{"tags": "netflix, old-work"}}
+	for _, c := range []struct {
+		e                  events.Event
+		enT, enB, ruT, ruB string
+	}{
+		{drift, "Home drifted from what Proxier installed", "Tag: youtube. Auto-repair is off: open the router to repair.",
+			"Home разошёлся с тем, что поставил Proxier", "Тег: youtube. Автоисправление выключено: откройте роутер, чтобы исправить."},
+		{drift2, "Home drifted from what Proxier installed", "Tags: youtube, netflix. Auto-repair is off: open the router to repair.",
+			"Home разошёлся с тем, что поставил Proxier", "Теги: youtube, netflix. Автоисправление выключено: откройте роутер, чтобы исправить."},
+		{one, "Home has a tag Proxier didn't install", "netflix. It stays; adopt, remove or ignore it on the router page.",
+			"На Home тег, который ставил не Proxier", "netflix. Он остаётся; примите, удалите или игнорируйте его на странице роутера."},
+		{two, "Home has tags Proxier didn't install", "netflix, old-work. They stay; adopt, remove or ignore them on the router page.",
+			"На Home теги, которые ставил не Proxier", "netflix, old-work. Они остаются; примите, удалите или игнорируйте их на странице роутера."},
 	} {
 		for _, l := range []struct {
 			loc  *i18n.Localizer

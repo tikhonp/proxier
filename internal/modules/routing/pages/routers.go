@@ -41,6 +41,7 @@ func (h *handler) registerRouters(r web.Routes) {
 	r.Admin.POST(routersPath+"/:id/edit", h.routerEdit)
 	r.Admin.GET(routersPath+"/:id/list", h.routerListPage)
 	r.Admin.POST(routersPath+"/:id/list", h.routerSetList)
+	h.registerRouterLife(r)
 }
 
 func (h *handler) loadRouter(c *echo.Context) (routers.Router, error) {
@@ -114,6 +115,8 @@ type routerRow struct {
 	ID                      int64
 	Name, Addr, State, List string
 	Kind, Word, Detail      string
+	Watch                   string
+	Failing, Watched        bool
 }
 
 func (h *handler) routersList(c *echo.Context) error {
@@ -125,9 +128,20 @@ func (h *handler) routersList(c *echo.Context) error {
 	}
 	rows := make([]routerRow, 0, len(rs))
 	for _, r := range rs {
-		row := routerRow{ID: r.ID, Name: r.Name, List: r.List, State: i18n.T(ctx, "routers.state."+r.State), Addr: addrLine(ctx, r)}
+		row := routerRow{ID: r.ID, Name: r.Name, List: r.List, State: i18n.T(ctx, "routers.state."+r.State), Addr: addrLine(ctx, r),
+			Failing: r.State == routers.StateActive && r.LastResult == "failed"}
 		if row.Kind, row.Word, err = h.routerWord(ctx, r); err != nil {
 			return err
+		}
+		if row.Watch, row.Watched, err = watchOf(ctx, h, r); err != nil {
+			return err
+		}
+		if r.Awaiting() {
+			key := "routers.awaiting.never"
+			if r.AwaitingUntil.After(h.Now()) {
+				key = "routers.awaiting.trying"
+			}
+			row.Kind, row.Word = "look", i18n.T(ctx, key, i18n.Args{"date": loc.ShortDate(r.AwaitingUntil)})
 		}
 		var parts []string
 		if !r.LastSyncAt.IsZero() {
@@ -153,7 +167,12 @@ func (h *handler) routersList(c *echo.Context) error {
 		row.Detail = strings.Join(parts, " · ")
 		rows = append(rows, row)
 	}
-	return web.Render(c, http.StatusOK, routersPage(h.shell(c, i18n.T(ctx, "routers.title"), routersPath), rows))
+	sortRouters(rows)
+	notice := ""
+	if name := c.QueryParam("removed"); name != "" {
+		notice = i18n.T(ctx, "routers.band.removed", i18n.Args{"name": name})
+	}
+	return web.Render(c, http.StatusOK, routersPage(h.shell(c, i18n.T(ctx, "routers.title"), routersPath), rows, notice))
 }
 
 // lastPushed is "1 tag updated" for the newest sync that did something.
@@ -489,16 +508,27 @@ type routerView struct {
 	History   []historyRow
 	OlderHref string
 	Activity  []eventLine
+	// 3f
+	Awaiting  *awaitingBand
+	Paused    bool
+	Removing  *removingBand
+	Drift     *driftBand
+	Unmanaged []unmanagedRow
+	Ignored   []unmanagedRow
+	Untagged  string
+	InfraPins string
 }
 
 type failBand struct {
 	Problem, Count, Retry string
+	Hops                  []hopRow
 }
 
 type connView struct {
 	Router, Jump, FirstHop string
 	RouterFP, JumpFP       string
 	List, Forwarder        string
+	Drift                  string // the drift check's interval and repair
 }
 
 const historyPage = 20
@@ -539,7 +569,7 @@ func (h *handler) routerPage(c *echo.Context) error {
 		parts = append(parts, r.Board)
 	}
 	v.Line = strings.Join(parts, " · ")
-	if r.LastResult == "failed" {
+	if r.LastResult == "failed" && r.State != routers.StateAwaiting {
 		b := &failBand{Problem: r.LastError, Count: loc.N("routers.band.in_a_row", int64(r.Failures))}
 		if busy.Retry {
 			b.Retry = i18n.T(ctx, "routers.band.retry", i18n.Args{"time": loc.Clock(busy.StartAt)})
@@ -556,6 +586,10 @@ func (h *handler) routerPage(c *echo.Context) error {
 		v.Notice = i18n.T(ctx, "routers.band.sync_queued")
 	case c.QueryParam("saved") == "1":
 		v.Notice = i18n.T(ctx, "routers.band.saved")
+	case c.QueryParam("repairing") == "1":
+		v.Notice = i18n.T(ctx, "routers.band.repairing")
+	case c.QueryParam("adopted") != "":
+		v.Notice = i18n.T(ctx, "routers.band.adopted", i18n.Args{"tag": c.QueryParam("adopted")})
 	}
 	last, planned, err := h.Routers.LatestPlan(ctx, r.ID)
 	if err != nil {
@@ -573,6 +607,9 @@ func (h *handler) routerPage(c *echo.Context) error {
 		v.Preview = &pv
 	}
 	if v.Conn, err = h.connOf(ctx, r); err != nil {
+		return err
+	}
+	if err := h.lifeOf(ctx, &v); err != nil {
 		return err
 	}
 	testID := formID(c.QueryParam("test"))

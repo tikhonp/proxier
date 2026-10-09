@@ -17,9 +17,12 @@ import (
 
 // Sync triggers.
 const (
-	TriggerChange  = "change"
-	TriggerManual  = "manual"
-	TriggerInitial = "initial"
+	TriggerChange    = "change"
+	TriggerManual    = "manual"
+	TriggerInitial   = "initial"
+	TriggerDrift     = "drift"
+	TriggerResume    = "resume"
+	TriggerUnmanaged = "unmanaged"
 )
 
 // maxWhy is how many reasons a coalesced sync keeps.
@@ -43,8 +46,11 @@ func mergeSync(queued, incoming json.RawMessage) (json.RawMessage, error) {
 	if err := json.Unmarshal(incoming, &b); err != nil {
 		return nil, err
 	}
-	if b.Manual {
+	switch {
+	case b.Manual:
 		a.Manual, a.Trigger = true, TriggerManual
+	case a.Trigger == TriggerChange && b.Trigger != "":
+		a.Trigger = b.Trigger // a sync asked for at once says why it runs
 	}
 	for _, w := range b.Why {
 		if !slices.Contains(a.Why, w) && len(a.Why) < maxWhy {
@@ -107,6 +113,12 @@ func (m marker) Mark(ctx context.Context, tx *sqlx.Tx, c change.Change) error {
 
 // SyncNow queues a sync at once; one merged into a delayed sync starts it now.
 func (s *Service) SyncNow(ctx context.Context, id int64, actor string) (int64, error) {
+	return s.syncAtOnce(ctx, id, syncPayload{Trigger: TriggerManual, Manual: true}, actor)
+}
+
+// syncAtOnce queues a sync of an active router with no delay; merged into a
+// delayed one, it starts that one now.
+func (s *Service) syncAtOnce(ctx context.Context, id int64, p syncPayload, actor string) (int64, error) {
 	var e jobs.Enqueued
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		r, err := store.GetRouter(ctx, tx, id)
@@ -115,10 +127,10 @@ func (s *Service) SyncNow(ctx context.Context, id int64, actor string) (int64, e
 		} else if err != nil {
 			return err
 		}
-		if r.State != "active" {
+		if r.State != StateActive {
 			return ErrNotActive
 		}
-		e, err = s.enqueueSync(ctx, tx, id, syncPayload{Trigger: TriggerManual, Manual: true}, 0, actor)
+		e, err = s.enqueueSync(ctx, tx, id, p, 0, actor)
 		return err
 	})
 	if err != nil {

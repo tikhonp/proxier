@@ -28,7 +28,7 @@ type Applied struct {
 // Extra is what the admin asked for besides the list (3f).
 type Extra struct {
 	Remove    []string // unmanaged tags to remove
-	RemoveAll bool     // removing the router
+	RemoveAll bool     // removing the router: every applied tag goes, nothing is desired
 }
 
 // Plan actions and reasons.
@@ -159,7 +159,7 @@ func MakePlan(want []Want, st State, applied map[string]Applied, x Extra) []TagP
 		_, was := applied[tag]
 		p := TagPlan{Tag: tag, Want: -1, Have: t.Entries(), pos: len(want)}
 		switch {
-		case !t.empty() && (was || x.RemoveAll || asked[tag]):
+		case !t.empty() && (was || asked[tag]):
 			p.Action, p.Why = Remove, WhyLeftList
 			if !was {
 				p.Why = WhyAsked

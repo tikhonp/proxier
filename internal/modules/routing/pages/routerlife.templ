@@ -1,0 +1,256 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// lifeBands are the router page's bands of 3f: awaiting setup, paused,
+// removing, drift.
+templ lifeBands(v routerView) {
+	if v.Awaiting != nil {
+		<section class="band gold rtr-band" aria-label={ i18n.T(ctx, "routers.state.awaiting") }>
+			<div class="col">
+				<span>{ v.Awaiting.Text }</span>
+				if v.Awaiting.Error != "" {
+					<span class="sm">{ v.Awaiting.Error }</span>
+				}
+				if v.Awaiting.Key != "" {
+					@snippet("key-awaiting", i18n.T(ctx, "routers.key.public"), v.Awaiting.Key)
+				}
+			</div>
+			@testButton(v.R.ID)
+		</section>
+	}
+	if v.Paused {
+		@ui.Band("iris") {
+			<span>{ i18n.T(ctx, "routers.band.paused") }</span>
+		}
+	}
+	if v.Removing != nil {
+		<section class="band love rtr-band" aria-label={ i18n.T(ctx, "routers.state.removing") }>
+			<div class="col">
+				<span class="bold">{ i18n.T(ctx, "routers.band.removing", i18n.Args{"name": v.R.Name}) }</span>
+				if v.Removing.Failed {
+					<span>{ i18n.T(ctx, "routers.band.removing_failed") }</span>
+					if v.Removing.Error != "" {
+						<span class="sm">{ v.Removing.Error }</span>
+					}
+				}
+				if v.Removing.JobHref != "" {
+					<a class="sm" href={ templ.SafeURL(v.Removing.JobHref) }>{ i18n.T(ctx, "routers.band.removing_job") }</a>
+				}
+			</div>
+			if v.Removing.Failed {
+				<div class="inline-fields">
+					@ui.ActionButton(ui.Action{ID: "routers.remove_retry", Label: "routers.remove.retry", Method: "POST", Href: routerHref(v.R.ID) + "/remove/retry", Small: true, Kind: ui.Primary})
+					@ui.ActionButton(ui.Action{
+						ID: "routers.remove_keep", Label: "routers.remove.keep_now", Method: "POST", Href: routerHref(v.R.ID) + "/remove/keep", Small: true, Kind: ui.Danger,
+						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "routers.remove.title", i18n.Args{"name": v.R.Name}), Body: i18n.T(ctx, "routers.remove.keep.what")},
+					})
+				</div>
+			}
+		</section>
+	}
+	if v.Drift != nil {
+		<section class="band gold rtr-band" aria-label={ i18n.T(ctx, "routers.drift") }>
+			<div class="col">
+				<span>{ v.Drift.Text }</span>
+				if !v.Drift.Repair {
+					<span class="sm">{ i18n.T(ctx, "routers.band.drift_repairs") }</span>
+				}
+			</div>
+			if v.Drift.Repair {
+				@ui.ActionButton(ui.Action{ID: "routers.repair", Label: "routers.repair", Method: "POST", Href: routerHref(v.R.ID) + "/repair", Small: true, Kind: ui.Primary})
+			}
+		</section>
+	}
+}
+
+// hopsTable is a connect failure's table, one row per hop.
+templ hopsTable(rows []hopRow) {
+	<div class="hops" role="table" aria-label={ i18n.T(ctx, "routers.hops") }>
+		for _, h := range rows {
+			<div class="row hop" role="row">
+				<span role="cell">{ h.Label }</span>
+				<span class="col" role="cell">
+					@ui.Status(h.Kind, h.Result)
+					if h.Detail != "" {
+						<span class="sm">{ h.Detail }</span>
+					}
+				</span>
+			</div>
+		}
+	</div>
+}
+
+// unmanagedArea is "Not Proxier's": tags on the router Proxier never
+// installed, untagged entries and infra pins.
+templ unmanagedArea(v routerView) {
+	if len(v.Unmanaged) + len(v.Ignored) > 0 || v.Untagged != "" || v.InfraPins != "" {
+		<section class="area" id="unmanaged" aria-label={ i18n.T(ctx, "routers.area.unmanaged") }>
+			<div class="pc-title">
+				<h2>{ i18n.T(ctx, "routers.area.unmanaged") }</h2>
+				<span class="sm subtle">{ i18n.T(ctx, "routers.area.unmanaged.note") }</span>
+				<span class="flex1"></span>
+			</div>
+			for _, u := range v.Unmanaged {
+				@unmanagedRowView(v, u, false)
+			}
+			if v.Untagged != "" {
+				<p class="area-body sm subtle">{ v.Untagged }</p>
+			}
+			if v.InfraPins != "" {
+				<p class="area-body sm subtle">{ v.InfraPins }</p>
+			}
+			if len(v.Ignored) > 0 {
+				<details class="area-body">
+					<summary class="sm subtle">{ i18n.T(ctx, "routers.unmanaged.ignored", i18n.Args{"n": len(v.Ignored)}) }</summary>
+					for _, u := range v.Ignored {
+						@unmanagedRowView(v, u, true)
+					}
+				</details>
+			}
+		</section>
+	}
+}
+
+templ unmanagedRowView(v routerView, u unmanagedRow, ignored bool) {
+	<div class="row unmanaged">
+		<span class="col">
+			<span class="bold">{ u.Tag }</span>
+			<span class="sm subtle">{ u.Entries } · { u.Since }</span>
+			if u.Hint != "" {
+				<span class="sm">{ u.Hint }</span>
+			}
+		</span>
+		<span class="inline-fields">
+			if ignored {
+				<form method="post" action={ templ.SafeURL(u.BaseHref + "/unignore") } class="inline">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<button type="submit" class="pc-btn pc-sm" data-action={ "routers.unignore." + u.Tag }>{ i18n.T(ctx, "routers.unmanaged.unignore") }</button>
+				</form>
+			} else {
+				if u.Adoptable {
+					<a class="pc-btn pc-sm" href={ templ.SafeURL(u.AdoptHref) } data-action={ "routers.adopt." + u.Tag }>{ i18n.T(ctx, "routers.unmanaged.adopt") }</a>
+				}
+				<form method="post" action={ templ.SafeURL(u.BaseHref + "/ignore") } class="inline">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<button type="submit" class="pc-btn pc-sm pc-ghost" data-action={ "routers.ignore." + u.Tag }>{ i18n.T(ctx, "routers.unmanaged.ignore") }</button>
+				</form>
+			}
+			if v.R.State == "active" {
+				@ui.ActionButton(ui.Action{
+					ID: "routers.unmanaged_remove." + u.Tag, Label: "routers.unmanaged.remove", Method: "POST", Href: u.BaseHref + "/remove", Small: true, Kind: ui.Danger,
+					Confirm: &ui.Confirm{Strength: 2, Title: u.RemoveTitle, Body: i18n.T(ctx, "routers.unmanaged.remove.body", i18n.Args{"router": v.R.Name})},
+				})
+			}
+		</span>
+	</div>
+}
+
+// adoptPage offers the ways to adopt an unmanaged tag (a page styled as a dialog).
+templ adoptPage(s ui.Shell, v adoptView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, i18n.T(ctx, "routers.adopt.title", i18n.Args{"tag": v.U.Tag}))
+				<h1>{ i18n.T(ctx, "routers.adopt.title", i18n.Args{"tag": v.U.Tag}) }</h1>
+			</div>
+		</div>
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		<div class="form">
+			<p>{ v.Intro }</p>
+			for _, o := range v.Offers {
+				<form method="post" action={ templ.SafeURL(v.Base + "/adopt") } class="row adopt">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<input type="hidden" name="how" value={ o.How }/>
+					<span class="col">
+						<span class="bold">{ o.Label }</span>
+						<span class="sm subtle">{ o.What }</span>
+					</span>
+					<button type="submit" class="pc-btn pc-sm pc-pri" data-action={ "routers.adopt_" + o.How }>{ i18n.T(ctx, "routers.adopt") }</button>
+				</form>
+			}
+			<div class="form-actions">
+				if v.R.State == "active" {
+					@ui.ActionButton(ui.Action{
+						ID: "routers.adopt_remove", Label: "routers.unmanaged.remove", Method: "POST", Href: v.Base + "/remove", Kind: ui.Danger,
+						Confirm: &ui.Confirm{Strength: 2, Title: i18n.From(ctx).N("routers.unmanaged.remove.title", int64(v.U.Entries), i18n.Args{"tag": v.U.Tag, "router": v.R.Name}),
+							Body: i18n.T(ctx, "routers.unmanaged.remove.body", i18n.Args{"router": v.R.Name})},
+					})
+				}
+				@ui.ActionButton(ui.Action{ID: "routers.adopt_ignore", Label: "routers.unmanaged.ignore", Method: "POST", Href: v.Base + "/ignore"})
+				<a href={ templ.SafeURL(routerHref(v.R.ID) + "#unmanaged") } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</div>
+	}
+}
+
+// routerRemovePage asks what happens to what Proxier installed.
+templ routerRemovePage(s ui.Shell, v rtRemoveView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@routersCrumbs(v.R.ID, v.R.Name, i18n.T(ctx, "routers.remove"))
+				<h1>{ i18n.T(ctx, "routers.remove.title", i18n.Args{"name": v.R.Name}) }</h1>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(routerHref(v.R.ID) + "/remove") } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<p>{ i18n.T(ctx, "routers.remove.intro", i18n.Args{"name": v.R.Name}) }</p>
+			<label class="choice">
+				<input type="radio" name="clean" value="0" checked/>
+				<span class="col">
+					<span class="bold">{ i18n.T(ctx, "routers.remove.keep") }</span>
+					<span class="sm subtle">{ i18n.T(ctx, "routers.remove.keep.what") }</span>
+				</span>
+			</label>
+			<label class="choice">
+				<input type="radio" name="clean" value="1" disabled?={ v.R.State == "awaiting" || !v.R.Connected() }/>
+				<span class="col">
+					<span class="bold">{ i18n.T(ctx, "routers.remove.clean") }</span>
+					<span class="sm subtle">{ i18n.From(ctx).N("routers.remove.clean.what", int64(v.Applied)) }</span>
+				</span>
+			</label>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-dng" data-action="routers.remove_confirm">{ i18n.T(ctx, "routers.remove.do") }</button>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+// DashboardRouting is the dashboard's Routing area.
+templ DashboardRouting(v DashView) {
+	if v.InSync != "" {
+		<p class="area-body subtle">{ v.InSync }</p>
+	}
+	for _, r := range v.Routers {
+		<a href={ templ.SafeURL(routerHref(r.ID)) } class="row dashrtr pc-row">
+			<span class="bold">{ r.Name }</span>
+			@ui.Status(r.Kind, r.Word)
+		</a>
+	}
+	<h3 class="area-sub">{ i18n.T(ctx, "routers.dash.snapshots") }</h3>
+	if len(v.Snapshots) == 0 {
+		<p class="area-body sm subtle">{ i18n.T(ctx, "routers.dash.snapshots.none") }</p>
+	}
+	for _, s := range v.Snapshots {
+		<a href={ templ.SafeURL(svcHref(s.ID)) } class="row dashrtr pc-row">
+			<span class="bold">{ s.Tag }</span>
+			<span class="sm gold">{ s.Pct }</span>
+			<span class="sm">{ i18n.T(ctx, "routers.dash.review") }</span>
+		</a>
+	}
+	<h3 class="area-sub">{ i18n.T(ctx, "routers.dash.refresh") }</h3>
+	<p class="area-body sm subtle">{ v.Digest }</p>
+	<div class="row dashsrv">
+		<span class="flex1"></span>
+		<a href={ templ.SafeURL(routersPath) } class="pc-btn pc-sm">{ i18n.T(ctx, "routers.dash.all") }</a>
+	</div>
+}

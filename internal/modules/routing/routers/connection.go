@@ -142,9 +142,10 @@ func JumpSubject(address string) string { return "jump:" + address }
 // admin.
 func (c Connection) Target(routerID int64) sshx.Target {
 	t := sshx.Target{
-		Hop:          sshx.Hop{Address: c.Address(), User: c.User, Subject: RouterSubject(routerID)},
-		Network:      sshx.Direct,
-		FirstContact: sshx.ConfirmFirstContact,
+		Hop:              sshx.Hop{Address: c.Address(), User: c.User, Subject: RouterSubject(routerID)},
+		Network:          sshx.Direct,
+		FirstContact:     sshx.ConfirmFirstContact,
+		JumpFirstContact: sshx.ConfirmFirstContact,
 	}
 	if c.Tailnet {
 		t.Network = sshx.Tailnet

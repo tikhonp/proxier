@@ -257,3 +257,12 @@ func CatalogHolders(ctx context.Context, q sqlx.QueryerContext, domains []string
 	err = sqlx.SelectContext(ctx, q, &out, query, args...)
 	return out, err
 }
+
+// V2flyHas reports whether the current v2fly generation has a list of that name.
+func V2flyHas(ctx context.Context, q sqlx.QueryerContext, name string) (bool, error) {
+	var n int
+	err := sqlx.GetContext(ctx, q, &n, `SELECT count(*) FROM routing_catalog_entries e
+		JOIN routing_catalog_sources s ON s.source = e.source AND s.generation = e.generation
+		WHERE e.source = 'v2fly' AND e.kind = 'list' AND e.name = ?`, name)
+	return n > 0, err
+}

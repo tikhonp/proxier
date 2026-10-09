@@ -15,6 +15,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
@@ -37,9 +38,14 @@ var (
 
 // Job types.
 const (
-	JobSync    = "routing.sync"
-	JobPreview = "routing.preview"
-	JobTest    = "routing.test"
+	JobSync       = "routing.sync"
+	JobPreview    = "routing.preview"
+	JobTest       = "routing.test"
+	JobDrift      = "routing.drift"
+	JobDriftRound = "routing.drift_round"
+	JobProbe      = "routing.probe"
+	JobProbeRound = "routing.probe_round"
+	JobRemove     = "routing.remove"
 )
 
 // MaxName is the longest router name.
@@ -65,9 +71,23 @@ type Router struct {
 	Untagged        int
 	InfraPins       int
 	ReadAt          time.Time
+	Drift           []string  // tags that drifted at the last check
+	DriftCheckedAt  time.Time // the last drift check that read the router
+	AwaitingUntil   time.Time // awaiting setup: probed until then
 	CreatedBy       string
 	CreatedAt       time.Time
 }
+
+// Awaiting reports whether the router waits for its first contact.
+func (r Router) Awaiting() bool { return r.State == StateAwaiting }
+
+// Router states.
+const (
+	StateAwaiting = "awaiting"
+	StateActive   = "active"
+	StatePaused   = "paused"
+	StateRemoving = "removing"
+)
 
 // Connected reports whether the router has ever connected: until then
 // changes queue nothing for it.
@@ -78,8 +98,17 @@ func routerOf(r store.Router) Router {
 		ID: r.ID, Name: r.Name, ListID: r.ListID, List: r.List, State: r.State, Conn: connOf(r), Version: r.Version, Board: r.Board,
 		ConnectedAt: r.ConnectedAt.Time, LastSeenAt: r.LastSeenAt.Time, LastSyncAt: r.LastSyncAt.Time, LastResult: r.LastSyncResult,
 		LastError: r.LastSyncError, Failures: r.Failures, FailureNotified: r.FailureNotified, Untagged: r.Untagged, InfraPins: r.InfraPins,
-		ReadAt: r.ReadAt.Time, CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt.Time,
+		ReadAt: r.ReadAt.Time, Drift: splitTags(r.Drift), DriftCheckedAt: r.DriftCheckedAt.Time, AwaitingUntil: r.AwaitingUntil.Time,
+		CreatedBy: r.CreatedBy, CreatedAt: r.CreatedAt.Time,
 	}
+}
+
+// splitTags reads a comma-joined tag set ("" is none).
+func splitTags(s string) []string {
+	if s == "" {
+		return nil
+	}
+	return strings.Split(s, ",")
 }
 
 // Subject is a router's event subject.
@@ -97,6 +126,7 @@ type Deps struct {
 	Tailnet  *tailnet.Node // may be nil
 	Lists    *lists.Service
 	Services *services.Service
+	Catalog  *catalog.Service // adoption's offers; may be nil
 	Now      func() time.Time
 	Log      *slog.Logger
 }
@@ -120,6 +150,15 @@ func (s *Service) now() db.Time { return db.At(s.d.Now()) }
 // the add form's default.
 func (s *Service) TailnetRunning(ctx context.Context) bool {
 	return s.d.Tailnet != nil && s.d.Tailnet.Status(ctx).State == tailnet.Running
+}
+
+// TailnetStatus is the tailnet node's state now (off without a node): the
+// per-hop table's first row.
+func (s *Service) TailnetStatus(ctx context.Context) tailnet.Status {
+	if s.d.Tailnet == nil {
+		return tailnet.Status{State: tailnet.Off}
+	}
+	return s.d.Tailnet.Status(ctx)
 }
 
 func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64, actor string, payload map[string]any) error {

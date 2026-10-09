@@ -112,14 +112,14 @@ Every type is declared from [3a](./build/3a.md#events); the sub-phase in bracket
 | `routing.shadowrocket_deleted` | Shadowrocket config | name, list | off | 3d |
 | `routing.router_added` | router | list, host, by (admin / routerscripts) | off | 3e |
 | `routing.router_updated` | router | changes (of name, connection, names, list), from, to (the old and new name on a rename, list names on a list switch) | off | 3e |
-| `routing.router_connected` | router | version, board | off | 3e. First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup". |
+| `routing.router_connected` | router | version, board | off | 3e. First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup" (3f: also an awaiting router's probe, which queues the initial sync). |
 | `routing.router_synced` | router | added, updated, removed, recorded, trigger (change, manual, initial) | off | 3e. Only when something was pushed or recorded: a sync with nothing to do records no event. |
 | `routing.router_sync_failed` | router | step (connect, read, push, verify), error (the problem sentence), consecutive, manual, attempt, final | **on** when the job gives up (final) 🔴 | 3e. Recorded for every failed attempt; `final` is the last attempt or an error no retry fixes (a refused key, a changed or unknown host key, the tailnet off). "Home: sync gave up at connect" / "Proxier can't reach the router 10.230.1.1:22: connection refused. Nothing was changed on the router. · after 4 attempts" (the attempts only when more than one). |
 | `routing.router_recovered` | router | failures, notified | **on** after a notified failure 🟢 | 3e. The first success after failed attempts; a failure that never notified recovers quietly. "Home is in sync again" / "After 4 failed attempts." |
 | `routing.router_paused` / `.resumed` | router | — | off | 3f |
-| `routing.router_removed` | router | name, cleaned | off | 3f |
-| `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | 3f |
-| `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | 3f |
+| `routing.router_removed` | router | name, cleaned | off | 3f. Kept: at once; cleaned: after the removal sync. A failed removal records `router_sync_failed{manual: true}`. |
+| `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | 3f. "{subject} drifted from what Proxier installed" / "Tags: {tags}. Auto-repair is off: open the router to repair." With repair off, recorded only when the set of drifting tags changes. |
+| `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | 3f. "{subject} has tags Proxier didn't install" / "{tags}. They stay; adopt, remove or ignore them on the router page." (plural forms). Ignored tags never count. |
 | `routing.unmanaged_tag_ignored` | router | tag, ignored | off | 3f |
 | `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | 3g. The admin is watching the run. |
 

@@ -64,3 +64,30 @@ func (sp *speller) spell(portal, name string) string { return Spell(portal, name
 func (sp *speller) selectable(portal, kind, name string) bool {
 	return kind != "group" || !sp.kinds[portal][name]["site"]
 }
+
+// Offers are the catalog's selectors whose tag is tag, spelled: v2fly:<tag>
+// when v2fly has that list, and the iplist selector of the first portal with
+// a selectable site or group of that name. Adopting an unmanaged router tag
+// offers them (3f).
+func (s *Service) Offers(ctx context.Context, tag string) ([]string, error) {
+	var out []string
+	ok, err := store.V2flyHas(ctx, s.d.DB.R, tag)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		out = append(out, "v2fly:"+tag)
+	}
+	sp, err := s.speller(ctx, []string{tag})
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range selector.Portals {
+		for kind := range sp.kinds[p][tag] {
+			if sp.selectable(p, kind, tag) {
+				return append(out, sp.spell(p, tag)), nil
+			}
+		}
+	}
+	return out, nil
+}

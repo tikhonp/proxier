@@ -238,6 +238,12 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 		"services.paste.ip", "services.paste.invalid", "services.paste.unsupported", "services.skip.unsupported", "services.skip.invalid",
 		"services.err.name", "services.err.name_taken", "services.err.tag_empty", "services.err.tag", "services.err.tag_taken",
 		"services.err.description", "services.err.note", "services.err.too_many")
+	for _, k := range []string{"tailnet", "jump", "router", "off", "offline", "refused", "key-changed", "unknown", "not-tried"} {
+		built = append(built, "routers.hop."+k)
+	}
+	for _, k := range []string{"v2fly", "iplist", "existing", "custom"} {
+		built = append(built, "routers.adopt_"+k)
+	}
 	for _, k := range built {
 		if !h.App.I18n.Has(k) {
 			t.Errorf("%s is missing", k)

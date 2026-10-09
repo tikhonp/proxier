@@ -167,3 +167,9 @@ func PruneSyncs(ctx context.Context, x sqlx.ExtContext, cutoff db.Time, keep int
 	tests, _ = res.RowsAffected()
 	return syncs, tests, nil
 }
+
+// SetSyncDrift stores a drift check's differing tags.
+func SetSyncDrift(ctx context.Context, x sqlx.ExtContext, id int64, drift string) error {
+	_, err := x.ExecContext(ctx, `UPDATE routing_syncs SET drift = ? WHERE id = ?`, drift, id)
+	return err
+}

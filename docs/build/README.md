@@ -43,7 +43,7 @@ Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cr
 | 3c Upstream refresh, catalog, search | [3c.md](./3c.md) | done 2026-10-09 (real upstreams and a real-browser look are the user's) |
 | 3d Shadowrocket config, mtvpn import | [3d.md](./3d.md) | done 2026-10-09 (real phones, a real-browser look at the editor and the real mtvpn.yaml import are the user's) |
 | 3e Router sync | [3e.md](./3e.md) | done 2026-10-09 (a real router, jump host and tailnet, and a real-browser look are the user's) |
-| 3f Drift, unmanaged tags, router lifecycle, dashboard | [3f.md](./3f.md) | contract written 2026-10-08 |
+| 3f Drift, unmanaged tags, router lifecycle, dashboard | [3f.md](./3f.md) | done 2026-10-09 (a real router and router script, a real-browser look and Telegram delivery are the user's) |
 | 3g Discovery, Phase 3 exit | [3g.md](./3g.md) | contract written 2026-10-08 |
 
 3d (Shadowrocket and the import) comes before router sync on purpose: neither has a remote side, so after 3d the admin can import `mtvpn.yaml` and move the phone off copyparty before the riskiest part, RouterOS, is built.

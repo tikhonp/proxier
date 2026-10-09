@@ -23,7 +23,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 
    The result lists each check. A missing forwarder or pin gives the warning "this router doesn't look set up by the router script"; Save is still allowed. **Stop** at a fingerprint ends the test and pins nothing.
 4. **Save** → the router is **active**. → `routing.router_added`. When the latest test of exactly these values passed (or warned), the router is connected → `routing.router_connected{version, board}`, and its initial sync is queued. Save also works **untested**: the router then waits ("Not connected yet: Test connection to confirm the host keys; the initial sync runs after it passes."), changes queue nothing for it, and its first passing test records `routing.router_connected` and queues the initial sync. **Sync now** on it is allowed and fails with "first contact with 10.230.1.1:22: confirm its fingerprint with Test connection".
-5. A router created by router scripts starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days. The first success makes it active and runs the initial sync, as in step 4. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**.
+5. A router created by router scripts (`routers.Register`, wrapped by Phase 4's `RouterRegistrar`) starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days (`routing.probe`). A probe pins the router's own key on first contact (nobody can confirm a fresh router's key), but its jump host must already be confirmed: a probe never pins a jump host. The first success makes it active and runs the initial sync, as in step 4. A failed probe records nothing; the router page shows its error. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**, whose pass (the admin confirms both keys) activates it the same way.
 
 ## Steps — sync
 
@@ -70,16 +70,18 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 ## Steps — preview, drift, unmanaged tags
 
 1. **Preview sync** runs steps 1–4 only (read-only). It shows the plan per tag (unchanged / update with +added −removed / remove / unmanaged) and the exact RouterOS scripts, with **Run this sync**.
-2. **Drift check** (every 6 h, read-only) runs steps 1–4 and compares the router with the **applied** record, not the desired state. Pending desired changes have syncs of their own. Differences are drift → `routing.drift_detected{tags}`. With auto-repair on, a sync is queued. With it off, a notification is sent and the router page shows **Repair**.
+2. **Drift check** (every `routing.drift_every`, 6 h by default, read-only) reads the router and compares it with the **applied** record, not the desired state. Pending desired changes have syncs of their own. A tag drifts when it is gone, its DNS entries' names differ from the applied hash, an entry isn't `FWD` to the forwarder, or its address-list count differs. Differences are drift → `routing.drift_detected{tags, repair}`. With auto-repair on, a sync is queued at once. With it off, a notification is sent once per set of drifting tags (the same drift found again records nothing) and the router page shows **Repair**. The round skips a router with a job queued or running (that job reads it anyway), and paused, awaiting and removing routers. A check that can't connect fails only its own row: no failure is counted and no event recorded.
 3. **Unmanaged tags** appear on the router page with their entry counts, once each new set is found. → `routing.unmanaged_tags_found{tags}`. Actions per tag:
    - **Adopt**: offers `v2fly:<tag>` or `iplist:<tag>` if the catalog has them, or **Make a custom service from the router's entries**, then adds that service to the router's list;
-   - **Remove from router** (confirmation);
-   - **Ignore**: hidden from reports, left on the router.
+   - **Remove from router** (confirmation): a sync now that removes only that tag;
+   - **Ignore**: hidden from reports and notifications, left on the router; **Stop ignoring** brings it back without a notification.
+
+   A tag that isn't a valid tag (a space, say) can't be adopted: only remove and ignore are offered. A tag that leaves the router and comes back notifies again (an ignored one too: ignoring holds while the tag is seen).
 
 ## Steps — pausing and removing
 
-1. **Pause** → no syncs, no drift checks. **Resume** → full sync.
-2. **Remove router** asks: **Keep everything on the router** (default), or **Remove every tag Proxier installed**, which first runs a sync that removes them all. → `routing.router_removed`
+1. **Pause** → queued syncs, previews and drift checks are cancelled; no syncs, no previews, no drift checks. **Resume** → full sync. → `routing.router_paused`, `routing.router_resumed`
+2. **Remove router** asks: **Keep everything on the router** (default; the router is removed at once), or **Remove every tag Proxier installed**: the router is *removing* and `routing.remove` removes every applied tag (infra pins, untagged and unmanaged entries stay), then deletes the router. → `routing.router_removed{name, cleaned}`. Its failures are recorded like a sync's and notify when the job gives up; the router stays *removing* (no syncs) with **Retry** and **Remove without cleaning**. Pinned host keys stay (Settings → SSH forgets them).
 
 ## Rules
 

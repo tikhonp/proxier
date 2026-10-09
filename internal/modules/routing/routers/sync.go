@@ -32,9 +32,35 @@ var syncBackoff = []time.Duration{5 * time.Minute, 15 * time.Minute, time.Hour}
 // readTimeout bounds one read command.
 const readTimeout = 2 * time.Minute
 
-// JobTypes are routing.sync, routing.preview and routing.test.
+// JobTypes are routing.sync, routing.preview and routing.test (3e), the
+// drift round and check, the probe round and probe, and routing.remove (3f).
 func (s *Service) JobTypes() []jobs.Type {
 	return []jobs.Type{
+		{
+			Name: JobDriftRound, Queue: jobs.Routers, MaxAttempts: 1, Quiet: true,
+			Steps: []jobs.Step{{Name: "enqueue", Run: s.driftRound}},
+		},
+		{
+			Name: JobDrift, Queue: jobs.Routers, MaxAttempts: 1, Quiet: true,
+			Steps:    []jobs.Step{{Name: "check", Run: s.stepDrift}},
+			OnFailed: s.syncJobFailed, OnCancelled: s.syncJobCancelled,
+		},
+		{
+			Name: JobProbeRound, Queue: jobs.Routers, MaxAttempts: 1, Quiet: true,
+			Steps: []jobs.Step{{Name: "enqueue", Run: s.probeRound}},
+		},
+		{
+			Name: JobProbe, Queue: jobs.Routers, MaxAttempts: 1, Quiet: true,
+			Steps:    []jobs.Step{{Name: "probe", Run: s.stepProbe}},
+			OnFailed: quietFailure,
+		},
+		{
+			Name: JobRemove, Queue: jobs.Routers, MaxAttempts: 4, Backoff: syncBackoff,
+			Steps: []jobs.Step{
+				{Name: "connect", Run: s.stepConnect}, {Name: "remove", Run: s.stepSync}, {Name: "delete", Run: s.stepDelete},
+			},
+			OnFailed: s.syncJobFailed, OnCancelled: s.syncJobCancelled,
+		},
 		{
 			Name: JobSync, Queue: jobs.Routers, MaxAttempts: 4, Backoff: syncBackoff, Merge: mergeSync,
 			Steps:    []jobs.Step{{Name: "connect", Run: s.stepConnect}, {Name: "sync", Run: s.stepSync}},
@@ -71,7 +97,7 @@ func (s *Service) stepConnect(ctx context.Context, r *jobs.Run) error {
 	}
 	ctx, done := cancellable(ctx, r)
 	defer done()
-	syncID, err := s.syncRow(ctx, r, rt, p, "sync")
+	syncID, err := s.syncRow(ctx, r, rt, p, kindOf(r))
 	if err != nil {
 		return err
 	}
@@ -105,8 +131,17 @@ func (s *Service) stepConnect(ctx context.Context, r *jobs.Run) error {
 	})
 }
 
+// kindOf is the sync row kind of a sync or removal job.
+func kindOf(r *jobs.Run) string {
+	if r.Info().Type == JobRemove {
+		return "removal"
+	}
+	return "sync"
+}
+
 // stepSync reads, plans, pushes and verifies. It always starts from the
 // read, also on a retry and after a restart, so it never pushes a stale plan.
+// A removal (routing.remove) plans every applied tag as a removal.
 func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	p, rt, ok, err := s.loadSync(ctx, r)
 	if err != nil || !ok {
@@ -115,7 +150,12 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	ctx, done := cancellable(ctx, r)
 	defer done()
 	log := r.Log()
-	syncID, err := s.syncRow(ctx, r, rt, p, "sync")
+	kind := kindOf(r)
+	x := Extra{Remove: p.Remove}
+	if kind == "removal" {
+		x = Extra{RemoveAll: true}
+	}
+	syncID, err := s.syncRow(ctx, r, rt, p, kind)
 	if err != nil {
 		return err
 	}
@@ -134,7 +174,7 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return s.fail(ctx, r, rt, syncID, p, &failure{step: StepRead, text: "Reading the router failed: " + err.Error() + "." + Untouched, err: err})
 	}
-	plan, view, err := s.plan(ctx, rt, st, Extra{Remove: p.Remove})
+	plan, view, err := s.plan(ctx, rt, st, x)
 	if err != nil {
 		return err
 	}
@@ -150,6 +190,11 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 		}
 		if err := store.RouterRead(ctx, tx, rt.ID, st.Untagged, len(st.Pins), db.At(st.ReadAt)); err != nil {
 			return err
+		}
+		if kind == "sync" {
+			if err := s.recordUnmanaged(ctx, tx, rt, st, unmanagedIn(plan), r.Info().Actor()); err != nil {
+				return err
+			}
 		}
 		for _, tp := range plan {
 			switch tp.Action {
@@ -187,6 +232,16 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 		if err := store.SyncDone(ctx, tx, syncID, "", now); err != nil {
 			return err
 		}
+		for _, tp := range plan {
+			if tp.Action == Remove && tp.Why == WhyAsked { // gone: no longer an unmanaged tag
+				if err := store.DeleteUnmanaged(ctx, tx, rt.ID, tp.Tag); err != nil {
+					return err
+				}
+			}
+		}
+		if kind == "removal" {
+			return nil // the delete step records the removal
+		}
 		if err := store.RouterSynced(ctx, tx, rt.ID, now); err != nil {
 			return err
 		}
@@ -222,11 +277,27 @@ func (s *Service) loadSync(ctx context.Context, r *jobs.Run) (syncPayload, store
 	if err != nil {
 		return p, rt, false, err
 	}
-	if rt.State != "active" {
+	want := StateActive
+	if r.Info().Type == JobRemove {
+		want = StateRemoving
+	}
+	if rt.State != want {
 		r.Log().Info("%s is %s: nothing to sync.", rt.Name, rt.State)
 		return p, rt, false, nil
 	}
 	return p, rt, true, nil
+}
+
+// unmanagedIn are a sync plan's unmanaged tags: the ones it leaves alone and
+// the ones it removes on the admin's request (still unmanaged until gone).
+func unmanagedIn(plan []TagPlan) []string {
+	var out []string
+	for _, p := range plan {
+		if p.Action == Unmanaged || p.Why == WhyAsked {
+			out = append(out, p.Tag)
+		}
+	}
+	return out
 }
 
 // syncRow is the job's running row of a kind, created on the attempt's first

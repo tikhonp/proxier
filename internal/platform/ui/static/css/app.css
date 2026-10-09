@@ -684,7 +684,7 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 }
 .code-host { display: flex; border: 1px solid var(--hl-med); }
 /* Routers (3e) */
-.row.rtr, .colhead.rtr { grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, .8fr) minmax(0, 1.6fr) auto; align-items: start; }
+.row.rtr, .colhead.rtr { grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, .8fr) minmax(0, 1.6fr) minmax(0, 1fr) auto; align-items: start; }
 .row.rtr > span { min-width: 0; overflow-wrap: anywhere; }
 .row.tagplan, .colhead.tagplan { grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) 70px 80px minmax(0, 1.2fr); align-items: start; border-top: 1px solid var(--overlay); }
 .row.tagplan > span { min-width: 0; overflow-wrap: anywhere; }
@@ -697,10 +697,22 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 #preview-script, #sync-script { max-height: 50vh; overflow: auto; }
 code.fp { word-break: break-all; }
 .band.rtr-band { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; }
+/* Router lifecycle (3f) */
+.hops { display: flex; flex-direction: column; margin-top: 8px; }
+.row.hop { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 12px; padding: 6px 0; border-top: 1px solid var(--overlay); align-items: start; }
+.row.hop > span, .row.unmanaged > span { min-width: 0; overflow-wrap: anywhere; }
+.row.unmanaged, .row.adopt { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--overlay); }
+.row.adopt { padding: 10px 0; }
+.choice { display: flex; gap: 10px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--overlay); cursor: pointer; }
+.choice input { accent-color: var(--rose); margin: 3px 0 0; }
+.area-sub { font-size: inherit; margin: 12px 16px 4px; color: var(--subtle); }
+.row.dashrtr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) auto; gap: 16px; align-items: center; padding: 10px 16px; border-top: 1px solid var(--overlay); text-decoration: none; color: inherit; }
 .set-group label.check { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 .set-group label.check input { accent-color: var(--rose); margin: 0; }
 @media (max-width: 760px) {
   .colhead.rtr, .colhead.tagplan { display: none; }
   .row.rtr, .row.tagplan, .row.rtsync { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .band.rtr-band { flex-direction: column; }
+  .row.hop, .row.dashrtr { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .row.unmanaged { flex-direction: column; }
 }

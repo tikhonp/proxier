@@ -62,8 +62,12 @@ type Target struct {
 	// Jump is dialled first, and Hop is reached through it.
 	Jump *Hop
 	// Network applies to the first hop.
-	Network      Network
-	FirstContact FirstContact
+	Network Network
+	// FirstContact is the rule for the last hop (Hop), JumpFirstContact for
+	// the jump hop. The zero value is PinOnFirstContact, so a caller with a
+	// jump host that confirms keys sets both.
+	FirstContact     FirstContact
+	JumpFirstContact FirstContact
 }
 
 // HostKeyChangedError is returned while an address's key differs from the

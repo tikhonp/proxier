@@ -250,3 +250,178 @@ func entries(names ...string) []routeros.Entry {
 	}
 	return out
 }
+
+func names(prefix string, n int) []routeros.Entry {
+	out := make([]routeros.Entry, n)
+	for i := range out {
+		out[i] = routeros.Entry{Name: prefix + "-" + strconv.Itoa(i) + ".com"}
+	}
+	return out
+}
+
+func customDomains(prefix string, n int) []string {
+	out := make([]string, n)
+	for i := range out {
+		out[i] = prefix + "-" + strconv.Itoa(i) + ".com"
+	}
+	return out
+}
+
+func TestRouterLifecyclePages(t *testing.T) {
+	h := routingtest.New(t)
+	h.List("Main", h.Custom("youtube", customDomains("yt", 30)...))
+	if err := h.App.Settings.Set(bg(), "admin", "routing", map[string]string{"routing.drift_repair": "false"}); err != nil {
+		t.Fatal(err)
+	}
+	failing, home := h.Router("Home", 0)
+	drifty, drift := h.Router("Drifty", 0)
+	unm, unmID := h.Router("Unm", 0)
+	_, paused := h.Router("Quiet", 0)
+	_, _, awaiting := h.Registered("Waiting")
+	unm.Seed("old-work", entries("work.example", "old.example")...)
+	unm.SeedUntagged("hand.example", false)
+	h.StartJobs()
+	for _, id := range []int64{home, drift, unmID, paused} {
+		if _, err := h.Mod.Routers.SyncNow(bg(), id, "admin"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h.Settle()
+	drifty.DeleteEntries("youtube", 10)
+	h.RunSchedule(routers.JobDriftRound)
+	h.Settle()
+	failing.Offline(true)
+	h.Login.Post("/routing/routers/"+strconv.FormatInt(home, 10)+"/sync", url.Values{})
+	h.Settle()
+	if loc := location(t, h.Login.Post("/routing/routers/"+strconv.FormatInt(paused, 10)+"/pause", url.Values{})); loc != "/routing/routers/"+strconv.FormatInt(paused, 10) {
+		t.Fatalf("pause: %s", loc)
+	}
+
+	// the list: states, watch and order
+	list := h.Login.Get("/routing/routers").Body.String()
+	has(t, "routers", list, "Watch", "▲ drift: youtube", "▲ 1 unmanaged tag: old-work", ">none<", "paused",
+		"never connected · trying every 10 min until")
+	order := []string{">Home<", ">Drifty<", ">Unm<", ">Quiet<", ">Waiting<"}
+	for i := 1; i < len(order); i++ {
+		if strings.Index(list, order[i-1]) > strings.Index(list, order[i]) {
+			t.Errorf("%s before %s", order[i-1], order[i])
+		}
+	}
+	checkNoInline(t, "routers", list)
+
+	// drift: the band with Repair, the connection's drift line
+	path := "/routing/routers/" + strconv.FormatInt(drift, 10)
+	page := h.Login.Get(path).Body.String()
+	has(t, "drift", page, "Drift found at", "youtube has 10 entries fewer than Proxier installed", `action="`+path+`/repair"`,
+		"Drift check", "auto-repair off", "Pause syncs", `href="`+path+`/remove"`)
+	if loc := location(t, h.Login.Post(path+"/repair", url.Values{})); loc != path+"?repairing=1" {
+		t.Fatalf("repair: %s", loc)
+	}
+	h.Settle()
+	if strings.Contains(h.Login.Get(path).Body.String(), "Drift found at") {
+		t.Error("repaired: the band goes")
+	}
+
+	// unmanaged tags, untagged entries and infra pins
+	path = "/routing/routers/" + strconv.FormatInt(unmID, 10)
+	page = h.Login.Get(path).Body.String()
+	has(t, "unmanaged", page, "Not Proxier&#39;s", "found on the router · never deleted on its own", ">old-work<", "2 entries · seen since",
+		"Adopt…", `href="`+path+`/unmanaged/old-work/adopt"`, "Ignore", "Remove from router…", "Remove old-work (2 entries) from Unm?",
+		"entries without a comment", "commented mtvpn: belong to the router script. Never touched.")
+	location(t, h.Login.Post(path+"/unmanaged/old-work/ignore", url.Values{}))
+	page = h.Login.Get(path).Body.String()
+	has(t, "ignored", page, "Ignored · 1", "Stop ignoring")
+	if strings.Contains(h.Login.Get("/routing/routers").Body.String(), "unmanaged tag: old-work") {
+		t.Error("an ignored tag leaves the watch")
+	}
+
+	// a failure's band with its hops
+	page = h.Login.Get("/routing/routers/" + strconv.FormatInt(home, 10)).Body.String()
+	has(t, "hops", page, "Per hop", "router 127.0.0.1", "offline")
+
+	// awaiting setup, paused
+	page = h.Login.Get("/routing/routers/" + strconv.FormatInt(awaiting, 10)).Body.String()
+	key, _, _ := h.App.SSH.PublicKey(bg())
+	has(t, "awaiting", page, "Awaiting setup: Proxier tries to connect every 10 minutes until", html.EscapeString(strings.TrimSpace(key)),
+		`data-action="routers.test_saved"`)
+	if strings.Contains(page, `data-action="routers.sync_now"`) {
+		t.Error("no Sync now while awaiting")
+	}
+	path = "/routing/routers/" + strconv.FormatInt(paused, 10)
+	page = h.Login.Get(path).Body.String()
+	has(t, "paused", page, "Paused: changes wait until you resume.", `action="`+path+`/resume"`, "Resume")
+	if loc := location(t, h.Login.Post(path+"/resume", url.Values{})); loc != path+"?synced=1" {
+		t.Fatalf("resume: %s", loc)
+	}
+	h.Settle()
+
+	// the phone width: the bands and the actions come before the areas
+	page = h.Login.Get("/routing/routers/" + strconv.FormatInt(home, 10)).Body.String()
+	cols := strings.Index(page, `class="subcols"`)
+	for _, s := range []string{`data-action="routers.sync_now"`, `data-action="routers.pause"`, "Per hop", `data-action="routers.test_saved"`} {
+		if i := strings.Index(page, s); i < 0 || i > cols {
+			t.Errorf("%s comes first", s)
+		}
+	}
+}
+
+func TestAdoptAndRemovePages(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("netflix", strings.Join(customDomains("nf", 26), "\n")+"\n")
+	h.StartJobs()
+	if _, err := h.Mod.Catalog.RefreshNow(bg(), "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Drain()
+	h.List("Main", h.Custom("mine", "example.org"))
+	r, id := h.Router("Home", 0)
+	r.Seed("netflix", names("nf", 26)...)
+	r.Seed("my stuff", entries("stuff.example")...)
+	if _, err := h.Mod.Routers.SyncNow(bg(), id, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Settle()
+	path := "/routing/routers/" + strconv.FormatInt(id, 10)
+
+	adopt := h.Login.Get(path + "/unmanaged/netflix/adopt").Body.String()
+	has(t, "adopt", adopt, "<h1>Adopt netflix</h1>", "netflix has 26 entries on Home that Proxier never installed", "Adopt as v2fly:netflix",
+		`value="v2fly"`, "Make a custom service from the router&#39;s 26 entries", `value="custom"`, "Remove from router…", "Ignore")
+	checkNoInline(t, "adopt", adopt)
+
+	bad := h.Login.Get(path + "/unmanaged/my%20stuff/adopt")
+	if bad.Code != 200 {
+		t.Fatalf("adopt my stuff: %d", bad.Code)
+	}
+	has(t, "invalid", bad.Body.String(), "can&#39;t be a service&#39;s tag", "Remove from router…", "Ignore")
+	if strings.Contains(bad.Body.String(), `name="how"`) {
+		t.Error("an invalid tag offers no adoption")
+	}
+	if rec := h.Login.Post(path+"/unmanaged/my%20stuff/adopt", url.Values{"how": {"custom"}}); rec.Code != 409 {
+		t.Fatalf("adopt invalid: %d", rec.Code)
+	}
+	if rec := h.Login.Get(path + "/unmanaged/nothing/adopt"); rec.Code != 404 {
+		t.Fatalf("no such tag: %d", rec.Code)
+	}
+
+	if loc := location(t, h.Login.Post(path+"/unmanaged/netflix/adopt", url.Values{"how": {"v2fly"}})); loc != path+"?adopted=netflix" {
+		t.Fatalf("adopted: %s", loc)
+	}
+	h.Settle()
+	has(t, "after adopting", h.Login.Get(path+"?adopted=netflix").Body.String(), "Adopted netflix: a sync runs now and records it.")
+
+	// remove: keep is the default; cleaning names what goes
+	rm := h.Login.Get(path + "/remove").Body.String()
+	has(t, "remove", rm, "<h1>Remove Home</h1>", "Keep everything on the router", `name="clean" value="0" checked`,
+		"Remove every tag Proxier installed", "deletes the 2 tags Proxier installed")
+	checkNoInline(t, "remove", rm)
+	_, _, awaiting := h.Registered("Waiting")
+	has(t, "remove awaiting", h.Login.Get("/routing/routers/"+strconv.FormatInt(awaiting, 10)+"/remove").Body.String(), `name="clean" value="1" disabled`)
+
+	if loc := location(t, h.Login.Post(path+"/remove", url.Values{"clean": {"0"}})); loc != "/routing/routers?removed=Home" {
+		t.Fatalf("removed: %s", loc)
+	}
+	has(t, "list", h.Login.Get("/routing/routers?removed=Home").Body.String(), "Removed Home.")
+	if rec := h.Login.Get(path); rec.Code != 404 {
+		t.Fatalf("gone: %d", rec.Code)
+	}
+}

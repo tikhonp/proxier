@@ -406,3 +406,37 @@ func TestPutAndSetSubject(t *testing.T) {
 		t.Fatalf("KnownHost: %+v %v", k, err)
 	}
 }
+
+func TestPerHopFirstContact(t *testing.T) {
+	e := newEnv(t)
+	jump, target := e.server(), e.server()
+	jump.AllowForwarding()
+	// an awaiting router's probe: its own key is pinned on first contact, its
+	// jump host must already be confirmed
+	tg := Target{
+		Hop:              Hop{Address: target.Addr, User: "proxier", Subject: "router:7"},
+		Jump:             &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"},
+		FirstContact:     PinOnFirstContact,
+		JumpFirstContact: ConfirmFirstContact,
+	}
+	_, err := e.connect(tg)
+	var unknown *UnknownHostError
+	var he *HopError
+	if !errors.As(err, &unknown) || unknown.Address != jump.Addr || !errors.As(err, &he) || !he.Jump {
+		t.Fatalf("an unknown jump host is refused: %v", err)
+	}
+	if len(e.hosts()) != 0 {
+		t.Fatalf("nothing is pinned: %+v", e.hosts())
+	}
+	if err := e.ssh.Pin(context.Background(), jump.Addr, "jump:pi", unknown.Key, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	e.mustConnect(tg)
+	bySubject := map[string]string{}
+	for _, h := range e.hosts() {
+		bySubject[h.Subject] = h.Fingerprint
+	}
+	if bySubject["router:7"] != fp(target.HostKey()) || bySubject["jump:pi"] != fp(jump.HostKey()) {
+		t.Fatalf("the router is pinned on first contact: %v", bySubject)
+	}
+}

@@ -164,3 +164,31 @@ func (h *Harness) Settle() {
 	}
 	h.T.Fatal("jobs did not settle")
 }
+
+// Registered starts a fake router (behind a fake jump host with ViaJump) and
+// registers it in awaiting setup on Main, nothing pinned, as Phase 4's router
+// script would. The jump host is nil without ViaJump.
+func (h *Harness) Registered(name string, opts ...RouterOption) (*routerostest.Router, *sshxtest.Server, int64) {
+	h.T.Helper()
+	var o routerOpts
+	for _, opt := range opts {
+		opt(&o)
+	}
+	key := h.Key()
+	r := routerostest.New(h.T, key)
+	var jump *sshxtest.Server
+	if o.jump {
+		jump = routerostest.Jump(h.T, key)
+	}
+	reg, err := h.Mod.Routers.Register(context.Background(), routers.Registration{Name: name, Conn: Conn(r, jump)}, "script")
+	if err != nil {
+		h.T.Fatalf("register %s: %v", name, err)
+	}
+	h.mu.Lock()
+	if h.fakes == nil {
+		h.fakes = map[int64]*routerostest.Router{}
+	}
+	h.fakes[reg.ID] = r
+	h.mu.Unlock()
+	return r, jump, reg.ID
+}

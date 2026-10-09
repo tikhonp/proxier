@@ -34,10 +34,12 @@ type previewPayload struct {
 func (s *Service) Preview(ctx context.Context, id int64, actor string) (int64, error) {
 	var syncID int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := store.GetRouter(ctx, tx, id); errors.Is(err, store.ErrNotFound) {
+		if rt, err := store.GetRouter(ctx, tx, id); errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
+		} else if rt.State != StateActive {
+			return ErrNotActive
 		}
 		var err error
 		if syncID, err = store.InsertSync(ctx, tx, store.Sync{RouterID: id, Kind: "preview", StartedAt: s.now()}); err != nil {
@@ -82,6 +84,9 @@ func (s *Service) stepPreview(ctx context.Context, r *jobs.Run) error {
 	} else if err != nil {
 		return err
 	}
+	if rt.State != StateActive {
+		return jobs.Permanent(fmt.Errorf("%s is %s: no preview", rt.Name, rt.State))
+	}
 	failed := func(step string, err error) error {
 		if ctx.Err() != nil {
 			return ctx.Err()
@@ -125,6 +130,9 @@ func (s *Service) stepPreview(ctx context.Context, r *jobs.Run) error {
 	}
 	added, updated, removed, unchanged, recorded := Count(plan)
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
+		if err := s.recordUnmanaged(ctx, tx, rt, st, unmanagedIn(plan), r.Info().Actor()); err != nil {
+			return err
+		}
 		if err := store.SyncPlanned(ctx, tx, p.SyncID, jsonOf(plan), db.At(st.ReadAt), store.Sync{
 			Added: added, Updated: updated, Removed: removed, Unchanged: unchanged, Recorded: recorded,
 		}); err != nil {

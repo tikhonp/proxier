@@ -48,7 +48,7 @@ func (s *SSH) Connect(ctx context.Context, t Target, log *jobs.Logger) (*Client,
 	}
 	var jump *ssh.Client
 	if t.Jump != nil {
-		if jump, err = s.dialHop(ctx, *t.Jump, t.Network, nil, t.FirstContact, signer, log); err != nil {
+		if jump, err = s.dialHop(ctx, *t.Jump, t.Network, nil, t.JumpFirstContact, signer, log); err != nil {
 			return nil, permanentIfFinal(&HopError{Jump: true, Address: NormalizeAddress(t.Jump.Address), Err: err})
 		}
 	}

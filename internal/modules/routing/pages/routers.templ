@@ -24,7 +24,7 @@ templ routersCrumbs(id int64, name, last string) {
 	</nav>
 }
 
-templ routersPage(s ui.Shell, rows []routerRow) {
+templ routersPage(s ui.Shell, rows []routerRow, notice string) {
 	@ui.Layout(s) {
 		<div class="titleblock">
 			<div class="head">
@@ -35,6 +35,11 @@ templ routersPage(s ui.Shell, rows []routerRow) {
 				@ui.ActionButton(ui.Action{ID: "routers.add", Label: "routers.add", Method: "GET", Href: routersPath + "/new", Key: "n", Kind: ui.Primary})
 			</div>
 		</div>
+		if notice != "" {
+			@ui.Band("pine") {
+				{ notice }
+			}
+		}
 		if len(rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "routers.empty"), i18n.T(ctx, "routers.empty.next"))
 		} else {
@@ -43,6 +48,7 @@ templ routersPage(s ui.Shell, rows []routerRow) {
 				<span>{ i18n.T(ctx, "routers.col.state") }</span>
 				<span>{ i18n.T(ctx, "routers.col.list") }</span>
 				<span>{ i18n.T(ctx, "routers.col.last") }</span>
+				<span>{ i18n.T(ctx, "routers.col.watch") }</span>
 				<span></span>
 			</div>
 			for _, r := range rows {
@@ -60,6 +66,7 @@ templ routersPage(s ui.Shell, rows []routerRow) {
 							<span class="sm subtle">{ r.Detail }</span>
 						}
 					</span>
+					<span class={ "sm", templ.KV("gold", r.Watched), templ.KV("subtle", !r.Watched) }>{ r.Watch }</span>
 					<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
 						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 						<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
@@ -298,10 +305,16 @@ templ routerPage(s ui.Shell, v routerView) {
 				<p class="subtle">{ v.Line }</p>
 			</div>
 			<div class="actions">
-				@ui.ActionButton(ui.Action{ID: "routers.sync_now", Label: "routers.sync_now", Method: "POST", Href: routerHref(v.R.ID) + "/sync", Key: "s", Kind: ui.Primary})
-				@ui.ActionButton(ui.Action{ID: "routers.preview", Label: "routers.preview", Method: "POST", Href: routerHref(v.R.ID) + "/preview", Key: "p"})
+				if v.R.State == "active" {
+					@ui.ActionButton(ui.Action{ID: "routers.sync_now", Label: "routers.sync_now", Method: "POST", Href: routerHref(v.R.ID) + "/sync", Key: "s", Kind: ui.Primary})
+					@ui.ActionButton(ui.Action{ID: "routers.preview", Label: "routers.preview", Method: "POST", Href: routerHref(v.R.ID) + "/preview", Key: "p"})
+					@ui.ActionButton(ui.Action{ID: "routers.pause", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause"})
+				} else if v.R.State == "paused" {
+					@ui.ActionButton(ui.Action{ID: "routers.resume", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Kind: ui.Primary})
+				}
 			</div>
 		</div>
+		@lifeBands(v)
 		if v.Band != nil {
 			<section class="band love rtr-band" aria-label={ i18n.T(ctx, "routers.band.failed") }>
 				<div class="col">
@@ -309,6 +322,9 @@ templ routerPage(s ui.Shell, v routerView) {
 					<span>{ v.Band.Problem }</span>
 					if v.Band.Retry != "" {
 						<span class="sm">{ v.Band.Retry }</span>
+					}
+					if len(v.Band.Hops) > 0 {
+						@hopsTable(v.Band.Hops)
 					}
 				</div>
 				@testButton(v.R.ID)
@@ -337,6 +353,7 @@ templ routerPage(s ui.Shell, v routerView) {
 						@planTable(v.Tags)
 					}
 				}
+				@unmanagedArea(v)
 			</div>
 			<div class="col-r">
 				<section class="area" id="connection" aria-label={ i18n.T(ctx, "routers.area.connection") }>
@@ -357,6 +374,10 @@ templ routerPage(s ui.Shell, v routerView) {
 						<dd>{ v.Conn.List }</dd>
 						<dt>{ i18n.T(ctx, "routers.conn.forwarder") }</dt>
 						<dd>{ v.Conn.Forwarder }</dd>
+						if v.Conn.Drift != "" {
+							<dt>{ i18n.T(ctx, "routers.conn.drift") }</dt>
+							<dd>{ v.Conn.Drift }</dd>
+						}
 					</dl>
 					<div class="area-body inline-fields">
 						@testButton(v.R.ID)
@@ -399,6 +420,14 @@ templ routerPage(s ui.Shell, v routerView) {
 				@ui.Area(i18n.T(ctx, "routers.area.actions"), "") {
 					@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
 					@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
+					if v.R.State == "active" {
+						@actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what"))
+					} else if v.R.State == "paused" {
+						@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
+					}
+					if v.R.State != "removing" {
+						@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
+					}
 				}
 				@ui.Area(i18n.T(ctx, "routers.area.activity"), "") {
 					if len(v.Activity) == 0 {

@@ -13,8 +13,8 @@ import (
 )
 
 // RenderNotification words the module's refresh, catalog and router sync
-// notifications in the admin's language with plural forms. 3f's router ones
-// use the default texts. The button opens the subject's page (the platform's).
+// notifications, router sync's, drift and unmanaged tags in the admin's
+// language with plural forms. The button opens the subject's page (the platform's).
 func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i18n.Localizer) (notify.Message, bool, error) {
 	p := e.Payload
 	switch e.Type {
@@ -78,6 +78,16 @@ func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i1
 			Title: loc.T("notify.routing.router_recovered", args),
 			Body:  loc.N("notify.routing.router_recovered.body", int64(num(p["failures"])), args),
 		}, true, nil
+	case "routing.drift_detected", "routing.unmanaged_tags_found":
+		tags, _ := p["tags"].(string)
+		n := int64(len(strings.Split(tags, ", ")))
+		args := i18n.Args{"subject": m.routerName(ctx, e.Subject), "tags": tags}
+		k := "notify." + e.Type
+		title := loc.T(k, args)
+		if e.Type == "routing.unmanaged_tags_found" {
+			title = loc.N(k, n, args)
+		}
+		return notify.Message{Title: title, Body: loc.N(k+".body", n, args)}, true, nil
 	}
 	return notify.Message{}, false, nil
 }

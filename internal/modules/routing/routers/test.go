@@ -282,7 +282,14 @@ func (s *Service) testedRouter(ctx context.Context, tx *sqlx.Tx, id int64, res s
 	if err := store.RouterSeen(ctx, tx, id, res.Version, res.Board, now); err != nil {
 		return err
 	}
-	if !cur.ConnectedAt.IsZero() || cur.State != "active" || (res.State != TestPassed && res.State != TestWarned) {
+	if res.State != TestPassed && res.State != TestWarned {
+		return nil
+	}
+	if cur.State == StateAwaiting {
+		// the admin confirmed both keys: a pass activates it as the probe would
+		return s.activate(ctx, tx, id, res.Version, res.Board, actor)
+	}
+	if !cur.ConnectedAt.IsZero() || cur.State != StateActive {
 		return nil
 	}
 	return s.connected(ctx, tx, id, res.Version, res.Board, now, actor, true)

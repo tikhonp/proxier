@@ -92,12 +92,17 @@ func TestPlanTable(t *testing.T) {
 	if got["g"].Want != -1 || got["g"].Have != 1 || got["c"].Want != 1 || got["c"].Have != 0 {
 		t.Fatalf("counts: %+v %+v", got["g"], got["c"])
 	}
-	// removing the router removes every tag on it, desired or not, and
-	// forgets what is gone
+	// removing the router removes every applied tag on it and forgets what
+	// is gone; tags Proxier never installed stay (3f)
 	all := byTag(MakePlan(want, st, app, Extra{RemoveAll: true}))
-	for _, tag := range []string{"a", "b", "d", "f", "g", "h", "x"} {
+	for _, tag := range []string{"a", "d", "f"} {
 		if all[tag].Action != Remove {
 			t.Errorf("remove all: %s is %+v", tag, all[tag])
+		}
+	}
+	for _, tag := range []string{"b", "g", "h", "x"} {
+		if all[tag].Action != Unmanaged {
+			t.Errorf("remove all keeps %s: %+v", tag, all[tag])
 		}
 	}
 	if all["e"].Action != Forget || all["i"].Action != Forget {

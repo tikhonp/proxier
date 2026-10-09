@@ -119,7 +119,7 @@ func (m *Module) Init(d module.Deps) error {
 	})
 	m.Routers = routers.New(routers.Deps{
 		DB: d.DB, Events: d.Events, Settings: d.Settings, Jobs: d.Jobs, SSH: d.SSH, Tailnet: d.Tailnet,
-		Lists: m.Lists, Services: m.Services, Now: now, Log: d.Log,
+		Lists: m.Lists, Services: m.Services, Catalog: m.Catalog, Now: now, Log: d.Log,
 	})
 	m.Marker = m.Routers.Marker()
 	return nil
@@ -135,9 +135,11 @@ func (m *Module) JobTypes() []jobs.Type {
 }
 
 // Schedules: the round at routing.refresh_at, the catalog at
-// routing.catalog_at, the prune job at 05:10.
+// routing.catalog_at, the drift round every routing.drift_every, the probe
+// round every 10 minutes, the prune job at 05:10.
 func (m *Module) Schedules() []jobs.Schedule {
 	out := append(m.Refresh.Schedules(), m.Catalog.Schedules()...)
+	out = append(out, m.Routers.Schedules()...)
 	return append(out, m.pruneSchedule())
 }
 
@@ -158,12 +160,16 @@ func (*Module) SettingsSections() []settings.Section { return []settings.Section
 func (*Module) Messages() i18n.Messages { return messages }
 
 func (m *Module) Routes(r web.Routes) {
-	pages.Register(r, pages.Deps{
+	pages.Register(r, m.pageDeps())
+	m.Shadowrocket.Register(r.Public)
+}
+
+func (m *Module) pageDeps() pages.Deps {
+	return pages.Deps{
 		Services: m.Services, Lists: m.Lists, Refresh: m.Refresh, Catalog: m.Catalog, Jobs: m.deps.Jobs, Settings: m.deps.Settings,
 		Shadowrocket: m.Shadowrocket, Import: m.Import, Routers: m.Routers, SSH: m.deps.SSH,
 		DB: m.deps.DB, Now: func() time.Time { return m.Now() },
-	})
-	m.Shadowrocket.Register(r.Public)
+	}
 }
 
 // Nav adds Lists, Services, Search, Routers (g r) and Shadowrocket; Discover comes later.

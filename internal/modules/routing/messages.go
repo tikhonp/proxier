@@ -249,9 +249,9 @@ var messages = i18n.Messages{
 	"event.routing.discovery_completed":          {EN: "Discovered {hosts} hosts of {website}", RU: "Найдено хостов сайта {website}: {hosts}"},
 	"event.routing.discovery_failed":             {EN: "Discovery of {website} failed: {error}", RU: "Поиск доменов {website} не удался: {error}"},
 
-	// Notifications (the refresh and catalog ones are in messages_refresh.go; 3e and 3f refine the routers')
-	"notify.routing.drift_detected":            {EN: "{subject}: entries drifted", RU: "{subject}: записи разошлись"},
-	"notify.routing.drift_detected.body":       {EN: "Tags: {tags}. Repair is off.", RU: "Теги: {tags}. Исправление выключено."},
-	"notify.routing.unmanaged_tags_found":      {EN: "{subject}: tags Proxier didn't install", RU: "{subject}: теги, которые ставил не Proxier"},
-	"notify.routing.unmanaged_tags_found.body": {EN: "{tags}", RU: "{tags}"},
+	// Notifications (the refresh and catalog ones are in messages_refresh.go, the routers' sync ones in messages_routers.go)
+	"notify.routing.drift_detected":            {EN: "{subject} drifted from what Proxier installed", RU: "{subject} разошёлся с тем, что поставил Proxier"},
+	"notify.routing.drift_detected.body":       {EN: "Tag: {tags}. Auto-repair is off: open the router to repair.|Tags: {tags}. Auto-repair is off: open the router to repair.", RU: "Тег: {tags}. Автоисправление выключено: откройте роутер, чтобы исправить.|Теги: {tags}. Автоисправление выключено: откройте роутер, чтобы исправить.|Теги: {tags}. Автоисправление выключено: откройте роутер, чтобы исправить."},
+	"notify.routing.unmanaged_tags_found":      {EN: "{subject} has a tag Proxier didn't install|{subject} has tags Proxier didn't install", RU: "На {subject} тег, который ставил не Proxier|На {subject} теги, которые ставил не Proxier|На {subject} теги, которые ставил не Proxier"},
+	"notify.routing.unmanaged_tags_found.body": {EN: "{tags}. It stays; adopt, remove or ignore it on the router page.|{tags}. They stay; adopt, remove or ignore them on the router page.", RU: "{tags}. Он остаётся; примите, удалите или игнорируйте его на странице роутера.|{tags}. Они остаются; примите, удалите или игнорируйте их на странице роутера.|{tags}. Они остаются; примите, удалите или игнорируйте их на странице роутера."},
 }
