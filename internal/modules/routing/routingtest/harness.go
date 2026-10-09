@@ -14,6 +14,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
+	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources/sourcestest"
@@ -31,7 +32,7 @@ type Harness struct {
 	Mod     *routing.Module
 	Login   *sitetest.Login
 	Up      *sourcestest.Upstream
-	Servers *Servers         // fake servers ports (the guard, 3g)
+	Servers *Servers         // fake servers ports (the guard; discovery's picker and dialer)
 	Marks   *change.Recorder // every change marked (the routers' marker gets them too)
 	Now     time.Time        // the module's clock, starting 2026-10-08 12:00 UTC; move it with Advance
 
@@ -46,7 +47,12 @@ type Option func(*options)
 type options struct {
 	noServers bool
 	log       io.Writer
+	browser   discovery.Browser
 }
+
+// WithBrowser gives discovery a browser (discoverytest's fake) whose host,
+// for visits through a server, is 127.0.0.1.
+func WithBrowser(b discovery.Browser) Option { return func(o *options) { o.browser = b } }
 
 // LogTo sends the app's log (the request log included) to w.
 func LogTo(w io.Writer) Option { return func(o *options) { o.log = w } }
@@ -66,9 +72,12 @@ func New(t *testing.T, opts ...Option) *Harness {
 	srv := &Servers{}
 	ports := routing.Ports{}
 	if !o.noServers {
-		ports.Hostnames, ports.Catalog = srv, srv
+		ports.Hostnames, ports.Catalog, ports.Dialer = srv, srv, srv
 	}
 	mod := routing.New(ports)
+	if o.browser != nil {
+		mod.Browser, mod.ChromiumPeer = o.browser, "127.0.0.1:9222"
+	}
 	up := sourcestest.New(t)
 	mod.Endpoints = up.Endpoints()
 	marks := &change.Recorder{}

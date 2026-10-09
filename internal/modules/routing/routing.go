@@ -15,6 +15,8 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
+	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
+	"github.com/tikhonp/proxier/internal/modules/routing/discovery/cdp"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/migrations"
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
@@ -61,6 +63,14 @@ type Module struct {
 	Import       *mtvpn.Service
 	// Routers keeps routers in sync (3e).
 	Routers *routers.Service
+	// Discovery finds a website's domains (3g). Browser is the Chromium it
+	// visits with: Init sets the sidecar's when PROXIER_CHROMIUM_URL is set,
+	// tests a fake before Open; nil runs the catalog lookup only.
+	// ChromiumPeer is the Chromium host's address a visit's SOCKS listener
+	// routes to and accepts (Init sets it from the URL when empty).
+	Discovery    *discovery.Service
+	Browser      discovery.Browser
+	ChromiumPeer string
 
 	ports Ports
 	deps  module.Deps
@@ -122,15 +132,30 @@ func (m *Module) Init(d module.Deps) error {
 		Lists: m.Lists, Services: m.Services, Catalog: m.Catalog, Now: now, Log: d.Log,
 	})
 	m.Marker = m.Routers.Marker()
+	if m.Browser == nil && d.Cfg.ChromiumURL != "" {
+		b, err := cdp.New(d.Cfg.ChromiumURL)
+		if err != nil {
+			return err
+		}
+		m.Browser = b
+		if m.ChromiumPeer == "" {
+			m.ChromiumPeer = b.Peer()
+		}
+	}
+	m.Discovery = discovery.New(discovery.Deps{
+		DB: d.DB, Events: d.Events, Jobs: d.Jobs, Catalog: m.Catalog, Services: m.Services, Lists: m.Lists,
+		Browser: m.Browser, Servers: m.ports.Catalog, Dialer: m.ports.Dialer, Peer: m.ChromiumPeer, DataDir: d.Cfg.DataDir, Now: now, Log: d.Log,
+	})
 	return nil
 }
 
-// JobTypes: the refresh, the daily round, the catalog refresh, the import
-// and the prune job.
+// JobTypes: the refresh, the daily round, the catalog refresh, the import,
+// the routers' jobs, discovery and the prune job.
 func (m *Module) JobTypes() []jobs.Type {
 	out := append(m.Refresh.JobTypes(), m.Catalog.JobTypes()...)
 	out = append(out, m.Import.JobTypes()...)
 	out = append(out, m.Routers.JobTypes()...)
+	out = append(out, m.Discovery.JobTypes()...)
 	return append(out, m.pruneType())
 }
 
@@ -167,17 +192,18 @@ func (m *Module) Routes(r web.Routes) {
 func (m *Module) pageDeps() pages.Deps {
 	return pages.Deps{
 		Services: m.Services, Lists: m.Lists, Refresh: m.Refresh, Catalog: m.Catalog, Jobs: m.deps.Jobs, Settings: m.deps.Settings,
-		Shadowrocket: m.Shadowrocket, Import: m.Import, Routers: m.Routers, SSH: m.deps.SSH,
+		Shadowrocket: m.Shadowrocket, Import: m.Import, Routers: m.Routers, SSH: m.deps.SSH, Discovery: m.Discovery,
 		DB: m.deps.DB, Now: func() time.Time { return m.Now() },
 	}
 }
 
-// Nav adds Lists, Services, Search, Routers (g r) and Shadowrocket; Discover comes later.
+// Nav adds Lists, Services, Search, Discover, Routers (g r) and Shadowrocket.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "routing", Label: "lists.nav", Href: "/routing/lists", Order: 10},
 		{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20},
 		{Group: "routing", Label: "catalog.nav", Href: "/routing/search", Order: 30},
+		{Group: "routing", Label: "discovery.nav", Href: "/routing/discover", Order: 40},
 		{Group: "routing", Label: "routers.nav", Href: "/routing/routers", Order: 50, GoKey: "r"},
 		{Group: "routing", Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60},
 	}
@@ -259,7 +285,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 
 // SubjectTypes are the subject types of the module's events.
 func (*Module) SubjectTypes() []string {
-	return []string{"service", "routing_list", "routing", "shadowrocket", "router"}
+	return []string{"service", "routing_list", "routing", "shadowrocket", "router", "discovery"}
 }
 
 // NameSubjects names subjects for Activity, Jobs and notifications.
@@ -292,6 +318,10 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 			if r, err := m.Routers.Get(ctx, n); err == nil {
 				out[id] = ui.SubjectRef{Label: r.Name, Href: "/routing/routers/" + id}
 			}
+		case "discovery":
+			if r, err := store.GetRun(ctx, m.deps.DB.R, n); err == nil {
+				out[id] = ui.SubjectRef{Label: i18n.T(ctx, "discovery.subject", i18n.Args{"id": n, "host": r.Host}), Href: "/routing/discover/" + id}
+			}
 		case "routing_list":
 			if name, err := store.ListName(ctx, m.deps.DB.R, n); err == nil {
 				out[id] = ui.SubjectRef{Label: name, Href: "/routing/lists/" + id}
@@ -314,5 +344,6 @@ var (
 	_ module.JobDeclarer          = (*Module)(nil)
 	_ module.SettingsPageDeclarer = (*Module)(nil)
 	_ module.NotificationRenderer = (*Module)(nil)
+	_ module.IntegrationDeclarer  = (*Module)(nil)
 	_ change.Marker               = (*Module)(nil)
 )

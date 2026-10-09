@@ -24,7 +24,7 @@ The catalog lets the admin find services without knowing selectors by heart. It 
    - **Preview**: fetch and parse now; show suffix and exact counts, the domains, and the skipped entries with reasons;
    - **Add to lists…**: create the service if needed, then add it to the chosen routing lists;
    - **Open service** when it exists.
-4. No results → "Nothing in the catalog matches 'xyz'", with **Discover xyz.com** prefilled ([discovery](./domain-discovery.md)).
+4. No results → "Nothing in the catalog matches 'xyz'", with **Discover xyz.com…** linking the Discover form prefilled ([discovery](./domain-discovery.md)): a query without a dot gets `.com`, a query with a dot is used as typed.
 
 ## Rules
 
@@ -43,5 +43,5 @@ The catalog lets the admin find services without knowing selectors by heart. It 
 - **Preview** of `v2fly:openai` → counts, domains, and skipped `regexp:` lines listed with "not supported on RouterOS".
 - GitHub unreachable during refresh → the v2fly catalog is kept, with "3 days old" shown on its results.
 - One iplist portal unreachable → that portal's entries are kept from the last refresh. The other portals refresh.
-- No results for "kinopoisk" → the Discover suggestion with `kinopoisk.ru` prefilled.
+- No results for "kinopoisk" → the Discover suggestion with `kinopoisk.com` prefilled; for "kinopoisk.ru", `kinopoisk.ru` as typed.
 - A refresh while a search is open → the search keeps working, and results update on the next query.

@@ -30,7 +30,7 @@ func (m *Module) pruneSchedule() jobs.Schedule {
 // Prune deletes old superseded snapshots and settled rejected ones,
 // Shadowrocket fetches after 90 days, imports after 30 days, router syncs
 // after 90 days (the newest 20 per router kept), connection tests after a
-// day, and catalog rows of generations not in force, in batches. log may be
+// day, discovery runs and their screenshots after 30 days, and catalog rows of generations not in force, in batches. log may be
 // nil.
 func (m *Module) Prune(ctx context.Context, log *jobs.Logger) error {
 	cutoff := db.At(m.Now().Add(-store.SnapshotRetention))
@@ -79,6 +79,13 @@ func (m *Module) Prune(ctx context.Context, log *jobs.Logger) error {
 	}
 	if log != nil {
 		log.Info("%d router syncs and %d connection tests deleted", syncs, tests)
+	}
+	runs, err := m.Discovery.Prune(ctx)
+	if err != nil {
+		return err
+	}
+	if log != nil {
+		log.Info("%d discovery runs deleted", runs)
 	}
 	return m.Catalog.Prune(ctx)
 }

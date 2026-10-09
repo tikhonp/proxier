@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net"
 	"slices"
 	"sort"
 	"time"
@@ -66,9 +67,13 @@ type RoutedName = provision.RoutedName
 // of a new server's hostnames a routing list covers. Nil: nothing is checked.
 type RoutingGuard = provision.RoutingGuard
 
+// DialFunc opens a TCP connection through a server's endpoint. It is
+// declared here so another module needs no other package of this one.
+type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
+
 // ProxyDialer sends traffic through a chosen active server's endpoint.
 type ProxyDialer interface {
-	Dial(ctx context.Context, serverID int64) (proxy.DialFunc, io.Closer, error)
+	Dial(ctx context.Context, serverID int64) (DialFunc, io.Closer, error)
 }
 
 // Rotator is what subscriptions' cut-off uses to rotate servers one at a time.
@@ -195,7 +200,7 @@ type dialer struct{ m *Module }
 
 // Dial opens an xray client through the server's first endpoint. The closer
 // stops it; the caller closes it when done.
-func (d dialer) Dial(ctx context.Context, serverID int64) (proxy.DialFunc, io.Closer, error) {
+func (d dialer) Dial(ctx context.Context, serverID int64) (DialFunc, io.Closer, error) {
 	se, ok, err := catalog(d).Server(ctx, serverID)
 	if err != nil {
 		return nil, nil, err
@@ -203,5 +208,9 @@ func (d dialer) Dial(ctx context.Context, serverID int64) (proxy.DialFunc, io.Cl
 	if !ok || len(se.Endpoints) == 0 {
 		return nil, nil, store.ErrNotFound
 	}
-	return proxy.Dialer(ctx, se.Endpoints[0], proxy.Options{})
+	dial, closer, err := proxy.Dialer(ctx, se.Endpoints[0], proxy.Options{})
+	if err != nil {
+		return nil, nil, err
+	}
+	return DialFunc(dial), closer, nil
 }

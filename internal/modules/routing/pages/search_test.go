@@ -95,3 +95,23 @@ func TestPreview(t *testing.T) {
 	h.Up.V2fly("weird", "regexp:^x$\n")
 	has(t, "empty", hx(h, "GET", "/routing/search/preview?selector=weird", nil), "regexp:^x$", "has no names RouterOS can use")
 }
+
+func TestSearchSuggestsDiscover(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("apple", "apple.com\n")
+	h.StartJobs()
+	if _, err := h.Mod.Catalog.RefreshNow(bg(), "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Drain()
+	body := h.Login.Get("/routing/search?q=kinopoisk").Body.String()
+	has(t, "dotless", body, "Nothing in the catalog matches", `href="/routing/discover?website=kinopoisk.com"`, "Discover kinopoisk.com…",
+		"opens a browser and lists every domain the site loads")
+	body = h.Login.Get("/routing/search?q=kinopoisk.ru").Body.String()
+	has(t, "with a dot", body, `href="/routing/discover?website=kinopoisk.ru"`, "Discover kinopoisk.ru…")
+	if body := h.Login.Get("/routing/search?q=apple").Body.String(); strings.Contains(body, "/routing/discover?website=") {
+		t.Error("a search with results suggests discovery")
+	}
+	// the link opens the form prefilled
+	has(t, "form", h.Login.Get("/routing/discover?website=kinopoisk.com").Body.String(), `value="kinopoisk.com"`)
+}

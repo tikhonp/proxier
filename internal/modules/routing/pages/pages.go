@@ -10,6 +10,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
+	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/refresh"
@@ -38,12 +39,14 @@ type Deps struct {
 	Shadowrocket *shadowrocket.Service
 	Import       *mtvpn.Service
 	// Routers is 3e's; SSH shows Proxier's key and the pinned fingerprints.
-	Routers  *routers.Service
-	SSH      *sshx.SSH
-	Jobs     *jobs.System
-	Settings *settings.Store
-	DB       *db.DB
-	Now      func() time.Time
+	Routers *routers.Service
+	SSH     *sshx.SSH
+	// Discovery is 3g's.
+	Discovery *discovery.Service
+	Jobs      *jobs.System
+	Settings  *settings.Store
+	DB        *db.DB
+	Now       func() time.Time
 }
 
 type handler struct {
@@ -83,6 +86,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerShadowrocket(r)
 	h.registerImport(r)
 	h.registerRouters(r)
+	h.registerDiscover(r)
 }
 
 const listPath = "/routing/services"

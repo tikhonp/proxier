@@ -8,7 +8,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 
 1. Routing → **Discover**. Fields:
    - **Website**: a URL or a domain.
-   - **Visit through**: **Direct** (from home, the default); a chosen healthy server; or **Auto**, which goes direct and repeats through the first healthy server if the page doesn't load or the direct visit had failed requests.
+   - **Visit through**: **Direct** (from home, the default); a chosen healthy server; or **Auto**, which goes direct and repeats through the first healthy server **by name** if the page doesn't load or the direct visit had failed requests. Unhealthy servers are listed but can't be chosen. Without the servers module only Direct is offered.
    - **Depth**: **Home page** (default), or **Home page + up to 5 links** on the same site.
 2. **Discover** queues the job and opens the run page, which fills in as steps finish.
 
@@ -17,10 +17,10 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 1. **Normalise**: take the host and find its registrable domain with the public suffix list (`www.claude.ai` → `claude.ai`; `me.github.io` stays `me.github.io`, because `github.io` is a public suffix).
 2. **Catalog lookup**: search the reverse index for the host, the registrable domain and their parent domains. Show every selector containing them: exact, suffix, or a suffix above. Each suggestion shows its domain count and whether it is already a service and in which lists. This step takes milliseconds and is shown first.
 3. **Headless visit** (when Chromium is configured):
-   1. Open a fresh, isolated browser context: no cookies, no storage. For **through a server**, the context's proxy is a local SOCKS listener that `ProxyDialer` opens through that server's endpoint for this run only.
+   1. Open a fresh, isolated browser context: no cookies, no storage. For **through a server**, the context's proxy is a SOCKS5 listener Proxier opens for this visit only, on the address that routes to the Chromium sidecar, relaying every connection through `ProxyDialer` (that server's endpoint). Chrome can't authenticate to a SOCKS proxy, so the listener accepts connections **only from the sidecar's address**. Names reach the server unresolved, so they resolve at its end.
    2. Load the page. Wait until the network has been idle for 2 s (at most 30 s), scroll to the bottom, then wait 3 s more.
    3. Record every request, service-worker and websocket ones included: host, resource type, status, redirect chain, and failure (DNS error, refused, reset, timeout).
-   4. Take a screenshot of the page.
+   4. Take a screenshot of the top of the page, scrolled back up (JPEG, 1280×800). Screenshots are files, `<data dir>/discovery/<run>/<visit>-<page>.jpg`, not rows.
    5. For depth > 0: pick up to 5 distinct links to the same registrable domain and visit each the same way.
    6. Limits: 90 s per page, 300 distinct hostnames per run.
 4. **Classify** each hostname:
@@ -29,13 +29,13 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
    |---|---|---|
    | First-party | Same registrable domain as the website | ticked, as a suffix domain of the registrable domain |
    | Failed directly | Any class, when its requests failed on a direct visit (a strong sign it is blocked) | ticked, with the failure reason shown |
-   | CDN / infrastructure | Under a built-in list of CDN and platform suffixes (Cloudflare, CloudFront, Akamai, Fastly, Google static, jsDelivr…) | not ticked |
-   | Tracker / ads | Under a built-in list (analytics, tag managers, ad networks) | not ticked |
+   | CDN / infrastructure | Under a built-in list of CDN and platform suffixes: `cloudflare.com`, `cloudflare.net`, `cloudfront.net`, `akamai.net`, `akamaihd.net`, `akamaized.net`, `edgekey.net`, `edgesuite.net`, `fastly.net`, `fastly.com`, `fastlylb.net`, `gstatic.com`, `googleapis.com`, `googleusercontent.com`, `ggpht.com`, `jsdelivr.net`, `unpkg.com`, `bootstrapcdn.com`, `azureedge.net`, `azurefd.net`, `msecnd.net`, `b-cdn.net`, `cdn77.org`, `amazonaws.com`, `yastatic.net`, `recaptcha.net`, `hcaptcha.com` | not ticked |
+   | Tracker / ads | Under a built-in list of analytics, tag managers and ad networks: `google-analytics.com`, `googletagmanager.com`, `googlesyndication.com`, `googleadservices.com`, `doubleclick.net`, `facebook.net`, `hotjar.com`, `segment.io`, `segment.com`, `mixpanel.com`, `amplitude.com`, `sentry.io`, `nr-data.net`, `clarity.ms`, `bat.bing.com`, `cloudflareinsights.com`, `mc.yandex.ru`, `mc.yandex.com`, `top-fwz1.mail.ru`, `counter.yadro.ru`, `scorecardresearch.com`, `criteo.com`, `criteo.net`, `adnxs.com`, `taboola.com`, `outbrain.com` | not ticked |
    | Third-party | Anything else | not ticked |
    | IP literal | A request straight to an IP address | listed separately, can't be ticked (domains only) |
 
    Every hostname is also marked **covered by** when a service in the routing lists already covers it.
-5. Finish → `routing.discovery_completed{hosts, suggestions}`. When the visit itself can't run (Chromium unreachable, page never loads) → `routing.discovery_failed{error}`. The catalog suggestions still show.
+5. Finish → `routing.discovery_completed{website, hosts, suggestions}`. When the visit itself can't run (Chromium unreachable, a DevTools error, the server's dialer gone) → `routing.discovery_failed{website, error}`, and the catalog suggestions still show. A page that never loads is **not** a failure of the run: its visit says so ("the page never loaded: ERR_CONNECTION_RESET"), its hosts are marked failed, and Auto repeats it. The site's own class wins over the built-in lists (a run of `cloudflare.com` finds first-party hosts).
 
 ## Steps — using the result
 

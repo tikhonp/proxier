@@ -1,0 +1,313 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ discoverCrumbs(last string) {
+	<nav class="crumbs" aria-label="Breadcrumb">
+		<a href={ templ.SafeURL(discoverPath) }>{ i18n.T(ctx, "discovery.title") }</a>
+		if last != "" {
+			<span aria-hidden="true">/</span>
+			<span>{ last }</span>
+		}
+	</nav>
+}
+
+templ discoverPage(s ui.Shell, v discoverForm) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "discovery.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "discovery.intro") }</p>
+				<p class={ "sm", templ.KV("gold", !v.ChromiumOK), templ.KV("subtle", v.ChromiumOK) }>{ i18n.T(ctx, "discovery.chromium_line", i18n.Args{"state": v.Chromium}) }</p>
+			</div>
+		</div>
+		<form method="post" action={ templ.SafeURL(discoverPath) } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="disc-website">{ i18n.T(ctx, "discovery.field.website") }</label>
+				<input id="disc-website" class="pc-inp" name="website" value={ v.Website } placeholder="claude.ai" autocomplete="off" autocapitalize="off" spellcheck="false" autofocus aria-invalid?={ v.Errs["website"] != "" }/>
+				if v.Errs["website"] != "" {
+					<p class="err" role="alert">{ v.Errs["website"] }</p>
+				}
+			</div>
+			<fieldset class="field">
+				<legend>{ i18n.T(ctx, "discovery.field.via") }</legend>
+				for _, o := range v.Options {
+					<label class="check">
+						<input type="radio" name="via" value={ o.Value } checked?={ o.Value == v.Via } disabled?={ o.Disabled }/>
+						<span>{ o.Label }</span>
+						if o.Note != "" {
+							<span class="sm subtle">{ o.Note }</span>
+						}
+					</label>
+				}
+				for _, k := range []string{"via", "server"} {
+					if v.Errs[k] != "" {
+						<p class="err" role="alert">{ v.Errs[k] }</p>
+					}
+				}
+			</fieldset>
+			<fieldset class="field">
+				<legend>{ i18n.T(ctx, "discovery.field.depth") }</legend>
+				<label class="check"><input type="radio" name="depth" value="0" checked?={ v.Depth == 0 }/>{ i18n.T(ctx, "discovery.depth.home") }</label>
+				<label class="check"><input type="radio" name="depth" value="5" checked?={ v.Depth == 5 }/>{ i18n.T(ctx, "discovery.depth.links") }</label>
+				if v.Errs["depth"] != "" {
+					<p class="err" role="alert">{ v.Errs["depth"] }</p>
+				}
+			</fieldset>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="discovery.start">{ i18n.T(ctx, "discovery.start") }</button>
+			</div>
+			<p class="sm subtle">{ i18n.T(ctx, "discovery.start.note") }</p>
+		</form>
+		if len(v.Recent) > 0 {
+			@ui.Area(i18n.T(ctx, "discovery.recent"), i18n.T(ctx, "discovery.recent.note")) {
+				for _, r := range v.Recent {
+					<div class="row disc-recent pc-row" data-row={ i64(r.ID) } data-href={ runHref(r.ID) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<a href={ templ.SafeURL(runHref(r.ID)) } class="bold">{ r.Host }</a>
+							<span class="sm subtle">{ r.Line }</span>
+						</span>
+						@ui.Status(r.StatusKind, r.Word)
+					</div>
+				}
+			}
+		}
+	}
+}
+
+templ runPage(s ui.Shell, v runView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@discoverCrumbs(i18n.T(ctx, "discovery.run.crumb", i18n.Args{"id": v.Run.ID}))
+				<h1>{ v.Run.Host }</h1>
+				@runStateLine(v, false)
+				<p class="sm subtle seltext">{ v.Line }</p>
+			</div>
+			<div class="actions">
+				<form method="post" action={ templ.SafeURL(runHref(v.Run.ID) + "/again") } class="inline-fields">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<label for="disc-again" class="sm subtle">{ i18n.T(ctx, "discovery.again") }</label>
+					<select id="disc-again" class="pc-inp pc-sm" name="via">
+						for _, o := range v.Again {
+							<option value={ o.Value } disabled?={ o.Disabled }>{ o.Label }</option>
+						}
+					</select>
+					<button type="submit" class="pc-btn pc-sm" data-action="discovery.again">{ i18n.T(ctx, "discovery.again.go") }</button>
+				</form>
+			</div>
+		</div>
+		if v.Err != "" && len(v.Groups) == 0 {
+			@ui.Alert("love", "alert") {
+				{ v.Err }
+			}
+		}
+		@runAreas(v)
+	}
+}
+
+// runStateLine is the run's state under its title; the poll's answer
+// replaces it out of band.
+templ runStateLine(v runView, oob bool) {
+	<p
+		id="run-state"
+		if oob {
+			hx-swap-oob="true"
+		}
+	>
+		@ui.Status(v.Kind, v.State)
+		{ " " }
+		<span class="subtle">{ v.Title }</span>
+	</p>
+}
+
+// runPoll is the poll's answer: the areas and the state line.
+templ runPoll(v runView) {
+	@runAreas(v)
+	@runStateLine(v, true)
+}
+
+// runAreas is what fills in while the run works; it polls until the run ends.
+templ runAreas(v runView) {
+	<div
+		id="run-areas"
+		if v.Active {
+			hx-get={ runHref(v.Run.ID) + "/status" }
+			hx-trigger="every 2s"
+			hx-swap="outerHTML"
+		}
+	>
+		if v.Run.State == "failed" {
+			@ui.Band("love") {
+				{ i18n.T(ctx, "discovery.failed", i18n.Args{"error": v.Run.Error}) }
+				if v.Run.JobID != 0 {
+					<a href={ templ.SafeURL("/jobs/" + i64(v.Run.JobID)) }>{ i18n.T(ctx, "discovery.job") }</a>
+				}
+			}
+		}
+		@ui.Area("1 · "+i18n.T(ctx, "discovery.area.catalog"), i18n.T(ctx, "discovery.area.catalog.note")) {
+			if v.Run.State == "queued" {
+				<p class="area-body subtle">{ i18n.T(ctx, "discovery.waiting") }</p>
+			} else if len(v.Suggestions) == 0 {
+				<p class="area-body subtle">{ i18n.T(ctx, "discovery.no_suggestions") }</p>
+			}
+			for _, s := range v.Suggestions {
+				<div class="row disc-sug">
+					<span class="col">
+						<span class="bold seltext">{ s.Selector }</span>
+						<span class="sm subtle">{ s.Line }</span>
+						<span class="sm">{ s.Lists }</span>
+					</span>
+					<a href={ templ.SafeURL(s.Href) } class="pc-btn pc-sm">{ i18n.T(ctx, "discovery.use") }</a>
+				</div>
+			}
+			if v.SuggestNote != "" {
+				<p class="area-body sm subtle">{ v.SuggestNote }</p>
+			}
+		}
+		@ui.Area("2 · "+i18n.T(ctx, "discovery.area.visits"), i18n.T(ctx, "discovery.area.visits.note")) {
+			if v.NoBrowser != "" {
+				<p class="area-body gold">{ v.NoBrowser }</p>
+			} else if len(v.Visits) == 0 {
+				<p class="area-body subtle">{ i18n.T(ctx, "discovery.visiting") }</p>
+			}
+			for _, vr := range v.Visits {
+				<div class="area-body disc-visit">
+					<p>
+						if vr.OK {
+							@ui.Status("ok", vr.Path)
+						} else {
+							@ui.Status("broken", vr.Path)
+						}
+						{ " " }
+						<span class="subtle">{ vr.Line }</span>
+					</p>
+					if vr.Note != "" {
+						<p class="sm gold">{ vr.Note }</p>
+					}
+					if len(vr.Shots) > 0 {
+						<div class="disc-shots">
+							for i, src := range vr.Shots {
+								<a href={ templ.SafeURL(src) } target="_blank" rel="noopener"><img src={ src } alt={ i18n.T(ctx, "discovery.shot", i18n.Args{"n": i + 1, "path": vr.Path}) } loading="lazy" width="320" height="200"/></a>
+							}
+						</div>
+					}
+				</div>
+			}
+		}
+		if !v.Active && len(v.Groups)+len(v.Run.IPs) > 0 {
+			@runPicks(v)
+		}
+	</div>
+}
+
+templ runPicks(v runView) {
+	<form method="post" action={ templ.SafeURL(runHref(v.Run.ID) + "/create") } class="disc-form">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		@ui.Area("3 · "+i18n.T(ctx, "discovery.area.pick"), i18n.T(ctx, "discovery.area.pick.note")) {
+			<div class="colhead disc-pick" aria-hidden="true">
+				<span></span>
+				<span>{ i18n.T(ctx, "discovery.col.domain") }</span>
+				<span>{ i18n.T(ctx, "discovery.col.class") }</span>
+				<span>{ i18n.T(ctx, "discovery.col.requests") }</span>
+				<span>{ i18n.T(ctx, "discovery.col.failures") }</span>
+				<span>{ i18n.T(ctx, "discovery.col.covered") }</span>
+			</div>
+			for gi, g := range v.Groups {
+				<details class="disc-group">
+					<summary class="row disc-pick pc-row" data-row={ "g" + strconv.Itoa(gi) } data-enter data-hint={ i18n.T(ctx, "discovery.hints.row") }>
+						<span><input type="checkbox" name="group" value={ g.Domain } checked?={ g.Ticked } data-key=" " data-pick aria-label={ g.Domain }/></span>
+						<span class="col">
+							<span class="bold seltext">{ g.Domain }</span>
+							<span class="sm subtle">{ i18n.T(ctx, "discovery.as_suffix") } · { g.Hosts }</span>
+						</span>
+						<span class="sm">{ g.Class }</span>
+						<span class="sm">{ g.Requests }</span>
+						<span class="sm love">{ g.Failed }</span>
+						<span class="sm subtle">{ g.Covered }</span>
+					</summary>
+					for hi, hr := range g.Rows {
+						<div class="row disc-pick disc-host pc-row" data-row={ "g" + strconv.Itoa(gi) + "h" + strconv.Itoa(hi) }>
+							<span>
+								if hr.Tickable {
+									<input type="checkbox" name="host" value={ hr.Host } checked?={ hr.Ticked } data-key=" " data-pick aria-label={ hr.Host }/>
+								}
+							</span>
+							<span class="col">
+								<span class="seltext">{ hr.Host }</span>
+								<span class="sm subtle">{ i18n.T(ctx, "discovery.as_exact") }</span>
+							</span>
+							<span class="sm">{ hr.Class }</span>
+							<span class="sm">{ hr.Requests }</span>
+							<span class="sm love">{ hr.Failed }</span>
+							<span class="sm subtle">{ hr.Covered }</span>
+						</div>
+					}
+				</details>
+			}
+			if v.IPs != "" {
+				<p class="area-body sm subtle">{ v.IPs }</p>
+			}
+			if v.Capped != "" {
+				<p class="area-body sm gold">{ v.Capped }</p>
+			}
+		}
+		@ui.Area("4 · "+i18n.T(ctx, "discovery.area.save"), "") {
+			<div class="area-body">
+				if v.Err != "" {
+					<p class="err" role="alert">{ v.Err }</p>
+				}
+				<div class="inline-fields">
+					<div class="field">
+						<label for="disc-name">{ i18n.T(ctx, "discovery.field.name") }</label>
+						<input id="disc-name" class="pc-inp" name="name" value={ v.Name } maxlength="60" autocomplete="off" aria-invalid?={ v.Errs["name"] != "" }/>
+						if v.Errs["name"] != "" {
+							<p class="err" role="alert">{ v.Errs["name"] }</p>
+						}
+					</div>
+					<div class="field">
+						<label for="disc-tag">{ i18n.T(ctx, "discovery.field.tag") }</label>
+						<input id="disc-tag" class="pc-inp" name="tag" value={ v.Tag } maxlength="63" autocomplete="off" autocapitalize="off" spellcheck="false" aria-invalid?={ v.Errs["tag"] != "" }/>
+						if v.Errs["tag"] != "" {
+							<p class="err" role="alert">{ v.Errs["tag"] }</p>
+						}
+					</div>
+				</div>
+				<fieldset class="field">
+					<legend>{ i18n.T(ctx, "discovery.field.lists") }</legend>
+					for _, l := range v.Lists {
+						<label class="check">
+							<input type="checkbox" name="list" value={ i64(l.ID) } checked?={ l.Checked }/>
+							<span>{ l.Name }</span>
+							if l.Targets != "" {
+								<span class="sm subtle">· { l.Targets }</span>
+							}
+						</label>
+					}
+				</fieldset>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-pri" data-action="discovery.create">
+						{ i18n.T(ctx, "discovery.create") } · <span data-pick-count>{ strconv.Itoa(v.picked()) }</span>
+					</button>
+					if len(v.Customs) > 0 {
+						<label for="disc-into" class="sm subtle">{ i18n.T(ctx, "discovery.add_to") }</label>
+						<select id="disc-into" class="pc-inp pc-sm" name="service">
+							for _, cs := range v.Customs {
+								<option value={ i64(cs.ID) }>{ cs.Name }</option>
+							}
+						</select>
+						<button type="submit" class="pc-btn" formaction={ templ.SafeURL(runHref(v.Run.ID) + "/add") } data-action="discovery.add">{ i18n.T(ctx, "discovery.add") }</button>
+					}
+				</div>
+				<p class="sm subtle">{ v.SaveNote }</p>
+			</div>
+		}
+	</form>
+}

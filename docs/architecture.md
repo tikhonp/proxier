@@ -68,7 +68,7 @@ Each module registers, at startup:
 | `Rotator` | servers | subscriptions | The rotation job of a server, for a cut-off to queue in its own transaction (one server at a time). |
 | `ServerHostnames` | servers | routing | Every non-retired server with its name and management and proxy hostnames, which must never be routed (the guard names the server). |
 | `RoutingGuard` | routing | servers (provisioning) | Which of a new server's hostnames a routing list covers, naming the list and the service, so the form refuses them. |
-| `ProxyDialer` | servers | routing (discovery) | Open connections through a chosen server's endpoint, or a local SOCKS listener that does so. |
+| `ProxyDialer` | servers | routing (discovery) | Open connections through a chosen server's endpoint: `Dial(ctx, serverID)` returns a `servers.DialFunc` (a func type of the servers root package, so routing imports nothing else of servers) and a closer. Discovery puts its own per-run SOCKS listener in front of it. |
 | `LinkIssuer` | subscriptions | router scripts | Create a link in a subscription and return its URL. |
 | `RouterRegistrar` | routing | router scripts | Register a router (in "awaiting setup") with a routing list, a connection and names. Return the address-list and DoH-forwarder names. |
 

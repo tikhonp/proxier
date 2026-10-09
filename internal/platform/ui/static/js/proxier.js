@@ -327,7 +327,12 @@
       case 'G': if (!rows().length) { var l2 = $('#log'); if (l2 && l2.lastElementChild) { l2.lastElementChild.scrollIntoView(); e.preventDefault(); } } else if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
       case 'Enter': {
         var r = currentRow();
-        if (r) { var href = r.getAttribute('data-href'); if (href) { window.location.href = href; e.preventDefault(); } }
+        if (r) {
+          var href = r.getAttribute('data-href');
+          if (href) { window.location.href = href; e.preventDefault(); }
+          // data-enter: the row itself acts (a <summary> expands its group)
+          else if (r.hasAttribute('data-enter')) { r.click(); e.preventDefault(); }
+        }
         return;
       }
       case '[': case ']': {
@@ -376,6 +381,14 @@
       if (log.hasAttribute('data-reload-on-done')) setTimeout(function () { window.location.reload(); }, 600);
     });
   })();
+
+  // ---- a count of the ticked [data-pick] boxes of a form ([data-pick-count])
+  document.addEventListener('change', function (e) {
+    if (!e.target.matches || !e.target.matches('input[data-pick]')) return;
+    var f = e.target.form;
+    var out = f && $('[data-pick-count]', f);
+    if (out) out.textContent = String($$('input[data-pick]:checked', f).length);
+  });
 
   // htmx swaps leave the cursor pointing at nothing
   document.addEventListener('htmx:afterSwap', function () {

@@ -54,7 +54,7 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - mtvpn import ([mtvpn import](./processes/routing/mtvpn-import.md)).
 - Discovery: catalog lookup, then the headless visit ([discovery](./processes/routing/domain-discovery.md)).
 
-**Status (2026-10-08):** planned in seven sub-phases, 3a–3g (contracts and cross-cutting decisions in [build/](./build/README.md#phase-3-routing)); not built yet.
+**Status (2026-10-09):** built in seven sub-phases, 3a–3g (contracts and **As built** notes in [build/](./build/README.md#phase-3-routing)). Left for the user: the exit demo below on the real deployment (steps in [3g](./build/3g.md#phase-3-exit-demo)), with the real `mtvpn.yaml`, the home router (open question "to verify" 5), the phone's Shadowrocket and the Chromium sidecar, and committing the sidecar's compose draft ([deployment](./deployment.md#the-chromium-sidecar)).
 
 **Exit:** `mtvpn.yaml` is imported. The home router's first sync is a no-op for unchanged services. The phone subscribes to the hosted Shadowrocket config instead of copyparty. Typing a new site finds its domains, and the router gets them within a minute of saving.
 

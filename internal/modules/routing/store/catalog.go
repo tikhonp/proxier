@@ -266,3 +266,51 @@ func V2flyHas(ctx context.Context, q sqlx.QueryerContext, name string) (bool, er
 		WHERE e.source = 'v2fly' AND e.kind = 'list' AND e.name = ?`, name)
 	return n > 0, err
 }
+
+// Held is a reverse-index row of the current generations: the list or site
+// holding a domain, in which form, with the entry's attributes.
+type Held struct {
+	Source  string `db:"source"`
+	Name    string `db:"name"`
+	Domain  string `db:"domain"`
+	Exact   bool   `db:"exact"`
+	Attrs   string `db:"attrs"`
+	Domains int    `db:"domains"` // the list's or site's resolved count
+}
+
+// CatalogLookup reads the rows of the current generations holding any of
+// the domains directly, with their list's or site's name count.
+func CatalogLookup(ctx context.Context, q sqlx.QueryerContext, domains []string) ([]Held, error) {
+	if len(domains) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT d.source, d.name, d.domain, d.exact, d.attrs, coalesce(e.domains, 0) AS domains
+		FROM routing_catalog_domains d
+		JOIN routing_catalog_sources s ON s.source = d.source AND s.generation = d.generation
+		LEFT JOIN routing_catalog_entries e ON e.source = d.source AND e.generation = d.generation
+			AND e.kind = CASE d.source WHEN 'v2fly' THEN 'list' ELSE 'site' END AND e.name = d.name
+		WHERE d.domain IN (?)`, domains)
+	if err != nil {
+		return nil, err
+	}
+	var out []Held
+	err = sqlx.SelectContext(ctx, q, &out, query, args...)
+	return out, err
+}
+
+// V2flyIncluders reads the include rows of the current v2fly generation
+// whose included list is one of names.
+func V2flyIncluders(ctx context.Context, q sqlx.QueryerContext, names []string) ([]CatalogInclude, error) {
+	if len(names) == 0 {
+		return nil, nil
+	}
+	query, args, err := sqlx.In(`SELECT i.generation, i.list, i.included, i.filter FROM routing_catalog_includes i
+		JOIN routing_catalog_sources s ON s.source = 'v2fly' AND s.generation = i.generation
+		WHERE i.included IN (?)`, names)
+	if err != nil {
+		return nil, err
+	}
+	var out []CatalogInclude
+	err = sqlx.SelectContext(ctx, q, &out, query, args...)
+	return out, err
+}

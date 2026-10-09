@@ -47,6 +47,7 @@ type searchView struct {
 	Rows                    []resultRow
 	More                    string
 	NoMatch                 string
+	Discover, DiscoverHref  string // "kinopoisk.com": the empty result's hint
 	Preview                 *previewView
 }
 
@@ -158,6 +159,8 @@ func (h *handler) searchView(c *echo.Context) (searchView, error) {
 	}
 	if len(results) == 0 {
 		v.NoMatch = i18n.T(ctx, "catalog.no_match", i18n.Args{"q": v.Q})
+		v.Discover = discoverGuess(v.Q)
+		v.DiscoverHref = discoverPath + "?website=" + url.QueryEscape(v.Discover)
 	}
 	return v, nil
 }
@@ -319,3 +322,13 @@ func (h *handler) catalogRefresh(c *echo.Context) error {
 
 // previewURL is the drawer's address for a selector.
 func previewURL(sel string) string { return searchPath + "/preview?selector=" + url.QueryEscape(sel) }
+
+// discoverGuess is the website an empty search suggests discovering: a
+// dotless query gets .com, a query with a dot is used as typed.
+func discoverGuess(q string) string {
+	q = strings.ToLower(strings.TrimSpace(q))
+	if !strings.Contains(q, ".") {
+		return q + ".com"
+	}
+	return q
+}

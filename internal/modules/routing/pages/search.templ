@@ -65,6 +65,12 @@ templ searchResults(v searchView) {
 			<p class="subtle area-body">{ i18n.T(ctx, "catalog.hint") }</p>
 		} else if v.NoMatch != "" {
 			@ui.EmptyState(v.NoMatch, "")
+			if v.Discover != "" {
+				<p class="area-body">
+					<a href={ templ.SafeURL(v.DiscoverHref) } class="pc-btn pc-sm" data-key="d">{ i18n.T(ctx, "catalog.discover", i18n.Args{"website": v.Discover}) }</a>
+					<span class="sm subtle">{ i18n.T(ctx, "catalog.discover.note") }</span>
+				</p>
+			}
 		} else {
 			<div class="colhead cat" aria-hidden="true">
 				<span>{ i18n.T(ctx, "catalog.col.selector") }</span>

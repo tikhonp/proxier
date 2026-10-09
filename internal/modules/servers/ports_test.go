@@ -2,9 +2,11 @@ package servers_test
 
 import (
 	"context"
+	"reflect"
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 )
 
@@ -81,5 +83,25 @@ func TestCatalogCarriesFlag(t *testing.T) {
 	one, ok, err := h.Mod.EndpointCatalog().Server(ctx, id)
 	if err != nil || !ok || one.Flag != "🇳🇱" {
 		t.Fatalf("server: %+v %v %v", one, ok, err)
+	}
+}
+
+func TestProxyDialerReturnsDialFunc(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	id := h.Provisioned()
+	ctx := context.Background()
+	dial, closer, err := h.Mod.ProxyDialer().Dial(ctx, id)
+	if err != nil || dial == nil || closer == nil {
+		t.Fatalf("dial: %v", err)
+	}
+	// the root package's type: routing needs no other servers package
+	if reflect.TypeOf(dial) != reflect.TypeFor[servers.DialFunc]() {
+		t.Errorf("Dial returns a %T", dial)
+	}
+	if err := closer.Close(); err != nil {
+		t.Errorf("close: %v", err)
+	}
+	if _, _, err := h.Mod.ProxyDialer().Dial(ctx, 4242); err == nil {
+		t.Error("a missing server dialed")
 	}
 }

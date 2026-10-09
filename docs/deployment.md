@@ -9,7 +9,7 @@ flowchart LR
     C[Clients, admin browser] -- HTTPS proxier.tikhonnnnn.com --> N[sh-main nginx]
     N -- SSH reverse tunnel --> P[proxier container on blackberry]
     P --- V[(volume /data)]
-    P -- CDP, internal network only --> B[chromium sidecar]
+    P -- CDP and SOCKS, network 'discovery' --> B[chromium sidecar]
     P -- tsnet node 'proxier' --> H[headscale tailnet]
 ```
 
@@ -24,9 +24,50 @@ flowchart LR
 |---|---|---|
 | `proxier` | `ghcr.io/tikhonp/proxier` | `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root user (65532), `/data` bind mount owned by that user, `tmpfs /tmp`, no published ports (the tunnel reaches it on the compose network). No Docker socket ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)). Healthy when `proxier healthcheck` (the image has no curl) gets 200 from its own `/healthz`. |
 | `ssht-proxier` | `jnovack/autossh` | The reverse tunnel to sh-main, like every other service's. |
-| `chromium` | `chromedp/headless-shell` (pinned tag) | Internal network only, no volume, memory limit (1 GB). It reaches the internet directly or through Proxier's discovery SOCKS listener. Optional: without it, discovery runs catalog lookup only. |
+| `chromium` | `chromedp/headless-shell` (pinned tag) | On its own network, `discovery`, shared only with `proxier`; no volume, no ports, memory limit 1 GB. It reaches sites directly (a direct visit goes out from home) or through Proxier's per-visit SOCKS listener (a visit through a server). Optional: without it, discovery runs the catalog lookup only. See [the Chromium sidecar](#the-chromium-sidecar). |
 
 The image bundles what the file validators need besides the Go libraries: an `nginx` binary for `nginx -t` and `bash` for `bash -n`. Both run on files in a temporary directory ([template authoring](./processes/servers/template-authoring.md#validation)).
+
+## The Chromium sidecar
+
+Discovery's headless visits ([domain discovery](./processes/routing/domain-discovery.md)) run in a `chromedp/headless-shell` container that Proxier drives over the DevTools protocol (CDP). Drafted in 3g for `sh-blackberry/proxier.yaml` (the user commits it; that repository wasn't on the build machine, so the draft lives here):
+
+```yaml
+services:
+  proxier:
+    # … as before, plus:
+    environment:
+      PROXIER_CHROMIUM_URL: "http://chromium:9222"
+    networks:
+      - proxier
+      - discovery
+
+  chromium:
+    image: chromedp/headless-shell:156.0.8078.12   # pinned: the stable tag on 2026-10-09
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    mem_limit: 1g
+    shm_size: 256m
+    tmpfs: [/tmp]
+    labels:
+      dev.dozzle.group: proxier
+    networks:
+      - discovery
+
+networks:
+  discovery:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.89.251.0/29
+```
+
+- **Why its own network.** The `proxier` network's subnet is `PROXIER_TRUSTED_PROXIES`: any member of it may set `X-Real-IP`. Chromium visits arbitrary sites and runs their scripts, so it must not be on it; `discovery` holds only `proxier` and `chromium`. It is not `internal`: a direct visit goes out from home, as the admin's own browser would.
+- **`PROXIER_CHROMIUM_URL`** is the DevTools address. Proxier resolves its host to an IP before asking `/json/version` (DevTools refuses a `Host` header that is neither an IP nor `localhost`) and connects to the WebSocket at that IP. Empty: discovery runs the catalog lookup only, and Settings → Integrations and the Discover page say so.
+- **A visit through a server** opens a SOCKS5 listener in Proxier on its address in `discovery` (the local address that routes to the sidecar), on a random port, for that visit only. It accepts connections only from the sidecar's IP (Chrome can't authenticate to a SOCKS proxy) and relays them through the server's endpoint. Each visit is a fresh browser context (no cookies, no storage), disposed afterwards.
+- **Checked** on 2026-10-09 with `docker compose config` and by running the image with these limits on a bridge network next to a Linux build of Proxier's discovery code: `/json/version` by IP, a direct visit of a real site (6 pages, trackers and CDNs classified) and a visit through the SOCKS listener (connections relayed).
+- **Upgrades** are deliberate: change the pinned tag. Nothing else depends on the Chrome version.
 
 ## Images and CI
 

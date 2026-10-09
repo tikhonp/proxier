@@ -44,7 +44,7 @@ Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cr
 | 3d Shadowrocket config, mtvpn import | [3d.md](./3d.md) | done 2026-10-09 (real phones, a real-browser look at the editor and the real mtvpn.yaml import are the user's) |
 | 3e Router sync | [3e.md](./3e.md) | done 2026-10-09 (a real router, jump host and tailnet, and a real-browser look are the user's) |
 | 3f Drift, unmanaged tags, router lifecycle, dashboard | [3f.md](./3f.md) | done 2026-10-09 (a real router and router script, a real-browser look and Telegram delivery are the user's) |
-| 3g Discovery, Phase 3 exit | [3g.md](./3g.md) | contract written 2026-10-08 |
+| 3g Discovery, Phase 3 exit | [3g.md](./3g.md) | done 2026-10-09 (the exit demo, the sh-blackberry draft and a visit through a real server are the user's) |
 
 3d (Shadowrocket and the import) comes before router sync on purpose: neither has a remote side, so after 3d the admin can import `mtvpn.yaml` and move the phone off copyparty before the riskiest part, RouterOS, is built.
 
@@ -330,7 +330,7 @@ One module, `routing` (`internal/modules/routing`), enabled in `modules()` in `c
 | servers: the `RoutingGuard` port (`Covering(ctx, hostnames)`), set by `srv.SetRouting(rt.Guard())`; the new-server form refuses hostnames a routing list covers, naming the list and the service | 3b |
 | sshx: `Client.Put(ctx, path, data)`: a plain SFTP write (no temporary file, `chmod`, `fsync` or rename), for RouterOS's minimal SFTP server; `SSH.SetSubject(ctx, address, subject)`; `sshxtest` takes relative SFTP paths | 3e (done; also `sshx.HopError` around every hop failure, `SSH.KnownHost`, `sshxtest.Server.Refuse/RefuseUploads`) |
 | sshx: `Target.JumpFirstContact`, so a probe can pin a router's key on first contact while its jump host must already be confirmed | 3f |
-| servers: `ProxyDialer.Dial` returns `servers.DialFunc` (a func type in the root package) instead of `proxy.DialFunc`, so routing imports no other servers package | 3g |
+| servers: `ProxyDialer.Dial` returns `servers.DialFunc` (a func type in the root package) instead of `proxy.DialFunc`, so routing imports no other servers package | 3g (done) |
 | `httpx.MaskPath`, the public limiter on `/r/`, `PROXIER_CHROMIUM_URL` | already built (2b, 0a) |
 
 ### Phase 3 decisions taken with the user (2026-10-08)
