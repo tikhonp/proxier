@@ -48,6 +48,16 @@ Phase 3 ([roadmap](../roadmap.md#phase-3-routing)) is built the same way. Its cr
 
 3d (Shadowrocket and the import) comes before router sync on purpose: neither has a remote side, so after 3d the admin can import `mtvpn.yaml` and move the phone off copyparty before the riskiest part, RouterOS, is built.
 
+Phase 4 ([roadmap](../roadmap.md#phase-4-router-scripts)) is built the same way. Its cross-cutting decisions are in [Phase 4](#phase-4-router-scripts) below.
+
+| Sub-phase | Contract | State |
+|---|---|---|
+| 4a Router scripts module, schema, script versions | [4a.md](./4a.md) | planned |
+| 4b Generation, the two ports | [4b.md](./4b.md) | planned |
+| 4c Fetch URLs, Phase 4 exit | [4c.md](./4c.md) | planned |
+
+Each sub-phase is one of the process docs' parts: [script versions](../processes/router-scripts/script-versions.md) (4a), [script generation](../processes/router-scripts/script-generation.md) "generating" (4b) and "getting it onto the router" (4c).
+
 A contract lists the files to create, the table definitions, the Go signatures other code will call, the decisions already taken, and a checklist that maps every edge case of the process docs (plus the contract's own decisions) to a test name.
 
 ## Tables are already built
@@ -368,3 +378,64 @@ Claude proposed each of these; the user answered them all on 2026-10-08 (the fir
 - **Discovery's screenshots** are files under `PROXIER_DATA_DIR/discovery/<run>/`, not database rows (backups stay small), deleted with their run after 30 days. Its CDN and tracker lists are built into the code.
 - **The Chromium sidecar gets its own Docker network** (`discovery`, shared only with `proxier`): the `proxier` network's subnet is the trusted-proxy range.
 - **Three design extras are built** (the user's choice; Claude proposed none, as in Phase 2): **Undo** after reordering a list (3b), a rejected snapshot's **likely cause** from the catalog with **Add <selector>…** (3c), and the **per-hop status** table of a connect failure (3f). Nav counters are not built.
+
+## Phase 4: Router scripts
+
+Decided once for every Phase 4 contract (2026-10-09). A contract may narrow these; it may not contradict them without writing the change here. Read the Phase 1, 2 and 3 sections above too: their rules on tests, secrets, ports and pages still hold.
+
+### Layout
+
+One module, `routerscripts` (`internal/modules/routerscripts`), enabled in `modules()` in `cmd/proxier/main.go` **after** `routing` from 4a. Tables are prefixed `rscripts_`; the migration version table is `routerscripts_goose_db_version`. Its packages:
+
+| Package | What | From |
+|---|---|---|
+| `routerscripts` | the `module.Module`, every optional interface, `New(Ports)`; wiring only | 4a |
+| `routerscripts/migrations` | `00001_routerscripts.sql`: every Phase 4 table | 4a |
+| `routerscripts/store` | every SQL statement of the module, `FieldErrors`, `ErrNotFound` | 4a, grows |
+| `routerscripts/params` | pure: the PARAMETERS block, script parameters, computed values, annotations, groups and findings; RouterOS literals; filling a body; evaluating simple computed values | 4a |
+| `routerscripts/params/paramstest` | today's real `fresh-router.rsc` (embedded) and helpers that make its variants (the end marker, annotations); a leaf, imported only by tests | 4a |
+| `routerscripts/scripts` | router scripts, drafts, publishing, versions, the current version, diffs, archive, delete | 4a |
+| `routerscripts/generations` | the form built from a version, checking values, generating in one transaction through the ports, generations, the filled file (4b); fetch URLs, the public `GET /f/{token}`, the expiry scan (4c) | 4b, 4c |
+| `routerscripts/pages` | handlers and templ files | 4a onward |
+| `routerscripts/rscriptstest` | test harness: the app with the module on fake ports (`New`); the real subscriptions and routing modules wired as `main.go` wires them (`WithModules`, 4b) | 4a, 4b |
+
+### Rules
+
+- **Tables are written ahead.** 4a writes `internal/modules/routerscripts/migrations/00001_routerscripts.sql` from [4a.md#tables](./4a.md#tables) (every Phase 4 table) with `migrations_test.go`. A later sub-phase that needs a change edits `00001` in place (and 4a.md's **Tables** with it) **only if no Phase 4 build has been deployed**; when that isn't certain, it adds `00002_….sql` instead. Never both.
+- **Ports only.** The module talks to subscriptions through `subscriptions.LinkIssuer` and to routing through `routing.RouterRegistrar` (both 4b, each declared in its provider's root package, as `servers.EndpointCatalog` is). Its non-test files import from `internal/modules/subscriptions` and `internal/modules/routing` only those root packages, and nothing of `internal/modules/servers`; `TestImportsOnlyPorts` enforces it. It never reads a `subs_` or `routing_` table: a link and a router are known by their ids (kept by value, no foreign keys) and the names copied when the generation was made.
+- **Absent ports hide features** (ADR 0002): a nil `Links` means no **Subscription link** section, and a `@fill subscription-link` parameter is an ordinary field (still secret); a nil `Routers` means no **Register for routing** section, `@fill routing-*` parameters are ordinary fields, and a generation shows no router. `@fill proxier-ssh-key` needs no port (the platform's SSH key).
+- **The script is the source of truth.** A version's body is stored byte for byte and parsed on demand (`params.Parse` is pure and takes microseconds); nothing derived from it is stored except the warnings confirmed when it was published. A generation stores its values, never its file: the file is `params.Fill(the version's body, the values)` whenever it is downloaded or fetched, byte-identical to the version except the literals of the parameters whose value changed.
+- **One transaction per generation.** Generating calls `LinkIssuer.Issue` and `RouterRegistrar.Register` inside its own `DB.Write` (each provider gains a `…Tx` path), so the link, the router and the generation are created together, with every event, or not at all. Nothing remote happens in it.
+- **Secrets.** A generation's secret values (every `@secret` parameter and the `@fill subscription-link` value, the link's URL) are one sealed JSON blob, AAD `generation:<id>:secrets`; the other values are plain JSON. A fetch URL's token is `vault.NewToken()`, sealed with AAD `fetch_url:<id>:token` and found by `vault.Lookup`; it is erased the moment its URL ends (used, expired, replaced). No token, secret value or generated file ever appears in an event, a notification, a log line, a job payload, a list, search or the dashboard. Pages and fragments that show one (the generation page, Reveal, downloads) are `no-store`. `httpx.MaskPath` already masks `/f/`, the limiter already covers it, and the gateway already leaves `/f/` out of its access log (2d).
+- **Clock.** `routerscripts.Module.Now` (default `time.Now`) is the clock of every service of the module, read through a function set in `Init`, so a test sets `mod.Now` once.
+- **Actors.** Admin actions `admin`; the public fetch `system`; jobs `job:<id>`. The link and the router a generation creates are recorded by their own modules with the admin as actor; the router's `created_by` and `routing.router_added{by}` are `routerscripts`.
+- **Events** carry names, not ids, for other things (`script: "fresh-router"`, `router: "Dacha"`, `link: "Router — Dacha"`), lists as one comma-joined string, times as `db.Time` strings, `""` for none (Phase 2's rule). Subjects: `router_script:<id>` (named by the script's name, `/router-scripts/<id>`) and `generation:<id>` (named "Dacha · fresh-router v4", `/router-scripts/generations/<id>`).
+- **Resource keys**: none. The expiry scan runs on `maintenance`, whose concurrency is 1.
+- **No settings section.** A fetch URL working once and for 1 hour is the process doc's security rule, not a default; the scan's 5 minutes and the 512 KiB body limit are constants.
+- **i18n prefixes** of the module: `rscripts.` (nav, search, wiring), `scripts.`, `params.`, `generations.`, plus `event.<type>`, `notify.<type>` (+ `.body`), `job.routerscripts.<what>` (+ `.step.<name>`), as the platform's tests require. The event types keep the docs' prefix `routerscript.`.
+- **Tests.** Most use `rscriptstest.New(t)`: the full app (`sitetest`) with the module on fake ports, no job workers until `StartJobs`, the module's clock in the test's hands. The cross-module cases use `rscriptstest.WithModules(t)` (4b): the real subscriptions module on `substest`'s fake catalog and the real routing module on `routingtest`'s fake servers ports and a `sourcestest` upstream, wired as `main.go` wires them, one clock for all; the end-to-end test adds a `routerostest` router (4c). No XHTTP traffic, so every package runs under `-race`. Test files that use `rscriptstest` are external test packages.
+- **Pages** live under `/router-scripts/…` and follow the earlier phases' patterns: `r.Shell` + `ui.Layout`, every button a `ui.Action`, confirmations through `ui.Confirm`, an action that needs fields is a **page styled as a dialog**, secondary actions in an **Actions** area, no inline `style` or `script` (CSP), shared classes in the platform's `app.css`, polling with `hx-trigger="every Ns"`, copying with `data-copy`. The designs (`RP-Scripts`, `RP-Script`, `RP-Script-generate`, `RP-Script-generation`) are references. Not built: the design's **Import…** (New script takes a pasted or uploaded body), the **More ▾** menu (an Actions area), `]d [d` and vim keys (not built in 1b either), a seconds countdown (the expiry time is rendered by the server and the area polls), a dashboard area (the designs have none).
+- **Nav**: group `routerscripts` (its label already exists): **Scripts** `/router-scripts` (order 10, no go-to key: `RP-Keys` has none; one `/` away).
+
+### Platform, subscriptions and routing changes in Phase 4
+
+| Change | Sub-phase |
+|---|---|
+| `ui.LangFor`: `.rsc` is `routeros`, a small chroma lexer the `ui` package registers (comments, `# @…` annotations, `:command` keywords, strings with escapes, `$variables`, numbers, menu paths), so versions and diffs are highlighted | 4a |
+| Editor bundle: a `routeros` mode for `textarea[data-code="routeros"]`; a code area fires `input` on its text area when the text changes (debounced), so htmx can follow it; it shows the rows of `[data-code-findings="<textarea id>"]` as lint markers after every swap | 4a |
+| `main.go`: `routerscripts.New(routerscripts.Ports{})` after `routing` (4a); the ports wired (4b) | 4a, 4b |
+| subscriptions: the `LinkIssuer` port (`Module.LinkIssuer()`), `links.Service.CreateTx`, `subscriptions.ErrLinkNotFound` and the root alias `subscriptions.FieldErrors` | 4b |
+| routing: the `RouterRegistrar` port (`Module.RouterRegistrar()`), `routers.Service.RegisterTx`, `routeros.KeyCommands` (the add page's three commands, now shared), `routing.ErrRouterNotFound` and the root alias `routing.FieldErrors` | 4b |
+
+### Phase 4 decisions taken with the user (2026-10-09)
+
+Claude proposed each of these; the user answered the first four before the contracts were written and the rest after them, every one as proposed.
+
+- **Zero-touch key install is built** (open question 2, settled): a `@fill proxier-ssh-key` parameter is filled with Proxier's public key (locked, not secret), so the imported script can create the `proxier` user and add the key itself, and the router is synced with no manual step at all. A script without that parameter still gets the manual key commands on the generation page. The script lines are the user's (the exit demo in [4c](./4c.md#phase-4-exit-demo) suggests them).
+- **Three sub-phases**, 4a–4c, one per part of the process docs.
+- **The `mtvpn:` names stay** (open question 1, closed): the infra-pin prefix, `to_vpn_list` and `vpn-doh` are kept as [ADR 0010](../adr/0010-router-contract-stays-mtvpn-compatible.md) says; a router with other names already works through its per-router names.
+- **The test fixture is today's real script**: `~/projects/mikrotik/fresh-router.rsc` at `b1e34f2` (2026-10-03), copied byte for byte into `params/paramstest/` while planning (351 lines, LF, its `subUrl` already a placeholder). Tests build their variants from it (the end marker, annotations) in code, never by editing it.
+- **A fetch URL can be revealed for its hour**: its token is stored sealed (the data model had only its HMAC), so the generation page shows and copies the URL until it is used, expires or is replaced, and the token is erased at that moment (4c).
+- **Generate again carries secrets over**: an empty secret field keeps the earlier generation's value; the link and the router are reused, so nothing is created twice (4b).
+- **Four additions beyond the process docs are built**: the known jump-host picker with the warning for a jump host Proxier hasn't pinned (4b), the bands for a file whose link URL or Proxier key changed after it was generated (4b), **View changes** (the version against the file, secrets masked, 4b), and lint markers in the draft editor (4a).
+- **Everything else as proposed**: a generation stores its values and the file is made on demand; one transaction through both ports, their refusals shown together; nothing derived from a version is stored but its confirmed warnings; `@required` joins the annotations (the design shows it); a group's only description, when it belongs to its first item, is the group's heading; a new router's host defaults to `<lanNet>.1` by that parameter's name; `?` is escaped as `\?`; a pasted body gets LF and the editor keeps the stored body's line endings; New script takes a pasted or uploaded body (no separate Import…); a script can be deleted only without generations, else archived; the slug is fixed after the first version; Download records nothing; `/f/` serves only `GET` and the URL is used up when Proxier answers; the expiry scan runs every 5 minutes; `routerscript.fetched` notifies with the module's own text; no settings section and no dashboard area.

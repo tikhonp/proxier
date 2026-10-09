@@ -63,6 +63,8 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - Versions of `fresh-router.rsc` with parameter detection ([script versions](./processes/router-scripts/script-versions.md)).
 - Generation with a router link and router registration, download, fetch URL ([script generation](./processes/router-scripts/script-generation.md)).
 
+**Status (2026-10-09):** planned in three sub-phases, 4a–4c (contracts and cross-cutting decisions in [build/](./build/README.md#phase-4-router-scripts)); not built yet. Zero-touch key install is part of it (open question 2, settled), so the exit needs no manual step at all.
+
 **Exit:** a factory-reset router fetches its generation with `/tool fetch`, imports it, appears in Routing, and is synced without any manual step except installing Proxier's key.
 
 ## Later

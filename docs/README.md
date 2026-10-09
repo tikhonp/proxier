@@ -2,7 +2,7 @@
 
 Proxier is a self-hosted control panel for one person's proxy setup. It builds VPS proxy servers from templates and watches whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
 
-**Status (2026-10-09):** Phases 0–3 of the [roadmap](./roadmap.md) are built: the platform, Servers, Subscriptions and Routing. Each was built in sub-phases, one per session, each with a contract (files, tables, signatures, decisions, test checklist) and an **As built** note in [build/](./build/README.md). What is left of them is the user's: the exit demos on the real deployment, with a real VPS, phones, the home router and the Chromium sidecar. Next is Phase 4, router scripts.
+**Status (2026-10-09):** Phases 0–3 of the [roadmap](./roadmap.md) are built: the platform, Servers, Subscriptions and Routing. Each was built in sub-phases, one per session, each with a contract (files, tables, signatures, decisions, test checklist) and an **As built** note in [build/](./build/README.md). What is left of them is the user's: the exit demos on the real deployment, with a real VPS, phones, the home router and the Chromium sidecar. Next is Phase 4, router scripts, planned in three sub-phases (4a–4c).
 
 **Design:** [ui/design/](./ui/design/README.md) holds the rules, `tokens.css` and every screen's source. The live canvas is at <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec> (Rosé Pine page; the Console page is an earlier look kept for reference).
 
@@ -23,7 +23,7 @@ Proxier is a self-hosted control panel for one person's proxy setup. It builds V
 | [integrations/](./integrations/) | Contracts with the outside world: VLESS/XHTTP, Cloudflare, check-host.net, Telegram, RouterOS, domain sources, Shadowrocket, subscription format. |
 | [ui/README.md](./ui/README.md) | Screen inventory, navigation and shared components: what each screen does. |
 | [ui/design/](./ui/design/README.md) | The final visual design: rules, `tokens.css`, and the source of every screen. |
-| [build/](./build/README.md) | Build contracts, one per sub-phase (Phases 0–3), and what each one built. |
+| [build/](./build/README.md) | Build contracts, one per sub-phase (Phases 0–4), and what each one built. |
 | [adr/](./adr/) | Decisions that are hard to reverse, each with the reason it was taken. |
 
 ## Reading order
