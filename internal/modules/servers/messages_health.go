@@ -71,6 +71,8 @@ var healthMessages = i18n.Messages{
 	"health.m.inconclusive":             {EN: "(inconclusive: home was offline)", RU: "(не учитывается: дома не было интернета)"},
 	"health.m.ru":                       {EN: "Nodes in Russia (check-host.net)", RU: "Узлы в России (check-host.net)"},
 	"health.m.abroad":                   {EN: "Nodes abroad (check-host.net)", RU: "Узлы за рубежом (check-host.net)"},
+	"health.m.nodes":                    {EN: "Nodes in Russia and abroad (check-host.net)", RU: "Узлы в России и за рубежом (check-host.net)"},
+	"health.m.no_nodes":                 {EN: "no node in the latest check", RU: "в последней проверке узлов нет"},
 	"health.m.connected":                {EN: "connected", RU: "подключился"},
 	"health.m.strip":                    {EN: "Results over the last 24 hours, 30 minutes per cell", RU: "Результаты за последние 24 часа, ячейка — 30 минут"},
 	"health.ext.skipped":                {EN: "skipped", RU: "пропущена"},

@@ -47,23 +47,25 @@ templ healthPage(s ui.Shell, v healthView) {
 					}
 				</div>
 			</div>
-			<div class="verdict-body">
-				if v.Reason != "" {
-					<p>{ v.Reason }</p>
-				}
-				if v.Paused {
-					<p class="subtle">
-						if v.PausedUntil != "" {
-							{ i18n.T(ctx, "health.paused_until", i18n.Args{"until": v.PausedUntil}) }
-						} else {
-							{ i18n.T(ctx, "health.paused_forever") }
-						}
-					</p>
-				}
-				if v.Pending != "" {
-					<p class="subtle">{ v.Pending }</p>
-				}
-			</div>
+			if v.hasVerdictBody() {
+				<div class="verdict-body">
+					if v.Reason != "" && !v.Paused {
+						<p>{ v.Reason }</p>
+					}
+					if v.Paused {
+						<p class="subtle">
+							if v.PausedUntil != "" {
+								{ i18n.T(ctx, "health.paused_until", i18n.Args{"until": v.PausedUntil}) }
+							} else {
+								{ i18n.T(ctx, "health.paused_forever") }
+							}
+						</p>
+					}
+					if v.Pending != "" {
+						<p class="subtle">{ v.Pending }</p>
+					}
+				</div>
+			}
 		</section>
 		<div id="pause-slot"></div>
 		@healthMatrix(v)

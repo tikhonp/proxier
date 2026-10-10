@@ -2,8 +2,10 @@ package pages_test
 
 import (
 	"encoding/json"
+	"io/fs"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -14,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
 func js(v any) string { b, _ := json.Marshal(v); return string(b) }
@@ -125,6 +128,63 @@ func TestHealthTab(t *testing.T) {
 	if rec := h.Login.Get("/servers/9999/health"); rec.Code != 404 {
 		t.Errorf("unknown server: %d", rec.Code)
 	}
+}
+
+// verdictOf is the verdict section of a Health tab.
+func verdictOf(t *testing.T, body string) string {
+	t.Helper()
+	i := strings.Index(body, `<section class="verdict`)
+	if i < 0 {
+		t.Fatalf("no verdict:\n%s", excerpt(body))
+	}
+	return body[i : i+strings.Index(body[i:], "</section>")]
+}
+
+// The Health tab draws nothing that has nothing in it: a healthy verdict has
+// no reason, so no body (which stood as an empty padded band under the
+// verdict), and no group of the matrix is a heading without rows.
+func TestHealthTabHasNoEmptyBlocks(t *testing.T) {
+	h, id := provisioned(t)
+	base := "/servers/" + sid(id)
+
+	setHealth(t, h, id, "healthy", "", nil)
+	body := page(t, h, base+"/health")
+	mustContain(t, verdictOf(t, body), "Healthy", "Run checks now", "Pause checks")
+	mustNotContain(t, body, `class="verdict-body"`)
+	// and the same while a run of checks is fresh
+	run := page(t, h, base+"/health?msg=queued&run="+strconv.FormatInt(time.Now().Unix(), 10))
+	mustContain(t, run, "Checks are queued", `hx-trigger="every 2s"`)
+	mustNotContain(t, run, `class="verdict-body"`)
+	// without a body the head draws no divider of its own over the section's
+	css, err := fs.ReadFile(ui.StaticFS, "css/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(css), `.verdict-head:last-child { border-bottom: 0; }`) {
+		t.Error("app.css lacks the verdict head's rule without a body")
+	}
+
+	// before the first external check one heading holds the row that says so
+	mustContain(t, body, "Nodes in Russia and abroad (check-host.net)", ">check-host.net", "no result yet")
+	mustNotContain(t, body, ">Nodes in Russia (check-host.net)<", ">Nodes abroad (check-host.net)<")
+	// a round with nodes abroad only: the Russian group says it had none
+	insertResult(t, h, id, store.CheckResult{Kind: "external", Vantage: "de1.node.check-host.net", OK: true, Detail: js(map[string]any{"region": "abroad", "country": "de", "ms": 31})})
+	body = page(t, h, base+"/health")
+	mustContain(t, body, ">Nodes in Russia (check-host.net)<", "no node in the latest check", ">Nodes abroad (check-host.net)<", "connected")
+	mustNotContain(t, body, "Nodes in Russia and abroad")
+
+	// a reason gives the verdict a body
+	setHealth(t, h, id, "degraded", "health.reason.slow_first_byte", map[string]any{"seconds": "2.4"})
+	mustContain(t, verdictOf(t, page(t, h, base+"/health")), `class="verdict-body"`, "Slow: 2.4 s to first byte")
+
+	// paused: the note says the pause once, with what it means
+	setHealth(t, h, id, "paused", "health.reason.paused_forever", nil)
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET checks_paused_until = ? WHERE id = ?`, store.PausedForever, id); err != nil {
+		t.Fatal(err)
+	}
+	v := verdictOf(t, page(t, h, base+"/health"))
+	mustContain(t, v, `class="verdict-body"`, "Checks are paused until you resume them; no notifications are sent.")
+	mustNotContain(t, v, "Checks paused until you resume them")
 }
 
 func TestStatsTab(t *testing.T) {

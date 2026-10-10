@@ -67,8 +67,8 @@ When a proxy test fails and no external result newer than 10 minutes exists, an 
 
 ## The Health tab
 
-- The verdict, with its reason as one sentence and "since".
-- A matrix of the latest results. Rows: home internet, self-check (with each template check), proxy test per endpoint (connect, first byte, throughput), each Russian node, each node abroad. Columns: result, time, 24 h success strip (48 cells of 30 minutes).
+- The verdict, with its reason as one sentence and "since". A healthy verdict has no reason, so nothing stands under it. While paused, one note under it says until when and that no notifications are sent (the pause reason isn't repeated above it); a candidate waiting for confirmation is shown there too.
+- A matrix of the latest results. Rows: home internet, self-check (with each template check), proxy test per endpoint (connect, first byte, throughput), each Russian node, each node abroad. Columns: result, time, 24 h success strip (48 cells of 30 minutes). Before the first external check (or when check-host.net refused it), one group, "Nodes in Russia and abroad", holds one row saying so; a region the latest external check had no node in shows a row saying that, so no group heading stands empty.
 - A timeline of health states (24 h / 7 d / 30 d).
 - **Run checks now**, **Pause checks**.
 

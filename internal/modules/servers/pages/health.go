@@ -92,6 +92,14 @@ type healthView struct {
 
 type legendRow struct{ Kind, Word, Duration string }
 
+// hasVerdictBody says whether the verdict has anything under its head. A
+// healthy verdict has no reason (rule 4), and an empty body would stand as a
+// padded band between the verdict and the matrix. While paused the reason is
+// the pause itself, which the pause note says in full, so it isn't repeated.
+func (v healthView) hasVerdictBody() bool {
+	return v.Reason != "" || v.Paused || v.Pending != ""
+}
+
 func (h *handler) healthTab(c *echo.Context) error {
 	s, err := h.loadServer(c)
 	if err != nil {
@@ -348,12 +356,22 @@ func (h *handler) buildMatrix(ctx context.Context, s store.Server, now time.Time
 		}
 		return rows
 	}
+	// No group heading stands without a row under it: before the first
+	// external check (or when check-host refused it) one heading holds the
+	// row that says so, and a region the latest round had no node in says that.
 	ru, abroad := nodeRows("ru"), nodeRows("abroad")
-	group("health.m.ru")
-	v.Matrix = append(v.Matrix, ru...)
-	group("health.m.abroad")
-	v.Matrix = append(v.Matrix, abroad...)
-	if len(ru)+len(abroad) == 0 {
+	region := func(key string, rows []matrixRow) {
+		group(key)
+		if len(rows) == 0 {
+			rows = []matrixRow{{Label: "check-host.net", Kind: "unknown", Result: i18n.T(ctx, "health.m.no_nodes")}}
+		}
+		v.Matrix = append(v.Matrix, rows...)
+	}
+	if len(ru)+len(abroad) > 0 {
+		region("health.m.ru", ru)
+		region("health.m.abroad", abroad)
+	} else {
+		group("health.m.nodes")
 		row := matrixRow{Label: "check-host.net", Kind: "unknown", Result: i18n.T(ctx, "health.m.no_result")}
 		if meta != nil {
 			var d struct {
