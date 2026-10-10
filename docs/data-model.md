@@ -93,7 +93,7 @@ erDiagram
 
 | Entity | Important fields | Notes |
 |---|---|---|
-Tables `routing_*`, all written by the module's first migration ([3a](./build/3a.md#tables)); "Main" is inserted by it as the default list.
+Tables `routing_*`; "Main" is inserted by the module's first migration as the default list.
 
 | Entity | Important fields | Notes |
 |---|---|---|

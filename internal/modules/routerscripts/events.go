@@ -3,8 +3,6 @@ package routerscripts
 import "github.com/tikhonp/proxier/internal/platform/events"
 
 // Events is the module's event catalog (docs/events.md#router-scripts).
-// Every type of Phase 4 is declared now, so the later sub-phases only record
-// them.
 var Events = []events.Type{
 	{Name: "routerscript.created", Description: "A router script was created."},
 	{Name: "routerscript.changed", Description: "A router script's name, slug or description changed."},

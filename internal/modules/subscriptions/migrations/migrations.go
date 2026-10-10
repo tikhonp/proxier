@@ -1,5 +1,5 @@
 // Package migrations holds the subscriptions module's tables (prefix subs_).
-// The whole Phase 2 schema is written ahead; later sub-phases build on it.
+// Schema changes go into new migrations.
 package migrations
 
 import (

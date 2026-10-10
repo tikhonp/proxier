@@ -1,5 +1,5 @@
 // Package migrations holds the routing module's tables (prefix routing_).
-// The whole Phase 3 schema is written ahead; later sub-phases build on it.
+// Schema changes go into new migrations.
 package migrations
 
 import (

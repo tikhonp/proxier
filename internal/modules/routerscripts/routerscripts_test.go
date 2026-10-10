@@ -34,7 +34,7 @@ func TestModuleIsWired(t *testing.T) {
 		}
 		if e.Notify || e.NotifyIf != nil {
 			if e.Name != "routerscript.fetched" {
-				t.Errorf("%s notifies and isn't in the contract", e.Name)
+				t.Errorf("%s notifies and isn't in docs/events.md", e.Name)
 			}
 			if !app.I18n.Has("notify."+e.Name) || !app.I18n.Has("notify."+e.Name+".body") || e.Emoji != "📥" {
 				t.Errorf("%s notifies without its texts or emoji", e.Name)

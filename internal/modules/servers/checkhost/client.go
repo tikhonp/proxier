@@ -1,7 +1,7 @@
 // Package checkhost is the client of check-host.net, the external checker
 // (docs/integrations/check-host.md): which nodes exist, and whether a TCP
 // port answers from a set of them. The response shapes were observed on the
-// real API on 2026-10-08 (docs/build/1f.md, As built).
+// real API on 2026-10-08 (docs/integrations/check-host.md#api-as-observed).
 package checkhost
 
 import (

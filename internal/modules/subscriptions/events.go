@@ -4,8 +4,7 @@ import "github.com/tikhonp/proxier/internal/platform/events"
 
 const modName = "subscriptions"
 
-// Events is the module's event catalog (docs/events.md#subscriptions). Every
-// type of Phase 2 is declared now, so the later sub-phases only record them.
+// Events is the module's event catalog (docs/events.md#subscriptions).
 var Events = []events.Type{
 	{Name: "subscription.created", Description: "A subscription was created."},
 	{Name: "subscription.updated", Description: "A subscription's settings changed (changes)."},

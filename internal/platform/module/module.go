@@ -73,8 +73,7 @@ type SettingsDeclarer interface {
 	SettingsSections() []settings.Section
 }
 
-// Deps is what a module may use of the platform. It grows with the
-// sub-phases (jobs, notifications, SSH, tailnet).
+// Deps is what a module may use of the platform.
 type Deps struct {
 	Cfg      *config.Config
 	Log      *slog.Logger

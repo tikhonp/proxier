@@ -289,7 +289,7 @@ func (s *System) TypeInfo(name string) (Type, bool) { return s.typeOf(name) }
 
 // Busy reports whether a job holding the resource key is running now. Queued
 // jobs do not count: a delayed check must not wait for work that has not
-// started (docs/build/README.md, Phase 1 rules).
+// started.
 func (s *System) Busy(ctx context.Context, key string) (bool, error) {
 	return s.BusyExcept(ctx, key)
 }

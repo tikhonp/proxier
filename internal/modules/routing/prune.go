@@ -13,8 +13,7 @@ import (
 const JobPrune = "routing.prune"
 
 // pruneType deletes what the module keeps only for a while
-// (docs/data-model.md#retention). It records nothing. Later sub-phases add
-// their own lines (fetch logs, syncs, discovery runs).
+// (docs/data-model.md#retention). It records nothing.
 func (m *Module) pruneType() jobs.Type {
 	return jobs.Type{Name: JobPrune, Queue: jobs.Maintenance, MaxAttempts: 1, Steps: []jobs.Step{{
 		Name: "prune", Run: func(ctx context.Context, r *jobs.Run) error { return m.Prune(ctx, r.Log()) },

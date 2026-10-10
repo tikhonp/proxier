@@ -82,7 +82,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 - Banners: home offline or foreign unreachable; notifications not configured or failing; first-run checklist until done (Cloudflare, Telegram, SSH keys, first server, first subscription and link, first router).
 - **Fleet**: counts by health state, then every server that isn't healthy, at the top with its reason. Servers with "update available".
 - **Jobs**: running now, plus failed in the last 24 h.
-- **Routing** (as built in 3f, after Links, link "Routers →"): "2 routers in sync"; routers with a failing sync ("sync failed at connect · 3 min ago"), drift ("drift: youtube") or unmanaged tags ("1 unmanaged tag: old-work") first, awaiting ones with them; when none, each router with its last sync; **Snapshots** ("None waiting for a decision." or "netflix · 61 % drop · Review"); **Daily refresh** from the last digest ("04:00 · 3 services changed (+42 / −5 domains) · 0 rejected", or "not run yet"). The dashboard has no global headline, so the routers-in-sync count heads the area.
+- **Routing** (after Links, link "Routers →"): "2 routers in sync"; routers with a failing sync ("sync failed at connect · 3 min ago"), drift ("drift: youtube") or unmanaged tags ("1 unmanaged tag: old-work") first, awaiting ones with them; when none, each router with its last sync; **Snapshots** ("None waiting for a decision." or "netflix · 61 % drop · Review"); **Daily refresh** from the last digest ("04:00 · 3 services changed (+42 / −5 domains) · 0 rejected", or "not run yet"). The dashboard has no global headline, so the routers-in-sync count heads the area.
 - **Links**: expiring within 7 days; shared-link alerts.
 - **Recent activity**: the last 20 events.
 

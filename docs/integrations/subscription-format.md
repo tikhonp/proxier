@@ -1,6 +1,6 @@
 # Subscription format
 
-What a link's URL returns ([fetch](../processes/subscriptions/subscription-fetch.md)). The format is de facto, defined by what client apps accept, not by a standard. The behaviour of each app must be verified during the build ([open questions](../open-questions.md)).
+What a link's URL returns ([fetch](../processes/subscriptions/subscription-fetch.md)). The format is de facto, defined by what client apps accept, not by a standard. The behaviour of each app is still to verify with real apps ([open questions](../open-questions.md#to-verify-on-the-real-deployment)).
 
 ## Formats (first version)
 

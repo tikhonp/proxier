@@ -170,7 +170,11 @@ func TestOnlyActiveServersAreChecked(t *testing.T) {
 			t.Errorf("server %d has health %q", id, h.Health)
 		}
 	}
-	if n := len(f.Events("server.health_changed")); n != 0 {
-		t.Errorf("%d health events", n)
+	// The active server's own checks may finish meanwhile; only the others
+	// must stay silent.
+	for _, e := range f.Events("server.health_changed") {
+		if e.Subject.ID != sid(f.ID) {
+			t.Errorf("health event for %s", e.Subject)
+		}
 	}
 }

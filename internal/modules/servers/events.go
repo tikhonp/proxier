@@ -26,8 +26,7 @@ func healthNotifies(p map[string]any) bool {
 	return false
 }
 
-// Events is the module's event catalog (docs/events.md#servers). Every type of
-// Phase 1 is declared now, so the later sub-phases only record them.
+// Events is the module's event catalog (docs/events.md#servers).
 var Events = []events.Type{
 	{Name: "template.created", Description: "A template was created."},
 	{Name: "template.version_published", Description: "A template version was published (version, warnings)."},

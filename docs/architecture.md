@@ -212,7 +212,7 @@ Environment variables hold what's needed before the database is readable, plus a
 | `PROXIER_TZ` | Display time zone | `Europe/Moscow` |
 | `PROXIER_LOG_LEVEL` | Log level | `info` |
 
-## Tech stack (intended)
+## Tech stack
 
 | Concern | Choice | Note |
 |---|---|---|
@@ -229,19 +229,6 @@ Environment variables hold what's needed before the database is readable, plus a
 | i18n | message catalogs per module, EN and RU | |
 | Images | multi-stage Dockerfile, distroless, non-root; GitHub Actions: build/vet/test/lint/govulncheck, then push to `ghcr.io/tikhonp/proxier` | |
 
-## Intended code layout
+## Code layout
 
-```
-cmd/proxier/                 serve | manage <command>
-internal/platform/           http, auth, settings, vault, jobs, scheduler, events, notify, sshx, tailnet, i18n, backup, ui shell
-internal/modules/servers/    templates, provisioning, stack rendering, health, stats
-    endpointtypes/vlessxhttp/
-    dns/cloudflare/
-    checkers/checkhost/
-internal/modules/subscriptions/   conf, store, output (formats, hiding, stubs, headers), subs, links, fetch, alerts, pages, substest
-internal/modules/routing/         conf, store, change (the sync seam), domain, selector, snapshot (pure), sources (+ sourcestest),
-                                  services, own (ownership and the guard, pure), lists, pages, routingtest; later refresh, catalog, shadowrocket, mtvpn,
-                                  routeros (+ routerostest), routers, discovery
-internal/modules/routerscripts/   migrations, store, params (pure: the PARAMETERS block, literals, Fill, Eval; + paramstest with today's
-                                  fresh-router.rsc), scripts (drafts, publish, versions, diff), pages, rscriptstest; later generations
-```
+The packages, the module interfaces and the rules every change follows are in [development.md](./development.md).

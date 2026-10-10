@@ -2,7 +2,7 @@
 
 Proxier is a self-hosted control panel for one person's proxy setup. It builds VPS proxy servers from templates and watches whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
 
-**Status (2026-10-09):** every phase of the [roadmap](./roadmap.md) is built: the platform, Servers, Subscriptions, Routing and Router scripts. Each was built in sub-phases, one per session, each with a contract (files, tables, signatures, decisions, test checklist) and an **As built** note in [build/](./build/README.md). What is left is the user's: the exit demos on the real deployment, with a real VPS, phones, the home router, the Chromium sidecar and a spare MikroTik for router scripts.
+**Status:** every phase of the [roadmap](./roadmap.md) is built: the platform, Servers, Subscriptions, Routing and Router scripts. What is left needs the real deployment, a VPS, phones, the home router and a spare MikroTik: the [exit demos](./exit-demos.md) and the facts in [open questions](./open-questions.md#to-verify-on-the-real-deployment).
 
 **Design:** [ui/design/](./ui/design/README.md) holds the rules, `tokens.css` and every screen's source. The live canvas is at <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec> (Rosé Pine page; the Console page is an earlier look kept for reference).
 
@@ -17,19 +17,20 @@ Proxier is a self-hosted control panel for one person's proxy setup. It builds V
 | [events.md](./events.md) | Every event Proxier records, and which ones send a Telegram notification by default. |
 | [deployment.md](./deployment.md) | How Proxier runs on blackberry behind sh-main; configuration; backups. |
 | [roadmap.md](./roadmap.md) | Build phases with exit criteria, and the "later" backlog. |
-| [open-questions.md](./open-questions.md) | Decisions not taken yet and things to verify during the build. |
+| [open-questions.md](./open-questions.md) | Decisions not taken yet and facts to verify on the real deployment. |
 | [modules/](./modules/) | One document per module: platform, servers, subscriptions, routing, router scripts. |
 | [processes/](./processes/README.md) | Every business flow step by step, with its rules and its edge cases written as a test list. |
 | [integrations/](./integrations/) | Contracts with the outside world: VLESS/XHTTP, Cloudflare, check-host.net, Telegram, RouterOS, domain sources, Shadowrocket, subscription format. |
 | [ui/README.md](./ui/README.md) | Screen inventory, navigation and shared components: what each screen does. |
 | [ui/design/](./ui/design/README.md) | The final visual design: rules, `tokens.css`, and the source of every screen. |
-| [build/](./build/README.md) | Build contracts, one per sub-phase (Phases 0–4), and what each one built. |
+| [development.md](./development.md) | How the code is organised: layout, module interfaces, the rules every change follows, test harnesses, checking in a real browser. |
+| [exit-demos.md](./exit-demos.md) | The end-to-end demo of each phase, still to run on the real deployment. |
 | [adr/](./adr/) | Decisions that are hard to reverse, each with the reason it was taken. |
 
 ## Reading order
 
 - **Design** (Claude Design): [overview.md](./overview.md) → [ui/README.md](./ui/README.md) → the module docs → the process docs for the key flows that `ui/README.md` lists.
-- **Build**: [architecture.md](./architecture.md) → [adr/](./adr/) → [data-model.md](./data-model.md) → the module doc → each process doc before touching its flow. For any screen, read [ui/README.md](./ui/README.md) for what it does and [ui/design/](./ui/design/README.md) for how it looks.
+- **Code**: [architecture.md](./architecture.md) → [development.md](./development.md) → [adr/](./adr/) → [data-model.md](./data-model.md) → the module doc → each process doc before touching its flow. For any screen, read [ui/README.md](./ui/README.md) for what it does and [ui/design/](./ui/design/README.md) for how it looks.
 
 ## Conventions
 

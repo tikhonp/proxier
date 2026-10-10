@@ -1,5 +1,5 @@
 // Package sealed is where the servers module's secrets are sealed and opened,
-// each under the AAD that names where it lives (docs/build/README.md,
+// each under the AAD that names where it lives (docs/development.md,
 // "Secrets"): generated values, secret parameters, an endpoint's credential,
 // a deployment's secret parameters and deployed file content. Putting every
 // AAD here keeps a blob from being opened as another kind of secret.

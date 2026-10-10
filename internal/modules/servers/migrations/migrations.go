@@ -1,6 +1,5 @@
-// Package migrations holds the servers module's tables (prefix servers_). The
-// whole Phase 1 schema is written ahead, as Phase 0's was; later sub-phases
-// build on it.
+// Package migrations holds the servers module's tables (prefix servers_).
+// Schema changes go into new migrations.
 package migrations
 
 import (

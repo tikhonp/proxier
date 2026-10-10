@@ -1,6 +1,8 @@
 # Roadmap
 
-The build follows the order you chose: **Servers → Subscriptions → Routing**, with the platform built underneath the first module and router scripts last. Each phase ends with a demo scenario that must work end to end on the real deployment.
+The build followed the order you chose: **Servers → Subscriptions → Routing**, with the platform built underneath the first module and router scripts last. Each phase ends with a demo scenario that must work end to end on the real deployment; the steps are in [exit-demos.md](./exit-demos.md).
+
+**Status:** every phase below is built and tested against fakes. None of the exit demos has run on the real deployment yet.
 
 Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/design/README.md), on the [design canvas](https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec) (Rosé Pine page). The UI is templ + htmx ([ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)).
 
@@ -28,8 +30,6 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - Stats ([stats](./processes/servers/server-stats.md)).
 - Retirement ([retirement](./processes/servers/server-retirement.md)).
 
-**Status (2026-10-08):** built, sub-phases 1a–1g. The exit demo below needs a real VPS and the real deployment; it is the user's to run ([1g](./build/1g.md#phase-1-exit-demo)). Left over: nothing has run on a real server or in a real browser yet.
-
 **Exit:** a fresh VPS becomes `nl-2`, active and healthy, from the UI alone. Firewalling 443 on it from home produces a `blocked` verdict and a Telegram message, and removing the rule recovers it. Rotation changes the connection URI and the old one stops working.
 
 ## Phase 2: Subscriptions
@@ -38,8 +38,6 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - Links: create, copy/QR, disable, regenerate token, expiry, delete with tombstone, cut-off ([link lifecycle](./processes/subscriptions/link-lifecycle.md)).
 - The public `/s/{token}` endpoint with headers and stub entries ([fetch](./processes/subscriptions/subscription-fetch.md)).
 - Fetch log and shared-link alerts ([shared-link alerts](./processes/subscriptions/shared-link-alerts.md)).
-
-**Status (2026-10-08):** built in four sub-phases, 2a–2d (contracts and **As built** notes in [build/](./build/README.md#phase-2-subscriptions)). Left for the user: the exit demo below with real phones and apps on `proxier.tikhonnnnn.com` (steps in [2d](./build/2d.md#phase-2-exit-demo)), the answers to open questions "to verify" 1 and 2 from it, and committing and deploying the gateway's access-log change in sh-main.
 
 **Exit:** your phone and one family member use links from Proxier. Disabling a link turns that app's list into the stub entry on refresh. A link opened from many networks raises an alert.
 
@@ -54,16 +52,12 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 - mtvpn import ([mtvpn import](./processes/routing/mtvpn-import.md)).
 - Discovery: catalog lookup, then the headless visit ([discovery](./processes/routing/domain-discovery.md)).
 
-**Status (2026-10-09):** built in seven sub-phases, 3a–3g (contracts and **As built** notes in [build/](./build/README.md#phase-3-routing)). Left for the user: the exit demo below on the real deployment (steps in [3g](./build/3g.md#phase-3-exit-demo)), with the real `mtvpn.yaml`, the home router (open question "to verify" 5), the phone's Shadowrocket and the Chromium sidecar, and committing the sidecar's compose draft ([deployment](./deployment.md#the-chromium-sidecar)).
-
 **Exit:** `mtvpn.yaml` is imported. The home router's first sync is a no-op for unchanged services. The phone subscribes to the hosted Shadowrocket config instead of copyparty. Typing a new site finds its domains, and the router gets them within a minute of saving.
 
 ## Phase 4: Router scripts
 
 - Versions of `fresh-router.rsc` with parameter detection ([script versions](./processes/router-scripts/script-versions.md)).
 - Generation with a router link and router registration, download, fetch URL ([script generation](./processes/router-scripts/script-generation.md)).
-
-**Status (2026-10-09):** built in three sub-phases, 4a–4c (contracts and **As built** notes in [build/](./build/README.md#phase-4-router-scripts)). Zero-touch key install is part of it (open question 2, settled), so the exit needs no manual step at all. Left for the user: the exit demo below with a spare MikroTik on the real deployment (steps in [4c](./build/4c.md#phase-4-exit-demo)), which also answers open questions "to verify" 5 and 9, and a look at the new pages in a real browser and on the phone.
 
 **Exit:** a factory-reset router fetches its generation with `/tool fetch`, imports it, appears in Routing, and is synced without any manual step except installing Proxier's key.
 

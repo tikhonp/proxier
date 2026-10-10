@@ -36,7 +36,7 @@ const (
 	MaxDuration     = 8 * time.Hour
 )
 
-// Limits of one session (build contract 1h).
+// Limits of one session.
 const (
 	MaxRequests      = 600
 	MaxPerMinute     = 60

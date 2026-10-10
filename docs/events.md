@@ -89,56 +89,56 @@ The payload lists the fields beyond the subject. Notification texts are given in
 
 ## Routing
 
-Every type is declared from [3a](./build/3a.md#events); the sub-phase in brackets is the one that first records it. Lists in payloads are one comma-joined string.
+Lists in payloads are one comma-joined string.
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `routing.service_added` | service | selector (`""` custom), tag, source, origin | off | 3a |
-| `routing.service_updated` | service | changes (of source, name, tag, description, domains), from, to (selectors for a switch, tags for a rename), added, removed (names, for a domains change) | off | 3a |
-| `routing.service_removed` | service | selector, tag | off | 3a |
-| `routing.snapshot_accepted` | service | added, removed, suffix, exact, forced, in_round | off: the digest carries it | 3c |
-| `routing.snapshot_rejected` | service | reason (`empty`, `shrink`), old_count, new_count, lost_pct, in_round | **on** outside the daily round 🟡 | 3c. "netflix: new snapshot held back" / "It has 83 domains instead of 212 (a 61 % drop). Targets keep the old list until you decide." The same rejection again (equal to the one waiting) records nothing. |
-| `routing.snapshot_dismissed` | service | new_count, automatic (true: a refresh equal to the accepted snapshot ended it; false: **Dismiss**) | off | 3c |
-| `routing.refresh_failing` | service | failures, error | **on** at 3 🔴 | 3c. Once per run of failures; a success resets. "netflix: refresh failing" / "3 failures in a row: HTTP 404. Targets keep the last good list." |
-| `routing.refresh_digest` | `routing:refresh` | changed, added, removed, rejected, failing (started failing this round), still_failing, services (how many the round refreshed) | **on** when changed + rejected + failing > 0 📋 | 3c. Recorded after every daily round; a service failing for days is news on its first day only. "Routing refresh: 3 services changed (+42 / −5 domains)" or "Routing refresh: no changes" / "1 held back · 1 started failing · 2 still failing" (each part only when not zero). |
-| `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | 3c. Only when a source wrote a new generation or failed; an unchanged catalog records nothing. |
-| `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 failures in a row (3 days) 🔴 | 3c. Once per run of failures. "Catalog: v2fly failing since 6 Oct" / "HTTP 502. Search shows its catalog of 5 Oct." |
-| `routing.list_created` | routing list | name | off | 3b |
-| `routing.list_updated` | routing list | changes (`services`, `order`, `default`, or the fields: `name`, `description`); added or removed (tags, comma-joined), reordered (true), from, to (old and new name) | off | 3b. Nothing when nothing changed. |
-| `routing.list_deleted` | routing list | name, moved (the targets moved to another list, comma-joined) | off | 3b. Each moved router records `router_updated{changes: list, from, to}`, each config `shadowrocket_updated{changes: list, from, to}`. |
-| `routing.list_refused_server_hostname` | routing list | domain, server, hostname, service | off | 3b. Shown in the UI at once; one per list the refused change would have broken, recorded after its transaction rolled back. A refresh that brings such a name records nothing (the list shows a warning while it lasts). |
-| `routing.shadowrocket_created` | Shadowrocket config | name, list, policy | off | 3d; also by the mtvpn import |
-| `routing.shadowrocket_updated` | Shadowrocket config | changes: `base` (+ version), `list` (+ from, to), `policy` (+ policy_from, policy), `list, policy`, `token`, `disabled`, `enabled` | off | 3d. Never the token. An edit that changes nothing records nothing. |
-| `routing.shadowrocket_deleted` | Shadowrocket config | name, list | off | 3d |
-| `routing.router_added` | router | list, host, by (admin / routerscripts) | off | 3e |
-| `routing.router_updated` | router | changes (of name, connection, names, list), from, to (the old and new name on a rename, list names on a list switch) | off | 3e |
-| `routing.router_connected` | router | version, board | off | 3e. First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup" (3f: also an awaiting router's probe, which queues the initial sync). |
-| `routing.router_synced` | router | added, updated, removed, recorded, trigger (change, manual, initial) | off | 3e. Only when something was pushed or recorded: a sync with nothing to do records no event. |
-| `routing.router_sync_failed` | router | step (connect, read, push, verify), error (the problem sentence), consecutive, manual, attempt, final | **on** when the job gives up (final) 🔴 | 3e. Recorded for every failed attempt; `final` is the last attempt or an error no retry fixes (a refused key, a changed or unknown host key, the tailnet off). "Home: sync gave up at connect" / "Proxier can't reach the router 10.230.1.1:22: connection refused. Nothing was changed on the router. · after 4 attempts" (the attempts only when more than one). |
-| `routing.router_recovered` | router | failures, notified | **on** after a notified failure 🟢 | 3e. The first success after failed attempts; a failure that never notified recovers quietly. "Home is in sync again" / "After 4 failed attempts." |
-| `routing.router_paused` / `.resumed` | router | — | off | 3f |
-| `routing.router_removed` | router | name, cleaned | off | 3f. Kept: at once; cleaned: after the removal sync. A failed removal records `router_sync_failed{manual: true}`. |
-| `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | 3f. "{subject} drifted from what Proxier installed" / "Tags: {tags}. Auto-repair is off: open the router to repair." With repair off, recorded only when the set of drifting tags changes. |
-| `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | 3f. "{subject} has tags Proxier didn't install" / "{tags}. They stay; adopt, remove or ignore them on the router page." (plural forms). Ignored tags never count. |
-| `routing.unmanaged_tag_ignored` | router | tag, ignored | off | 3f |
-| `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | 3g. The admin is watching the run. |
+| `routing.service_added` | service | selector (`""` custom), tag, source, origin | off | |
+| `routing.service_updated` | service | changes (of source, name, tag, description, domains), from, to (selectors for a switch, tags for a rename), added, removed (names, for a domains change) | off | |
+| `routing.service_removed` | service | selector, tag | off | |
+| `routing.snapshot_accepted` | service | added, removed, suffix, exact, forced, in_round | off: the digest carries it | |
+| `routing.snapshot_rejected` | service | reason (`empty`, `shrink`), old_count, new_count, lost_pct, in_round | **on** outside the daily round 🟡 | "netflix: new snapshot held back" / "It has 83 domains instead of 212 (a 61 % drop). Targets keep the old list until you decide." The same rejection again (equal to the one waiting) records nothing. |
+| `routing.snapshot_dismissed` | service | new_count, automatic (true: a refresh equal to the accepted snapshot ended it; false: **Dismiss**) | off | |
+| `routing.refresh_failing` | service | failures, error | **on** at 3 🔴 | Once per run of failures; a success resets. "netflix: refresh failing" / "3 failures in a row: HTTP 404. Targets keep the last good list." |
+| `routing.refresh_digest` | `routing:refresh` | changed, added, removed, rejected, failing (started failing this round), still_failing, services (how many the round refreshed) | **on** when changed + rejected + failing > 0 📋 | Recorded after every daily round; a service failing for days is news on its first day only. "Routing refresh: 3 services changed (+42 / −5 domains)" or "Routing refresh: no changes" / "1 held back · 1 started failing · 2 still failing" (each part only when not zero). |
+| `routing.catalog_refreshed` | `routing:catalog` | v2fly, iplist_main, iplist_beta, iplist_russia (entries; −1 for a source that failed) | off | Only when a source wrote a new generation or failed; an unchanged catalog records nothing. |
+| `routing.catalog_refresh_failed` | `routing:catalog` | source, error, since | **on** after 3 failures in a row (3 days) 🔴 | Once per run of failures. "Catalog: v2fly failing since 6 Oct" / "HTTP 502. Search shows its catalog of 5 Oct." |
+| `routing.list_created` | routing list | name | off | |
+| `routing.list_updated` | routing list | changes (`services`, `order`, `default`, or the fields: `name`, `description`); added or removed (tags, comma-joined), reordered (true), from, to (old and new name) | off | Nothing when nothing changed. |
+| `routing.list_deleted` | routing list | name, moved (the targets moved to another list, comma-joined) | off | Each moved router records `router_updated{changes: list, from, to}`, each config `shadowrocket_updated{changes: list, from, to}`. |
+| `routing.list_refused_server_hostname` | routing list | domain, server, hostname, service | off | Shown in the UI at once; one per list the refused change would have broken, recorded after its transaction rolled back. A refresh that brings such a name records nothing (the list shows a warning while it lasts). |
+| `routing.shadowrocket_created` | Shadowrocket config | name, list, policy | off | Also by the mtvpn import |
+| `routing.shadowrocket_updated` | Shadowrocket config | changes: `base` (+ version), `list` (+ from, to), `policy` (+ policy_from, policy), `list, policy`, `token`, `disabled`, `enabled` | off | Never the token. An edit that changes nothing records nothing. |
+| `routing.shadowrocket_deleted` | Shadowrocket config | name, list | off | |
+| `routing.router_added` | router | list, host, by (admin / routerscripts) | off | |
+| `routing.router_updated` | router | changes (of name, connection, names, list), from, to (the old and new name on a rename, list names on a list switch) | off | |
+| `routing.router_connected` | router | version, board | off | First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup" (3f: also an awaiting router's probe, which queues the initial sync). |
+| `routing.router_synced` | router | added, updated, removed, recorded, trigger (change, manual, initial) | off | Only when something was pushed or recorded: a sync with nothing to do records no event. |
+| `routing.router_sync_failed` | router | step (connect, read, push, verify), error (the problem sentence), consecutive, manual, attempt, final | **on** when the job gives up (final) 🔴 | Recorded for every failed attempt; `final` is the last attempt or an error no retry fixes (a refused key, a changed or unknown host key, the tailnet off). "Home: sync gave up at connect" / "Proxier can't reach the router 10.230.1.1:22: connection refused. Nothing was changed on the router. · after 4 attempts" (the attempts only when more than one). |
+| `routing.router_recovered` | router | failures, notified | **on** after a notified failure 🟢 | The first success after failed attempts; a failure that never notified recovers quietly. "Home is in sync again" / "After 4 failed attempts." |
+| `routing.router_paused` / `.resumed` | router | — | off | |
+| `routing.router_removed` | router | name, cleaned | off | Kept: at once; cleaned: after the removal sync. A failed removal records `router_sync_failed{manual: true}`. |
+| `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | "{subject} drifted from what Proxier installed" / "Tags: {tags}. Auto-repair is off: open the router to repair." With repair off, recorded only when the set of drifting tags changes. |
+| `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | "{subject} has tags Proxier didn't install" / "{tags}. They stay; adopt, remove or ignore them on the router page." (plural forms). Ignored tags never count. |
+| `routing.unmanaged_tag_ignored` | router | tag, ignored | off | |
+| `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | The admin is watching the run. |
 
 ## Router scripts
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `routerscript.created` | router script | name | off | 4a |
-| `routerscript.changed` | router script | fields (of name, slug, description) | off | 4a |
-| `routerscript.draft_saved` | router script | based_on (the version number, 0 for none) | off | 4a. Also when Edit makes the draft from the current version. |
-| `routerscript.draft_discarded` | router script | based_on | off | 4a |
-| `routerscript.version_published` | router script | version, parameters (count), warnings (count) | off | 4a |
-| `routerscript.current_changed` | router script | from, to (numbers) | off | 4a. Making the current version current again records nothing. |
-| `routerscript.archived` | router script | archived (bool) | off | 4a |
-| `routerscript.deleted` | router script | name | off | 4a. Only a script no generation was made from. |
-| `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | 4b |
-| `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | 4c. Actor `admin`. |
-| `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | 4c. Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
-| `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | 4c. It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
+| `routerscript.created` | router script | name | off | |
+| `routerscript.changed` | router script | fields (of name, slug, description) | off | |
+| `routerscript.draft_saved` | router script | based_on (the version number, 0 for none) | off | Also when Edit makes the draft from the current version. |
+| `routerscript.draft_discarded` | router script | based_on | off | |
+| `routerscript.version_published` | router script | version, parameters (count), warnings (count) | off | |
+| `routerscript.current_changed` | router script | from, to (numbers) | off | Making the current version current again records nothing. |
+| `routerscript.archived` | router script | archived (bool) | off | |
+| `routerscript.deleted` | router script | name | off | Only a script no generation was made from. |
+| `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | |
+| `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `admin`. |
+| `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
+| `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
 
 ## Platform notification texts
 

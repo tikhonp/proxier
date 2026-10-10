@@ -165,7 +165,7 @@ func countNodes(e *ExternalResult) ext {
 }
 
 // Evaluate gives the verdict for a server, applying the rules of
-// docs/build/1f.md#verdict-rules from top to bottom; the first match wins.
+// docs/processes/servers/server-health.md#verdict from top to bottom; the first match wins.
 // Every input matches exactly one rule.
 func Evaluate(in CheckState, th Thresholds, now time.Time) Outcome {
 	o := evaluate(in, th, now)

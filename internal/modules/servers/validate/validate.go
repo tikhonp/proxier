@@ -23,7 +23,7 @@ type Input struct {
 	Previous *manifest.Manifest // the latest version's, for dropped endpoint keys; nil for none
 }
 
-// Hooks filled by later sub-phases. Nil means the check finds nothing.
+// Hooks the module fills in Init. Nil means the check finds nothing.
 var (
 	// XrayConfig is proxy.ValidateConfig (1c): it refuses a config xray-core
 	// cannot build an instance from.

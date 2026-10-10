@@ -227,7 +227,7 @@ func (m *Module) Routes(r web.Routes) {
 	})
 }
 
-// Nav adds the module's entries; each sub-phase adds its own with its page.
+// Nav adds the module's entries.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "servers", Label: "servers.nav", Href: "/servers", GoKey: "s", Order: 10},

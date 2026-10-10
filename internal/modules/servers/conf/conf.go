@@ -67,7 +67,7 @@ func nodeList(v string) error {
 	return nil
 }
 
-// Section is the module's settings section. Later sub-phases add fields.
+// Section is the module's settings section.
 var Section = settings.Section{
 	Name: "servers", Module: "servers",
 	Fields: []settings.Field{

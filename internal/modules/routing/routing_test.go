@@ -51,7 +51,7 @@ func TestModuleIsWired(t *testing.T) {
 		delete(notifying, name)
 	}
 	if len(notifying) != 0 {
-		t.Errorf("notifying by default and not in the contract: %v", notifying)
+		t.Errorf("notifying by default and not in docs/events.md: %v", notifying)
 	}
 	types := map[string]func(map[string]any) bool{}
 	for _, e := range routing.Events {

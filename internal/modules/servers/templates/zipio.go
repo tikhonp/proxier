@@ -13,7 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 )
 
-// Import limits (docs/build/1b.md).
+// Import limits.
 const (
 	MaxUpload         = 12 << 20 // bytes of an uploaded zip
 	MaxImportFiles    = 500      // entries of a zip, files of a git path

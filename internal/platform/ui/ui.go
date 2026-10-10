@@ -1,6 +1,6 @@
 // Package ui holds Proxier's templ components and static assets. It depends
 // on i18n and the settings types only and takes plain view structs, so every
-// module can use it (docs/build/0b.md).
+// module can use it.
 package ui
 
 import (

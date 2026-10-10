@@ -101,7 +101,7 @@ func (l *Limiter) Middleware() echo.MiddlewareFunc {
 }
 
 // MaxBody is the largest request body of the admin space: the template
-// editor posts a whole draft (12 MiB of files, docs/build/1b.md) and a zip
+// editor posts a whole draft (12 MiB of files) and a zip
 // upload comes with form fields around it.
 const MaxBody = 12<<20 + 256<<10
 

@@ -46,7 +46,7 @@ func one(p health.ProxyResult, s *health.SelfResult, e *health.ExternalResult) h
 }
 
 // TestEveryInputHasAVerdict enumerates the proxy, self-check and external
-// combinations and checks each against the rule the contract names for it.
+// combinations and checks each against the rule the process doc names for it.
 func TestEveryInputHasAVerdict(t *testing.T) {
 	type proxyCase struct {
 		name string
@@ -65,7 +65,8 @@ func TestEveryInputHasAVerdict(t *testing.T) {
 	}
 	exts := map[string]*health.ExternalResult{"none": nil, "zero": ext(0, 0), "abroad": ext(0, 2)}
 
-	// want is the table of docs/build/1f.md#verdict-rules, written out.
+	// want is the table of docs/processes/servers/server-health.md#verdict,
+	// written out.
 	want := func(p, s, e string) (rule, cand string) {
 		switch {
 		case s == "hostkey":

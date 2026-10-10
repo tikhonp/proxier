@@ -70,7 +70,7 @@ func (s *Service) JobTypes() []jobs.Type {
 	}
 }
 
-// Schedules returns the rhythm of the checks (docs/build/1f.md, Decisions).
+// Schedules returns the rhythm of the checks.
 func (s *Service) Schedules() []jobs.Schedule {
 	req := func(typ, key string) func(context.Context) (jobs.Request, error) {
 		return func(context.Context) (jobs.Request, error) {

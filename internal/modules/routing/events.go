@@ -2,8 +2,7 @@ package routing
 
 import "github.com/tikhonp/proxier/internal/platform/events"
 
-// Events is the module's event catalog (docs/events.md#routing). Every type of
-// Phase 3 is declared now, so the later sub-phases only record them.
+// Events is the module's event catalog (docs/events.md#routing).
 var Events = []events.Type{
 	{Name: "routing.service_added", Description: "A service was added."},
 	{Name: "routing.service_updated", Description: "A service's source, name, tag, description or domains changed."},

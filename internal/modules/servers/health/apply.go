@@ -111,7 +111,8 @@ func (s *Service) english() *i18n.Localizer { return s.I18n.Localizer(i18n.EN, t
 // Apply writes a verdict in tx. A frozen or waiting verdict changes nothing. An
 // immediate one (paused, host key) applies at once. Any other applies after
 // flap protection, and only a counted evaluation, the first to see a new proxy
-// round, moves the candidate (docs/build/1f.md, "Counted evaluations"). It
+// round, moves the candidate (docs/processes/servers/server-health.md,
+// "Flap protection"). It
 // reports whether the state changed.
 func (s *Service) Apply(ctx context.Context, tx *sqlx.Tx, id int64, o Outcome, actor string) (bool, error) {
 	if o.Frozen || o.Wait {

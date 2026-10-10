@@ -1,6 +1,5 @@
 // Package migrations holds the router scripts module's tables (prefix
-// rscripts_). The whole Phase 4 schema is written ahead; later sub-phases
-// build on it.
+// rscripts_). Schema changes go into new migrations.
 package migrations
 
 import (
