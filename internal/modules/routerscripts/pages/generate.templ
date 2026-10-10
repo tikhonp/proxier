@@ -358,7 +358,11 @@ templ summaryBody(v genView) {
 			}
 		</ul>
 	}
-	<p class="sm subtle gen-secret-note">{ i18n.T(ctx, "generations.sum.secret") }</p>
+	if v.SecretNote != "" {
+		<p class="sm subtle gen-secret-note">{ i18n.T(ctx, v.SecretNote) }</p>
+	} else {
+		<p class="sm subtle gen-secret-note">{ i18n.T(ctx, "generations.sum.next") }</p>
+	}
 }
 
 // summaryAnswer is the live summary's answer: the summary, and, out of

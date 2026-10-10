@@ -96,6 +96,8 @@ var generationMessages = i18n.Messages{
 	"generations.sum.problems":       {EN: "To fix", RU: "Исправить"},
 	"generations.sum.valid":          {EN: "Every value is a valid RouterOS literal.", RU: "Все значения — правильные литералы RouterOS."},
 	"generations.sum.secret":         {EN: "The file holds the router's subscription link, so it is a secret. Next: download it, or create a one-time fetch URL.", RU: "В файле ссылка подписки роутера, поэтому он секретный. Дальше: скачайте его или создайте одноразовый URL для загрузки."},
+	"generations.sum.secret_values":  {EN: "The file holds secret values, so it is a secret. Next: download it, or create a one-time fetch URL.", RU: "В файле секретные значения, поэтому он секретный. Дальше: скачайте его или создайте одноразовый URL для загрузки."},
+	"generations.sum.next":           {EN: "Next: download it, or create a one-time fetch URL.", RU: "Дальше: скачайте его или создайте одноразовый URL для загрузки."},
 	"generations.sum.create_link":    {EN: "Create link {name} in {subscription}", RU: "Создать ссылку {name} в {subscription}"},
 	"generations.sum.use_link":       {EN: "Use link {name}", RU: "Взять ссылку {name}"},
 	"generations.sum.register":       {EN: "Register router {name}, awaiting setup, following {list}, at {host}", RU: "Зарегистрировать роутер {name}, ждёт настройки, по списку {list}, адрес {host}"},

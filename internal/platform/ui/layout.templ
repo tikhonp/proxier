@@ -98,7 +98,7 @@ templ header(s Shell) {
 		</button>
 		<a href="/" class="hdr-logo pc-seg"><span class="logo-mark" aria-hidden="true"></span>proxier</a>
 		<button type="button" class="hdr-search pc-field" data-open-palette="all" aria-label={ i18n.T(ctx, "ui.search_label") }>
-			<span class="slash" aria-hidden="true">/</span>{ i18n.T(ctx, "ui.search_placeholder") }
+			<span class="slash" aria-hidden="true">/</span><span class="hdr-ph">{ i18n.T(ctx, "ui.search_placeholder") }</span>
 		</button>
 		if s.JobsCell != nil {
 			@s.JobsCell
@@ -107,7 +107,7 @@ templ header(s Shell) {
 			<a href={ templ.SafeURL(s.Warning.Href) } class="hdr-cell hdr-warn pc-seg pc-hide-s"><span class="st st-look" aria-hidden="true"></span>{ s.Warning.Text }</a>
 		}
 		<div class="admin-menu">
-			<button type="button" class="pc-seg" data-menu-toggle aria-haspopup="true" aria-expanded="false">{ s.Admin }<span class="caret-down" aria-hidden="true">▾</span></button>
+			<button type="button" class="pc-seg" data-menu-toggle aria-haspopup="true" aria-expanded="false" title={ s.Admin }><span class="admin-name">{ s.Admin }</span><span class="caret-down" aria-hidden="true">▾</span></button>
 			<div class="admin-pop hidden" id="admin-pop" role="menu">
 				<div class="grp">{ i18n.T(ctx, "ui.language") }</div>
 				for _, l := range i18n.Langs {

@@ -53,6 +53,10 @@ func TestJobStreamResumesFromLastEventID(t *testing.T) {
 	if !strings.Contains(body, "event: done") {
 		t.Fatal("no done event for a finished job")
 	}
+	// the page's "N lines" was rendered before the lines that streamed in
+	if !strings.Contains(body, "event: info\ndata: redacted · 6 lines\n") {
+		t.Fatalf("no line count event:\n%s", body)
+	}
 	// The ids are the line ids; reconnect after the third.
 	var third string
 	for _, ln := range strings.Split(body, "\n") {

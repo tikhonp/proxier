@@ -38,6 +38,19 @@ func TestSignInFlow(t *testing.T) {
 	}
 }
 
+func TestSignInPageAnswersHead(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	rec := s.Do(sitetest.Req{Method: "HEAD", Path: "/login"})
+	if rec.Code != 200 || rec.Header().Get("Location") != "" {
+		t.Fatalf("HEAD /login: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	// an admin page still sends a HEAD to sign in, not to itself
+	rec = s.Do(sitetest.Req{Method: "HEAD", Path: "/servers"})
+	if rec.Code != 303 || rec.Header().Get("Location") != "/login?next=%2Fservers" {
+		t.Fatalf("HEAD /servers: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+}
+
 func TestSignInLockoutPage(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	for range 5 {

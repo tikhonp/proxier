@@ -60,7 +60,7 @@ The generation page follows it in **After the import**, three steps: **the route
 ## Rules
 
 - A generation is immutable. Changing a value means generating again, which makes a new generation. A link or router registered by the first one is reused if chosen, never duplicated without asking.
-- A generation contains the router's subscription link, so the file is a secret. Downloads need a session. Fetch URLs live 1 hour and work once. Neither the token nor the file content ever appears in a log or event.
+- A generation that fills in the router's subscription link or a `@secret` value is a secret, and the summary says which of the two it holds (a version with neither only says what comes next). Every file is handled as a secret all the same: downloads need a session. Fetch URLs live 1 hour and work once. Neither the token nor the file content ever appears in a log or event.
 - Only parameter literals are changed. A generated file is byte-identical to its version everywhere else.
 - Creating a fetch URL invalidates any earlier unused fetch URL of the same generation.
 - If the router scripts module runs without subscriptions or routing, those form sections are absent and the values are typed by hand.

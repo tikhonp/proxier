@@ -646,7 +646,7 @@ func (h *handler) jobStream(c *echo.Context) error {
 	defer keepAlive.Stop()
 
 	var lastState jobs.State
-	var lastSteps string
+	var lastSteps, lastInfo string
 	for {
 		j, err = h.Jobs.Job(ctx, j.ID)
 		if err != nil {
@@ -678,6 +678,13 @@ func (h *handler) jobStream(c *echo.Context) error {
 		if fragment, err := render(ctx, stepList(v)); err == nil && fragment != lastSteps {
 			lastSteps = fragment
 			if writeEvent(w, "", "steps", fragment) != nil {
+				return nil
+			}
+		}
+		// the page shows the count it was rendered with; lines arrive after it
+		if v.LogInfo != lastInfo {
+			lastInfo = v.LogInfo
+			if writeEvent(w, "", "info", v.LogInfo) != nil {
 				return nil
 			}
 		}

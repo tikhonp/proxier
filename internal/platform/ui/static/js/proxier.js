@@ -374,6 +374,7 @@
       if (follow && log.lastElementChild) log.lastElementChild.scrollIntoView({ block: 'nearest' });
     });
     es.addEventListener('steps', function (e) { swap('job-steps', e.data); });
+    es.addEventListener('info', function (e) { var n = $('#job-log-info'); if (n) n.textContent = e.data; });
     es.addEventListener('state', function (e) { swap('job-head', e.data); });
     es.addEventListener('done', function () {
       es.close();

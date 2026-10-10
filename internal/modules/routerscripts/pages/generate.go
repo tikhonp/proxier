@@ -71,6 +71,8 @@ type genView struct {
 	GoLabel    string
 	ParamCount int
 	FillsNote  bool // the version has @fill routing-* parameters
+	// SecretNote: what makes the file secret, if anything (generations.sum.*)
+	SecretNote string
 }
 
 // genForm reads the posted form.
@@ -264,6 +266,12 @@ func (h *handler) genView(ctx context.Context, v generations.View, showErrs bool
 			fd := genField{
 				Name: p.Name, Desc: desc, Secret: a.Secret || a.Fill == params.FillLink, Required: a.Required, Choices: a.Choices,
 				Pattern: a.Pattern, Lock: v.Locked[p.Name], Changed: changed[p.Name], Err: gv.Errs["param."+p.Name],
+			}
+			switch {
+			case a.Fill == params.FillLink:
+				gv.SecretNote = "generations.sum.secret"
+			case a.Secret && gv.SecretNote == "":
+				gv.SecretNote = "generations.sum.secret_values"
 			}
 			switch a.Fill {
 			case params.FillLink:

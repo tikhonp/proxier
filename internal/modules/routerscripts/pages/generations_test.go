@@ -136,6 +136,24 @@ func dacha(t *testing.T, h *rscriptstest.Harness) int64 {
 	return gid
 }
 
+func TestGenerateSummarySecretNote(t *testing.T) {
+	h := rscriptstest.New(t)
+	plain := h.Script("plain", paramstest.WithEnd(paramstest.Today()))
+	secret := h.Script("secret", paramstest.Annotate(paramstest.WithEnd(paramstest.Today()), "subUrl", "@secret"))
+	summary := func(id int64) string {
+		f := genPost()
+		f.Set("router_mode", "none")
+		return html.UnescapeString(h.Login.Post("/router-scripts/"+strconv.FormatInt(id, 10)+"/generate/summary", f).Body.String())
+	}
+	// nothing secret in the file: no claim that it holds a link
+	if sum := summary(plain); !strings.Contains(sum, "Next: download it, or create a one-time fetch URL.") || strings.Contains(sum, "so it is a secret") {
+		t.Errorf("plain script:\n%s", sum)
+	}
+	if sum := summary(secret); !strings.Contains(sum, "The file holds secret values, so it is a secret.") || strings.Contains(sum, "subscription link, so") {
+		t.Errorf("@secret script:\n%s", sum)
+	}
+}
+
 func TestGenerationPage(t *testing.T) {
 	h := rscriptstest.New(t)
 	dacha(t, h)

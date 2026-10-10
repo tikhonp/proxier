@@ -39,6 +39,13 @@ func TestHealthz(t *testing.T) {
 	if rec.Header().Get("Cache-Control") != "no-store" {
 		t.Error("healthz may be cached")
 	}
+	head := httptest.NewRequest(http.MethodHead, "/healthz", nil)
+	head.RemoteAddr = "192.0.2.1:1234"
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, head)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("HEAD: %d", rec.Code)
+	}
 
 	healthErr = errors.New("sql: database is closed at /data/proxier.db")
 	rec = get(e, "/healthz", "192.0.2.1:1234", nil)

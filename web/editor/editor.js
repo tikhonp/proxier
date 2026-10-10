@@ -8,11 +8,13 @@
 // delete in the tree. Nothing is saved until the form is submitted.
 //
 // CSP: style-src is 'self', so inline <style> elements are blocked. CodeMirror
-// only uses constructable stylesheets (adoptedStyleSheets) when its root is a
-// shadow root; on the document it writes <style> tags. So the view lives in a
-// shadow root: the page's CSS variables still inherit into it, its own styles
-// are adopted sheets, and everything else here is set through the CSSOM.
-// Keys typed in the editor stop at the shadow host so the page's key map
+// writes its styles through style-mod, which build.sh patches to use
+// constructable stylesheets (document.adoptedStyleSheets) on the document as
+// well as in shadow roots; everything else here is set through the CSSOM.
+// The views live in the page itself, not in a shadow root: focus must land on
+// a plain contenteditable, or browser extensions with their own key maps (a
+// vim mode in Safari) take the keys typed in the editor as commands.
+// Keys typed in the editor stop at its host so the page's key map
 // (g d, j k, /, ?) never sees them.
 import { EditorState } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from "@codemirror/view";
@@ -118,14 +120,12 @@ class Editor {
     this.submitting = false;
     this.t = (k) => form.dataset[k] || "";
     this.host = $("#ed-host");
-    const shadow = this.host.attachShadow({ mode: "open" });
-    this.view = new EditorView({ parent: shadow, root: shadow, state: EditorState.create({ doc: "" }) });
+    this.view = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
     this.host.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !e.defaultPrevented) this.view.contentDOM.blur();
       e.stopPropagation();
     });
-    // the host's light DOM is not rendered once it has a shadow root, so the
-    // note for a binary file sits beside it
+    // the note for a binary file sits beside the view, which is hidden then
     this.binaryNote = document.createElement("p");
     this.binaryNote.className = "ed-hint subtle hidden";
     this.host.insertAdjacentElement("afterend", this.binaryNote);
@@ -533,9 +533,9 @@ function saveCode() {
   if (btn && !btn.disabled && btn.form) btn.form.requestSubmit(btn);
 }
 
-// initCodeAreas puts CodeMirror on each textarea[data-code], in a shadow root
-// (the CSP, as for the template editor), and copies the text back into the
-// textarea on every change and before submit, so the form posts what is shown.
+// initCodeAreas puts CodeMirror on each textarea[data-code] and copies the
+// text back into the textarea on every change and before submit, so the form
+// posts what is shown.
 function initCodeAreas() {
   for (const ta of document.querySelectorAll("textarea[data-code]")) {
     if (ta.dataset.codeOn) continue;
@@ -543,13 +543,12 @@ function initCodeAreas() {
     const host = document.createElement("div");
     host.className = "code-host";
     ta.insertAdjacentElement("afterend", host);
-    const shadow = host.attachShadow({ mode: "open" });
     const lang = codeModes[ta.dataset.code];
     // htmx follows the text area (hx-trigger="input …"): tell it when the
     // text changed, at most every 300 ms
     let inputTimer = 0;
     const view = new EditorView({
-      parent: shadow, root: shadow,
+      parent: host,
       state: EditorState.create({
         doc: ta.value,
         extensions: [

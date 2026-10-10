@@ -81,6 +81,9 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 		names: newSubjectNames(d.Log, d.Settings, d.Namers)}
 
 	r.Open.GET("/login", h.loginPage)
+	// a HEAD that matches no route meets the session check, which sends it to
+	// /login: the page itself must answer HEAD, or that is a redirect loop
+	r.Open.HEAD("/login", h.loginPage)
 	r.Open.POST("/login", h.login)
 	r.Admin.POST("/logout", h.logout)
 

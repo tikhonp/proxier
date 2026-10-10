@@ -45,6 +45,7 @@ func New(o Options) *echo.Echo {
 	e.Use(middleware.Recover())
 
 	e.GET("/healthz", healthz(o.Health))
+	e.HEAD("/healthz", healthz(o.Health)) // uptime monitors often ask with HEAD
 	return e
 }
 

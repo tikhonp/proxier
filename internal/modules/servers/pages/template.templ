@@ -173,7 +173,7 @@ templ templatePage(s ui.Shell, v templateView) {
 								}
 							</dd>
 							<dt>{ i18n.T(ctx, "templates.draft.saved") }</dt>
-							<dd>@ui.Time(v.Draft.DraftUpdatedAt.Time)<span> · { v.Draft.DraftUpdatedBy }</span></dd>
+							<dd>@ui.Time(v.Draft.DraftUpdatedAt.Time)<span>{ " · " + v.Draft.DraftUpdatedBy }</span></dd>
 							if t := sourceText(ctx, v.Draft.DraftSource); t != "" && v.Draft.DraftSource.Kind != "version" {
 								<dt>{ i18n.T(ctx, "templates.draft.source") }</dt>
 								<dd>{ t }</dd>
@@ -281,7 +281,7 @@ templ versionPage(s ui.Shell, v versionView) {
 				<p class="subtle">
 					{ i18n.T(ctx, "templates.published_by", i18n.Args{"by": v.V.PublishedBy}) + " " }@ui.Time(v.V.PublishedAt.Time)
 					if t := sourceText(ctx, v.V.Source); t != "" && v.V.Source.Kind != "version" {
-						<span> · { t }</span>
+						<span>{ " · " + t }</span>
 					}
 				</p>
 				if v.V.Notes != "" {
