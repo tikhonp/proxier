@@ -198,6 +198,11 @@ func TestEditorSaveAndValidate(t *testing.T) {
 	body := page.Body.String()
 	contains(t, "editor", body, `name="file[manifest.yaml]"`, `name="file[compose.yaml]"`, `name="revision"`, `value="1"`,
 		"services:", "Save draft", "Validate", "Preview", "Publish v1", `src="/static/`, "editor.bundle.js", `type="module"`)
+	// Validate brings its results into view and focus (proxier.js, data-reveal): under 1100 px they sit under the code
+	if !regexp.MustCompile(`data-action="tpl.validate"[^>]*hx-target="#ed-side"[^>]*data-reveal`).MatchString(body) {
+		t.Error("Validate does not bring its results into view")
+	}
+	contains(t, "results panel", body, `<aside class="ed-side" id="ed-side" aria-live="polite" tabindex="-1">`)
 
 	// Save: the whole draft is stored as one revision; the browser's CRLF becomes LF
 	d, _ := e.Svc.Draft(ctx, id)

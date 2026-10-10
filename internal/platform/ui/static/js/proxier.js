@@ -415,6 +415,26 @@
     }
   });
 
+  // ---- [data-reveal]: the answer to this element's request is brought into view
+  // and focused. The template editor's results land under the code once the
+  // columns stack, below the window, so Validate seemed to do nothing. A start
+  // already in view, with room for its first lines, stays where it is.
+  document.addEventListener('htmx:afterSettle', function (e) {
+    var cfg = e.detail && e.detail.requestConfig;
+    var t = e.detail && e.detail.target;
+    // settling fires on every swapped element (an out-of-band one too): act once, on the target
+    if (!cfg || !cfg.elt || !cfg.elt.hasAttribute || !cfg.elt.hasAttribute('data-reveal') || e.target !== t || !t.isConnected) return;
+    var keys = $('#keyline');
+    var bottom = window.innerHeight - (keys ? keys.offsetHeight : 0);
+    var r = t.getBoundingClientRect();
+    if (r.top < 0 || r.top + Math.min(r.height, 160) > bottom) {
+      var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      t.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' });
+    }
+    // a screen reader and the keyboard go on from the results, not from the button
+    if (t.hasAttribute('tabindex')) t.focus({ preventScroll: true });
+  });
+
   // ---- sortable lists: drag a row by its handle; the new order is posted
   // as order=<id>,<id>,… by the list's form (an htmx form, so the area swaps)
   var dragged = null, startOrder = '';

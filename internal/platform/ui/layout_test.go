@@ -93,6 +93,39 @@ func TestTemplatePagesHoldUpWhenZoomed(t *testing.T) {
 	}
 }
 
+// Validate's results come into view: under 1100 px the template editor puts
+// them under the code, below the window, so pressing Validate seemed to do
+// nothing. The answer to a [data-reveal] request is scrolled to (smoothly,
+// unless the reader asked for less motion) when its start is out of view, and
+// focused; on a phone its divider stays above it, as under 1100 px.
+func TestValidationResultsComeIntoView(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`document.addEventListener('htmx:afterSettle'`,
+		`cfg.elt.hasAttribute('data-reveal')`,
+		`e.target !== t`, // settling fires once per swapped element, out-of-band ones too
+		`(prefers-reduced-motion: reduce)`,
+		`t.scrollIntoView({ block: 'start', behavior: still ? 'auto' : 'smooth' })`,
+		`t.focus({ preventScroll: true })`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+	css := appCSS(t)
+	if !strings.Contains(css, `.ed-side:focus-visible { outline-offset: -1px; }`) {
+		t.Error("the focused results draw their ring outside the panel")
+	}
+	phone := regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.ed \{ grid-template-columns: minmax\(0, 1fr\); \}[^@]*\}`).FindString(css)
+	if !strings.Contains(phone, `.ed-side { border: 0; border-top: 1px solid var(--overlay); }`) {
+		t.Errorf("on a phone the results lose the divider above them: %s", phone)
+	}
+}
+
 // Every table in the templates (a .colhead and its rows) sits in a .tbl box,
 // so the stylesheet's scrolling and minimum widths apply to it.
 func TestEveryTableIsInATableBox(t *testing.T) {

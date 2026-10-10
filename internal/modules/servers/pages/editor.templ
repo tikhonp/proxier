@@ -33,6 +33,7 @@ templ editorPage(s ui.Shell, v editorView) {
 					hx-include="#draft-form"
 					hx-target="#ed-side"
 					hx-swap="innerHTML"
+					data-reveal
 					disabled?={ v.Stale }
 				>{ i18n.T(ctx, "templates.validate") }</button>
 				if len(v.Servers) > 0 {
@@ -136,7 +137,7 @@ templ editorPage(s ui.Shell, v editorView) {
 					<span id="ed-issues"></span>
 				</div>
 			</div>
-			<aside class="ed-side" id="ed-side" aria-live="polite">
+			<aside class="ed-side" id="ed-side" aria-live="polite" tabindex="-1">
 				@sideEmpty()
 			</aside>
 		</form>

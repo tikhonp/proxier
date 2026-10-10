@@ -154,7 +154,7 @@ Short messages ("Copied", "Sync started") appear in the key line, not as toasts.
 
 ## Zoomed in
 
-A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the screens are drawn for. Below 1100 px the side-by-side page columns (template, subscription, service, search, script editor, generation, Settings and its section list) stack into one, and tables scroll sideways rather than squeeze. A layout whose columns need more room stacks earlier: the template page's versions and draft below 1270 px. The template editor's results move under the files and the code below 1100 px. Under 760 px (200 % and more) the phone layout takes over.
+A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the screens are drawn for. Below 1100 px the side-by-side page columns (template, subscription, service, search, script editor, generation, Settings and its section list) stack into one, and tables scroll sideways rather than squeeze. A layout whose columns need more room stacks earlier: the template page's versions and draft below 1270 px. The template editor's results move under the files and the code below 1100 px, as wide as both, and Validate scrolls down to them. Under 760 px (200 % and more) the phone layout takes over.
 
 ## Phone
 
