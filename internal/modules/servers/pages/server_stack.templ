@@ -98,6 +98,6 @@ templ stackDiffPage(s ui.Shell, v stackDiffView) {
 				@ui.Diff(v.Diff)
 			}
 		}
-		<p class="sm subtle"><a href={ templ.SafeURL(serverHref(v.S.ID) + "/stack") }>{ i18n.T(ctx, "servers.stack.back") }</a> · { strconv.FormatInt(v.Prev.ID, 10) } → { strconv.FormatInt(v.Dep.ID, 10) }</p>
+		<p class="foot"><a href={ templ.SafeURL(serverHref(v.S.ID) + "/stack") }>{ i18n.T(ctx, "servers.stack.back") }</a> · { strconv.FormatInt(v.Prev.ID, 10) } → { strconv.FormatInt(v.Dep.ID, 10) }</p>
 	}
 }

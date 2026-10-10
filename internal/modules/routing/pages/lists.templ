@@ -201,9 +201,11 @@ templ deleteListPage(s ui.Shell, v deleteListView) {
 			}
 		}
 		if v.L.Default {
-			<p>{ i18n.T(ctx, "lists.delete.default") }</p>
-			<div class="form-actions">
-				<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			<div class="form">
+				<p>{ i18n.T(ctx, "lists.delete.default") }</p>
+				<div class="form-actions">
+					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				</div>
 			</div>
 		} else {
 			<form method="post" action={ templ.SafeURL(listHref(v.L.ID) + "/delete") } class="form">

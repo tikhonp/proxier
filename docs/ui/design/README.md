@@ -12,7 +12,7 @@ The canvas itself is <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec>, on the
 
 1. **Dark only.** Rosé Pine (main) on a black ground, in one typeface, IBM Plex Mono.
 2. **Colour means state.** Ink is grey-violet. Colour appears only for a state, and every state is also a shape and a word. Healthy stays quiet: a pine dot with a subtle word.
-3. **Big blocks flush, small things padded.** Header, sidebar, areas, title bands, tables, banners and the key line run edge to edge and meet along 1 px `--overlay` lines. Buttons and fields are bordered boxes with room around them.
+3. **Big blocks flush, small things padded.** Header, sidebar, areas, title bands, tables, banners and the key line run edge to edge and meet along 1 px `--overlay` lines. Buttons and fields are bordered boxes with room around them. Text inside a block keeps 16 px from its sides, as the rows do; a note under a table or area (12 px, subtle, `.foot`) too, so its left edge lines up with the rows above.
 4. **Less on screen.** One line per thing. The rest is one key or one click away.
 5. **Keyboard first on desktop, usable on a phone.** Every action has a key, and the bottom line shows which. The phone is for reacting to a notification.
 

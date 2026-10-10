@@ -261,3 +261,107 @@ func hasStick(lines []string, i int) bool {
 	}
 	return false
 }
+
+// The page column has no padding of its own: tables, areas and forms bring
+// theirs. A line of text placed straight in it (a note under the locations
+// table, a stack diff's back line) sat flush against the sidebar, so text there
+// carries a class that pads it like the rows (.foot, .pager, .area-body…).
+func TestPageTextSitsInsideThePadding(t *testing.T) {
+	css := appCSS(t)
+	if !strings.Contains(css, `.foot { padding: 12px 16px; font-size: var(--fs-sm); line-height: 16px; color: var(--subtle); }`) {
+		t.Error("app.css lacks the .foot note")
+	}
+	padded := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^\.([a-z][a-z0-9-]*) \{[^}]*\bpadding: \d+px (\d+)px`).FindAllStringSubmatch(css, -1) {
+		if m[2] != "0" {
+			padded[m[1]] = true
+		}
+	}
+	text := regexp.MustCompile(`^(<(p|span|a|small|strong|em|code|label)[ >]|\{ )`)
+	class := regexp.MustCompile(`class="([^"]*)"`)
+	n := 0
+	err := filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(string(b), "\n")
+		for _, i := range pageColumnLines(lines) {
+			n++
+			l := strings.TrimSpace(lines[i])
+			if !text.MatchString(l) {
+				continue
+			}
+			ok := false
+			if m := class.FindStringSubmatch(l); m != nil {
+				for _, c := range strings.Fields(m[1]) {
+					ok = ok || padded[c]
+				}
+			}
+			if !ok {
+				t.Errorf("%s:%d: text straight in the page column, without padding: %s", p, i+1, l)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 100 {
+		t.Fatalf("only %d page-column lines found", n)
+	}
+}
+
+// pageColumnLines returns the lines inside a ui.Layout or ui.SettingsLayout
+// block that are its direct children, with nothing but if, for and switch
+// blocks between.
+func pageColumnLines(lines []string) []int {
+	indent := func(s string) int { return len(s) - len(strings.TrimLeft(s, "\t")) }
+	control := regexp.MustCompile(`^(if |for |switch |case |default:|\} else|else)`)
+	var out []int
+	for i := 0; i < len(lines); i++ {
+		if l := strings.TrimLeft(lines[i], "\t"); !strings.HasPrefix(l, "@ui.Layout(") && !strings.HasPrefix(l, "@ui.SettingsLayout(") {
+			continue
+		}
+		base := indent(lines[i])
+		type open struct {
+			indent  int
+			control bool
+		}
+		var stack []open
+		j := i + 1
+		for ; j < len(lines); j++ {
+			l := lines[j]
+			if strings.TrimSpace(l) == "" {
+				continue
+			}
+			in := indent(l)
+			if in <= base {
+				break
+			}
+			for len(stack) > 0 && stack[len(stack)-1].indent >= in {
+				stack = stack[:len(stack)-1]
+			}
+			direct := true
+			for _, o := range stack {
+				direct = direct && o.control
+			}
+			if direct {
+				out = append(out, j)
+			}
+			for k := j + 1; k < len(lines); k++ {
+				if strings.TrimSpace(lines[k]) != "" {
+					if indent(lines[k]) > in {
+						stack = append(stack, open{in, control.MatchString(strings.TrimSpace(l))})
+					}
+					break
+				}
+			}
+		}
+		i = j - 1
+	}
+	return out
+}
