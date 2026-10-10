@@ -75,7 +75,6 @@
 .row.attr { grid-template-columns: 160px minmax(0, 1fr); }
 .row.host { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, .9fr) minmax(0, .9fr) auto; }
 .row.bk { grid-template-columns: minmax(0, 1.4fr) minmax(0, .6fr) minmax(0, 1fr); }
-.row.loc, .colhead.loc { grid-template-columns: 64px 36px minmax(120px, 1.1fr) minmax(120px, 1.1fr) 72px minmax(120px, auto); }
 .colhead { display: grid; gap: 16px; padding: 12px 16px 6px; font-size: var(--fs-label); line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 /* A table (.tbl: column heads and rows) never squeezes a column below its minimum:
    when the page is narrower (zoomed in, a small window) it scrolls sideways in its
@@ -91,9 +90,6 @@
 .tbl .stat { max-width: 100%; }
 .tbl .stat > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.row.locform { background: var(--base); }
-.row.locform .pc-inp { width: 100%; }
-.row.locform .err { grid-column: 1 / -1; font-size: var(--fs-sm); color: var(--love); }
 .row .actions { display: flex; justify-content: flex-end; gap: 8px; }
 .fp-cell code, .host-change code, .fp-line .subtle { word-break: break-all; }
 .fp-line { min-width: 0; }
@@ -262,8 +258,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; height: 44px; }
   .form { max-width: none; }
-  .row.sess, .row.host, .row.bk, .row.loc { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
-  .colhead.loc { display: none; }
+  .row.sess, .row.host, .row.bk { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .row .actions { justify-content: flex-start; }
   .titleblock .actions { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .titleblock .actions > * { flex: 1 1 auto; }
@@ -446,11 +441,6 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .newsum h2 { margin: 0 0 12px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .inline { display: flex; gap: 8px; align-items: stretch; }
 .inline .pc-inp { flex: 1; min-width: 0; }
-.newloc { margin-top: 8px; }
-.newloc > summary { display: inline-flex; cursor: pointer; list-style: none; }
-.newloc > summary::-webkit-details-marker { display: none; }
-.newloc-body { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 8px; padding: 8px; background: var(--base); border: 1px solid var(--overlay); }
-.newloc-body .pc-inp { width: auto; flex: 1 1 120px; min-width: 0; }
 /* tabs never wrap or squeeze: a strip too wide for the page scrolls sideways */
 .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--overlay); padding: 0 16px; overflow-x: auto; }
 .tabs a { flex: none; padding: 8px 14px; color: var(--subtle); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }

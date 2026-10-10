@@ -127,21 +127,49 @@ func TestEndpointPortMustBeAPort(t *testing.T) {
 }
 
 func TestHostnamePattern(t *testing.T) {
-	h, err := render.Hostname("{location}-{number}.hosts.tikhonnnnn.com", "nl", 1)
-	if err != nil || h != "nl-1.hosts.tikhonnnnn.com" {
-		t.Errorf("%q %v", h, err)
+	// {location} is the placeholder's earlier name: a pattern saved with it
+	// keeps working
+	for _, p := range []string{"{country}-{number}.hosts.tikhonnnnn.com", "{location}-{number}.hosts.tikhonnnnn.com"} {
+		h, err := render.Hostname(p, "nl", 1)
+		if err != nil || h != "nl-1.hosts.tikhonnnnn.com" {
+			t.Errorf("%s: %q %v", p, h, err)
+		}
 	}
 	for _, bad := range []string{
-		"{location}.hosts.tikhonnnnn.com",  // no number
-		"x-{number}.hosts.tikhonnnnn.com",  // no location
-		"{location}_{number}.example.com",  // underscore
-		"{location}-{number}",              // not fully qualified
-		"{location}-{number}.-bad.example", // label starts with -
-		"{location}-{number}.exa mple.com", // space
-		"{location}-{number}..example.com", // empty label
+		"{country}.hosts.tikhonnnnn.com",  // no number
+		"x-{number}.hosts.tikhonnnnn.com", // no country
+		"{country}_{number}.example.com",  // underscore
+		"{country}-{number}",              // not fully qualified
+		"{country}-{number}.-bad.example", // label starts with -
+		"{country}-{number}.exa mple.com", // space
+		"{country}-{number}..example.com", // empty label
 	} {
 		if _, err := render.Hostname(bad, "nl", 1); err == nil {
 			t.Errorf("pattern %q must be refused", bad)
 		}
+	}
+}
+
+// Templates see the server's country, and .Server.Location as before servers
+// had one, so a published version that uses it still renders.
+func TestTemplatesSeeTheCountryAndTheOldLocation(t *testing.T) {
+	m, files := seedManifest(t)
+	files["probe.txt"] = []byte("{{ .Server.Country.Code }} {{ .Server.Country.Name }} {{ .Server.Country.Flag }} {{ .Server.Location.Code }} {{ .Server.Location.Name }} {{ .Server.Location.Country }}")
+	m.Files = append(m.Files, manifest.File{Path: "probe.txt", Mode: 0o644})
+	c := render.SampleContext(m, "t", nil)
+	c.Server.Country = render.Country{Code: "NL", Name: "Netherlands", Flag: "🇳🇱"}
+	c.Server.Location = render.Location{Code: "ams", Name: "Netherlands", Country: "NL"}
+	out, fs := render.Render(m, files, c)
+	if len(fs) != 0 {
+		t.Fatal(fs)
+	}
+	got := ""
+	for _, f := range out.Files {
+		if f.Path == "probe.txt" {
+			got = string(f.Content)
+		}
+	}
+	if got != "NL Netherlands 🇳🇱 ams Netherlands NL" {
+		t.Errorf("%q", got)
 	}
 }

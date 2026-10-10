@@ -2,13 +2,13 @@
 
 The servers module turns a freshly issued VPS into a working proxy server from a versioned **template**. Afterwards it keeps the server's DNS, stack and secrets, can change the server later, and watches whether the server works from Russia. It replaces `servers-templates/proxy/setup.sh`, manual DNS, `credentials.txt`, and finding out about blocks from complaints.
 
-## Locations and names
+## Countries and names
 
-- A **location** is a short code (`a-z`, 2–5 characters) with a display name and a country (for the flag): `nl`, Netherlands, 🇳🇱. Locations are managed under Servers → Locations. A location that has servers can't be deleted.
-- A new server gets the **server name** `<location>-<number>`, where the number is one more than the highest number that location has ever used. Numbers are **never reused**, not even after a failed provisioning or a retirement. A name means one server for good.
-- The **management hostname** comes from the hostname pattern in Settings, default `{location}-{number}.hosts.tikhonnnnn.com` → `nl-1.hosts.tikhonnnnn.com`.
+- A server's **country** is an ISO 3166-1 alpha-2 code (`NL`), chosen when the server is created and never changed. It is all the server stores of where it is: the country's name (English and Russian) and its flag (🇳🇱, the two regional-indicator letters) are derived from the code, never stored ([ADR 0015](../adr/0015-servers-have-a-country-not-a-location.md)). There is nothing to manage: no Locations page, nothing to add, rename or delete. Withdrawn codes (`UK`, `DD`, `SU`…) are not countries.
+- A new server gets the **server name** `<code in lower case>-<number>` (`nl-2`), where the number is one more than the highest number its name prefix has ever used. Numbers are **never reused**, not even after a failed provisioning or a retirement: a server is never deleted, so its row keeps its number taken. A name means one server for good. A server created before servers had a country keeps its name and its location's code as its prefix (`ams-1` in NL); new servers of that country count under the country's code.
+- The **management hostname** comes from the hostname pattern in Settings, default `{country}-{number}.hosts.tikhonnnnn.com` → `nl-1.hosts.tikhonnnnn.com`. `{country}` is the name prefix; `{location}`, its earlier spelling, still works in a saved pattern.
 - The **proxy hostname** is the name in connection URIs and the TLS certificate. In the first version it is always the management hostname. The two are separate fields so that proxy hostnames on other domains can come later without migrating data ([DNS](#dns)).
-- When the admin pastes an IP into the new-server form, Proxier looks up the IP's country and preselects the matching location. It is only a suggestion.
+- When the admin pastes an IP into the new-server form, Proxier looks up the IP's country and preselects it in the country picker. It is only a suggestion.
 
 ## Templates
 
@@ -125,7 +125,8 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | Name | Example |
 |---|---|
 | `.Server.Name`, `.Server.Number` | `nl-1`, `1` |
-| `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL` |
+| `.Server.Country.Code`, `.Name`, `.Flag` | `NL`, `Netherlands`, `🇳🇱` (the English name) |
+| `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL`: what templates saw before servers had a country, kept so they still render; `Code` is the first half of the server name |
 | `.Server.IP`, `.Server.SSHPort` | `203.0.113.10`, `22` |
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.tikhonnnnn.com` |
 | `.Params.<key>` | parameters |
@@ -173,7 +174,7 @@ Only **active** servers have a health state ([health](../processes/servers/serve
 
 ## Server page
 
-- **Overview**: flag and name, health badge with "since" and a one-sentence reason, lifecycle state, IP, hostnames, location, template and version (with "update available"), endpoints with their connection URIs (copy, QR, reveal), the subscriptions it is in, notes, and recent events.
+- **Overview**: flag and name, health badge with "since" and a one-sentence reason, lifecycle state, IP, hostnames, country, template and version (with "update available"), endpoints with their connection URIs (copy, QR, reveal), the subscriptions it is in, notes, and recent events.
 - **Health**: the latest result of each check per vantage point, as a matrix with 24 h strips, plus the verdict explanation and a timeline of health states (24 h / 7 d / 30 d), **Run checks now** and **Pause checks** / **Resume** ([health](../processes/servers/server-health.md)).
 - **Stats**: CPU, memory, disk and traffic charts for 24 h / 7 d / 30 d, and container states ([stats](../processes/servers/server-stats.md)).
 - **Stack**: the rendered files of the last deployment (secrets masked until revealed), its template version, and the deployment history with diffs.
@@ -199,17 +200,17 @@ Actions:
 | Edit notes | any | — |
 | Retire | provisioning, failed, active | Type the server name to confirm ([retirement](../processes/servers/server-retirement.md)). |
 
-There is no rename, no location change and no IP change: the name is the identity.
+There is no rename, no country change and no IP change: the name is the identity.
 
 ## Server list
 
-Columns: name with flag, health badge and since when, lifecycle state (when not active), IP, proxy hostname, template version (with "update available"), last proxy test latency, CPU / memory / disk mini-bars, traffic today, number of subscriptions. Filters: lifecycle state (default: everything but retired), health state, location, template. Bulk actions: **Run checks now**, **Upgrade to default version** (rolling, see [redeploy](../processes/servers/server-redeploy.md)), **Pause checks**.
+Columns: name with flag, health badge and since when, lifecycle state (when not active), IP, proxy hostname, template version (with "update available"), last proxy test latency, CPU / memory / disk mini-bars, traffic today, number of subscriptions. Filters: lifecycle state (default: everything but retired), health state, country (the countries that have servers, by name), template. Bulk actions: **Run checks now**, **Upgrade to default version** (rolling, see [redeploy](../processes/servers/server-redeploy.md)), **Pause checks**.
 
 ## Endpoints and connection URIs
 
 The first endpoint type is `vless-xhttp-tls`. Given an endpoint, it builds the connection URI exactly as `setup.sh` printed it ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), and it runs the proxy test.
 
-The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {location name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. The location name is the one the admin entered, in every link whatever its language (a link's language changes only its stub entries). The `EndpointCatalog` port also carries each server's location flag, and `endpoint.MaskedURI` gives a URI with the credential and the secret path shown as `••••••••` (previews).
+The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {country name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. The country name is the English one, in every link whatever its language (a link's language changes only its stub entries). Display names are stored with the endpoints, refreshed by every deployment. The `EndpointCatalog` port also carries each server's flag, derived from its country, and `endpoint.MaskedURI` gives a URI with the credential and the secret path shown as `••••••••` (previews).
 
 ## DNS
 
@@ -242,4 +243,4 @@ It consumes one port from routing: `RoutingGuard` (`Covering(ctx, hostnames)`, s
 
 ## Events
 
-`template.*`, `location.created`, `server.*`, `health.*`: see [events](../events.md#servers).
+`template.*`, `server.*`, `health.*`: see [events](../events.md#servers). `location.*` events are no longer recorded; older ones still show in Activity.

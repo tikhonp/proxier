@@ -5,12 +5,10 @@ package pages
 import (
 	"errors"
 	"log/slog"
-	"net/http"
 	"strconv"
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/agent"
-	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
@@ -73,49 +71,12 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST("/settings/integrations/cloudflare/token", h.cloudflareToken)
 	r.Admin.POST("/settings/integrations/cloudflare/zones", h.cloudflareZones)
 	r.Admin.POST("/settings/integrations/cloudflare/test", h.cloudflareTest)
-	r.Admin.GET("/locations", h.locations)
-	r.Admin.POST("/locations", h.createLocation)
-	r.Admin.POST("/locations/:id", h.updateLocation)
-	r.Admin.POST("/locations/:id/delete", h.deleteLocation)
 	h.registerTemplates(r)
 	h.registerServers(r)
 	h.registerDeploy(r)
 	h.registerHealth(r)
 	h.registerRetire(r)
 	h.registerAgent(r)
-}
-
-type locForm struct{ Code, Name, Country string }
-
-type locationsView struct {
-	Locations []store.Location
-	Countries []country.Entry
-	Edit      int64             // the row being edited, 0 for none
-	New       locForm           // the add form as typed
-	Typed     locForm           // the edit form as typed
-	Errs      map[string]string // translated, by field
-	Saved     string            // created | updated | deleted
-	Error     string            // translated, for the whole page
-}
-
-func (h *handler) render(c *echo.Context, status int, v locationsView) error {
-	ctx := c.Request().Context()
-	locs, err := h.Store.Locations(ctx)
-	if err != nil {
-		return err
-	}
-	v.Locations = locs
-	v.Countries = country.List(string(i18n.From(ctx).Lang))
-	s := h.shell(c, i18n.T(ctx, "locations.title"), "/locations")
-	return web.Render(c, status, locationsPage(s, v))
-}
-
-func (h *handler) locations(c *echo.Context) error {
-	v := locationsView{Saved: c.QueryParam("saved")}
-	if id, err := strconv.ParseInt(c.QueryParam("edit"), 10, 64); err == nil {
-		v.Edit = id
-	}
-	return h.render(c, http.StatusOK, v)
 }
 
 // fieldErrors translates a store.FieldErrors, if err is one.
@@ -132,57 +93,11 @@ func fieldErrors(c *echo.Context, err error) (map[string]string, bool) {
 	return out, true
 }
 
-func (h *handler) createLocation(c *echo.Context) error {
-	f := locForm{Code: c.FormValue("code"), Name: c.FormValue("name"), Country: c.FormValue("country")}
-	_, err := h.Store.CreateLocation(c.Request().Context(), f.Code, f.Name, f.Country, "admin")
-	if errs, ok := fieldErrors(c, err); ok {
-		return h.render(c, http.StatusUnprocessableEntity, locationsView{New: f, Errs: errs})
-	}
-	if err != nil {
-		return err
-	}
-	return web.Redirect(c, "/locations?saved=created")
-}
-
+// id is the :id of the route, 404 when it is not a number.
 func (h *handler) id(c *echo.Context) (int64, error) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return 0, echo.ErrNotFound
 	}
 	return id, nil
-}
-
-func (h *handler) updateLocation(c *echo.Context) error {
-	id, err := h.id(c)
-	if err != nil {
-		return err
-	}
-	f := locForm{Name: c.FormValue("name"), Country: c.FormValue("country")}
-	err = h.Store.UpdateLocation(c.Request().Context(), id, f.Name, f.Country, "admin")
-	if errors.Is(err, store.ErrNotFound) {
-		return echo.ErrNotFound
-	}
-	if errs, ok := fieldErrors(c, err); ok {
-		return h.render(c, http.StatusUnprocessableEntity, locationsView{Edit: id, Typed: f, Errs: errs})
-	}
-	if err != nil {
-		return err
-	}
-	return web.Redirect(c, "/locations?saved=updated")
-}
-
-func (h *handler) deleteLocation(c *echo.Context) error {
-	id, err := h.id(c)
-	if err != nil {
-		return err
-	}
-	switch err := h.Store.DeleteLocation(c.Request().Context(), id, "admin"); {
-	case errors.Is(err, store.ErrNotFound):
-		return echo.ErrNotFound
-	case errors.Is(err, store.ErrLocationInUse):
-		return h.render(c, http.StatusConflict, locationsView{Error: i18n.T(c.Request().Context(), "locations.err.in_use")})
-	case err != nil:
-		return err
-	}
-	return web.Redirect(c, "/locations?saved=deleted")
 }

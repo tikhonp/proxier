@@ -146,7 +146,6 @@ func (s *Service) JobType() jobs.Type {
 type data struct {
 	Payload jobPayload
 	Server  store.Server
-	Loc     store.Location
 	Slug    string
 	Files   map[string][]byte
 	Man     *manifest.Manifest
@@ -194,9 +193,6 @@ func (s *Service) load(ctx context.Context, r *jobs.Run) (*data, error) {
 		return nil, fmt.Errorf("load server %d: %w", d.Payload.ServerID, err)
 	}
 	d.Server = srv
-	if d.Loc, err = s.Store.Location(ctx, srv.LocationID); err != nil {
-		return nil, err
-	}
 	tpl, err := store.GetTemplate(ctx, s.DB.R, srv.TemplateID)
 	if err != nil {
 		return nil, err
@@ -243,10 +239,11 @@ func (d *data) renderContext() render.Context {
 			params[p.Key] = render.ParamValue(p, raw)
 		}
 	}
+	ctry, loc := render.Where(d.Server.Country, d.Server.Prefix())
 	return render.Context{
 		Server: render.Server{
 			Name: d.Server.Name, Number: d.Server.Number, IP: d.Server.IP, SSHPort: d.Server.SSHPort,
-			Location:           render.Location{Code: d.Loc.Code, Name: d.Loc.Name, Country: d.Loc.Country},
+			Country: ctry, Location: loc,
 			ManagementHostname: d.Server.ManagementHostname, ProxyHostname: d.Server.ProxyHostname,
 		},
 		Params: params, Gen: d.Gen, Template: render.Template{Slug: d.Slug, Version: d.Server.TemplateVersion},
@@ -539,7 +536,7 @@ func (s *Service) endpointsStep(ctx context.Context, r *jobs.Run, d *data) error
 		return err
 	}
 	srv := d.Server
-	rows, err := sealed.EndpointRows(s.Vault, srv.ID, rendered.Endpoints, flagOf(d.Loc.Country), d.Loc.Name, srv.Number)
+	rows, err := sealed.EndpointRows(s.Vault, srv.ID, rendered.Endpoints, flagOf(srv.Country), shownName(srv.Country), srv.Number)
 	if err != nil {
 		return err
 	}
@@ -717,10 +714,7 @@ func (s *Service) PreviewContext(ctx context.Context, serverID int64, reveal boo
 	if err != nil {
 		return nil, err
 	}
-	loc, err := s.Store.Location(ctx, srv.LocationID)
-	if err != nil {
-		return nil, err
-	}
+	ctry, loc := render.Where(srv.Country, srv.Prefix())
 	secret, err := sealed.OpenParams(s.Vault, srv.ID, srv.ParamsSecret)
 	if err != nil {
 		return nil, err
@@ -762,7 +756,7 @@ func (s *Service) PreviewContext(ctx context.Context, serverID int64, reveal boo
 		return render.Context{
 			Server: render.Server{
 				Name: srv.Name, Number: srv.Number, IP: srv.IP, SSHPort: srv.SSHPort,
-				Location:           render.Location{Code: loc.Code, Name: loc.Name, Country: loc.Country},
+				Country: ctry, Location: loc,
 				ManagementHostname: srv.ManagementHostname, ProxyHostname: srv.ProxyHostname,
 			},
 			Params: params, Gen: genValues, Template: render.Template{Slug: slug, Version: srv.TemplateVersion},

@@ -39,7 +39,7 @@ func TestServersSettingsZoneWarning(t *testing.T) {
 	}
 
 	// a pattern in another domain warns again
-	set("servers", map[string]string{"servers.hostname_pattern": "{location}-{number}.px.example.org"})
+	set("servers", map[string]string{"servers.hostname_pattern": "{country}-{number}.px.example.org"})
 	if body := l.Get("/settings/servers").Body.String(); !strings.Contains(body, "xx-1.px.example.org") || !strings.Contains(body, warning) {
 		t.Errorf("another domain:\n%s", body)
 	}
@@ -67,7 +67,7 @@ func TestServersSettingsSave(t *testing.T) {
 
 	// every refusal is shown beside its field and nothing is saved
 	rec := l.Post("/settings/servers", url.Values{
-		"servers.hostname_pattern":   {"{location}-{number}.hosts.tikhonnnnn.com"},
+		"servers.hostname_pattern":   {"{country}-{number}.hosts.tikhonnnnn.com"},
 		"servers.ip_country_url":     {"http://ipinfo.io/{ip}/country"},
 		"servers.proxy_test_url":     {"ftp://files.example.com/x"},
 		"servers.proxy_test_timeout": {"1s"},

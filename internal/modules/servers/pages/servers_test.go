@@ -3,6 +3,8 @@ package pages_test
 import (
 	"context"
 	"database/sql"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"regexp"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/geoip"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
@@ -270,136 +273,100 @@ func TestServerNotes(t *testing.T) {
 	}
 }
 
-func TestNewLocationFromForm(t *testing.T) {
-	h := serverstest.NewHarness(t, serverstest.StubProxy())
-	rec := h.Login.Post("/servers/new/location", url.Values{
-		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)}, "template": {sid(h.TemplateID)},
-		"nl_code": {"de"}, "nl_name": {"Germany"}, "nl_country": {"DE"},
-	})
-	if rec.Code != 200 {
-		t.Fatalf("%d\n%s", rec.Code, rec.Body)
-	}
-	var id int64
-	if err := h.App.DB.R.Get(&id, `SELECT id FROM servers_locations WHERE code = 'de'`); err != nil {
-		t.Fatalf("the location was not created: %v", err)
-	}
-	body := rec.Body.String()
-	// Chosen by the admin, so no longer a suggestion; the mini form closed and empty.
-	mustContain(t, body, `id="loc-field"`, `<option value="`+sid(id)+`" selected>`, "🇩🇪 de — Germany", `name="location_auto" value="0"`,
-		`<details class="newloc" data-subform>`, `name="nl_code" value=""`)
-	mustNotContain(t, body, `<option value="`+sid(h.LocationID)+`" selected>`)
-	// The summary follows the new location, out of band.
-	mustContain(t, body, `id="summary" hx-swap-oob="innerHTML"`, "de-1.hosts.tikhonnnnn.com")
-	if ev := h.Events("location.created"); len(ev) != 2 || ev[0].Actor != "admin" || ev[0].Payload["code"] != "de" {
-		t.Errorf("events %+v", ev)
-	}
-}
-
-// A refusal comes back inside the field as 200 (htmx swaps no 4xx, so a 422
-// left the click without an answer): the mini form open with what was typed,
-// the errors, the countries, the suggestion kept; nothing created.
-func TestNewLocationRefusedInsideTheField(t *testing.T) {
-	h := serverstest.NewHarness(t, serverstest.StubProxy())
-	for _, c := range []struct {
-		code, name, country string
-		want                []string
-	}{
-		{"x", "", "", []string{"Use 2–5 lower-case letters, like nl.", "Use 1–40 characters.", "Choose a country."}},
-		{"nl", "Holland", "NL", []string{"This code is already used.", `value="Holland"`}},
-	} {
-		rec := h.Login.Post("/servers/new/location", url.Values{
-			"location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)}, "template": {sid(h.TemplateID)},
-			"nl_code": {c.code}, "nl_name": {c.name}, "nl_country": {c.country},
-		})
-		if rec.Code != 200 {
-			t.Fatalf("%s: %d\n%s", c.code, rec.Code, rec.Body)
-		}
-		body := rec.Body.String()
-		mustContain(t, body, `<details class="newloc" open data-subform>`, `role="alert"`, `value="`+c.code+`"`, `<option value="DE">`,
-			`<option value="`+sid(h.LocationID)+`" selected>`, `name="location_auto" value="`+sid(h.LocationID)+`"`)
-		mustContain(t, body, c.want...)
-		mustNotContain(t, body, `id="summary"`)
-	}
-	var n int
-	if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM servers_locations`); err != nil || n != 1 {
-		t.Errorf("%d locations (%v)", n, err)
-	}
-	if ev := h.Events("location.created"); len(ev) != 1 { // the harness's own location
-		t.Errorf("events %+v", ev)
-	}
-}
-
-// A failure that is not a refusal still answers inside the field, so the mini
-// form stays open with an error instead of nothing happening.
-func TestNewLocationFailureShowsAnError(t *testing.T) {
-	h := serverstest.NewHarness(t, serverstest.StubProxy())
-	if _, err := h.App.DB.W.Exec(`CREATE TRIGGER zz_fail BEFORE INSERT ON servers_locations BEGIN SELECT RAISE(ABORT, 'disk on fire'); END`); err != nil {
+// suggestIP answers the IP → country lookup with *answer.
+func suggestIP(t *testing.T, h *serverstest.Harness, answer *string) {
+	t.Helper()
+	geo := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(*answer + "\n"))
+	}))
+	t.Cleanup(geo.Close)
+	old := geoip.Client
+	geoip.Client = geo.Client()
+	t.Cleanup(func() { geoip.Client = old })
+	if err := h.App.Settings.Set(bg, "admin", "servers", map[string]string{"servers.ip_country_url": geo.URL + "/{ip}"}); err != nil {
 		t.Fatal(err)
 	}
-	rec := h.Login.Post("/servers/new/location", url.Values{
-		"location": {sid(h.LocationID)}, "template": {sid(h.TemplateID)}, "nl_code": {"de"}, "nl_name": {"Germany"}, "nl_country": {"DE"},
-	})
-	if rec.Code != 200 {
-		t.Fatalf("%d\n%s", rec.Code, rec.Body)
-	}
-	body := rec.Body.String()
-	mustContain(t, body, `<details class="newloc" open data-subform>`, "The location wasn&#39;t added", `value="Germany"`)
-	mustNotContain(t, body, "disk on fire")
-	if ev := h.Events("location.created"); len(ev) != 1 { // the harness's own location
-		t.Errorf("events %+v", ev)
-	}
 }
 
-// The summary answers while the admin types anywhere in the form, the New
-// location mini form too. It used to swap the whole location field out of band
-// with a copy that had no mini form, so the form vanished while being typed in.
-// Now only the pick (select, suggestion, hint) is swapped.
-func TestTypingInNewLocationKeepsItOpen(t *testing.T) {
+// inRussian is a page as the admin sees it in Russian.
+func inRussian(t *testing.T, h *serverstest.Harness, path string) string {
+	t.Helper()
+	if err := h.App.Auth.SetLanguage(bg, "ru"); err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = h.App.Auth.SetLanguage(bg, "en") }()
+	return page(t, h, path)
+}
+
+// The IP's country fills the picker while the admin hasn't chosen in it, and
+// the summary never replaces the field once they have: a half-typed name, an
+// emptied field or a country they picked stay as they are.
+func TestCountryPickerFollowsTheIPUntilChosen(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
-	body := page(t, h, "/servers/new")
-	pick := strings.Index(body, `<div id="loc-pick">`)
-	mini := strings.Index(body, `<details class="newloc" data-subform>`)
-	if pick < 0 || mini < pick {
-		t.Fatalf("the pick and the mini form:\n%s", excerpt(body))
+	answer := "NL"
+	suggestIP(t, h, &answer)
+	summary := func(ip, text, auto string) string {
+		t.Helper()
+		rec := h.Login.Post("/servers/new/summary", url.Values{
+			"ip": {ip}, "country": {text}, "country_auto": {auto},
+			"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {sid(h.TemplateID) + ":1"},
+		})
+		if rec.Code != 200 {
+			t.Fatalf("%d\n%s", rec.Code, rec.Body)
+		}
+		return rec.Body.String()
 	}
-	if strings.Contains(body[pick:mini], "nl_code") {
-		t.Error("the mini form is inside the pick the summary swaps")
-	}
-	// ↵ in the mini form presses Add, and Add cancels a summary on its way.
-	mustContain(t, body, `id="nl-code"`, `data-subform-submit`, `hx-sync="closest form:replace"`)
+	const nl = "🇳🇱 Netherlands · NL"
 
-	// An untouched location (the one preselected): the summary sends the pick back.
-	typed := url.Values{
-		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)},
-		"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {sid(h.TemplateID) + ":1"},
-		"nl_code": {"d"}, "nl_name": {"Ge"},
-	}
-	rec := h.Login.Post("/servers/new/summary", typed)
-	if rec.Code != 200 {
-		t.Fatalf("%d\n%s", rec.Code, rec.Body)
-	}
-	s := rec.Body.String()
-	mustContain(t, s, `<div id="loc-pick" hx-swap-oob="true">`, `<option value="`+sid(h.LocationID)+`" selected>`)
-	mustNotContain(t, s, `id="loc-field"`, "<details", `name="nl_code"`, `name="nl_name"`)
+	// empty, nothing suggested yet: the IP's country comes in, out of band
+	s := summary("203.0.113.24", "", "")
+	mustContain(t, s, `<div id="country-pick" class="field" hx-swap-oob="true">`, `value="`+nl+`"`, `name="country_auto" value="NL"`,
+		"Suggested from the IP (NL)", "nl-1.hosts.tikhonnnnn.com", "🇳🇱 Netherlands 1")
+	mustNotContain(t, s, `<datalist`) // the list stays on the page, out of the swap
 
-	// One the admin chose: nothing about the location comes back.
-	typed.Set("location_auto", "0")
-	s = h.Login.Post("/servers/new/summary", typed).Body.String()
-	mustNotContain(t, s, `id="loc-pick"`, `id="loc-field"`, "<details")
+	// the suggestion still shown and the same IP: the field stays, its line too
+	s = summary("203.0.113.24", nl, "NL")
+	mustNotContain(t, s, `id="country-pick"`)
+	mustContain(t, s, `<p class="help" id="country-hint" hx-swap-oob="true">Suggested from the IP (NL)`)
+	// another IP, another country: the untouched field follows it
+	answer = "DE"
+	mustContain(t, summary("203.0.113.25", nl, "NL"), `id="country-pick"`, `value="🇩🇪 Germany · DE"`, `name="country_auto" value="DE"`, "de-1")
+
+	// a name being typed, an emptied field, a country the admin picked: kept
+	answer = "SE"
+	for _, c := range []struct{ text, auto, name string }{
+		{"Neth", "DE", ""}, {"Neth", "", ""}, {"", "DE", ""}, {"Germany", "", "de-1"}, {"🇫🇮 Finland · FI", "DE", "fi-1"},
+	} {
+		s := summary("203.0.113.26", c.text, c.auto)
+		// only the line under it changes: a suggestion overridden no longer shows
+		mustNotContain(t, s, `id="country-pick"`, "Suggested from the IP (")
+		mustContain(t, s, `<p class="help" id="country-hint" hx-swap-oob="true">Suggested from the IP&#39;s country.`)
+		if c.name != "" {
+			mustContain(t, s, c.name+".hosts.tikhonnnnn.com")
+		} else {
+			// no name until a country is picked, and no complaint while typing
+			mustContain(t, s, "Pick a country to see the server&#39;s name.")
+			mustNotContain(t, s, "Pick a country from the list.")
+		}
+	}
 }
 
 func TestNewServerForm(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
 	body := page(t, h, "/servers/new")
 	mustContain(t, body, `hx-post="/servers/new/summary"`, `hx-params="not root_password"`, `name="root_password"`, `type="password"`,
-		"Will be created", "Let&#39;s Encrypt email", "VLESS XHTTP behind nginx", "v1 · default", "🇳🇱 nl — Netherlands", `name="location_auto"`)
-	// The one place to choose from is preselected, and the name is known.
-	mustContain(t, body, `selected>🇳🇱 nl`, "nl-1")
+		"Will be created", "Let&#39;s Encrypt email", "VLESS XHTTP behind nginx", "v1 · default",
+		`name="country"`, `list="countries"`, `<datalist id="countries">`, `<option value="🇳🇱 Netherlands · NL">`, `<option value="🇸🇪 Sweden · SE">`,
+		`name="country_auto" value=""`, "Its code is the first half of the server name.", "Pick a country to see the server&#39;s name.")
+	// withdrawn codes are not offered beside the countries that replaced them
+	mustNotContain(t, body, `· UK"`, `· DD"`, `· SU"`)
+	// in Russian, the names are Russian and the code is still there to type
+	mustContain(t, inRussian(t, h, "/servers/new"), `<option value="🇳🇱 Нидерланды · NL">`)
 
 	// The live summary: name, host, record, endpoint; the password is not posted by the form
 	// and is ignored when it is.
 	rec := h.Login.Post("/servers/new/summary", url.Values{
-		"ip": {"203.0.113.24"}, "root_password": {"must-not-be-read"}, "location": {sid(h.LocationID)}, "location_auto": {"0"},
+		"ip": {"203.0.113.24"}, "root_password": {"must-not-be-read"}, "country": {"🇳🇱 Netherlands · NL"}, "country_auto": {""},
 		"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {sid(h.TemplateID) + ":1"},
 	})
 	if rec.Code != 200 {
@@ -411,25 +378,33 @@ func TestNewServerForm(t *testing.T) {
 
 	// Another version asks for its own fields, out of band.
 	rec = h.Login.Post("/servers/new/summary", url.Values{
-		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)},
-		"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {"0:0"},
+		"ip": {"203.0.113.24"}, "country": {"NL"}, "template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {"0:0"},
 	})
 	mustContain(t, rec.Body.String(), `id="params"`, `hx-swap-oob="true"`, "Let&#39;s Encrypt email")
 
 	// Create: refused with the fields marked and the password not echoed.
-	rec = h.Login.Post("/servers", url.Values{"ip": {"nope"}, "location": {sid(h.LocationID)}, "template": {sid(h.TemplateID)}, "root_password": {"typed-secret"}})
+	rec = h.Login.Post("/servers", url.Values{"ip": {"nope"}, "country": {"nl"}, "template": {sid(h.TemplateID)}, "root_password": {"typed-secret"}})
 	if rec.Code != 422 {
 		t.Fatalf("%d\n%s", rec.Code, rec.Body)
 	}
-	mustContain(t, rec.Body.String(), "Enter an IPv4 address")
+	mustContain(t, rec.Body.String(), "Enter an IPv4 address", `value="🇳🇱 Netherlands · NL"`)
 	mustNotContain(t, rec.Body.String(), "typed-secret")
+
+	// A text that names no country is refused on Create and kept as typed; no country at all too.
+	rec = h.Login.Post("/servers", url.Values{"ip": {"203.0.113.24"}, "country": {"Atlantis"}, "country_auto": {"NL"}, "template": {sid(h.TemplateID)}, "root_password": {"x"}})
+	mustContain(t, rec.Body.String(), "Pick a country from the list.", `value="Atlantis"`, `name="country_auto" value="NL"`, `aria-invalid`)
+	rec = h.Login.Post("/servers", url.Values{"ip": {"203.0.113.24"}, "template": {sid(h.TemplateID)}, "root_password": {"x"}})
+	mustContain(t, rec.Body.String(), "Pick a country.")
+	if srvs, _ := store.ListServers(bg, h.App.DB.R); len(srvs) != 0 {
+		t.Fatalf("created anyway: %+v", srvs)
+	}
 }
 
 func TestCreateServerFromForm(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
 	f := h.Form()
 	rec := h.Login.Post("/servers", url.Values{
-		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "location": {sid(h.LocationID)},
+		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "country": {"🇳🇱 Netherlands · NL"},
 		"template": {sid(h.TemplateID)}, "version": {"1"}, "notes": {"made by a test"}, "param.letsencrypt_email": {"me@example.com"},
 	})
 	if rec.Code != 303 {
@@ -440,7 +415,7 @@ func TestCreateServerFromForm(t *testing.T) {
 	}
 	h.Drain()
 	srvs, _ := store.ListServers(bg, h.App.DB.R)
-	if len(srvs) != 1 || srvs[0].State != "active" || srvs[0].Notes != "made by a test" {
+	if len(srvs) != 1 || srvs[0].State != "active" || srvs[0].Notes != "made by a test" || srvs[0].Country != "NL" || srvs[0].Name != "nl-1" {
 		t.Fatalf("servers: %+v", srvs)
 	}
 	if !strings.Contains(srvs[0].Params, "me@example.com") {
@@ -559,19 +534,15 @@ func sameList(t *testing.T, what, body string, want ...string) {
 }
 
 // fleet makes nl-1 (active), nl-2 (active), nl-3 (failed) and de-1 (active, in
-// another location), and returns their ids.
-func fleet(t *testing.T) (h *serverstest.Harness, nl1, nl2, nl3, de1, de int64) {
+// another country), and returns their ids.
+func fleet(t *testing.T) (h *serverstest.Harness, nl1, nl2, nl3, de1 int64) {
 	t.Helper()
 	h = serverstest.NewHarness(t, serverstest.StubProxy())
 	nl1 = h.Provisioned()
 	nl2 = h.AddServer("10.77.0.2")
-	var err error
-	if de, err = h.Mod.Store.CreateLocation(bg, "de", "Germany", "DE", "admin"); err != nil {
-		t.Fatal(err)
-	}
 	h.VPS.Unharden()
 	f := h.Form()
-	f.IP, f.LocationID = "10.77.0.4", de
+	f.IP, f.Country = "10.77.0.4", "DE"
 	de1 = h.Create(f)
 	h.Drain()
 	h.StallSmoke(true)
@@ -590,7 +561,7 @@ func fleet(t *testing.T) (h *serverstest.Harness, nl1, nl2, nl3, de1, de int64) 
 }
 
 func TestServerListFilters(t *testing.T) {
-	h, nl1, _, _, _, de := fleet(t)
+	h, nl1, _, _, _ := fleet(t)
 
 	// the default hides retired ones; "show retired" reveals them
 	sameList(t, "default", page(t, h, "/servers"), "de-1", "nl-1", "nl-2", "nl-3")
@@ -609,17 +580,24 @@ func TestServerListFilters(t *testing.T) {
 	sameList(t, "active", page(t, h, "/servers?state=active"), "de-1", "nl-1")
 	sameList(t, "health unknown", page(t, h, "/servers?health=unknown"), "de-1", "nl-1")
 	sameList(t, "health healthy", page(t, h, "/servers?health=healthy"))
-	sameList(t, "location de", page(t, h, "/servers?location="+sid(de)), "de-1")
-	sameList(t, "location nl", page(t, h, "/servers?location="+sid(h.LocationID)), "nl-1", "nl-3")
+	sameList(t, "country de", page(t, h, "/servers?country=DE"), "de-1")
+	sameList(t, "country nl", page(t, h, "/servers?country=NL"), "nl-1", "nl-3")
+	sameList(t, "country in lower case", page(t, h, "/servers?country=nl"), "nl-1", "nl-3")
+	sameList(t, "not a country: no filter", page(t, h, "/servers?country=ZZ"), "de-1", "nl-1", "nl-3")
+	sameList(t, "an old location link: no filter", page(t, h, "/servers?location=1"), "de-1", "nl-1", "nl-3")
 	sameList(t, "template", page(t, h, "/servers?template="+sid(h.TemplateID)), "de-1", "nl-1", "nl-3")
 	sameList(t, "another template", page(t, h, "/servers?template=4242"))
-	sameList(t, "combined", page(t, h, "/servers?state=active&location="+sid(h.LocationID)+"&health=unknown"), "nl-1")
-	sameList(t, "combined, none", page(t, h, "/servers?state=failed&location="+sid(de)))
+	sameList(t, "combined", page(t, h, "/servers?state=active&country=NL&health=unknown"), "nl-1")
+	sameList(t, "combined, none", page(t, h, "/servers?state=failed&country=DE"))
 
 	// a filter stays in the URL: the chip and the form keep it
-	body := page(t, h, "/servers?state=active&location="+sid(de))
-	mustContain(t, body, `<option value="active" selected>`, `<option value="`+sid(de)+`" selected>`, `href="/servers?location=`+sid(de)+`&amp;state=all"`, "Clear filters")
-	mustContain(t, page(t, h, "/servers?state=failed&location=999"), "No server matches these filters")
+	body := page(t, h, "/servers?state=active&country=DE")
+	mustContain(t, body, `<option value="active" selected>`, `<option value="DE" selected>🇩🇪 Germany</option>`, `<option value="NL">🇳🇱 Netherlands</option>`,
+		`>Any country<`, `href="/servers?country=DE&amp;state=all"`, "Clear filters")
+	// the options are the countries that have servers, and the one asked for
+	mustNotContain(t, body, `<option value="SE"`)
+	mustContain(t, page(t, h, "/servers?state=failed&country=SE"), "No server matches these filters", `<option value="SE" selected>🇸🇪 Sweden</option>`)
+	mustContain(t, inRussian(t, h, "/servers"), `<option value="DE">🇩🇪 Германия</option>`, ">Любая страна<")
 
 	// sorting: by name by default, worst health first, then traffic
 	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET health = 'down', health_since = created_at WHERE name = 'nl-1'`); err != nil {
@@ -678,7 +656,7 @@ func TestServerListColumns(t *testing.T) {
 }
 
 func TestBulkActions(t *testing.T) {
-	h, nl1, nl2, nl3, _, _ := fleet(t)
+	h, nl1, nl2, nl3, _ := fleet(t)
 	jobCount := func(typ string) int {
 		var n int
 		if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM jobs WHERE type = ?`, typ); err != nil {

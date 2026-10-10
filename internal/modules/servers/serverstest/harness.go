@@ -45,8 +45,10 @@ type Harness struct {
 	CF    *cloudflaretest.Fake
 	Proxy *proxytest.Server
 
-	// LocationID is "nl" (Netherlands); TemplateID is the seed template.
-	LocationID, TemplateID int64
+	// Country is the new servers' (NL, so nl-1, nl-2…); TemplateID is the
+	// seed template.
+	Country    string
+	TemplateID int64
 
 	mu         sync.Mutex
 	dnsVisible bool
@@ -173,11 +175,7 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 
 	h.Login = site.SignIn("")
 
-	loc, err := mod.Store.CreateLocation(ctx, "nl", "Netherlands", "NL", "admin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	h.LocationID = loc
+	h.Country = "NL"
 	tpls, err := mod.Templates.List(ctx, false)
 	if err != nil {
 		t.Fatal(err)
@@ -355,7 +353,7 @@ func (h *Harness) Form() provision.Form {
 	n, _ := strconv.Atoi(port)
 	return provision.Form{
 		IP: "127.0.0.1", SSHPort: n, RootPassword: DefaultRootPassword,
-		LocationID: h.LocationID, TemplateID: h.TemplateID, Params: map[string]string{},
+		Country: h.Country, TemplateID: h.TemplateID, Params: map[string]string{},
 	}
 }
 

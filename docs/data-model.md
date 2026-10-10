@@ -24,7 +24,6 @@ This is the logical model: entities, their important fields and relations. The e
 
 ```mermaid
 erDiagram
-    LOCATION ||--o{ SERVER : has
     TEMPLATE ||--o{ TEMPLATE_VERSION : publishes
     TEMPLATE ||--o| TEMPLATE_DRAFT : edits
     TEMPLATE_VERSION ||--o{ TEMPLATE_FILE : contains
@@ -40,12 +39,11 @@ erDiagram
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Location** | code (unique, `a-z`, 2–5 chars), display name, country code (for the flag) | E.g. `nl`, Netherlands, `NL` → 🇳🇱. |
 | **Template** | slug (unique), name, description, default version, archived | |
 | **Template draft** | template, manifest, files, based on version, updated | At most one per template. |
 | **Template version** | template, number (1, 2, …), manifest, notes, published at | Immutable. |
 | **Template file** | version, path, content, mode, validator | Paths relative, no `..`. |
-| **Server** | location, number, name (unique forever), IP, SSH port, management hostname, proxy hostname, lifecycle state, template version, parameters, health state, health since, health detail, checks paused until, notes, created / activated / retired | |
+| **Server** | country, number, name (unique forever), IP, SSH port, management hostname, proxy hostname, lifecycle state, template version, parameters, health state, health since, health detail, checks paused until, notes, created / activated / retired | The country is an ISO 3166-1 alpha-2 code (`NL`); its name and flag are derived, never stored. The name is `<prefix>-<number>`, the prefix the country's code in lower case (a server from before countries keeps its location's code, `ams-1`); the next number is one more than the highest its prefix has used ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). There is no location entity any more; the locations as they were are kept in `servers_meta` (`locations.archive`, JSON) only for a rollback of the migration. |
 | **Generated value** | server, key, value 🔒, pending 🔒, created, rotated | Kept for the server's life. Rotation puts the new value in `pending`; it replaces `value` only when the new ones passed the proxy test. Everything that serves a credential reads `value`. |
 | **Endpoint** | server, key (stable across versions), endpoint type, host, port, params 🔒, display name, position | Refreshed on every deployment from the manifest's `endpoints`. |
 | **Deployment** | server, kind (provision / redeploy / upgrade / params / rotate / restore / restart / images / reboot), template version, job, state, `uploaded`, started, finished | `uploaded` is 1 when the deployment uploaded files (it has deployed files). A server's **current files** are those of its latest succeeded deployment with `uploaded = 1`: a restart, an image update or a reboot uploads nothing and changes them not. |

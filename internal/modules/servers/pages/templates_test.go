@@ -624,12 +624,8 @@ func TestDeleteUsedTemplatePage(t *testing.T) {
 	ctx := context.Background()
 	id := e.create("in-use")
 	e.publish(id, nil, "one")
-	loc, err := e.St.CreateLocation(ctx, "nl", "Netherlands", "NL", "admin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := e.Site.App.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at, retired_at)
-		VALUES (?, 1, 'nl-1', '203.0.113.7', 'h', 'h', 'retired', ?, 1, '2026-10-07T00:00:00.000Z', '2026-10-07T00:00:00.000Z')`, loc, id); err != nil {
+	if _, err := e.Site.App.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at, retired_at)
+		VALUES ('NL', 1, 'nl-1', '203.0.113.7', 'h', 'h', 'retired', ?, 1, '2026-10-07T00:00:00.000Z', '2026-10-07T00:00:00.000Z')`, id); err != nil {
 		t.Fatal(err)
 	}
 	page := e.L.Get(fmt.Sprintf("/templates/%d", id)).Body.String()

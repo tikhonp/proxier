@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -26,7 +27,7 @@ type listFilter struct {
 	// (provisioning active failed retiring retired).
 	State    string
 	Health   string
-	Location int64
+	Country  string // an ISO code, "" for any
 	Template int64
 	Sort     string // name (default) health traffic
 }
@@ -50,7 +51,9 @@ func parseListFilter(c *echo.Context) listFilter {
 	if f.Sort != "health" && f.Sort != "traffic" {
 		f.Sort = ""
 	}
-	f.Location, _ = strconv.ParseInt(c.QueryParam("location"), 10, 64)
+	if cc := strings.ToUpper(c.QueryParam("country")); country.Valid(cc) {
+		f.Country = cc
+	}
 	f.Template, _ = strconv.ParseInt(c.QueryParam("template"), 10, 64)
 	return f
 }
@@ -72,8 +75,8 @@ func (f listFilter) query() url.Values {
 	if f.Health != "" {
 		q.Set("health", f.Health)
 	}
-	if f.Location > 0 {
-		q.Set("location", i64(f.Location))
+	if f.Country != "" {
+		q.Set("country", f.Country)
 	}
 	if f.Template > 0 {
 		q.Set("template", i64(f.Template))
@@ -93,7 +96,7 @@ func (f listFilter) href(change func(*listFilter)) string {
 }
 
 func (f listFilter) active() bool {
-	return f.State != "" || f.Health != "" || f.Location > 0 || f.Template > 0
+	return f.State != "" || f.Health != "" || f.Country != "" || f.Template > 0
 }
 
 // lifecycle is the state the list filters on: retiring is a state of its own
@@ -114,7 +117,7 @@ func (f listFilter) matches(s store.Server) bool {
 		return false
 	case f.Health != "" && (s.State != "active" || s.Health != f.Health):
 		return false
-	case f.Location > 0 && s.LocationID != f.Location:
+	case f.Country != "" && s.Country != f.Country:
 		return false
 	case f.Template > 0 && s.TemplateID != f.Template:
 		return false
@@ -246,7 +249,7 @@ func (h *handler) serversList(c *echo.Context) error {
 		return a.Name < b.Name
 	})
 
-	if err := h.listFilters(ctx, f, &v); err != nil {
+	if err := h.listFilters(ctx, f, all, &v); err != nil {
 		return err
 	}
 	switch c.QueryParam("bulk") {
@@ -280,7 +283,7 @@ func (h *handler) proxyMS(ctx context.Context, id int64) (int, bool) {
 }
 
 // listFilters builds the chips and the selects above the list.
-func (h *handler) listFilters(ctx context.Context, f listFilter, v *serversView) error {
+func (h *handler) listFilters(ctx context.Context, f listFilter, all []store.Server, v *serversView) error {
 	showAll := ui.Chip{Label: i18n.T(ctx, "servers.chip.retired"), On: f.State == "all"}
 	showAll.Href = f.href(func(g *listFilter) { g.State = "all" })
 	if f.State == "all" {
@@ -299,13 +302,21 @@ func (h *handler) listFilters(ctx context.Context, f listFilter, v *serversView)
 		ui.FilterOption{Value: "all", Label: i18n.T(ctx, "servers.filter.state_all")})
 	healthOpts := opts(i18n.T(ctx, "servers.filter.health_any"), listHealths, func(x string) string { return i18n.T(ctx, "servers.health."+x) })
 
-	locOpts := []ui.FilterOption{{Value: "", Label: i18n.T(ctx, "servers.filter.location_any")}}
-	locs, err := h.Store.Locations(ctx)
-	if err != nil {
-		return err
+	// the countries that have servers, retired ones included, by name
+	lang := string(i18n.From(ctx).Lang)
+	var codes []string
+	for _, s := range all {
+		if !slices.Contains(codes, s.Country) {
+			codes = append(codes, s.Country)
+		}
 	}
-	for _, l := range locs {
-		locOpts = append(locOpts, ui.FilterOption{Value: i64(l.ID), Label: country.Flag(l.Country) + " " + l.Code + " · " + l.Name})
+	if f.Country != "" && !slices.Contains(codes, f.Country) {
+		codes = append(codes, f.Country) // a link to a country without servers still shows what it filters
+	}
+	sort.Slice(codes, func(i, j int) bool { return country.Name(codes[i], lang) < country.Name(codes[j], lang) })
+	countryOpts := []ui.FilterOption{{Value: "", Label: i18n.T(ctx, "servers.filter.country_any")}}
+	for _, cc := range codes {
+		countryOpts = append(countryOpts, ui.FilterOption{Value: cc, Label: strings.TrimSpace(country.Flag(cc) + " " + country.Name(cc, lang))})
 	}
 	tplOpts := []ui.FilterOption{{Value: "", Label: i18n.T(ctx, "servers.filter.template_any")}}
 	tpls, err := h.Templates.List(ctx, true)
@@ -325,7 +336,7 @@ func (h *handler) listFilters(ctx context.Context, f listFilter, v *serversView)
 		Selects: []ui.FilterSelect{
 			{Name: "state", Label: i18n.T(ctx, "servers.filter.state"), Value: f.State, Options: stateOpts},
 			{Name: "health", Label: i18n.T(ctx, "servers.filter.health"), Value: f.Health, Options: healthOpts},
-			{Name: "location", Label: i18n.T(ctx, "servers.filter.location"), Value: zeroEmpty(f.Location), Options: locOpts},
+			{Name: "country", Label: i18n.T(ctx, "servers.filter.country"), Value: f.Country, Options: countryOpts},
 			{Name: "template", Label: i18n.T(ctx, "servers.filter.template"), Value: zeroEmpty(f.Template), Options: tplOpts},
 			{Name: "sort", Label: i18n.T(ctx, "servers.filter.sort"), Value: f.Sort, Options: sortOpts},
 		},

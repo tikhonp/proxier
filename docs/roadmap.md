@@ -21,7 +21,7 @@ Before phase 0 (done 2026-10-07): the design is final, in [ui/design/](./ui/desi
 
 ## Phase 1: Servers
 
-- Locations, templates with drafts, versions, diffs, validators, zip and git import/export. The seed template converted from `servers-templates/proxy` ([template authoring](./processes/servers/template-authoring.md)).
+- Locations (later replaced by a server's country, [ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)), templates with drafts, versions, diffs, validators, zip and git import/export. The seed template converted from `servers-templates/proxy` ([template authoring](./processes/servers/template-authoring.md)).
 - Cloudflare DNS driver.
 - Provisioning with base bootstrap, DNS wait, stack, self-check, smoke test ([provisioning](./processes/servers/server-provisioning.md)).
 - Redeploy, upgrade (single and rolling), restart stack, update images, container logs ([redeploy](./processes/servers/server-redeploy.md)).

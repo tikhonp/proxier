@@ -40,8 +40,12 @@ func TestRealProvisioningRefusedByList(t *testing.T) {
 		t.Fatal(err)
 	}
 	// two servers of nl came and went: the next one is nl-3
-	if _, err := h.App.DB.W.Exec(`UPDATE servers_locations SET last_number = 2 WHERE id = ?`, h.LocationID); err != nil {
-		t.Fatal(err)
+	for n := 1; n <= 2; n++ {
+		if _, err := h.App.DB.W.Exec(`INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state,
+			template_id, template_version, created_at, retired_at) VALUES ('NL', ?, ?, '203.0.113.9', 'h', 'h', 'retired', ?, 1, '2026-10-07T00:00:00.000Z', '2026-10-07T00:00:00.000Z')`,
+			n, "nl-"+strconv.Itoa(n), h.TemplateID); err != nil {
+			t.Fatal(err)
+		}
 	}
 	f := h.Form()
 	_, err := h.Mod.Provision.Create(context.Background(), f, "admin")
@@ -51,7 +55,7 @@ func TestRealProvisioningRefusedByList(t *testing.T) {
 		t.Fatalf("create: %v", err)
 	}
 	rec := h.Login.Post("/servers", url.Values{
-		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "location": {strconv.FormatInt(h.LocationID, 10)},
+		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "country": {h.Country},
 		"template": {strconv.FormatInt(h.TemplateID, 10)}, "version": {"1"}, "param.letsencrypt_email": {"me@example.com"},
 	})
 	if rec.Code != 422 || !strings.Contains(rec.Body.String(), "nl-3.hosts.tikhonnnnn.com is covered by tikhonnnnn.com (my-sites) in Main") {

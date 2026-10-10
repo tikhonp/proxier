@@ -1,5 +1,6 @@
-// Package country knows the ISO 3166-1 countries a location can be in: the
-// flag emoji and the names in both UI languages.
+// Package country knows the ISO 3166-1 countries a server can be in: the flag
+// emoji and the names in both UI languages. A server stores only the code;
+// everything else is derived here (ADR 0015).
 package country
 
 import (
@@ -16,13 +17,15 @@ var (
 	ru = display.Regions(language.Russian)
 )
 
-// Valid reports whether code is an upper-case ISO 3166-1 alpha-2 country.
+// Valid reports whether code is an upper-case ISO 3166-1 alpha-2 country in
+// use today: a withdrawn code (UK, DD, SU…) is not, since the picker would
+// show it beside the country that replaced it under the same name.
 func Valid(code string) bool {
 	if len(code) != 2 || code != strings.ToUpper(code) {
 		return false
 	}
 	r, err := language.ParseRegion(code)
-	return err == nil && r.IsCountry() && r.String() == code
+	return err == nil && r.IsCountry() && r.String() == code && r.Canonicalize() == r && en.Name(r) != ""
 }
 
 // Flag is the flag emoji of a valid code ("NL" → 🇳🇱), "" for an invalid one.
@@ -78,3 +81,47 @@ func List(lang string) []Entry {
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	return out
 }
+
+// Label is how the picker shows a country, and what it puts in the field:
+// "🇳🇱 Netherlands · NL". Parse reads it back.
+func Label(code, lang string) string {
+	if !Valid(code) {
+		return code
+	}
+	return Flag(code) + " " + Name(code, lang) + " · " + code
+}
+
+// Prefix is the first half of the name of a server created in the country:
+// its code in lower case ("NL" → "nl").
+func Prefix(code string) string { return strings.ToLower(code) }
+
+// Parse reads what was typed in the country picker: a Label in either
+// language, a code in any case, or a name in English or Russian in any case.
+// It returns the code, or "" when the text names no country.
+func Parse(s string) string {
+	s = strings.TrimSpace(s)
+	if _, code, ok := cutLast(s, "·"); ok {
+		s = code
+	}
+	if c := strings.ToUpper(s); Valid(c) {
+		return c
+	}
+	s = strings.TrimSpace(strings.TrimLeftFunc(s, isFlagRune))
+	for _, c := range Codes() {
+		if strings.EqualFold(s, Name(c, "en")) || strings.EqualFold(s, Name(c, "ru")) {
+			return c
+		}
+	}
+	return ""
+}
+
+func cutLast(s, sep string) (before, after string, found bool) {
+	i := strings.LastIndex(s, sep)
+	if i < 0 {
+		return s, "", false
+	}
+	return strings.TrimSpace(s[:i]), strings.TrimSpace(s[i+len(sep):]), true
+}
+
+// isFlagRune is a regional indicator, the two letters a flag emoji is made of.
+func isFlagRune(r rune) bool { return r >= 0x1F1E6 && r <= 0x1F1FF }

@@ -71,13 +71,13 @@ func nodeList(v string) error {
 var Section = settings.Section{
 	Name: "servers", Module: "servers",
 	Fields: []settings.Field{
-		{Key: HostnamePatternKey, Kind: settings.String, Default: "{location}-{number}.hosts.tikhonnnnn.com", MaxLen: 200,
+		{Key: HostnamePatternKey, Kind: settings.String, Default: "{country}-{number}.hosts.tikhonnnnn.com", MaxLen: 200,
 			Validate: func(v string) error {
 				// It must make a valid DNS name for any server; xx-1 stands for them.
 				_, err := render.Hostname(v, "xx", 1)
 				return err
 			}},
-		// Empty turns the lookup off. The answer only preselects a location.
+		// Empty turns the lookup off. The answer only preselects a country.
 		{Key: IPCountryURLKey, Kind: settings.String, Default: "https://ipinfo.io/{ip}/country", MaxLen: 300,
 			Validate: func(v string) error {
 				if v == "" {

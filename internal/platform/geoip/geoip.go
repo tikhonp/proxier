@@ -1,6 +1,6 @@
 // Package geoip looks up the country of an IP address: it asks a lookup URL
 // the admin chose (default ipinfo.io) for the country of the IP. Servers use
-// it to preselect a new server's location; subscriptions to name the country
+// it to preselect a new server's country; subscriptions to name the country
 // of the networks fetching a link. Callers send only the address they look
 // up: a server's IP, or a network's first address, never a person's own.
 package geoip

@@ -97,28 +97,32 @@ func TestModuleIsWired(t *testing.T) {
 
 	// settings: the section, its default, and the validation of the pattern
 	v, err := app.Settings.Lookup(ctx, "servers.hostname_pattern")
-	if err != nil || v.Value != "{location}-{number}.hosts.tikhonnnnn.com" || !v.IsDefault {
+	if err != nil || v.Value != "{country}-{number}.hosts.tikhonnnnn.com" || !v.IsDefault {
 		t.Fatalf("setting: %+v %v", v, err)
 	}
-	for _, bad := range []string{"{location}.hosts.example.com", "x-{number}.example.com", "{location}-{number}", "{location}_{number}.example.com"} {
+	for _, bad := range []string{"{country}.hosts.example.com", "x-{number}.example.com", "{country}-{number}", "{country}_{number}.example.com"} {
 		err := app.Settings.Set(ctx, "admin", "servers", map[string]string{"servers.hostname_pattern": bad})
 		if _, ok := err.(settings.FieldErrors); !ok {
 			t.Errorf("pattern %q must be refused, got %v", bad, err)
 		}
 	}
-	if err := app.Settings.Set(ctx, "admin", "servers", map[string]string{"servers.hostname_pattern": "{location}{number}.px.example.org"}); err != nil {
+	if err := app.Settings.Set(ctx, "admin", "servers", map[string]string{"servers.hostname_pattern": "{country}{number}.px.example.org"}); err != nil {
 		t.Errorf("a valid pattern: %v", err)
+	}
+	// a pattern saved before servers had a country still names them
+	if err := app.Settings.Set(ctx, "admin", "servers", map[string]string{"servers.hostname_pattern": "{location}-{number}.px.example.org"}); err != nil {
+		t.Errorf("a pattern with {location}: %v", err)
 	}
 	if !app.I18n.Has("settings.field.servers.hostname_pattern") || !app.I18n.Has("settings.servers") {
 		t.Error("settings texts are missing")
 	}
 
-	// nav and the page behind it
+	// servers have a country, not a location: no Locations in the nav or behind it
 	l := s.SignIn("")
-	if body := l.Get("/").Body.String(); !strings.Contains(body, `href="/locations"`) {
-		t.Error("the nav has no Locations")
+	if body := l.Get("/").Body.String(); strings.Contains(body, `href="/locations"`) {
+		t.Error("the nav still has Locations")
 	}
-	if rec := l.Get("/locations"); rec.Code != 200 {
+	if rec := l.Get("/locations"); rec.Code != 404 {
 		t.Errorf("/locations: %d", rec.Code)
 	}
 }
@@ -128,15 +132,18 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 	ctx := context.Background()
 	m, _ := s.App.Module("servers")
 	mod := m.(*servers.Module)
-	id, err := mod.Store.CreateLocation(ctx, "nl", "Netherlands", "NL", "admin")
-	if err != nil {
+	// a location's events from before servers had a country: the event that
+	// added it names it
+	if _, err := s.App.DB.W.ExecContext(ctx, `INSERT INTO events (time, module, type, subject_type, subject_id, actor, payload)
+		VALUES ('2026-10-01T00:00:00.000Z', 'servers', 'location.created', 'location', '3', 'admin', '{"code":"nl","name":"Netherlands","country":"NL"}')`); err != nil {
 		t.Fatal(err)
 	}
+	const id = int64(3)
 	tpl, _ := mod.Templates.Create(ctx, "My stack", "my-stack", "", "admin")
 	idStr := func(n int64) string { return strings.TrimSpace(strings.Repeat(" ", 0) + itoa(n)) }
 
 	got, err := mod.NameSubjects(ctx, "location", []string{idStr(id), "999", "x"})
-	if err != nil || len(got) != 1 || got[idStr(id)].Label != "nl · Netherlands" || got[idStr(id)].Href != "/locations" {
+	if err != nil || len(got) != 1 || got[idStr(id)].Label != "nl · Netherlands" || got[idStr(id)].Href != "" {
 		t.Errorf("location: %+v %v", got, err)
 	}
 	got, _ = mod.NameSubjects(ctx, "template", []string{idStr(tpl)})
@@ -149,8 +156,8 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 		t.Errorf("home: %+v", got)
 	}
 	// a server: flag, name, link
-	if _, err := s.App.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (id, location_id, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
-		VALUES (7, ?, 1, 'nl-1', '203.0.113.7', 'h', 'h', 'provisioning', ?, 1, '2026-10-07T00:00:00.000Z')`, id, tpl); err != nil {
+	if _, err := s.App.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (id, country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
+		VALUES (7, 'NL', 1, 'nl-1', '203.0.113.7', 'h', 'h', 'provisioning', ?, 1, '2026-10-07T00:00:00.000Z')`, tpl); err != nil {
 		t.Fatal(err)
 	}
 	got, _ = mod.NameSubjects(ctx, "server", []string{"7"})
@@ -158,15 +165,18 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 		t.Errorf("server: %+v", got)
 	}
 
-	hits, err := mod.Search(ctx, "neth", 5)
-	if err != nil || len(hits) != 1 || hits[0].Href != "/locations" || !strings.Contains(hits[0].Label, "Netherlands") {
-		t.Errorf("search: %+v %v", hits, err)
+	// a server is found by its country's name, in English or Russian
+	for _, q := range []string{"neth", "нидерл"} {
+		hits, err := mod.Search(ctx, q, 5)
+		if err != nil || len(hits) != 1 || hits[0].Href != "/servers/7" || !strings.Contains(hits[0].Label, "nl-1") {
+			t.Errorf("search %s: %+v %v", q, hits, err)
+		}
 	}
 	if hits, _ := mod.Search(ctx, "zzz", 5); len(hits) != 0 {
 		t.Errorf("search for nothing: %+v", hits)
 	}
 	// templates are found by name or slug, and link to their page
-	hits, err = mod.Search(ctx, "my-stack", 5)
+	hits, err := mod.Search(ctx, "my-stack", 5)
 	if err != nil || len(hits) != 1 || hits[0].Href != "/templates/"+idStr(tpl) || !strings.Contains(hits[0].Label, "My stack") || hits[0].Meta != "Template" {
 		t.Errorf("template search: %+v %v", hits, err)
 	}
@@ -222,9 +232,10 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 	if used < 20 {
 		t.Errorf("only %d keys found; the scan is broken", used)
 	}
-	for _, k := range []string{"saved.created", "saved.updated", "saved.deleted"} {
-		if !s.App.I18n.Has("locations." + k) {
-			t.Errorf("locations.%s is missing", k)
+	// the location events recorded before servers had a country still read
+	for _, k := range []string{"created", "changed", "deleted"} {
+		if !s.App.I18n.Has("event.location." + k) {
+			t.Errorf("event.location.%s is missing", k)
 		}
 	}
 }

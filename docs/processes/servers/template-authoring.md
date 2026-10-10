@@ -80,7 +80,7 @@ Rules:
 
 Validation renders the template for a **sample context** and checks every file. It runs inside Proxier's own container with bundled tools and Go libraries. It never starts containers and never uses a Docker socket ([ADR 0009](../../adr/0009-embedded-xray-core-no-docker-socket.md)).
 
-Sample context: server `xx-1` in location `xx` ("Sample"), IP `192.0.2.10`, both hostnames `xx-1.hosts.example.invalid`, parameters from each parameter's `sample` (or `default`), generated values freshly generated, `.Clients` with one sample client.
+Sample context: server `xx-1` in country `XX` ("Sample", no flag; `.Server.Location` is `xx`, "Sample", `XX`), IP `192.0.2.10`, both hostnames `xx-1.hosts.example.invalid`, parameters from each parameter's `sample` (or `default`), generated values freshly generated, `.Clients` with one sample client.
 
 | Check | Error when | Warning when |
 |---|---|---|

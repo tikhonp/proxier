@@ -43,10 +43,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version), source (zip / git, for an import) | off | A save that changes no file records nothing. Also recorded when a draft is created from a version, from the skeleton or by an import. |
 | `template.draft_validated` | template | by, errors, warnings | off | |
 | `template.agent_session_closed` | template | reason (expired / revoked / published / discarded / replaced), saves, session | off | `replaced`: a new hand-off for the same draft ended it. The actor of a save or validation by the agent is `agent:<session id>`. |
-| `location.created` | location | code, name, country | off | |
-| `location.changed` | location | fields (`name`, `country`) | off | Only when something changed. |
-| `location.deleted` | location | code, name | off | Only a location without servers. |
-| `server.created` | server | IP, template version | off | |
+| `server.created` | server | IP, country, template version | off | |
 | `server.provisioning_failed` | server | step, error | **on** | "nl-2: setup failed at 'Issue certificate': …" |
 | `server.activated` | server | proxy test timings, forced | **on** | "nl-2 is ready (🇳🇱 Netherlands 2)"; when forced by **Activate anyway**: "nl-2 is active without a passing proxy test" |
 | `server.redeployed` | server | kind (`redeploy` / `upgrade` / `params` / `restore` / `restart` / `images` / `reboot`), from version, to version, files changed; `rollout` (id) when a rolling upgrade ran it; `changed_images` for `images` | off | Rotation records `server.credentials_rotated` instead. |
@@ -66,6 +63,8 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `health.home_offline` | — | reference check results | off | Telegram is unreachable anyway. It's shown on the dashboard. |
 | `health.foreign_unreachable` | — | reference check results | **on** | "Foreign internet is unreachable from home; server verdicts are on hold" |
 | `health.home_recovered` | — | duration | **on** | |
+
+No longer recorded: `location.created` (code, name, country), `location.changed` (fields) and `location.deleted` (code, name), from when servers had a location instead of a country ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). They are not declared any more, so they can't be recorded or notified, but older ones still read in Activity, their subject named from the `location.created` that added it ("nl · Netherlands", without a link).
 
 ## Subscriptions
 

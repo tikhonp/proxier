@@ -106,16 +106,16 @@ func Check(e render.RenderedEndpoint) []string {
 	return t.Check(e)
 }
 
-// DisplayName is "{flag} {location name} {number}", plus " · {key}" when the
-// server has more than one endpoint. The location name is as the admin
-// entered it, whatever the language of the link that serves it.
-func DisplayName(flag, locationName string, number int, key string, many bool) string {
+// DisplayName is "{flag} {country name} {number}", plus " · {key}" when the
+// server has more than one endpoint. The country's name is the English one,
+// whatever the language of the link that serves it.
+func DisplayName(flag, countryName string, number int, key string, many bool) string {
 	var b strings.Builder
 	if flag != "" {
 		b.WriteString(flag)
 		b.WriteByte(' ')
 	}
-	b.WriteString(locationName)
+	b.WriteString(countryName)
 	b.WriteByte(' ')
 	b.WriteString(strconv.Itoa(number))
 	if many {

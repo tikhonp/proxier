@@ -340,8 +340,8 @@ func hasStick(lines []string, i int) bool {
 }
 
 // The page column has no padding of its own: tables, areas and forms bring
-// theirs. A line of text placed straight in it (a note under the locations
-// table, a stack diff's back line) sat flush against the sidebar, so text there
+// theirs. A line of text placed straight in it (a note under a table, a stack
+// diff's back line) sat flush against the sidebar, so text there
 // carries a class that pads it like the rows (.foot, .pager, .area-body…).
 func TestPageTextSitsInsideThePadding(t *testing.T) {
 	css := appCSS(t)

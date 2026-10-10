@@ -198,7 +198,7 @@ The files in `screens/` are the canvas source (`.dc.html`). Use them as a refere
 | | `RP-Server-redeploy` | Upgrade plan: new parameters, file diffs, endpoint change |
 | | `RP-Server-rollout` | Rolling upgrade in progress |
 | | `RP-Pause-checks` | Pause checks dialog |
-| | `RP-Locations` | Locations, adding one inline |
+| | `RP-Locations` | Locations, adding one inline. Retired: a server has a country now, picked on New server ([ADR 0015](../../adr/0015-servers-have-a-country-not-a-location.md)); kept as the source of the `.foot` note under a table |
 | Templates | `RP-Templates` | Template list |
 | | `RP-Template` | Template page: versions, draft, the agent-session band |
 | | `RP-Template-editor` | Template editor, draft |

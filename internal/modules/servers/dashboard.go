@@ -187,5 +187,5 @@ func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i1
 	if forced {
 		return notify.Message{Title: loc.T("notify.server.activated.forced", i18n.Args{"subject": name})}, true, nil
 	}
-	return notify.Message{Title: loc.T("notify.server.activated", i18n.Args{"subject": name}) + " (" + s.LocationName + " " + strconv.Itoa(s.Number) + ")"}, true, nil
+	return notify.Message{Title: loc.T("notify.server.activated", i18n.Args{"subject": name}) + " (" + country.Name(s.Country, "en") + " " + strconv.Itoa(s.Number) + ")"}, true, nil
 }

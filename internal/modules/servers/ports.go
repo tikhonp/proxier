@@ -27,7 +27,7 @@ import (
 type ServerEndpoints struct {
 	ServerID int64
 	Name     string
-	// Flag is the country flag of the server's location, for pages.
+	// Flag is the flag of the server's country, for pages.
 	Flag        string
 	Health      string
 	HealthSince time.Time

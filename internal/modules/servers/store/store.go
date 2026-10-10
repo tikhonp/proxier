@@ -18,7 +18,7 @@ import (
 var ErrNotFound = errors.New("servers: not found")
 
 // Store is the module's database with its event catalog, for the operations
-// that are one transaction with their event (locations).
+// that are one transaction with their event (a server's notes).
 type Store struct {
 	DB     *db.DB
 	Events *events.Catalog
@@ -47,7 +47,7 @@ func notFound(err error) error {
 	return err
 }
 
-// unique reports a UNIQUE constraint failure on column ("servers_locations.code").
+// unique reports a UNIQUE constraint failure on column ("servers_servers.ip").
 func unique(err error, column string) bool {
 	return err != nil && strings.Contains(err.Error(), "UNIQUE constraint failed: "+column)
 }

@@ -29,15 +29,14 @@ func refused(t *testing.T, err error) provision.FieldErrors {
 	return fe
 }
 
-// nothingCreated checks that a refused form left no server, no job, no event
-// and did not use up a number.
+// nothingCreated checks that a refused form left no server, no job and no
+// event; with no server row, no number is used up either.
 func nothingCreated(t *testing.T, h *serverstest.Harness) {
 	t.Helper()
 	for what, q := range map[string]string{
 		"servers": `SELECT count(*) FROM servers_servers`,
 		"jobs":    `SELECT count(*) FROM jobs`,
 		"events":  `SELECT count(*) FROM events WHERE type = 'server.created'`,
-		"numbers": `SELECT last_number FROM servers_locations WHERE code = 'nl'`,
 	} {
 		var n int
 		if err := h.App.DB.R.Get(&n, q); err != nil {
@@ -67,14 +66,14 @@ func TestIPAlreadyUsedIsRefused(t *testing.T) {
 		t.Fatalf("%d servers after the refused form (%v)", n, err)
 	}
 	// The live summary says it too, before anything is posted.
-	if s := h.Mod.Provision.Summarize(bg, f, false); s.Errors["ip"].Key != "servers.err.ip_used" {
+	if s := h.Mod.Provision.Summarize(bg, f, true); s.Errors["ip"].Key != "servers.err.ip_used" {
 		t.Errorf("summary errors: %+v", s.Errors)
 	}
 	// A retired server gives its address back.
 	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET state = 'retired', health = NULL`); err != nil {
 		t.Fatal(err)
 	}
-	if s := h.Mod.Provision.Summarize(bg, f, false); len(s.Errors) != 0 {
+	if s := h.Mod.Provision.Summarize(bg, f, true); len(s.Errors) != 0 {
 		t.Errorf("a retired server still holds the IP: %+v", s.Errors)
 	}
 }
@@ -103,8 +102,10 @@ func TestFormRefusals(t *testing.T) {
 			}},
 		{name: "missing version", field: "version", key: "servers.err.version_missing", edit: func(f *provision.Form) { f.Version = 99 }},
 		{name: "missing template", field: "template", key: "servers.err.template_missing", edit: func(f *provision.Form) { f.TemplateID = 4242 }},
-		{name: "missing location", field: "location", key: "servers.err.location_missing", edit: func(f *provision.Form) { f.LocationID = 4242 }},
-		{name: "no location", field: "location", key: "servers.err.location_required", edit: func(f *provision.Form) { f.LocationID = 0 }},
+		{name: "not a country", field: "country", key: "servers.err.country_unknown", edit: func(f *provision.Form) { f.Country = "Atlantis" }},
+		{name: "a withdrawn code", field: "country", key: "servers.err.country_unknown", edit: func(f *provision.Form) { f.Country = "UK" }},
+		{name: "a lower-case code", field: "country", key: "servers.err.country_unknown", edit: func(f *provision.Form) { f.Country = "nl" }},
+		{name: "no country", field: "country", key: "servers.err.country_required", edit: func(f *provision.Form) { f.Country = "" }},
 		{name: "ipv6", field: "ip", key: "servers.err.ip_v4", edit: func(f *provision.Form) { f.IP = "2001:db8::1" }},
 		{name: "not an ip", field: "ip", key: "servers.err.ip_v4", edit: func(f *provision.Form) { f.IP = "example.com" }},
 		{name: "no ip", field: "ip", key: "servers.err.ip_required", edit: func(f *provision.Form) { f.IP = "" }},
@@ -117,9 +118,9 @@ func TestFormRefusals(t *testing.T) {
 		{name: "email with a name", field: "param.letsencrypt_email", key: "servers.err.param_email", edit: func(f *provision.Form) { f.Params["letsencrypt_email"] = "Me <me@example.com>" }},
 		{name: "uncovered hostname", field: "dns", key: "servers.err.not_covered",
 			setup: func() func() {
-				set("servers", map[string]string{"servers.hostname_pattern": "{location}-{number}.hosts.example.org"})
+				set("servers", map[string]string{"servers.hostname_pattern": "{country}-{number}.hosts.example.org"})
 				return func() {
-					set("servers", map[string]string{"servers.hostname_pattern": "{location}-{number}.hosts.tikhonnnnn.com"})
+					set("servers", map[string]string{"servers.hostname_pattern": "{country}-{number}.hosts.tikhonnnnn.com"})
 				}
 			}},
 		{name: "no cloudflare", field: "dns", key: "servers.err.no_cloudflare",
@@ -167,7 +168,7 @@ func TestLiveSummary(t *testing.T) {
 	h := serverstest.NewHarness(t)
 	f := h.Form()
 	f.RootPassword = "the-secret-root-password"
-	s := h.Mod.Provision.Summarize(bg, f, true)
+	s := h.Mod.Provision.Summarize(bg, f, false)
 	if len(s.Errors) != 0 {
 		t.Fatalf("errors: %+v", s.Errors)
 	}
@@ -185,24 +186,24 @@ func TestLiveSummary(t *testing.T) {
 		t.Error("the summary holds the root password")
 	}
 	f.RootPassword = ""
-	if s := h.Mod.Provision.Summarize(bg, f, true); s.Errors["root_password"].Key != "" {
+	if s := h.Mod.Provision.Summarize(bg, f, false); s.Errors["root_password"].Key != "" {
 		t.Errorf("the summary asked for the password: %+v", s.Errors)
 	}
-	var last int
-	if err := h.App.DB.R.Get(&last, `SELECT last_number FROM servers_locations WHERE code = 'nl'`); err != nil || last != 0 {
-		t.Errorf("the summary used up a number: %d %v", last, err)
+	var rows int
+	if err := h.App.DB.R.Get(&rows, `SELECT count(*) FROM servers_servers`); err != nil || rows != 0 {
+		t.Errorf("the summary made a server: %d %v", rows, err)
 	}
 	// "if created now": the next number follows the highest ever used.
 	h.Create(h.Form())
 	h.Drain()
 	f = h.Form()
 	f.IP = "127.0.0.9"
-	if s := h.Mod.Provision.Summarize(bg, f, true); s.Name != "nl-2" {
+	if s := h.Mod.Provision.Summarize(bg, f, false); s.Name != "nl-2" {
 		t.Errorf("next name %q", s.Name)
 	}
 	// Errors that need no network show while typing.
 	f.IP = "999.1.1.1"
-	if s := h.Mod.Provision.Summarize(bg, f, true); s.Errors["ip"].Key != "servers.err.ip_v4" {
+	if s := h.Mod.Provision.Summarize(bg, f, false); s.Errors["ip"].Key != "servers.err.ip_v4" {
 		t.Errorf("errors %+v", s.Errors)
 	}
 }
@@ -228,39 +229,37 @@ func TestCountrySuggestion(t *testing.T) {
 	setURL(geo.URL + "/{ip}")
 
 	f := h.Form()
-	f.LocationID = 0
-	s := h.Mod.Provision.Summarize(bg, f, false)
-	if s.SuggestedLocation != h.LocationID || s.SuggestedCountry != "NL" {
-		t.Fatalf("an untouched location is preselected from the IP: %+v", s)
+	f.Country = ""
+	s := h.Mod.Provision.Summarize(bg, f, true)
+	if s.Suggested != "NL" {
+		t.Fatalf("the IP's country is suggested: %+v", s)
 	}
 	// The answer is remembered for the same IP.
-	h.Mod.Provision.Summarize(bg, f, false)
+	h.Mod.Provision.Summarize(bg, f, true)
 	if calls.Load() != 1 {
 		t.Errorf("%d lookups for one IP", calls.Load())
 	}
-	// A location the admin chose is never overridden.
-	if s := h.Mod.Provision.Summarize(bg, f, true); s.SuggestedLocation != 0 {
-		t.Errorf("a chosen location was overridden: %+v", s)
+	// Not asked for (the admin chose a country): nothing is suggested.
+	if s := h.Mod.Provision.Summarize(bg, f, false); s.Suggested != "" {
+		t.Errorf("a suggestion nobody asked for: %+v", s)
 	}
-	// Several locations of the country: the first by code.
-	other, err := h.Mod.Store.CreateLocation(bg, "aa", "Amsterdam", "NL", "admin")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if s := h.Mod.Provision.Summarize(bg, f, false); s.SuggestedLocation != other {
-		t.Errorf("want the first by code (aa): %+v", s)
-	}
-	// A country with no location suggests nothing.
+	// Any country is suggested, not only those that have servers.
 	answer = "DE"
 	f.IP = "127.0.0.7"
-	if s := h.Mod.Provision.Summarize(bg, f, false); s.SuggestedLocation != 0 {
-		t.Errorf("DE has no location: %+v", s)
+	if s := h.Mod.Provision.Summarize(bg, f, true); s.Suggested != "DE" {
+		t.Errorf("DE: %+v", s)
+	}
+	// An answer that is no country today suggests nothing.
+	answer = "UK"
+	f.IP = "127.0.0.6"
+	if s := h.Mod.Provision.Summarize(bg, f, true); s.Suggested != "" {
+		t.Errorf("UK: %+v", s)
 	}
 	// With the lookup off, nothing is asked.
 	before := calls.Load()
 	setURL("")
 	f.IP = "127.0.0.8"
-	if s := h.Mod.Provision.Summarize(bg, f, false); s.SuggestedLocation != 0 || calls.Load() != before {
+	if s := h.Mod.Provision.Summarize(bg, f, true); s.Suggested != "" || calls.Load() != before {
 		t.Errorf("the lookup is off but %+v, %d calls", s, calls.Load()-before)
 	}
 }
@@ -363,5 +362,30 @@ func TestNamesAreNeverReused(t *testing.T) {
 	second := h.Create(f)
 	if got := h.Server(second).Name; got != "nl-2" {
 		t.Fatalf("the next server in nl is %s, not nl-2", got)
+	}
+}
+
+// A server from before servers had a country keeps its name; new servers of
+// that country count under the country's code, and say which country in
+// server.created.
+func TestServersFromLocationsKeepTheirNames(t *testing.T) {
+	h := serverstest.NewHarness(t)
+	h.StopJobs()
+	for _, s := range []struct {
+		name   string
+		number int
+	}{{"ams-7", 7}, {"nl-1", 1}} {
+		if _, err := h.App.DB.W.Exec(`INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state,
+			template_id, template_version, created_at, retired_at) VALUES ('NL', ?, ?, '203.0.113.9', 'h', 'h', 'retired', ?, 1, '2026-10-07T00:00:00.000Z', '2026-10-07T00:00:00.000Z')`,
+			s.number, s.name, h.TemplateID); err != nil {
+			t.Fatal(err)
+		}
+	}
+	id := h.Create(h.Form())
+	if got := h.Server(id); got.Name != "nl-2" || got.Country != "NL" || got.ManagementHostname != "nl-2.hosts.tikhonnnnn.com" {
+		t.Fatalf("the next server in NL: %s %s %s", got.Name, got.Country, got.ManagementHostname)
+	}
+	if ev := h.Events("server.created"); len(ev) != 1 || ev[0].Payload["country"] != "NL" {
+		t.Errorf("server.created %+v", ev)
 	}
 }

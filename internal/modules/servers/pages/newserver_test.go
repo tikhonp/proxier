@@ -33,14 +33,14 @@ func TestNewServerRefusedWhenRouted(t *testing.T) {
 	h.Mod.SetRouting(g)
 	f := h.Form()
 	form := url.Values{
-		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "location": {sid(h.LocationID)},
+		"ip": {f.IP}, "ssh_port": {strconv.Itoa(f.SSHPort)}, "root_password": {f.RootPassword}, "country": {h.Country},
 		"template": {sid(h.TemplateID)}, "version": {"1"}, "param.letsencrypt_email": {"me@example.com"},
 	}
 	const want = "nl-1.hosts.tikhonnnnn.com is covered by tikhonnnnn.com (my-sites) in Main: Proxier&#39;s checks would go into the tunnel. Take it out of the list first."
 
 	// the live summary says it while the admin types
 	rec := h.Login.Post("/servers/new/summary", url.Values{
-		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {"0"},
+		"ip": {"203.0.113.24"}, "country": {h.Country},
 		"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {sid(h.TemplateID) + ":1"},
 	})
 	mustContain(t, rec.Body.String(), want)

@@ -25,7 +25,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). |
 | Notifications | One toggle per event type, grouped by module ([events](../events.md)). |
-| Servers | Hostname pattern, locations, proxy test URL (default: Cloudflare's speed endpoint, 256 KB), check intervals and thresholds ([health](../processes/servers/server-health.md)), stats retention. |
+| Servers | Hostname pattern, the IP → country lookup, proxy test URL (default: Cloudflare's speed endpoint, 256 KB), check intervals and thresholds ([health](../processes/servers/server-health.md)), stats retention. |
 | Subscriptions | Default format, default update interval, expiry warning days, shared-link alert thresholds, tombstone period. |
 | Routing | Daily refresh time, safety thresholds, drift-check interval, auto-repair, default Shadowrocket rule policy. |
 | Retention | Jobs, check results, metrics, fetches, discovery runs. |

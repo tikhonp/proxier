@@ -139,9 +139,9 @@ func TestOnlyActiveServersAreChecked(t *testing.T) {
 	f := newFixture(t)
 	var ids []int64
 	for i, st := range []string{"provisioning", "failed", "retired"} {
-		res, err := f.App.DB.W.Exec(`INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state,
-			template_id, template_version, created_at) VALUES (?, ?, ?, ?, 'h', 'h', ?, ?, 1, '2026-10-07T00:00:00.000Z')`,
-			f.LocationID, 20+i, "x-"+st, "203.0.113.2"+string(rune('0'+i)), st, f.TemplateID)
+		res, err := f.App.DB.W.Exec(`INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state,
+			template_id, template_version, created_at) VALUES ('NL', ?, ?, ?, 'h', 'h', ?, ?, 1, '2026-10-07T00:00:00.000Z')`,
+			20+i, "x-"+st, "203.0.113.2"+string(rune('0'+i)), st, f.TemplateID)
 		if err != nil {
 			t.Fatal(err)
 		}

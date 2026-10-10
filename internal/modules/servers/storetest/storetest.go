@@ -88,8 +88,8 @@ func (e *Env) AllRecorded() int {
 }
 
 // AddServer inserts a server in a lifecycle state (an active one starts with
-// health unknown) with a location and a template of its own if they do not
-// exist yet, and returns its id.
+// health unknown) in the Netherlands, with a template of its own if it does
+// not exist yet, and returns its id.
 func (e *Env) AddServer(name, state string) int64 {
 	e.T.Helper()
 	ctx := context.Background()
@@ -99,7 +99,6 @@ func (e *Env) AddServer(name, state string) int64 {
 			e.T.Fatal(err)
 		}
 	}
-	mustExec(`INSERT OR IGNORE INTO servers_locations (id, code, name, country, created_at) VALUES (1, 'nl', 'Netherlands', 'NL', '2026-10-01T00:00:00.000Z')`)
 	mustExec(`INSERT OR IGNORE INTO servers_templates (id, slug, name, default_version, created_at) VALUES (1, 'tpl', 'Template', 1, '2026-10-01T00:00:00.000Z')`)
 	var n int
 	if err := e.DB.R.GetContext(ctx, &n, `SELECT count(*) FROM servers_servers`); err != nil {
@@ -109,9 +108,9 @@ func (e *Env) AddServer(name, state string) int64 {
 	if state == "active" {
 		health = "unknown"
 	}
-	res, err := e.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state, health,
+	res, err := e.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, health,
 			health_since, template_id, template_version, created_at, activated_at)
-		VALUES (1, ?, ?, ?, ?, ?, ?, ?, '2026-10-01T00:00:00.000Z', 1, 1, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z')`,
+		VALUES ('NL', ?, ?, ?, ?, ?, ?, ?, '2026-10-01T00:00:00.000Z', 1, 1, '2026-10-01T00:00:00.000Z', '2026-10-01T00:00:00.000Z')`,
 		n+1, name, "203.0.113."+itoa(n+1), name+".example.test", name+".example.test", state, health)
 	if err != nil {
 		e.T.Fatal(err)

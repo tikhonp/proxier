@@ -12,15 +12,31 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/gen"
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 )
 
+// Country is where the server is: {Code: "NL", Name: "Netherlands", Flag: 🇳🇱}.
+// The name is the English one, as in the endpoints' display names.
+type Country struct{ Code, Name, Flag string }
+
+// Location is what templates saw before servers had a country (ADR 0015),
+// kept so that published versions using it still render: Code is the first
+// half of the server's name, Name the country's name, Country its code.
 type Location struct{ Code, Name, Country string }
+
+// Where is what templates see of a server's place: its Country, and the
+// Location of templates written before (its Code the name's prefix).
+func Where(code, prefix string) (Country, Location) {
+	name := country.Name(code, "en")
+	return Country{Code: code, Name: name, Flag: country.Flag(code)}, Location{Code: prefix, Name: name, Country: code}
+}
 
 type Server struct {
 	Name                              string
 	Number                            int
+	Country                           Country
 	Location                          Location
 	IP                                string
 	SSHPort                           int
@@ -52,7 +68,7 @@ const SharedClient = "shared"
 const sampleUUID = "00000000-0000-4000-8000-000000000000"
 
 // SampleContext is the context validation and preview render with: server
-// xx-1 in location xx, documentation addresses, parameters from their sample
+// xx-1 in country XX ("Sample"), documentation addresses, parameters from their sample
 // (or default), and gen for the generated values (created when nil or
 // incomplete).
 func SampleContext(m *manifest.Manifest, slug string, genValues map[string]string) Context {
@@ -79,6 +95,7 @@ func SampleContext(m *manifest.Manifest, slug string, genValues map[string]strin
 	c := Context{
 		Server: Server{
 			Name: "xx-1", Number: 1, IP: "192.0.2.10", SSHPort: 22,
+			Country:            Country{Code: "XX", Name: "Sample"},
 			Location:           Location{Code: "xx", Name: "Sample", Country: "XX"},
 			ManagementHostname: "xx-1.hosts.example.invalid", ProxyHostname: "xx-1.hosts.example.invalid",
 		},
@@ -124,13 +141,16 @@ func ParamValue(p manifest.Parameter, raw string) any {
 
 var hostLabel = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
 
-// Hostname renders the hostname pattern of Settings ("{location}-{number}.hosts.example.com").
-// The pattern must hold both placeholders and the result must be a valid DNS name.
-func Hostname(pattern, location string, number int) (string, error) {
-	if !strings.Contains(pattern, "{location}") || !strings.Contains(pattern, "{number}") {
-		return "", errors.New("the pattern must contain {location} and {number}")
+// Hostname renders the hostname pattern of Settings ("{country}-{number}.hosts.example.com")
+// for the server named prefix-number. {location}, the placeholder's name
+// before servers had a country, still stands for the same prefix, so a
+// pattern saved then keeps working. The pattern must hold {number} and one of
+// the two, and the result must be a valid DNS name.
+func Hostname(pattern, prefix string, number int) (string, error) {
+	if !strings.Contains(pattern, "{country}") && !strings.Contains(pattern, "{location}") || !strings.Contains(pattern, "{number}") {
+		return "", errors.New("the pattern must contain {country} and {number}")
 	}
-	h := strings.NewReplacer("{location}", location, "{number}", strconv.Itoa(number)).Replace(pattern)
+	h := strings.NewReplacer("{country}", prefix, "{location}", prefix, "{number}", strconv.Itoa(number)).Replace(pattern)
 	if len(h) > 253 {
 		return "", errors.New("the hostname is longer than 253 characters")
 	}

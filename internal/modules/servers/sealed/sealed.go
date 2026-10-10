@@ -197,8 +197,8 @@ func OpenEndpoint(v *vault.Vault, r store.EndpointRow) (endpoint.Endpoint, error
 }
 
 // Endpoints checks the rendered endpoints of a version and gives them the
-// display names apps show: flag, locationName and number make the name.
-func Endpoints(rendered []render.RenderedEndpoint, flag, locationName string, number int) ([]endpoint.Endpoint, error) {
+// display names apps show: flag, countryName and number make the name.
+func Endpoints(rendered []render.RenderedEndpoint, flag, countryName string, number int) ([]endpoint.Endpoint, error) {
 	if len(rendered) == 0 {
 		return nil, errors.New("the template declares no endpoint")
 	}
@@ -214,7 +214,7 @@ func Endpoints(rendered []render.RenderedEndpoint, flag, locationName string, nu
 		}
 		out[i] = endpoint.Endpoint{
 			Key: e.Key, Type: e.Type, Host: e.Host, Port: e.Port, Credential: e.Credential, Params: e.Params,
-			DisplayName: endpoint.DisplayName(flag, locationName, number, e.Key, many),
+			DisplayName: endpoint.DisplayName(flag, countryName, number, e.Key, many),
 		}
 	}
 	return out, nil
@@ -233,8 +233,8 @@ func SealEndpoints(v *vault.Vault, serverID int64, eps []endpoint.Endpoint) []st
 }
 
 // EndpointRows is Endpoints followed by SealEndpoints.
-func EndpointRows(v *vault.Vault, serverID int64, rendered []render.RenderedEndpoint, flag, locationName string, number int) ([]store.EndpointRow, error) {
-	eps, err := Endpoints(rendered, flag, locationName, number)
+func EndpointRows(v *vault.Vault, serverID int64, rendered []render.RenderedEndpoint, flag, countryName string, number int) ([]store.EndpointRow, error) {
+	eps, err := Endpoints(rendered, flag, countryName, number)
 	if err != nil {
 		return nil, err
 	}

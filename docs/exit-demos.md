@@ -19,7 +19,7 @@ Each [roadmap](./roadmap.md) phase ends with a demo that must work end to end on
 **Exit:** a fresh VPS becomes `nl-2`, active and healthy, from the UI alone. Firewalling 443 on it from home produces a `blocked` verdict and a Telegram message, and removing the rule recovers it. Rotation changes the connection URI and the old one stops working.
 
 1. Settings → Integrations → Cloudflare: token, zone `tikhonnnnn.com`.
-2. Servers → **New server**: a fresh VPS (IP, root password), location `nl` suggested, seed template → watch provisioning to **active**; the name is `nl-2` (or the next free number); `server.activated` arrives in Telegram. The smoke test answers whether XHTTP `stream-up` works through nginx `grpc_pass` (open question "to verify" 6).
+2. Servers → **New server**: a fresh VPS (IP, root password), country Netherlands suggested, seed template → watch provisioning to **active**; the name is `nl-2` (or the next free number); `server.activated` arrives in Telegram. The smoke test answers whether XHTTP `stream-up` works through nginx `grpc_pass` (open question "to verify" 6).
 3. Import the URI into a phone app; it connects.
 4. First check round → `healthy`.
 5. On the home router, block 443 to the server's IP from home only. After two rounds → `blocked` with the reason naming nodes abroad; Telegram 🟣. Remove the rule → `healthy`; Telegram 🟢.

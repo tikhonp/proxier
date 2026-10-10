@@ -9,19 +9,19 @@ Provisioning turns a freshly issued VPS (an IP and a root password) into an **ac
 1. Servers → **New server**. Fields:
    - **IP address** (IPv4) and **SSH port** (default 22, under "advanced").
    - **Root password**, never shown again.
-   - **Location**, preselected from the IP's country when it matches a known location, with **New location** inline: code, name and country, then **Add** (or ↵ in it). The location is created (→ `location.created`) and chosen, and the summary shows its server name. A refusal (a bad or taken code, no name, no country) or a failure is shown in the open mini form, which keeps what was typed; nothing is created.
+   - **Country**, a searchable picker: typing filters the list of every country by name (in the admin's language) or code, and the field takes "🇳🇱 Netherlands · NL"; a code (`nl`) or a name in English or Russian typed in full counts too. It is preselected from the IP's country. The country's lower-case code is the first half of the server name ([ADR 0015](../../adr/0015-servers-have-a-country-not-a-location.md)).
    - **Template** and **version** (default version preselected), then the version's **parameters** as form fields with labels, help and defaults.
    - **Notes**.
-2. While the admin types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names. A location the admin hasn't chosen follows the IP's suggestion as the summary updates; the summary changes only the location select and its hint, never the New location form being typed in.
+2. While the admin types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names. A picker the admin hasn't chosen in (empty with nothing suggested yet, or showing what the IP suggested last) follows the IP's country as the summary updates; anything else in it (a half-typed name, an emptied field, a country they picked) is theirs, and the summary never replaces it. Until a country is picked the summary shows no name, and text that names no country is refused only on **Create**.
 3. **Create**. Proxier checks:
    - no non-retired server has this IP;
-   - the location and template version exist and the template isn't archived;
+   - the country is a country (an ISO code in use today), and the template version exists and the template isn't archived;
    - parameters pass validation;
    - Cloudflare is configured and a configured zone covers the hostname;
    - no routing list covers the hostname (when the routing module is enabled): a list holding `tikhonnnnn.com`, or the hostname itself, would send Proxier's checks of the server into the router's tunnel. Any name listed in any list counts, even one the list doesn't install. The live summary says it too: "nl-3.hosts.tikhonnnnn.com is covered by tikhonnnnn.com (my-sites) in Main: Proxier's checks would go into the tunnel. Take it out of the list first."
 
    Failures are shown on the form and nothing is created.
-4. The server is created in **provisioning** with its name reserved, the root password goes encrypted into the job payload, and the job is queued. The browser goes to the server page, which shows the steps and the live log. → `server.created{ip, template_version}`
+4. The server is created in **provisioning** with its name reserved, the root password goes encrypted into the job payload, and the job is queued. The browser goes to the server page, which shows the steps and the live log. → `server.created{ip, country, template_version}`
 
 ## Steps — the job
 
@@ -78,9 +78,9 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 ## Edge cases (each is a test)
 
 - IP already used by active `nl-1` → refused on the form, nothing created.
-- Typing in **New location** while the summary updates → the mini form stays open with what was typed; only the location select and its hint are refreshed.
-- **New location** `de`, Germany → created, chosen (no longer a suggestion), and the summary shows `de-1`.
-- **New location** with a taken code, a bad code, no name or no country → the errors in the open mini form with what was typed, nothing created. A failure that isn't a refusal shows "The location wasn't added" there too.
+- An IP in the Netherlands, picker empty → "🇳🇱 Netherlands · NL" preselected with "Suggested from the IP (NL)", summary `nl-1`. Another IP in Germany while the suggestion is untouched → Germany. Any country is suggested, not only those with servers; a lookup answer that is no country (or the lookup turned off) suggests nothing.
+- Typing "Neth" in the picker, emptying it, or picking Finland while the IP suggests another country → the field is left as it is; the summary shows no name for "Neth" and no complaint while it is typed.
+- "Atlantis", a withdrawn code (`UK`) or nothing in the picker → refused on **Create** ("Pick a country from the list." / "Pick a country."), the text kept, nothing created. `nl` or "Нидерланды" typed in full → the Netherlands.
 - "Main" holds a custom service with suffix `tikhonnnnn.com`; the new server would be `nl-3.hosts.tikhonnnnn.com` → refused on the form, naming the list and the service, nothing created.
 - Wrong root password → fails at preflight with "authentication failed". The password stays encrypted for retry. **Retry** asks for it again.
 - IP unreachable (timeout) → fails at preflight. The DNS is untouched.
@@ -101,6 +101,7 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 - The container restarts during "Install Docker" → the job resumes at base bootstrap, and running it again is harmless.
 - Self-check passes but the proxy test fails 3 times (e.g. the hosting network is already blocked in Russia) → server **failed** at smoke test, with the error.
 - **Cancel** during DNS → job cancelled, server **failed**, DNS record kept until retirement or retry.
-- Two servers created in the same location at the same moment → `nl-2` and `nl-3`, never two `nl-2`.
-- A server fails provisioning as `nl-2` and is retired; the next new server in `nl` → `nl-3`.
+- Two servers created in the same country at the same moment → `nl-2` and `nl-3`, never two `nl-2`.
+- A server fails provisioning as `nl-2` and is retired; the next new server in the Netherlands → `nl-3`.
+- A server from before servers had a country, `ams-1` in NL → keeps its name; the next new server in the Netherlands is numbered after the highest `nl-` number, not after `ams-1`.
 - Success → server active, health `unknown`, first check round within 5 minutes. Subscriptions with "add new servers automatically" include it, and the `server.activated` notification arrives.

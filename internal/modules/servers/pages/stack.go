@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"context"
 	"net/http"
 	"path"
 	"sort"
@@ -19,6 +20,11 @@ import (
 )
 
 func countryFlag(cc string) string { return country.Flag(cc) }
+
+// countryName is the country's name in the admin's language.
+func countryName(ctx context.Context, cc string) string {
+	return country.Name(cc, string(i18n.From(ctx).Lang))
+}
 
 func (h *handler) registerStack(r web.Routes) {
 	r.Admin.GET("/servers/:id/stack", h.stackTab)

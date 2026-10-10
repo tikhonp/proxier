@@ -31,7 +31,6 @@ func (h *handler) registerServers(r web.Routes) {
 	r.Admin.GET("/servers", h.serversList)
 	r.Admin.GET("/servers/new", h.newServer)
 	r.Admin.POST("/servers/new/summary", h.newSummary)
-	r.Admin.POST("/servers/new/location", h.newLocation)
 	r.Admin.POST("/servers", h.createServer)
 	r.Admin.POST("/servers/bulk/checks", h.bulkChecks)
 	r.Admin.POST("/servers/bulk/pause", h.bulkPause)

@@ -20,7 +20,6 @@ func (source) Migrations() fs.FS { return migrations.FS }
 func open(t *testing.T) *db.DB {
 	t.Helper()
 	d := dbtest.Open(t, source{})
-	mustExec(t, d, `INSERT INTO servers_locations (id, code, name, country, created_at) VALUES (1, 'nl', 'Netherlands', 'NL', ?)`, now)
 	mustExec(t, d, `INSERT INTO servers_templates (id, slug, name, created_at) VALUES (1, 't', 'T', ?)`, now)
 	return d
 }
@@ -45,8 +44,8 @@ func mustFail(t *testing.T, d *db.DB, what, q string, args ...any) {
 	}
 }
 
-const insertServer = `INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, health, health_since, created_at)
-	VALUES (1, ?, ?, ?, 'h', 'h', ?, 1, 1, ?, ?, ?)`
+const insertServer = `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, health, health_since, created_at)
+	VALUES ('NL', ?, ?, ?, 'h', 'h', ?, 1, 1, ?, ?, ?)`
 
 func TestServersMigrationsRoundTrip(t *testing.T) {
 	ctx := context.Background()
@@ -55,8 +54,10 @@ func TestServersMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
-		t.Fatalf("down: %v", err)
+	for range 2 {
+		if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+			t.Fatalf("down: %v", err)
+		}
 	}
 	var n int
 	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sqlite_master WHERE name LIKE 'servers\_%' ESCAPE '\' AND name NOT LIKE '%goose%'`); err != nil || n != 0 {
@@ -76,8 +77,9 @@ func TestLiveIPIsUnique(t *testing.T) {
 	mustExec(t, d, `UPDATE servers_servers SET state = 'retired', retired_at = ? WHERE name = 'nl-1'`, now)
 	mustExec(t, d, insertServer, 2, "nl-2", "203.0.113.1", "provisioning", nil, nil, now)
 	mustExec(t, d, insertServer, 3, "nl-3", "203.0.113.1", "retired", nil, nil, now)
-	// the same number twice in a location, or the same name
-	mustFail(t, d, "a repeated number", insertServer, 2, "nl-9", "203.0.113.9", "provisioning", nil, nil, now)
+	// the same name twice; the same number in a country is fine (nl-1 and a
+	// location's ams-1 were both in NL before servers had a country)
+	mustExec(t, d, insertServer, 2, "ams-2", "203.0.113.9", "provisioning", nil, nil, now)
 	mustFail(t, d, "a repeated name", insertServer, 9, "nl-2", "203.0.113.9", "provisioning", nil, nil, now)
 }
 
@@ -109,30 +111,30 @@ func TestOneOpenAgentSessionPerTemplate(t *testing.T) {
 	mustExec(t, d, ins, []byte("f"), now, now, nil, nil)
 }
 
-func TestLocationAndTemplateConstraints(t *testing.T) {
+func TestCountryAndTemplateConstraints(t *testing.T) {
 	d := open(t)
-	mustFail(t, d, "a duplicate location code", `INSERT INTO servers_locations (code, name, country, created_at) VALUES ('nl', 'x', 'NL', ?)`, now)
-	mustFail(t, d, "a code of one letter", `INSERT INTO servers_locations (code, name, country, created_at) VALUES ('n', 'x', 'NL', ?)`, now)
-	mustFail(t, d, "a country of three letters", `INSERT INTO servers_locations (code, name, country, created_at) VALUES ('de', 'x', 'DEU', ?)`, now)
+	ins := `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
+		VALUES (?, 1, ?, '203.0.113.1', 'h', 'h', 'retired', 1, 1, ?)`
+	mustFail(t, d, "a lower-case country", ins, "nl", "nl-1", now)
+	mustFail(t, d, "a country of three letters", ins, "NLD", "nl-1", now)
+	mustFail(t, d, "an empty country", ins, "", "nl-1", now)
+	mustExec(t, d, ins, "NL", "nl-1", now)
 	mustFail(t, d, "a duplicate slug", `INSERT INTO servers_templates (slug, name, created_at) VALUES ('t', 'x', ?)`, now)
-	mustExec(t, d, `INSERT INTO servers_template_versions (id, template_id, number, published_at, published_by) VALUES (1, 1, 1, ?, 'system')`, now)
-	mustFail(t, d, "a repeated version number", `INSERT INTO servers_template_versions (template_id, number, published_at, published_by) VALUES (1, 1, ?, 'system')`, now)
-	mustFail(t, d, "version number 0", `INSERT INTO servers_template_versions (template_id, number, published_at, published_by) VALUES (1, 0, ?, 'system')`, now)
+	mustExec(t, d, `INSERT INTO servers_templates (id, slug, name, created_at) VALUES (2, 't2', 'T', ?)`, now)
+	mustExec(t, d, `INSERT INTO servers_template_versions (id, template_id, number, published_at, published_by) VALUES (1, 2, 1, ?, 'system')`, now)
+	mustFail(t, d, "a repeated version number", `INSERT INTO servers_template_versions (template_id, number, published_at, published_by) VALUES (2, 1, ?, 'system')`, now)
+	mustFail(t, d, "version number 0", `INSERT INTO servers_template_versions (template_id, number, published_at, published_by) VALUES (2, 0, ?, 'system')`, now)
 	// deleting a template takes its versions and drafts along
 	mustExec(t, d, `INSERT INTO servers_template_files (version_id, path, content) VALUES (1, 'a', x'00')`)
-	mustExec(t, d, `INSERT INTO servers_template_drafts (template_id, updated_at, updated_by) VALUES (1, ?, 'admin')`, now)
-	mustExec(t, d, `INSERT INTO servers_draft_files (template_id, path, content) VALUES (1, 'a', x'00')`)
-	mustExec(t, d, `DELETE FROM servers_templates`)
+	mustExec(t, d, `INSERT INTO servers_template_drafts (template_id, updated_at, updated_by) VALUES (2, ?, 'admin')`, now)
+	mustExec(t, d, `INSERT INTO servers_draft_files (template_id, path, content) VALUES (2, 'a', x'00')`)
+	mustExec(t, d, `DELETE FROM servers_templates WHERE id = 2`)
 	for _, tbl := range []string{"servers_template_versions", "servers_template_files", "servers_template_drafts", "servers_draft_files"} {
 		var n int
 		if err := d.R.GetContext(context.Background(), &n, `SELECT count(*) FROM `+tbl); err != nil || n != 0 {
 			t.Errorf("%s: %d rows left, %v", tbl, n, err)
 		}
 	}
-	// a server keeps its location and its template: neither can go
-	mustExec(t, d, `INSERT INTO servers_templates (id, slug, name, created_at) VALUES (2, 't2', 'T', ?)`, now)
-	mustExec(t, d, `INSERT INTO servers_servers (location_id, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
-		VALUES (1, 1, 'nl-1', '203.0.113.1', 'h', 'h', 'provisioning', 2, 1, ?)`, now)
-	mustFail(t, d, "deleting a template with a server", `DELETE FROM servers_templates WHERE id = 2`)
-	mustFail(t, d, "deleting a location with a server", `DELETE FROM servers_locations WHERE id = 1`)
+	// a server keeps its template
+	mustFail(t, d, "deleting a template with a server", `DELETE FROM servers_templates WHERE id = 1`)
 }

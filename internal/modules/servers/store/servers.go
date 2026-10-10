@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
@@ -15,10 +17,10 @@ import (
 // ErrIPInUse is returned when a non-retired server already has the IP.
 var ErrIPInUse = errors.New("another server has this IP")
 
-// Server is the row of a server, with its location and template names.
+// Server is the row of a server, with its template's name.
 type Server struct {
 	ID                 int64         `db:"id"`
-	LocationID         int64         `db:"location_id"`
+	Country            string        `db:"country"` // ISO 3166-1 alpha-2; name and flag come from package country
 	Number             int           `db:"number"`
 	Name               string        `db:"name"`
 	IP                 string        `db:"ip"`
@@ -42,10 +44,14 @@ type Server struct {
 	ActivatedAt        db.Time       `db:"activated_at"`
 	RetiredAt          db.Time       `db:"retired_at"`
 
-	LocationCode string `db:"location_code"`
-	LocationName string `db:"location_name"`
-	Country      string `db:"country"`
 	TemplateName string `db:"template_name"`
+}
+
+// Prefix is the first half of the server's name ("nl" of nl-2): its
+// country's code for a server created since servers have a country, the code
+// of its location for one created before (ADR 0015).
+func (s Server) Prefix() string {
+	return strings.TrimSuffix(s.Name, "-"+strconv.Itoa(s.Number))
 }
 
 // Retiring is a server whose retirement has started and not ended: it is out
@@ -53,13 +59,12 @@ type Server struct {
 // stays so if the job fails, because the stack may already be gone.
 func (s Server) Retiring() bool { return s.RetireJobID.Valid && s.State != "retired" }
 
-const serverSelect = `SELECT s.id, s.location_id, s.number, s.name, s.ip, s.ssh_port, s.management_hostname, s.proxy_hostname,
+const serverSelect = `SELECT s.id, s.country, s.number, s.name, s.ip, s.ssh_port, s.management_hostname, s.proxy_hostname,
 	s.state, s.template_id, s.template_version, s.params, s.params_secret, s.notes, s.provision_job_id, s.retire_job_id,
 	COALESCE(s.failed_step, '') AS failed_step, COALESCE(s.failed_error, '') AS failed_error,
 	COALESCE(s.health, '') AS health, s.health_since, s.health_reason, s.created_at, s.activated_at, s.retired_at,
-	l.code AS location_code, l.name AS location_name, l.country AS country, t.name AS template_name
+	t.name AS template_name
 	FROM servers_servers s
-	JOIN servers_locations l ON l.id = s.location_id
 	JOIN servers_templates t ON t.id = s.template_id`
 
 // ServerSubject is the subject of a server's events and jobs.
@@ -90,7 +95,7 @@ func ServerByIP(ctx context.Context, q sqlx.QueryerContext, ip string) (Server, 
 
 // NewServer is what Create writes.
 type NewServer struct {
-	LocationID                        int64
+	Country                           string
 	Number                            int
 	Name, IP                          string
 	SSHPort                           int
@@ -107,10 +112,10 @@ type NewServer struct {
 // the id is known; it may return nil for none.
 func InsertServer(ctx context.Context, tx sqlx.ExtContext, n NewServer, at db.Time, sealParams func(id int64) []byte) (int64, error) {
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO servers_servers (location_id, number, name, ip, ssh_port, management_hostname, proxy_hostname, state,
+		INSERT INTO servers_servers (country, number, name, ip, ssh_port, management_hostname, proxy_hostname, state,
 			template_id, template_version, params, notes, created_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, 'provisioning', ?, ?, ?, ?, ?)`,
-		n.LocationID, n.Number, n.Name, n.IP, n.SSHPort, n.ManagementHostname, n.ProxyHostname,
+		n.Country, n.Number, n.Name, n.IP, n.SSHPort, n.ManagementHostname, n.ProxyHostname,
 		n.TemplateID, n.TemplateVersion, n.Params, n.Notes, at)
 	if unique(err, "servers_servers.ip") {
 		return 0, ErrIPInUse
@@ -421,12 +426,16 @@ func UpsertDNSRecord(ctx context.Context, tx sqlx.ExtContext, r DNSRecord, at db
 	return err
 }
 
-// NextNumber is the number the next server of a location would get, without
-// reserving it ("if created now" in the form's summary).
-func NextNumber(ctx context.Context, q sqlx.QueryerContext, locationID int64) (int, error) {
+// NextNumber is the number the next server named with prefix gets: one more
+// than the highest its prefix has ever used. A server is never deleted, so
+// its row keeps its number taken, after a failed provisioning or a retirement
+// too. Read in the transaction that creates the server, it is race-free (the
+// single write connection); read on the pool, it is the form's "if created
+// now".
+func NextNumber(ctx context.Context, q sqlx.QueryerContext, prefix string) (int, error) {
 	var n int
-	err := sqlx.GetContext(ctx, q, &n, `SELECT last_number + 1 FROM servers_locations WHERE id = ?`, locationID)
-	return n, notFound(err)
+	err := sqlx.GetContext(ctx, q, &n, `SELECT COALESCE(max(number), 0) + 1 FROM servers_servers WHERE name = ? || '-' || number`, prefix)
+	return n, err
 }
 
 // SetDeploymentParamsSecret stores a deployment's sealed secret parameters.

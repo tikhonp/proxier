@@ -101,8 +101,8 @@ var HealthySince = time.Date(2026, 10, 1, 12, 0, 0, 0, time.UTC)
 // Server is an active, healthy server with one vless-xhttp-tls endpoint "main":
 // host "<name>.hosts.tikhonnnnn.com", port 443, a UUID derived from id, path
 // "/<16 hex from id>", sni = host, mode stream-up, fp chrome, alpn h2,
-// display name "<flag> <location> <number>".
-func Server(id int64, name, flag, location string, number int) servers.ServerEndpoints {
+// display name "<flag> <country> <number>".
+func Server(id int64, name, flag, country string, number int) servers.ServerEndpoints {
 	host := name + ".hosts.tikhonnnnn.com"
 	return servers.ServerEndpoints{
 		ServerID: id, Name: name, Flag: flag, Health: "healthy", HealthSince: HealthySince,
@@ -110,7 +110,7 @@ func Server(id int64, name, flag, location string, number int) servers.ServerEnd
 			Key: "main", Type: endpoint.VlessXHTTPTLS, Host: host, Port: 443,
 			Credential:  Credential(id),
 			Params:      map[string]string{"path": Path(id), "sni": host, "mode": "stream-up", "fp": "chrome", "alpn": "h2"},
-			DisplayName: endpoint.DisplayName(flag, location, number, "main", false),
+			DisplayName: endpoint.DisplayName(flag, country, number, "main", false),
 		}},
 	}
 }

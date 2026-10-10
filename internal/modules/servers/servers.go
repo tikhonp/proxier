@@ -232,13 +232,12 @@ func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
 		{Group: "servers", Label: "servers.nav", Href: "/servers", GoKey: "s", Order: 10},
 		{Group: "servers", Label: "templates.nav", Href: "/templates", GoKey: "t", Order: 20},
-		{Group: "servers", Label: "locations.nav", Href: "/locations", Order: 30},
 	}
 }
 
-// Search finds templates by name or slug and locations by code or name.
+// Search finds templates by name or slug, and servers by name, IP, hostname or
+// their country's name in English or Russian.
 func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
-	lang := i18n.From(ctx).Lang
 	q = strings.ToLower(strings.TrimSpace(q))
 	var out []ui.SearchHit
 	tpls, err := m.Templates.List(ctx, true)
@@ -264,7 +263,8 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 	}
 	for _, sv := range all {
 		if q != "" && !strings.Contains(strings.ToLower(sv.Name), q) && !strings.Contains(sv.IP, q) &&
-			!strings.Contains(strings.ToLower(sv.ProxyHostname), q) && !strings.Contains(strings.ToLower(sv.ManagementHostname), q) {
+			!strings.Contains(strings.ToLower(sv.ProxyHostname), q) && !strings.Contains(strings.ToLower(sv.ManagementHostname), q) &&
+			!strings.Contains(strings.ToLower(country.Name(sv.Country, "en")), q) && !strings.Contains(strings.ToLower(country.Name(sv.Country, "ru")), q) {
 			continue
 		}
 		meta := i18n.T(ctx, "servers.search")
@@ -276,25 +276,12 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			return out, nil
 		}
 	}
-	locs, err := m.Store.Locations(ctx)
-	if err != nil {
-		return nil, err
-	}
-	for _, l := range locs {
-		if q != "" && !strings.Contains(l.Code, q) && !strings.Contains(strings.ToLower(l.Name), q) &&
-			!strings.Contains(strings.ToLower(country.Name(l.Country, string(lang))), q) {
-			continue
-		}
-		out = append(out, ui.SearchHit{Label: country.Flag(l.Country) + " " + l.Code + " · " + l.Name,
-			Meta: i18n.T(ctx, "locations.search"), Href: "/locations"})
-		if len(out) == limit {
-			break
-		}
-	}
 	return out, nil
 }
 
-// SubjectTypes are the subject types of the module's events.
+// SubjectTypes are the subject types of the module's events. "location" is
+// that of the location events recorded before servers had a country (ADR
+// 0015); Activity still shows them.
 func (*Module) SubjectTypes() []string {
 	return []string{"server", "template", "location", "home", "rollout"}
 }
@@ -311,9 +298,15 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 		case "home":
 			out[id] = ui.SubjectRef{Label: i18n.T(ctx, "subject.home"), Href: "/"}
 		case "location":
-			var l struct{ Code, Name, Country string }
-			if err := m.deps.DB.R.GetContext(ctx, &l, `SELECT code, name, country FROM servers_locations WHERE id = ?`, n); err == nil {
-				out[id] = ui.SubjectRef{Label: l.Code + " · " + l.Name, Href: "/locations"}
+			// Locations are gone; the event that added one still names it.
+			list, err := events.List(ctx, m.deps.DB.R, events.Filter{Type: "location.created", Subject: events.Subject{Type: "location", ID: id}, Limit: 1})
+			if err != nil {
+				return nil, err
+			}
+			if len(list) == 1 {
+				code, _ := list[0].Payload["code"].(string)
+				name, _ := list[0].Payload["name"].(string)
+				out[id] = ui.SubjectRef{Label: code + " · " + name}
 			}
 		case "rollout":
 			out[id] = ui.SubjectRef{Label: i18n.T(ctx, "servers.rollout.subject", i18n.Args{"id": id}), Href: "/servers/rollouts/" + id}
@@ -324,7 +317,7 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 			}
 		case "server":
 			var s struct{ Name, Country string }
-			if err := m.deps.DB.R.GetContext(ctx, &s, `SELECT s.name, l.country FROM servers_servers s JOIN servers_locations l ON l.id = s.location_id WHERE s.id = ?`, n); err == nil {
+			if err := m.deps.DB.R.GetContext(ctx, &s, `SELECT name, country FROM servers_servers WHERE id = ?`, n); err == nil {
 				out[id] = ui.SubjectRef{Label: country.Flag(s.Country) + " " + s.Name, Href: "/servers/" + id}
 			}
 		}

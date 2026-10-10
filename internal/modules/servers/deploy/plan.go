@@ -131,7 +131,6 @@ func (s *Service) loadCurrent(ctx context.Context, serverID int64) (*current, er
 // job steps that apply it need.
 type computed struct {
 	Srv    store.Server
-	Loc    store.Location
 	Slug   string
 	Target Target
 
@@ -178,10 +177,11 @@ func (c *computed) renderContext() render.Context {
 			params[p.Key] = render.ParamValue(p, raw)
 		}
 	}
+	ctry, loc := render.Where(c.Srv.Country, c.Srv.Prefix())
 	return render.Context{
 		Server: render.Server{
 			Name: c.Srv.Name, Number: c.Srv.Number, IP: c.Srv.IP, SSHPort: c.Srv.SSHPort,
-			Location:           render.Location{Code: c.Loc.Code, Name: c.Loc.Name, Country: c.Loc.Country},
+			Country: ctry, Location: loc,
 			ManagementHostname: c.Srv.ManagementHostname, ProxyHostname: c.Srv.ProxyHostname,
 		},
 		Params: params, Gen: c.Gen, Template: render.Template{Slug: c.Slug, Version: c.Plan.ToVersion},
@@ -205,10 +205,6 @@ func (s *Service) parseVersion(ctx context.Context, templateID int64, n int) (*m
 // genOverlay replaces generated values (a rotation's pending ones). It writes
 // nothing; new generated values exist in memory only.
 func (s *Service) compute(ctx context.Context, srv store.Server, t Target, genOverlay map[string]string) (*computed, error) {
-	loc, err := s.Store.Location(ctx, srv.LocationID)
-	if err != nil {
-		return nil, err
-	}
 	tpl, err := store.GetTemplate(ctx, s.DB.R, srv.TemplateID)
 	if err != nil {
 		return nil, err
@@ -222,7 +218,7 @@ func (s *Service) compute(ctx context.Context, srv store.Server, t Target, genOv
 			t.Kind = KindUpgrade
 		}
 	}
-	c := &computed{Srv: srv, Loc: loc, Slug: tpl.Slug, Target: t, Errs: FieldErrors{}}
+	c := &computed{Srv: srv, Slug: tpl.Slug, Target: t, Errs: FieldErrors{}}
 	c.Plan = Plan{ServerID: srv.ID, Kind: t.Kind, FromVersion: srv.TemplateVersion, ToVersion: t.Version, Force: t.Force}
 
 	var tplFiles map[string][]byte
@@ -562,7 +558,7 @@ func (s *Service) diffFiles(c *computed) error {
 
 // diffEndpoints compares the target's endpoints with the stored ones.
 func (s *Service) diffEndpoints(ctx context.Context, c *computed) error {
-	eps, err := sealed.Endpoints(c.Rendered.Endpoints, country.Flag(c.Loc.Country), c.Loc.Name, c.Srv.Number)
+	eps, err := sealed.Endpoints(c.Rendered.Endpoints, country.Flag(c.Srv.Country), country.Name(c.Srv.Country, "en"), c.Srv.Number)
 	if err != nil {
 		return err
 	}

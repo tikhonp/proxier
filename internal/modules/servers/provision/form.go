@@ -36,11 +36,13 @@ import (
 type Form struct {
 	IP, RootPassword string
 	SSHPort          int // 0 = 22
-	LocationID       int64
-	TemplateID       int64
-	Version          int // 0 = the template's default version
-	Params           map[string]string
-	Notes            string
+	// Country is the ISO code the picker gave, or the text typed in it when
+	// that names no country (refused as such).
+	Country    string
+	TemplateID int64
+	Version    int // 0 = the template's default version
+	Params     map[string]string
+	Notes      string
 }
 
 // Msg is a refusal: an i18n key and its arguments.
@@ -67,11 +69,9 @@ type Summary struct {
 	// DNSRecord is the record that will be written: "A <name> → <ip>, DNS only, TTL 60".
 	DNSRecord string
 	Endpoints []string // display names
-	// SuggestedLocation is the location preselected from the IP's country, 0
-	// for none; SuggestedCountry is that country.
-	SuggestedLocation int64
-	SuggestedCountry  string
-	Errors            FieldErrors
+	// Suggested is the IP's country, "" when unknown or not asked for.
+	Suggested string
+	Errors    FieldErrors
 }
 
 // geoTTL is how long a country lookup is kept per IP.
@@ -90,7 +90,7 @@ type geoCache struct {
 // checked is a validated form with what was looked up on the way.
 type checked struct {
 	form     Form
-	loc      store.Location
+	prefix   string // the first half of the name; "" until the country is valid
 	tpl      store.Template
 	version  int
 	files    map[string][]byte
@@ -145,13 +145,14 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 		fe(errs, "notes", "servers.err.notes_long")
 	}
 
-	// the location
-	if f.LocationID == 0 {
-		fe(errs, "location", "servers.err.location_required")
-	} else if loc, err := s.Store.Location(ctx, f.LocationID); err != nil {
-		fe(errs, "location", "servers.err.location_missing")
-	} else {
-		c.loc = loc
+	// the country
+	switch c.form.Country = strings.TrimSpace(f.Country); {
+	case c.form.Country == "":
+		fe(errs, "country", "servers.err.country_required")
+	case !country.Valid(c.form.Country):
+		fe(errs, "country", "servers.err.country_unknown")
+	default:
+		c.prefix = country.Prefix(c.form.Country)
 	}
 
 	// the template and its version
@@ -188,13 +189,13 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 	}
 
 	// the name, the hostname and Cloudflare
-	if c.loc.ID != 0 {
-		n, err := store.NextNumber(ctx, s.DB.R, c.loc.ID)
+	if c.prefix != "" {
+		n, err := store.NextNumber(ctx, s.DB.R, c.prefix)
 		if err == nil {
 			c.number = n
 			pattern, perr := s.Settings.Get(ctx, conf.HostnamePatternKey)
 			if perr == nil {
-				if h, herr := render.Hostname(pattern, c.loc.Code, n); herr != nil {
+				if h, herr := render.Hostname(pattern, c.prefix, n); herr != nil {
 					fe(errs, "hostname", "servers.err.hostname_pattern")
 				} else {
 					c.hostname = h
@@ -274,33 +275,27 @@ func checkParams(m *manifest.Manifest, given map[string]string, errs FieldErrors
 func paramProblem(p manifest.Parameter, raw string) string { return render.ParamProblem(p, raw) }
 
 // Summarize is the live summary: what Create would make, with the form errors
-// that need no network. It never needs the root password. When locationTouched
-// is false and the IP's country matches a location, it suggests that one.
-func (s *Service) Summarize(ctx context.Context, f Form, locationTouched bool) Summary {
+// that need no network. It never needs the root password. When suggest is
+// true it also looks up the IP's country (Suggested), for a picker the admin
+// hasn't chosen in.
+func (s *Service) Summarize(ctx context.Context, f Form, suggest bool) Summary {
 	c, errs := s.check(ctx, f, false)
 	sum := Summary{Errors: errs}
-	if !locationTouched {
-		if cc := s.country(ctx, c.form.IP); cc != "" {
-			if locs, err := s.Store.Locations(ctx); err == nil {
-				for _, l := range locs { // by code, so the first of several wins
-					if l.Country == cc {
-						sum.SuggestedLocation, sum.SuggestedCountry = l.ID, cc
-						break
-					}
-				}
-			}
+	if suggest {
+		if cc := s.country(ctx, c.form.IP); country.Valid(cc) {
+			sum.Suggested = cc
 		}
 	}
-	if c.loc.ID == 0 || c.hostname == "" {
+	if c.prefix == "" || c.hostname == "" {
 		return sum
 	}
-	sum.Name = fmt.Sprintf("%s-%d", c.loc.Code, c.number)
+	sum.Name = fmt.Sprintf("%s-%d", c.prefix, c.number)
 	sum.ManagementHostname, sum.ProxyHostname = c.hostname, c.hostname
 	sum.DNSRecord = fmt.Sprintf("A %s → %s, DNS only, TTL 60", c.hostname, c.form.IP)
 	if c.man != nil {
 		many := len(c.man.Endpoints) > 1
 		for _, e := range c.man.Endpoints {
-			sum.Endpoints = append(sum.Endpoints, endpoint.DisplayName(country.Flag(c.loc.Country), c.loc.Name, c.number, e.Key, many))
+			sum.Endpoints = append(sum.Endpoints, endpoint.DisplayName(flagOf(c.form.Country), shownName(c.form.Country), c.number, e.Key, many))
 		}
 	}
 	return sum
@@ -359,7 +354,7 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 	err := s.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		// The number is taken here, in the writing transaction: two creates at
 		// once get nl-2 and nl-3, never the same.
-		number, err := store.ReserveNumber(ctx, tx, c.loc.ID)
+		number, err := store.NextNumber(ctx, tx, c.prefix)
 		if err != nil {
 			return err
 		}
@@ -367,12 +362,12 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 		if err != nil {
 			return err
 		}
-		host, err := render.Hostname(pattern, c.loc.Code, number)
+		host, err := render.Hostname(pattern, c.prefix, number)
 		if err != nil {
 			return err
 		}
 		id, err = store.InsertServer(ctx, tx, store.NewServer{
-			LocationID: c.loc.ID, Number: number, Name: fmt.Sprintf("%s-%d", c.loc.Code, number), IP: c.form.IP, SSHPort: c.form.SSHPort,
+			Country: c.form.Country, Number: number, Name: fmt.Sprintf("%s-%d", c.prefix, number), IP: c.form.IP, SSHPort: c.form.SSHPort,
 			ManagementHostname: host, ProxyHostname: host, TemplateID: c.tpl.ID, TemplateVersion: c.version,
 			Params: marshalStrings(c.public), Notes: f.Notes,
 		}, db.At(s.Now()), func(id int64) []byte { return sealed.SealParams(s.Vault, id, c.secret) })
@@ -393,7 +388,7 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 			return err
 		}
 		_, err = s.Events.Record(ctx, tx, events.Event{Type: "server.created", Subject: store.ServerSubject(id), Actor: actor,
-			Payload: map[string]any{"ip": c.form.IP, "template_version": c.version}})
+			Payload: map[string]any{"ip": c.form.IP, "country": c.form.Country, "template_version": c.version}})
 		return err
 	})
 	if err != nil {

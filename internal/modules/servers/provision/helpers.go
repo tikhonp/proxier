@@ -18,6 +18,10 @@ func nullInt(n int64) sql.NullInt64 { return sql.NullInt64{Int64: n, Valid: true
 
 func flagOf(cc string) string { return country.Flag(cc) }
 
+// shownName is the country's name in the endpoints' display names: English,
+// whatever the language of the admin or of a link.
+func shownName(cc string) string { return country.Name(cc, "en") }
+
 // ensureGenerated makes the generated values the version declares and the
 // server lacks; existing ones are returned as they are.
 func ensureGenerated(d *data) (all map[string]string, created []string, err error) {

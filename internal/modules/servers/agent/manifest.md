@@ -105,7 +105,8 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | Name | Example |
 |---|---|
 | `.Server.Name`, `.Server.Number` | `nl-1`, `1` |
-| `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL` |
+| `.Server.Country.Code`, `.Name`, `.Flag` | `NL`, `Netherlands`, `🇳🇱` (the English name) |
+| `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL`: what templates saw before servers had a country, kept so they still render; `Code` is the first half of the server name |
 | `.Server.IP`, `.Server.SSHPort` | `203.0.113.10`, `22` |
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.tikhonnnnn.com` |
 | `.Params.<key>` | parameters |
