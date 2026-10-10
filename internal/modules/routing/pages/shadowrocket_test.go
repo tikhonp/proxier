@@ -3,12 +3,15 @@ package pages_test
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"golang.org/x/crypto/ssh"
 )
 
 const srBase = "[General]\ndns-server = system\n\n[Rule]\nRULE-SET,https://example.com/ads.list,REJECT\nFINAL,DIRECT\n"
@@ -194,5 +197,45 @@ func TestNewConfigPage(t *testing.T) {
 	}
 	if rec := h.Login.PostMultipart("/routing/shadowrocket/1/base", url.Values{"base": {srBase + "# edited\r\n"}}, nil); rec.Header().Get("Location") != "/routing/shadowrocket/1?unchanged=1" {
 		t.Errorf("unchanged: %s", rec.Header().Get("Location"))
+	}
+}
+
+// Parts of an area body that sat on each other (the link page's URL and QR
+// areas had the same): the config's URL, its buttons, QR, the code and the
+// note; a router test's lines and It matches, continue; a taken service's text
+// and its button. Their bodies are stacked with 12 px between parts (app.css is
+// checked by TestLinkPartsAreSpaced), and Hide QR takes the place of QR with
+// the code under it.
+func TestAreaPartsAreSpaced(t *testing.T) {
+	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
+	h, _, _ := srSetup(t)
+	page := tight(h.Login.Get("/routing/shadowrocket/1").Body.String())
+	if !regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="sr-url"><code class="masked">[^<]*</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><div id="sr-qr" class="qrslot"><button [^>]*>QR</button></div><p class="sm subtle">In Shadowrocket:`).MatchString(page) {
+		t.Error("the config's URL area isn't the URL with its buttons, QR and the note, stacked")
+	}
+	if shown := tight(h.Login.Get("/routing/shadowrocket/1/qr").Body.String()); !regexp.MustCompile(`^<div id="sr-qr" class="qrslot"><button [^>]*>Hide QR</button><svg class="qr"`).MatchString(shown) {
+		t.Errorf("shown: %.200s", shown)
+	}
+	if revealed := tight(h.Login.Get("/routing/shadowrocket/1/url").Body.String()); !regexp.MustCompile(`^<div class="urlfield" id="sr-url"><code>[^<]+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
+		t.Errorf("revealed: %s", revealed)
+	}
+
+	// a router test waiting at the jump host's fingerprint
+	key, _, _ := h.App.SSH.PublicKey(bg())
+	k, _, _, _, _ := ssh.ParseAuthorizedKey([]byte(strings.TrimSpace(key)))
+	c := routingtest.Conn(routerostest.New(t, k), routerostest.Jump(t, k))
+	loc := location(t, h.Login.Post("/routing/routers/test", connForm(c, "Parents", 1)))
+	h.StartJobs()
+	h.Settle()
+	page = tight(h.Login.Get(loc).Body.String())
+	if !regexp.MustCompile(`id="test-area".*?<div class="area-body stacked"><p>First contact with the jump host .*?</p><p><code class="fp">.*?<button [^>]*>It matches, continue</button>`).MatchString(page) {
+		t.Error("the test area isn't stacked")
+	}
+
+	// a service whose tag is taken
+	h.Up.Site("main", "ai", "anthropic", "anthropic.com")
+	page = tight(h.Login.Post("/routing/services", url.Values{"selector": {"iplist:anthropic"}}).Body.String())
+	if !regexp.MustCompile(`<section class="area" aria-label="anthropic already exists">.*?<div class="area-body stacked"><dl class="kv">.*?</dl><p>.*?</p><form [^>]*class="form-actions">`).MatchString(page) {
+		t.Error("the taken area isn't stacked")
 	}
 }

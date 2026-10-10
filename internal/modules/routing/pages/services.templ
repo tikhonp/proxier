@@ -128,7 +128,7 @@ templ addPage(s ui.Shell, v addView) {
 
 templ takenArea(t takenView, ls []listCheck) {
 	@ui.Area(i18n.T(ctx, "services.taken.title", i18n.Args{"tag": t.Tag}), "") {
-		<div class="area-body">
+		<div class="area-body stacked">
 			<dl class="kv">
 				<dt>{ i18n.T(ctx, "services.source.tag") }</dt>
 				<dd><a href={ templ.SafeURL(svcHref(t.ID)) }>{ t.Tag }</a></dd>

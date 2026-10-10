@@ -256,7 +256,7 @@ templ testArea(v testView) {
 			<span class="note">{ i18n.T(ctx, "routers.test.state." + v.State) }</span>
 			<span class="flex1"></span>
 		</div>
-		<div class="area-body">
+		<div class="area-body stacked">
 			if v.Running {
 				<p class="subtle">{ i18n.T(ctx, "routers.test.running") }</p>
 			}

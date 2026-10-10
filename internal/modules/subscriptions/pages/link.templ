@@ -59,13 +59,13 @@ templ linkPage(s ui.Shell, v linkView) {
 			<div class="col-l">
 				if !v.Deleted {
 					@ui.Area(i18n.T(ctx, "links.area.url"), "") {
-						<div class="area-body">
+						<div class="area-body stacked">
 							@urlField(v.L.ID, v.URL, v.Masked, false)
 							<p class="sm subtle">{ i18n.T(ctx, "links.url.note") }</p>
 						</div>
 					}
 					@ui.Area(i18n.T(ctx, "links.area.qr"), "") {
-						<div class="area-body">
+						<div class="area-body stacked">
 							<p class="sm subtle">{ i18n.T(ctx, "links.qr.note") }</p>
 							@qrSlot(v.L.ID, v.L.Name, "", false)
 						</div>
@@ -196,21 +196,27 @@ templ urlField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="link-url">
 		if revealed {
 			<code>{ full }</code>
-			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url?hide=1" } hx-target="#link-url" hx-swap="outerHTML">{ i18n.T(ctx, "links.url.hide") }</button>
 		} else {
 			<code class="masked">{ masked }</code>
-			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url" } hx-target="#link-url" hx-swap="outerHTML" data-action="links.reveal">{ i18n.T(ctx, "links.url.reveal") }</button>
 		}
-		<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "links.url.copy") }</button>
+		<span class="url-btns">
+			if revealed {
+				<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url?hide=1" } hx-target="#link-url" hx-swap="outerHTML">{ i18n.T(ctx, "links.url.hide") }</button>
+			} else {
+				<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/url" } hx-target="#link-url" hx-swap="outerHTML" data-action="links.reveal">{ i18n.T(ctx, "links.url.reveal") }</button>
+			}
+			<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "links.url.copy") }</button>
+		</span>
 	</div>
 }
 
-// qrSlot is Show QR, or the code and Hide QR.
+// qrSlot is Show QR, or Hide QR and the code under it: the button stays where
+// it was clicked.
 templ qrSlot(id int64, name, url string, shown bool) {
-	<div id="link-qr">
+	<div id="link-qr" class="qrslot">
 		if shown {
-			@ui.QR(url, i18n.T(ctx, "links.qr.label", i18n.Args{"name": name}))
 			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/qr?hide=1" } hx-target="#link-qr" hx-swap="outerHTML">{ i18n.T(ctx, "links.qr.hide") }</button>
+			@ui.QR(url, i18n.T(ctx, "links.qr.label", i18n.Args{"name": name}))
 		} else {
 			<button type="button" class="pc-btn pc-sm" hx-get={ linkHref(id) + "/qr" } hx-target="#link-qr" hx-swap="outerHTML" data-action="links.qr">{ i18n.T(ctx, "links.qr.show") }</button>
 		}

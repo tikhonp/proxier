@@ -167,20 +167,25 @@ templ srURLField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="sr-url">
 		if revealed {
 			<code>{ full }</code>
-			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url?hide=1" } hx-target="#sr-url" hx-swap="outerHTML">{ i18n.T(ctx, "shadowrocket.url.hide") }</button>
 		} else {
 			<code class="masked">{ masked }</code>
-			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url" } hx-target="#sr-url" hx-swap="outerHTML" data-action="shadowrocket.reveal">{ i18n.T(ctx, "shadowrocket.url.reveal") }</button>
 		}
-		<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "shadowrocket.url.copy") }</button>
+		<span class="url-btns">
+			if revealed {
+				<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url?hide=1" } hx-target="#sr-url" hx-swap="outerHTML">{ i18n.T(ctx, "shadowrocket.url.hide") }</button>
+			} else {
+				<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/url" } hx-target="#sr-url" hx-swap="outerHTML" data-action="shadowrocket.reveal">{ i18n.T(ctx, "shadowrocket.url.reveal") }</button>
+			}
+			<button type="button" class="pc-btn pc-sm" data-copy={ full }>{ i18n.T(ctx, "shadowrocket.url.copy") }</button>
+		</span>
 	</div>
 }
 
 templ srQRSlot(id int64, name, url string, shown bool) {
-	<div id="sr-qr">
+	<div id="sr-qr" class="qrslot">
 		if shown {
-			@ui.QR(url, i18n.T(ctx, "shadowrocket.qr.label", i18n.Args{"name": name}))
 			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/qr?hide=1" } hx-target="#sr-qr" hx-swap="outerHTML">{ i18n.T(ctx, "shadowrocket.qr.hide") }</button>
+			@ui.QR(url, i18n.T(ctx, "shadowrocket.qr.label", i18n.Args{"name": name}))
 		} else {
 			<button type="button" class="pc-btn pc-sm" hx-get={ srHref(id) + "/qr" } hx-target="#sr-qr" hx-swap="outerHTML" data-action="shadowrocket.qr">{ i18n.T(ctx, "shadowrocket.qr.show") }</button>
 		}
@@ -215,7 +220,7 @@ templ srPage(s ui.Shell, v srView) {
 		<div class="subcols">
 			<div class="col-l">
 				@ui.Area(i18n.T(ctx, "shadowrocket.area.url"), "") {
-					<div class="area-body">
+					<div class="area-body stacked">
 						@srURLField(v.C.ID, v.URL, v.Masked, false)
 						@srQRSlot(v.C.ID, v.C.Name, "", false)
 						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.url.note") }</p>

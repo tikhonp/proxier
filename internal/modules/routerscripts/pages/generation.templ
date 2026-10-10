@@ -224,12 +224,17 @@ templ fetchURLBox(v fetchView) {
 			<div class="urlfield">
 				if v.Revealed {
 					<code>{ v.URL }</code>
-					<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal?hide=1" } hx-target="#fetch-url" hx-swap="outerHTML">{ i18n.T(ctx, "generations.fetch.hide") }</button>
 				} else {
 					<code class="masked">{ v.Masked }</code>
-					<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal" } hx-target="#fetch-url" hx-swap="outerHTML" data-action="rs.fetch_reveal">{ i18n.T(ctx, "generations.fetch.reveal") }</button>
 				}
-				<button type="button" class="pc-btn pc-sm" data-copy={ v.URL }>{ i18n.T(ctx, "generations.fetch.copy") }</button>
+				<span class="url-btns">
+					if v.Revealed {
+						<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal?hide=1" } hx-target="#fetch-url" hx-swap="outerHTML">{ i18n.T(ctx, "generations.fetch.hide") }</button>
+					} else {
+						<button type="button" class="pc-btn pc-sm" hx-get={ GenerationHref(v.GID) + "/fetch-url/reveal" } hx-target="#fetch-url" hx-swap="outerHTML" data-action="rs.fetch_reveal">{ i18n.T(ctx, "generations.fetch.reveal") }</button>
+					}
+					<button type="button" class="pc-btn pc-sm" data-copy={ v.URL }>{ i18n.T(ctx, "generations.fetch.copy") }</button>
+				</span>
 			</div>
 			<p class="subtle">{ i18n.T(ctx, "generations.fetch.note") }</p>
 			<ol class="gen-cmds">

@@ -60,8 +60,9 @@ Time is shown relative ("4 min ago") with the absolute time on hover or tap.
 - **Step progress**: a vertical list of a job's steps with state and duration. Used on job pages and embedded on server, router and discovery pages.
 - **Plan / diff viewer**: file diffs (unified, with a side-by-side option), domain-list diffs (added in green, removed in red, with counts), and per-tag sync plans.
 - **Code editor**: YAML, JSON, nginx, shell, RouterOS script, Shadowrocket config; a file tree for templates; inline validation markers.
-- **Secret field**: masked value with **Reveal**, **Copy** and optionally **Regenerate**. Used for connection URIs, link URLs, tokens and settings.
-- **QR code** panel, large enough to scan from a laptop screen.
+- **Secret field**: masked value with **Reveal**, **Copy** and optionally **Regenerate**. Used for connection URIs, link URLs, tokens and settings. Its buttons wrap together, under the value when it leaves them no room, never one of them alone.
+- **QR code** panel, large enough to scan from a laptop screen. **Show QR** becomes **Hide QR** where it stands and the code opens under it, so toggling moves nothing above the code.
+- **Parts of an area** under each other (a URL and its buttons, the note under them, a QR toggle, a fingerprint and its buttons) keep 12 px between them, the area's own padding, so a line of text, a button row and the note after it never touch.
 - **Confirmation dialog** in three strengths:
   - simple;
   - with consequences listed;
@@ -111,7 +112,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 - **Subscription page**: a sortable server list (health and "hidden now" per row; **Add servers** multi-select), settings form, a **preview** of the exact output (inside the area's padding, its edges those of the format select and **Reveal** above, long lines wrapped, and its notes under it: masked, base64, hidden servers), links of this subscription, activity. → [subscription management](../processes/subscriptions/subscription-management.md)
 - **Links list**: filters (subscription, state, expiring, alerts). Columns per [subscriptions module](../modules/subscriptions.md#pages).
 - **New link** dialog: name, subscription, expiry, language. It ends on the link page.
-- **Link page**: the URL as a secret field with a large **QR**, state and expiry, subscription, the current output preview, the fetch log (time, network, app icon, outcome), alerts, actions (disable, regenerate, change subscription, expiry, cut off, delete) with their consequence dialogs. → [link lifecycle](../processes/subscriptions/link-lifecycle.md)
+- **Link page**: the URL as a secret field with a large **QR** (the URL, its buttons, its note, the QR's note and **Show QR** each 12 px apart), state and expiry, subscription, the current output preview, the fetch log (time, network, app icon, outcome), alerts, actions (disable, regenerate, change subscription, expiry, cut off, delete) with their consequence dialogs. → [link lifecycle](../processes/subscriptions/link-lifecycle.md)
 
 ### Routing
 - **Lists**: cards or rows with service count, domain count, targets and their sync state, and default marker.

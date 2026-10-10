@@ -5,6 +5,7 @@ import (
 	"html"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -325,6 +326,13 @@ func TestFetchURLArea(t *testing.T) {
 		`/tool fetch url="http://proxier.test/f/`+token+`" dst-path=fresh-router.rsc`)
 	if strings.Contains(reveal, "<html") {
 		t.Error("the reveal is a whole page")
+	}
+	// Reveal (or Hide) and Copy wrap together, never one of them alone under
+	// the URL (the URL field's rhythm is TestLinkPartsAreSpaced's)
+	for name, body := range map[string]string{"masked": page, "revealed": reveal} {
+		if !regexp.MustCompile(`<div class="urlfield">\s*<code[^>]*>[^<]+</code>\s*<span class="url-btns"><button [^>]*>(Reveal|Hide)</button>\s*<button [^>]*>Copy</button></span>\s*</div>`).MatchString(body) {
+			t.Errorf("%s: the URL's buttons aren't together", name)
+		}
 	}
 
 	// New fetch URL… replaces it

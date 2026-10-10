@@ -1,7 +1,9 @@
 package pages_test
 
 import (
+	"io/fs"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
 func TestLinkList(t *testing.T) {
@@ -184,6 +187,59 @@ func TestLinkPage(t *testing.T) {
 	}
 	if rec := h.Login.Get("/links/99"); rec.Code != 404 {
 		t.Errorf("unknown link: %d", rec.Code)
+	}
+}
+
+// The URL and QR areas had no space between their parts: Reveal and Copy sat
+// on the URL, the note on them, Show QR on its note, the code on the note and
+// Hide QR on the code. Their bodies are now stacked with 12 px between parts
+// (as above and below them), the buttons wrap together under the URL, and Hide
+// QR takes Show QR's place with the code under it, so toggling moves nothing
+// above the code.
+func TestLinkPartsAreSpaced(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "css/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(b)
+	for _, want := range []string{
+		`.area-body { padding: 12px 16px; }`,
+		`.area-body.stacked { display: flex; flex-direction: column; gap: 12px; min-width: 0; }`,
+		`.area-body.stacked > * { margin: 0; }`,
+		`.urlfield { display: flex; flex-wrap: wrap; gap: 12px 8px; align-items: center; }`,
+		`.url-btns { display: flex; flex-wrap: wrap; gap: 8px; }`,
+		`.qrslot { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+
+	h := substest.New(t)
+	id, _ := h.Link(h.Subscription("Family", 1), "Alex")
+	href := "/links/" + strconv.FormatInt(id, 10)
+	// the spaces templ leaves between inline elements don't matter here
+	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
+	body := tight(page(t, h, href))
+	urlArea := regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="link-url"><code class="masked">[^<]*</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><p class="sm subtle">The token is shown only here`)
+	if !urlArea.MatchString(body) {
+		t.Error("the URL area isn't the URL, its buttons together, then the note, stacked")
+	}
+	qrArea := regexp.MustCompile(`<section class="area" aria-label="QR code">.*?<div class="area-body stacked"><p class="sm subtle">In the app: add subscription → scan QR.</p><div id="link-qr" class="qrslot"><button [^>]*>Show QR</button></div></div>`)
+	if !qrArea.MatchString(body) {
+		t.Error("the QR area isn't the note, then Show QR in its slot, stacked")
+	}
+	revealed := tight(h.Login.Get(href+"/url", hx()).Body.String())
+	if !regexp.MustCompile(`^<div class="urlfield" id="link-url"><code>[^<]+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
+		t.Errorf("revealed: %s", revealed)
+	}
+	shown := tight(h.Login.Get(href+"/qr", hx()).Body.String())
+	if !regexp.MustCompile(`^<div id="link-qr" class="qrslot"><button [^>]*>Hide QR</button><svg class="qr"`).MatchString(shown) {
+		t.Errorf("shown: Hide QR isn't in Show QR's place with the code under it: %.200s", shown)
+	}
+	hidden := tight(h.Login.Get(href+"/qr?hide=1", hx()).Body.String())
+	if !regexp.MustCompile(`^<div id="link-qr" class="qrslot"><button [^>]*>Show QR</button></div>$`).MatchString(hidden) {
+		t.Errorf("hidden: %s", hidden)
 	}
 }
 
