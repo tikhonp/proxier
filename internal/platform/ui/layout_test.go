@@ -51,12 +51,45 @@ func TestTablesScrollInsteadOfSqueezing(t *testing.T) {
 		}
 	}
 	// Side-by-side page columns stack below 1100 px instead of squeezing their tables.
-	if !regexp.MustCompile(`(?s)@media \(max-width: 1100px\) \{[^@]*\.tgrid, \.subcols, [^}]*grid-template-columns: minmax\(0, 1fr\)`).MatchString(css) {
+	if !regexp.MustCompile(`(?s)@media \(max-width: 1100px\) \{[^@]*\.subcols, \.newcols, [^}]*grid-template-columns: minmax\(0, 1fr\)`).MatchString(css) {
 		t.Error("the two-column layouts do not stack under 1100px")
 	}
 	// and the rule comes after the layouts it overrides
 	if strings.LastIndex(css, "@media (max-width: 1100px)") < strings.Index(css, ".subcols {") {
 		t.Error("the 1100px rule comes before the layouts it overrides")
+	}
+}
+
+// The template page holds up zoomed in: the versions table and the draft panel
+// stack before the table would scroll in a squeezed column, a version's notes wrap
+// in their own column, on a phone the version's buttons go under its facts instead
+// of taking a column that squeezed the version and its notes to nothing, and the
+// editor's columns are a grid, so the results never wrap onto a line of their own.
+func TestTemplatePagesHoldUpWhenZoomed(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		"@media (max-width: 1270px) {\n  .tgrid { grid-template-columns: minmax(0, 1fr); }\n}",
+		`.tbl .row .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;`,
+		`.ed { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px;`,
+		"@media (max-width: 1100px) {\n  .ed { grid-template-columns: 230px minmax(0, 1fr); }\n  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); }",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	if strings.Index(css, "@media (max-width: 1270px)") < strings.Index(css, ".tgrid {") {
+		t.Error("the 1270px rule comes before the layout it overrides")
+	}
+	// the phone rules come after the narrower ones they override
+	phone := regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.row\.ver \.actions \{ grid-column: 1 / -1; \}[^@]*\.ed \{ grid-template-columns: minmax\(0, 1fr\); \}`).FindStringIndex(css)
+	if phone == nil {
+		t.Fatal("on a phone the version's buttons or the editor keep their columns")
+	}
+	if phone[0] < strings.Index(css, "@media (max-width: 1100px) {\n  .ed {") || phone[0] < strings.Index(css, ".row.ver .actions { grid-column: 2 / -1;") {
+		t.Error("the phone rules come before the rules they override")
+	}
+	if regexp.MustCompile(`\.ed-(left|main|side) \{[^}]*flex: [0-9]`).MatchString(css) {
+		t.Error("an editor column still sizes itself as a flex item")
 	}
 }
 

@@ -84,6 +84,8 @@
 .colhead > *, .tbl .row > :not(.caret, .handle, .actions, .acts, .meters, .state, .wrap, .err, form, input), .tbl .row > .col > :not(.wrap, .err) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* a message (an error, a reason) wraps between words instead */
 .tbl .row .wrap { min-width: 0; white-space: normal; overflow-wrap: break-word; }
+/* a long one (a version's notes) stops after three lines with "…"; its title holds the rest */
+.tbl .row .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
 .tbl .stat { max-width: 100%; }
 .tbl .stat > :last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .cut { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -312,7 +314,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 /* Templates */
 .row.tpl, .colhead.tpl { grid-template-columns: minmax(200px, 1.4fr) 110px 90px minmax(140px, 1fr) minmax(140px, 1.2fr); align-items: start; }
 a.row.tpl { text-decoration: none; color: inherit; }
-.row.ver, .colhead.ver { grid-template-columns: 90px 120px minmax(160px, 1fr) 170px; }
+.row.ver, .colhead.ver { grid-template-columns: 110px 120px minmax(190px, 1fr) minmax(120px, 170px); }
 .row.ver .actions { grid-column: 2 / -1; flex-wrap: wrap; justify-content: flex-start; }
 .row.ver .normal { font-weight: 400; }
 .tgrid { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 1px; background: var(--overlay); border-bottom: 1px solid var(--overlay); }
@@ -348,19 +350,21 @@ a.row.tpl { text-decoration: none; color: inherit; }
 
 /* Template editor */
 .ed-msg:empty { display: none; }
-.ed { flex: 1; display: flex; flex-wrap: wrap; align-items: stretch; min-height: 640px; }
-.ed-left { flex: 0 1 230px; min-width: 0; border-right: 1px solid var(--overlay); display: flex; flex-direction: column; }
+/* The editor's three columns are a grid, so a narrow window never wraps one of them
+   onto a line of its own (the results stuck under the code, a third as wide). */
+.ed { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px; min-height: 640px; }
+.ed-left { min-width: 0; border-right: 1px solid var(--overlay); display: flex; flex-direction: column; }
 .ed-head { display: flex; align-items: stretch; min-height: var(--title-band-h); border-bottom: 1px solid var(--overlay); }
 .ed-head .pc-label { display: flex; align-items: center; padding: 0 16px; }
 .ed-add { width: 36px; height: 36px; flex: none; padding: 0; border-left: 1px solid var(--overlay); font-size: 16px; color: var(--subtle); }
 .ed-files { flex: 1; padding: 6px 0; }
 .ed-tools { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--overlay); }
 .ed-tools .pc-btn { cursor: pointer; }
-.ed-main { flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; background: var(--black); }
+.ed-main { min-width: 0; display: flex; flex-direction: column; background: var(--black); }
 .ed-file { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: var(--title-band-h); padding: 4px 16px; border-bottom: 1px solid var(--overlay); font-size: var(--fs-sm); }
 .ed-host { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 .ed-status { display: flex; align-items: center; gap: 14px; height: 24px; padding: 0 12px; border-top: 1px solid var(--overlay); font-size: var(--fs-sm); color: var(--subtle); }
-.ed-side { flex: 0 1 330px; min-width: 0; border-left: 1px solid var(--overlay); display: flex; flex-direction: column; overflow: auto; }
+.ed-side { min-width: 0; border-left: 1px solid var(--overlay); display: flex; flex-direction: column; overflow: auto; }
 .ed-side-head { display: flex; align-items: center; min-height: var(--title-band-h); padding: 0 16px; border-bottom: 1px solid var(--overlay); }
 .ed-hint { padding: 12px 16px; }
 .ed-counts { display: flex; flex-wrap: wrap; gap: 4px 14px; padding: 8px 16px; border-bottom: 1px solid var(--overlay); font-size: var(--fs-sm); }
@@ -374,13 +378,26 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .ed.ed-on .ed-sources { display: none; }
 .ed.ed-on .ed-tree .ed-file-row { cursor: pointer; }
 .ed:not(.ed-on) .ed-host, .ed:not(.ed-on) .ed-status { display: none; }
-@media (max-width: 760px) {
+/* The versions table needs 620 px beside the 420 px draft panel, the sidebar and a scrollbar:
+   below 1270 px (a 1440 px window zoomed to 125 %) the two stack instead of the
+   table scrolling in a squeezed column. */
+@media (max-width: 1270px) {
   .tgrid { grid-template-columns: minmax(0, 1fr); }
+}
+/* Narrower, the editor keeps the files beside the code and puts the results under both. */
+@media (max-width: 1100px) {
+  .ed { grid-template-columns: 230px minmax(0, 1fr); }
+  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); }
+}
+@media (max-width: 760px) {
   .row.tpl, .row.ver { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  /* one column: the buttons go under the row's facts, not into a column of their own */
+  .row.ver .actions { grid-column: 1 / -1; }
   .colhead.tpl, .colhead.ver { display: none; }
+  .ed { grid-template-columns: minmax(0, 1fr); }
   .vcols { grid-template-columns: minmax(0, 1fr); }
   .vtree { border-right: 0; border-bottom: 1px solid var(--overlay); }
-  .ed-left, .ed-side { flex: 1 1 100%; border: 0; border-bottom: 1px solid var(--overlay); }
+  .ed-left, .ed-side { border: 0; border-bottom: 1px solid var(--overlay); }
 }
 
 /* QR codes: dark modules on a light tile, whatever the page's theme */
@@ -841,7 +858,7 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
 /* Side-by-side page columns need room: below 1100 px (a laptop zoomed to 125 % and
    more, a narrow window) they stack, as on a phone, instead of squeezing their tables. */
 @media (max-width: 1100px) {
-  .tgrid, .subcols, .newcols, .search-cols, .rs-editor, .gen-cols, .rej-cols { grid-template-columns: minmax(0, 1fr); }
+  .subcols, .newcols, .search-cols, .rs-editor, .gen-cols, .rej-cols { grid-template-columns: minmax(0, 1fr); }
   .search-cols .preview, .rs-panel { border-left: 0; border-top: 1px solid var(--overlay); }
   .newsum { border-left: 0; border-top: 1px solid var(--overlay); }
   /* stacked, a panel is part of the page again */

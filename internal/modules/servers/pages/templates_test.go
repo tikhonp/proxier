@@ -397,7 +397,12 @@ func TestVersionPagesAndActions(t *testing.T) {
 	e.publish(id, nil, "one")
 	e.publish(id, map[string]string{"compose.yaml": "services:\n  web:\n    image: nginx:1.27\n"}, "two")
 
-	body := e.L.Get(fmt.Sprintf("/templates/%d/versions/1", id)).Body.String()
+	// zoomed in, a version's notes wrap in their own column (three lines at most, the
+	// rest in the title) and a file name too long for the tree ends in "…" with a title
+	body := e.L.Get(fmt.Sprintf("/templates/%d", id)).Body.String()
+	contains(t, "template page", body, `<span class="wrap clamp" title="two">two</span>`)
+	body = e.L.Get(fmt.Sprintf("/templates/%d/versions/1", id)).Body.String()
+	contains(t, "version tree", body, `title="compose.yaml"><span class="ed-name">compose.yaml</span></a>`)
 	contains(t, "version view", body, "Stack vers v1", "manifest.yaml", "compose.yaml", `class="cl`, `id="code-L1"`, "read-only", "Export")
 	lacks(t, "version view of the default", body, "Make default")
 	body = e.L.Get(fmt.Sprintf("/templates/%d/versions/2?file=compose.yaml", id)).Body.String()

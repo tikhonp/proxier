@@ -115,7 +115,7 @@ templ templatePage(s ui.Shell, v templateView) {
 								</span>
 								<span class="subtle">@ui.Time(ver.PublishedAt.Time)</span>
 								<span class="subtle col">
-									<span title={ ver.Notes }>{ ver.Notes }</span>
+									<span class="wrap clamp" title={ ver.Notes }>{ ver.Notes }</span>
 									if ver.Warnings > 0 {
 										<span class="sm gold">{ i18n.N(ctx, "templates.warnings", int64(ver.Warnings)) }</span>
 									}
@@ -331,7 +331,7 @@ templ versionPage(s ui.Shell, v versionView) {
 			<nav class="vtree" aria-label={ i18n.T(ctx, "templates.files") }>
 				<div class="pc-title"><h2>{ i18n.T(ctx, "templates.files") }</h2></div>
 				for _, p := range v.Paths {
-					<a href={ templ.SafeURL(versionFileHref(v.T.ID, v.V.Number, p, 0)) } class="ed-row pc-row" aria-current?={ p == v.File }>{ p }</a>
+					<a href={ templ.SafeURL(versionFileHref(v.T.ID, v.V.Number, p, 0)) } class="ed-row pc-row" aria-current?={ p == v.File } title={ p }><span class="ed-name">{ p }</span></a>
 				}
 			</nav>
 			<div class="vfile">
