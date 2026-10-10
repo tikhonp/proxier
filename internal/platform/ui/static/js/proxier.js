@@ -298,6 +298,14 @@
       return;
     }
 
+    // ↵ in a mini form inside a bigger one ([data-subform], e.g. New location on
+    // New server) presses its own button, not the bigger form's submit
+    if (k === 'Enter' && !e.metaKey && !e.ctrlKey && !e.altKey && !e.shiftKey && e.target.tagName === 'INPUT') {
+      var sub = e.target.closest('[data-subform]');
+      var sb = sub && $('[data-subform-submit]', sub);
+      if (sb) { sb.click(); e.preventDefault(); return; }
+    }
+
     // ⌘↵ / Ctrl↵ submits the form of a dialog or any form with a field focused
     if (k === 'Enter' && (e.metaKey || e.ctrlKey)) {
       var f = e.target.closest && e.target.closest('form');

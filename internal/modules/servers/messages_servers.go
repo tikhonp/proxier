@@ -58,6 +58,7 @@ var serverMessages = i18n.Messages{
 	"servers.new.location.choose":   {EN: "— choose —", RU: "— выберите —"},
 	"servers.new.location.help":     {EN: "Suggested from the IP's country. The location is the first half of the server name.", RU: "Предлагается по стране IP. Локация — первая половина имени сервера."},
 	"servers.new.location.new":      {EN: "New location…", RU: "Новая локация…"},
+	"servers.new.location.failed":   {EN: "The location wasn't added. Try again; the log has the error.", RU: "Локация не добавлена. Попробуйте ещё раз; ошибка — в логе."},
 	"servers.new.suggested":         {EN: "Suggested from the IP ({country}). You can pick another.", RU: "Предложено по IP ({country}). Можно выбрать другую."},
 	"servers.new.template":          {EN: "Template", RU: "Шаблон"},
 	"servers.new.version":           {EN: "Version", RU: "Версия"},

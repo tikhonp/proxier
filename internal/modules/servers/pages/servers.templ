@@ -115,10 +115,41 @@ templ newServerPage(s ui.Shell, v newView) {
 	}
 }
 
-// locationField is the location select with its "New location" mini form. As
-// the answer to the summary it swaps itself out of band (oob).
+// locationField is the location pick and its "New location" mini form. The
+// live summary swaps only the pick (locationPick), never the mini form: the
+// admin may be typing in it. Add syncs with the form: a summary still on its
+// way would put back the pick it was asked for, so Add cancels it, and one that
+// starts meanwhile waits and reads the new pick. ↵ in the mini form presses Add
+// (data-subform), not Create.
 templ locationField(v newView) {
 	<div id="loc-field" class="field">
+		@locationPick(v, false)
+		<details class="newloc" open?={ v.NewLoc.Open } data-subform>
+			<summary class="pc-btn pc-sm">{ i18n.T(ctx, "servers.new.location.new") }</summary>
+			<div class="newloc-body">
+				<input id="nl-code" class="pc-inp" name="nl_code" value={ v.NewLoc.Code } placeholder="nl" maxlength="5" autocomplete="off" spellcheck="false" aria-label={ i18n.T(ctx, "locations.col.code") } aria-invalid?={ v.NewLoc.Errs["code"] != "" }/>
+				<input id="nl-name" class="pc-inp" name="nl_name" value={ v.NewLoc.Name } placeholder="Netherlands" autocomplete="off" aria-label={ i18n.T(ctx, "locations.col.name") } aria-invalid?={ v.NewLoc.Errs["name"] != "" }/>
+				<select id="nl-country" class="pc-inp" name="nl_country" aria-label={ i18n.T(ctx, "locations.col.country") } aria-invalid?={ v.NewLoc.Errs["country"] != "" }>
+					<option value="">—</option>
+					for _, ct := range v.NewLoc.Countries {
+						<option value={ ct.Code } selected?={ ct.Code == v.NewLoc.Country }>{ ct.Flag } { ct.Name }</option>
+					}
+				</select>
+				<button type="button" class="pc-btn pc-sm" data-subform-submit hx-post="/servers/new/location" hx-include="closest form" hx-params="not root_password" hx-target="#loc-field" hx-swap="outerHTML" hx-sync="closest form:replace">{ i18n.T(ctx, "locations.add") }</button>
+				for _, k := range []string{"code", "name", "country", "failed"} {
+					if v.NewLoc.Errs[k] != "" {
+						<span class="err" role="alert">{ v.NewLoc.Errs[k] }</span>
+					}
+				}
+			</div>
+		</details>
+	</div>
+}
+
+// locationPick is the location select, the location the IP suggested last and
+// the hint. As the answer to the summary it swaps itself out of band (oob).
+templ locationPick(v newView, oob bool) {
+	<div id="loc-pick" if oob { hx-swap-oob="true" }>
 		<label for="loc">{ i18n.T(ctx, "servers.new.location") }</label>
 		<div class="inline">
 			<select id="loc" class="pc-inp" name="location" aria-invalid?={ v.Errs["location"] != "" }>
@@ -136,25 +167,15 @@ templ locationField(v newView) {
 		} else {
 			<p class="help" id="loc-hint">{ i18n.T(ctx, "servers.new.location.help") }</p>
 		}
-		<details class="newloc" open?={ v.NewLoc.Open }>
-			<summary class="pc-btn pc-sm">{ i18n.T(ctx, "servers.new.location.new") }</summary>
-			<div class="newloc-body">
-				<input class="pc-inp" name="nl_code" value={ v.NewLoc.Code } placeholder="nl" maxlength="5" autocomplete="off" spellcheck="false" aria-label={ i18n.T(ctx, "locations.col.code") } aria-invalid?={ v.NewLoc.Errs["code"] != "" }/>
-				<input class="pc-inp" name="nl_name" value={ v.NewLoc.Name } placeholder="Netherlands" autocomplete="off" aria-label={ i18n.T(ctx, "locations.col.name") } aria-invalid?={ v.NewLoc.Errs["name"] != "" }/>
-				<select class="pc-inp" name="nl_country" aria-label={ i18n.T(ctx, "locations.col.country") }>
-					<option value="">—</option>
-					for _, ct := range v.NewLoc.Countries {
-						<option value={ ct.Code } selected?={ ct.Code == v.NewLoc.Country }>{ ct.Flag } { ct.Name }</option>
-					}
-				</select>
-				<button type="button" class="pc-btn pc-sm" hx-post="/servers/new/location" hx-include="closest form" hx-params="not root_password" hx-target="#loc-field" hx-swap="outerHTML">{ i18n.T(ctx, "locations.add") }</button>
-				for _, k := range []string{"code", "name", "country"} {
-					if v.NewLoc.Errs[k] != "" {
-						<span class="err" role="alert">{ v.NewLoc.Errs[k] }</span>
-					}
-				}
-			</div>
-		</details>
+	</div>
+}
+
+// newLocationAnswer is the answer to an added location: the field with the new
+// location chosen, and, out of band, the summary for it.
+templ newLocationAnswer(v newView) {
+	@locationField(v)
+	<div id="summary" hx-swap-oob="innerHTML">
+		@summaryBody(v)
 	</div>
 }
 
@@ -256,30 +277,10 @@ templ summaryBody(v newView) {
 templ summaryFragment(v newView, params, location bool) {
 	@summaryBody(v)
 	if location {
-		<div id="loc-field" class="field" hx-swap-oob="outerHTML">
-			@locationFieldInner(v)
-		</div>
+		@locationPick(v, true)
 	}
 	if params {
 		@paramsArea(v, true)
-	}
-}
-
-templ locationFieldInner(v newView) {
-	<label for="loc">{ i18n.T(ctx, "servers.new.location") }</label>
-	<div class="inline">
-		<select id="loc" class="pc-inp" name="location">
-			<option value="0" selected?={ v.LocationID == 0 }>{ i18n.T(ctx, "servers.new.location.choose") }</option>
-			for _, l := range v.Locations {
-				<option value={ strconv.FormatInt(l.ID, 10) } selected?={ l.Selected }>{ l.Label }</option>
-			}
-		</select>
-	</div>
-	<input type="hidden" name="location_auto" value={ strconv.FormatInt(v.Auto, 10) }/>
-	if v.Hint != "" {
-		<p class="help" id="loc-hint">{ v.Hint }</p>
-	} else {
-		<p class="help" id="loc-hint">{ i18n.T(ctx, "servers.new.location.help") }</p>
 	}
 }
 

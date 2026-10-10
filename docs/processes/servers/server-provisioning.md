@@ -9,10 +9,10 @@ Provisioning turns a freshly issued VPS (an IP and a root password) into an **ac
 1. Servers → **New server**. Fields:
    - **IP address** (IPv4) and **SSH port** (default 22, under "advanced").
    - **Root password**, never shown again.
-   - **Location**, preselected from the IP's country when it matches a known location, with **New location** inline.
+   - **Location**, preselected from the IP's country when it matches a known location, with **New location** inline: code, name and country, then **Add** (or ↵ in it). The location is created (→ `location.created`) and chosen, and the summary shows its server name. A refusal (a bad or taken code, no name, no country) or a failure is shown in the open mini form, which keeps what was typed; nothing is created.
    - **Template** and **version** (default version preselected), then the version's **parameters** as form fields with labels, help and defaults.
    - **Notes**.
-2. While the admin types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names.
+2. While the admin types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names. A location the admin hasn't chosen follows the IP's suggestion as the summary updates; the summary changes only the location select and its hint, never the New location form being typed in.
 3. **Create**. Proxier checks:
    - no non-retired server has this IP;
    - the location and template version exist and the template isn't archived;
@@ -78,6 +78,9 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 ## Edge cases (each is a test)
 
 - IP already used by active `nl-1` → refused on the form, nothing created.
+- Typing in **New location** while the summary updates → the mini form stays open with what was typed; only the location select and its hint are refreshed.
+- **New location** `de`, Germany → created, chosen (no longer a suggestion), and the summary shows `de-1`.
+- **New location** with a taken code, a bad code, no name or no country → the errors in the open mini form with what was typed, nothing created. A failure that isn't a refusal shows "The location wasn't added" there too.
 - "Main" holds a custom service with suffix `tikhonnnnn.com`; the new server would be `nl-3.hosts.tikhonnnnn.com` → refused on the form, naming the list and the service, nothing created.
 - Wrong root password → fails at preflight with "authentication failed". The password stays encrypted for retry. **Retry** asks for it again.
 - IP unreachable (timeout) → fails at preflight. The DNS is untouched.

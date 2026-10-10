@@ -278,30 +278,40 @@ func (h *handler) newSummary(c *echo.Context) error {
 }
 
 // newLocation adds a location from the form and answers with the location
-// field, the new one selected.
+// field, the new one selected, and the summary for it. A refusal or a failure
+// comes back inside the field with the mini form open and what was typed in
+// it, as 200: htmx swaps no 4xx or 5xx, so anything else would leave the click
+// without an answer.
 func (h *handler) newLocation(c *echo.Context) error {
 	ctx := c.Request().Context()
 	f := formOf(c)
+	auto, _ := strconv.ParseInt(c.FormValue("location_auto"), 10, 64)
 	nl := newLocView{Code: strings.ToLower(strings.TrimSpace(c.FormValue("nl_code"))), Name: c.FormValue("nl_name"), Country: c.FormValue("nl_country")}
 	id, err := h.Store.CreateLocation(ctx, nl.Code, nl.Name, nl.Country, "admin")
-	v, verr := h.newViewOf(ctx, f, 0)
-	if verr != nil {
-		return verr
-	}
-	if errs, ok := fieldErrors(c, err); ok {
-		nl.Open, nl.Errs = true, errs
-		v.NewLoc = nl
-		return web.Render(c, http.StatusUnprocessableEntity, locationField(v))
-	}
 	if err != nil {
-		return err
+		errs, ok := fieldErrors(c, err)
+		if !ok {
+			h.Log.Error("pages: new location", "error", err)
+			errs = map[string]string{"failed": i18n.T(ctx, "servers.new.location.failed")}
+		}
+		v, verr := h.newViewOf(ctx, f, auto)
+		if verr != nil {
+			return verr
+		}
+		nl.Open, nl.Errs, nl.Countries = true, errs, country.List(string(i18n.From(ctx).Lang))
+		v.NewLoc = nl
+		return web.Render(c, http.StatusOK, locationField(v))
 	}
 	// The chosen place is the admin's, not a suggestion (Auto stays 0).
 	f.LocationID = id
-	if v, err = h.newViewOf(ctx, f, 0); err != nil {
+	v, err := h.newViewOf(ctx, f, 0)
+	if err != nil {
 		return err
 	}
-	return web.Render(c, http.StatusOK, locationField(v))
+	v.NewLoc.Countries = country.List(string(i18n.From(ctx).Lang))
+	v.Sum = h.Provision.Summarize(ctx, f, true)
+	v.SumErrors = sumErrors(ctx, v.Sum)
+	return web.Render(c, http.StatusOK, newLocationAnswer(v))
 }
 
 func (h *handler) createServer(c *echo.Context) error {

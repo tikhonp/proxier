@@ -91,7 +91,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 
 ### Servers
 - **Server list**: see [servers module](../modules/servers.md#server-list). Row click opens the server. Bulk actions. Filter chips. A prominent **New server** button.
-- **New server**: one form. IP, root password, location (suggested), template + version, dynamic parameter fields, notes. A **live summary** shows the name, hostnames, DNS record and endpoint names. After **Create**, it goes straight to the server page with provisioning progress. → [provisioning](../processes/servers/server-provisioning.md)
+- **New server**: one form. IP, root password, location (suggested; **New location…** opens a mini form inline whose **Add** or ↵ creates and chooses one, errors shown in it), template + version, dynamic parameter fields, notes. A **live summary** shows the name, hostnames, DNS record and endpoint names. After **Create**, it goes straight to the server page with provisioning progress. → [provisioning](../processes/servers/server-provisioning.md)
 - **Server page**, with the header (flag, name, health badge with reason, lifecycle state, primary actions **Run checks now** and **Redeploy**, and a "more" menu) and tabs:
   - **Overview**: identity, template version, endpoints with connection URIs (secret field + QR), subscriptions containing it, notes, recent events. During provisioning, step progress and the live log take over the tab. When failed: the failed step, the error, **Retry** and **Retire**, plus **Activate anyway** when only the smoke test failed. That option opens a confirmation dialog showing the proxy test's error.
   - **Health**: verdict sentence, check matrix, state timeline. → [health](../processes/servers/server-health.md)

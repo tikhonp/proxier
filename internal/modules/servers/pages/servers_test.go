@@ -268,7 +268,7 @@ func TestServerNotes(t *testing.T) {
 func TestNewLocationFromForm(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
 	rec := h.Login.Post("/servers/new/location", url.Values{
-		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "template": {sid(h.TemplateID)},
+		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)}, "template": {sid(h.TemplateID)},
 		"nl_code": {"de"}, "nl_name": {"Germany"}, "nl_country": {"DE"},
 	})
 	if rec.Code != 200 {
@@ -279,19 +279,108 @@ func TestNewLocationFromForm(t *testing.T) {
 		t.Fatalf("the location was not created: %v", err)
 	}
 	body := rec.Body.String()
-	mustContain(t, body, `id="loc-field"`, `<option value="`+sid(id)+`" selected>`, "🇩🇪 de — Germany", `name="location_auto" value="0"`)
+	// Chosen by the admin, so no longer a suggestion; the mini form closed and empty.
+	mustContain(t, body, `id="loc-field"`, `<option value="`+sid(id)+`" selected>`, "🇩🇪 de — Germany", `name="location_auto" value="0"`,
+		`<details class="newloc" data-subform>`, `name="nl_code" value=""`)
 	mustNotContain(t, body, `<option value="`+sid(h.LocationID)+`" selected>`)
-
-	// A refusal comes back inside the field, mini form open, nothing created.
-	rec = h.Login.Post("/servers/new/location", url.Values{"nl_code": {"x"}, "nl_name": {""}, "nl_country": {""}, "location": {"0"}})
-	if rec.Code != 422 {
-		t.Fatalf("%d", rec.Code)
+	// The summary follows the new location, out of band.
+	mustContain(t, body, `id="summary" hx-swap-oob="innerHTML"`, "de-1.hosts.tikhonnnnn.com")
+	if ev := h.Events("location.created"); len(ev) != 2 || ev[0].Actor != "admin" || ev[0].Payload["code"] != "de" {
+		t.Errorf("events %+v", ev)
 	}
-	mustContain(t, rec.Body.String(), "<details", "open", "role=\"alert\"")
+}
+
+// A refusal comes back inside the field as 200 (htmx swaps no 4xx, so a 422
+// left the click without an answer): the mini form open with what was typed,
+// the errors, the countries, the suggestion kept; nothing created.
+func TestNewLocationRefusedInsideTheField(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	for _, c := range []struct {
+		code, name, country string
+		want                []string
+	}{
+		{"x", "", "", []string{"Use 2–5 lower-case letters, like nl.", "Use 1–40 characters.", "Choose a country."}},
+		{"nl", "Holland", "NL", []string{"This code is already used.", `value="Holland"`}},
+	} {
+		rec := h.Login.Post("/servers/new/location", url.Values{
+			"location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)}, "template": {sid(h.TemplateID)},
+			"nl_code": {c.code}, "nl_name": {c.name}, "nl_country": {c.country},
+		})
+		if rec.Code != 200 {
+			t.Fatalf("%s: %d\n%s", c.code, rec.Code, rec.Body)
+		}
+		body := rec.Body.String()
+		mustContain(t, body, `<details class="newloc" open data-subform>`, `role="alert"`, `value="`+c.code+`"`, `<option value="DE">`,
+			`<option value="`+sid(h.LocationID)+`" selected>`, `name="location_auto" value="`+sid(h.LocationID)+`"`)
+		mustContain(t, body, c.want...)
+		mustNotContain(t, body, `id="summary"`)
+	}
 	var n int
-	if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM servers_locations`); err != nil || n != 2 {
+	if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM servers_locations`); err != nil || n != 1 {
 		t.Errorf("%d locations (%v)", n, err)
 	}
+	if ev := h.Events("location.created"); len(ev) != 1 { // the harness's own location
+		t.Errorf("events %+v", ev)
+	}
+}
+
+// A failure that is not a refusal still answers inside the field, so the mini
+// form stays open with an error instead of nothing happening.
+func TestNewLocationFailureShowsAnError(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	if _, err := h.App.DB.W.Exec(`CREATE TRIGGER zz_fail BEFORE INSERT ON servers_locations BEGIN SELECT RAISE(ABORT, 'disk on fire'); END`); err != nil {
+		t.Fatal(err)
+	}
+	rec := h.Login.Post("/servers/new/location", url.Values{
+		"location": {sid(h.LocationID)}, "template": {sid(h.TemplateID)}, "nl_code": {"de"}, "nl_name": {"Germany"}, "nl_country": {"DE"},
+	})
+	if rec.Code != 200 {
+		t.Fatalf("%d\n%s", rec.Code, rec.Body)
+	}
+	body := rec.Body.String()
+	mustContain(t, body, `<details class="newloc" open data-subform>`, "The location wasn&#39;t added", `value="Germany"`)
+	mustNotContain(t, body, "disk on fire")
+	if ev := h.Events("location.created"); len(ev) != 1 { // the harness's own location
+		t.Errorf("events %+v", ev)
+	}
+}
+
+// The summary answers while the admin types anywhere in the form, the New
+// location mini form too. It used to swap the whole location field out of band
+// with a copy that had no mini form, so the form vanished while being typed in.
+// Now only the pick (select, suggestion, hint) is swapped.
+func TestTypingInNewLocationKeepsItOpen(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	body := page(t, h, "/servers/new")
+	pick := strings.Index(body, `<div id="loc-pick">`)
+	mini := strings.Index(body, `<details class="newloc" data-subform>`)
+	if pick < 0 || mini < pick {
+		t.Fatalf("the pick and the mini form:\n%s", excerpt(body))
+	}
+	if strings.Contains(body[pick:mini], "nl_code") {
+		t.Error("the mini form is inside the pick the summary swaps")
+	}
+	// ↵ in the mini form presses Add, and Add cancels a summary on its way.
+	mustContain(t, body, `id="nl-code"`, `data-subform-submit`, `hx-sync="closest form:replace"`)
+
+	// An untouched location (the one preselected): the summary sends the pick back.
+	typed := url.Values{
+		"ip": {"203.0.113.24"}, "location": {sid(h.LocationID)}, "location_auto": {sid(h.LocationID)},
+		"template": {sid(h.TemplateID)}, "version": {"1"}, "params_for": {sid(h.TemplateID) + ":1"},
+		"nl_code": {"d"}, "nl_name": {"Ge"},
+	}
+	rec := h.Login.Post("/servers/new/summary", typed)
+	if rec.Code != 200 {
+		t.Fatalf("%d\n%s", rec.Code, rec.Body)
+	}
+	s := rec.Body.String()
+	mustContain(t, s, `<div id="loc-pick" hx-swap-oob="true">`, `<option value="`+sid(h.LocationID)+`" selected>`)
+	mustNotContain(t, s, `id="loc-field"`, "<details", `name="nl_code"`, `name="nl_name"`)
+
+	// One the admin chose: nothing about the location comes back.
+	typed.Set("location_auto", "0")
+	s = h.Login.Post("/servers/new/summary", typed).Body.String()
+	mustNotContain(t, s, `id="loc-pick"`, `id="loc-field"`, "<details")
 }
 
 func TestNewServerForm(t *testing.T) {
