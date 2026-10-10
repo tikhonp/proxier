@@ -364,6 +364,7 @@ templ jobPanel(j *jobSide, title string) {
 			<div class="pc-title">
 				<h2 id="srv-log-h">{ i18n.T(ctx, "job.log") }</h2>
 				<span class="flex1"></span>
+				@ui.LogTools(j.Stream != "")
 				<a class="pc-btn pc-sm" href={ templ.SafeURL(j.Href) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
 			</div>
 			@ui.JobLog(j.Stream, j.Reload, j.Lines)

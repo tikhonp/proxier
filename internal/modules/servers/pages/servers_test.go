@@ -84,6 +84,8 @@ func TestServerPageStates(t *testing.T) {
 	<-reached
 	body := page(t, h, "/servers/"+sid(id))
 	mustContain(t, body, "Provisioning", "Preflight", "Install access", "Base bootstrap", `data-stream="/jobs/`, `data-reload-on-done`, "Cancel provisioning", "nl-1", "127.0.0.1")
+	// the log scrolls in its own box, followed while live, and can be expanded
+	mustContain(t, body, `id="log" class="log" tabindex="0"`, `data-log-follow checked`, `data-log-expand`)
 	mustNotContain(t, body, ">Retry<", "Activate anyway")
 	// The log has the lines so far.
 	mustContain(t, body, "Operating system debian-12")
@@ -98,6 +100,9 @@ func TestServerPageStates(t *testing.T) {
 	body = page(t, h2, "/servers/"+sid(id2))
 	mustContain(t, body, "Failed", "Stopped at Smoke test", "the proxy test through main failed", ">Retry<", "Activate anyway", "Retire", "/servers/"+sid(id2)+"/retire", "/servers/"+sid(id2)+"/retry", "/servers/"+sid(id2)+"/activate")
 	mustNotContain(t, body, "Cancel provisioning")
+	// a finished log has nothing to follow
+	mustContain(t, body, `id="log" class="log" tabindex="0"`, `data-log-expand`)
+	mustNotContain(t, body, `data-log-follow`)
 
 	// Failed earlier: Activate anyway is not offered, and the handler refuses it.
 	h3 := serverstest.NewHarness(t, serverstest.StubProxy())

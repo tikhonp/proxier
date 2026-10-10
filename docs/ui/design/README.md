@@ -88,6 +88,7 @@ The desktop layout, from top to bottom:
 - **Rows** have no dividers. Hover is `--base`; the keyboard cursor row is `--overlay` plus a `›` caret in the left gutter. Every block uses a 16 px side gutter.
 - **Tables** never squeeze: each column has a minimum width, and a table wider than the page scrolls sideways in its own box (`.tbl`), as the Servers screen draws it. A cell is one line; a long value ends in "…" with the whole value in a tooltip. Words are never broken inside; only messages wrap, between words.
 - **Side panels** beside a long form or list (New server's "Will be created", the generate form's summary, a script's parameters, a search preview) are a column as tall as the page part they sit in, so their divider runs from top to bottom, as the New server screen draws it. Their content stays at the top of the window while the page scrolls (the header scrolls away, so there is no gap above it); a panel taller than the window above the key line scrolls on its own.
+- **Logs** scroll in their own box (the `--base` well), at most 60 % of the window, as the provisioning screen draws its fixed-height log, so the page below a log is a short scroll away. The box opens at its end and follows new lines while the reader is there; **Follow** in the log's head shows it, and **Expand** makes the box as tall as the window under its head.
 - **Counts strip**: equal cells in a grid with 1 px gaps. Each cell holds a marker, a label and a big number. A zero count is muted.
 - **Key line** (28 px, desktop only), at the bottom.
 

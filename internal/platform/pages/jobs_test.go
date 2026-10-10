@@ -145,10 +145,18 @@ func TestJobPageShowsLogAndLiveStream(t *testing.T) {
 	if !strings.Contains(page, "line 3") || strings.Contains(page, "data-stream") {
 		t.Fatalf("finished job page:\n%s", page)
 	}
+	// the log box scrolls on its own and can be expanded; a finished log has
+	// nothing to follow
+	if !strings.Contains(page, `id="log" class="log" tabindex="0"`) || !strings.Contains(page, `data-log-expand`) || strings.Contains(page, `data-log-follow`) {
+		t.Fatalf("finished job page's log tools:\n%s", page)
+	}
 	live := finishedJob(t, s, "running", 2)
 	page = l.Get(fmt.Sprintf("/jobs/%d", live)).Body.String()
 	if !strings.Contains(page, `data-stream="/jobs/`) {
 		t.Fatalf("running job page has no stream:\n%s", page)
+	}
+	if !strings.Contains(page, `data-log-follow checked`) || !strings.Contains(page, `data-log-expand`) {
+		t.Fatalf("running job page has no Follow or Expand:\n%s", page)
 	}
 	txt := l.Get(fmt.Sprintf("/jobs/%d/log.txt", live))
 	if txt.Code != 200 || !strings.Contains(txt.Body.String(), "line 2") {

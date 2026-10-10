@@ -202,6 +202,7 @@ func (h *handler) keymap() ui.Keymap {
 	return ui.Keymap{anywhere, goTo,
 		{Where: "keys.lists", Keys: []ui.Key{{Keys: "j k", What: "keys.move"}, {Keys: "↵", What: "keys.open"}}},
 		{Where: "keys.settings", Keys: []ui.Key{{Keys: "[ ]", What: "keys.sections"}, {Keys: "⌘↵", What: "keys.save"}}},
+		{Where: "keys.log", Keys: []ui.Key{{Keys: "f", What: "keys.follow"}, {Keys: "G", What: "keys.log_end"}}},
 	}
 }
 

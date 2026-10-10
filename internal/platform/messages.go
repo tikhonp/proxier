@@ -150,6 +150,9 @@ var messages = i18n.Messages{
 	"keys.settings": {EN: "Settings", RU: "Настройки"},
 	"keys.sections": {EN: "Previous, next section", RU: "Предыдущий, следующий раздел"},
 	"keys.save":     {EN: "Save the form", RU: "Сохранить форму"},
+	"keys.log":      {EN: "In a log", RU: "В журнале"},
+	"keys.follow":   {EN: "Follow new lines, or stop", RU: "Следить за новыми строками или перестать"},
+	"keys.log_end":  {EN: "End of the log, following it", RU: "Конец журнала и слежение за ним"},
 
 	// Error pages
 	"err.403":      {EN: "Not allowed", RU: "Запрещено"},
@@ -238,6 +241,11 @@ var messages = i18n.Messages{
 	"job.copy":                           {EN: "Copy", RU: "Копировать"},
 	"job.download":                       {EN: "Download", RU: "Скачать"},
 	"job.earlier":                        {EN: "Show earlier lines", RU: "Показать более ранние строки"},
+	"job.follow":                         {EN: "Follow", RU: "Следить"},
+	"job.following":                      {EN: "Following new lines", RU: "Журнал следит за новыми строками"},
+	"job.not_following":                  {EN: "Not following new lines", RU: "Журнал не следит за новыми строками"},
+	"job.expand":                         {EN: "Expand", RU: "Развернуть"},
+	"job.collapse":                       {EN: "Collapse", RU: "Свернуть"},
 	"job.log_info":                       {EN: "redacted · {n} line|redacted · {n} lines", RU: "скрыты секреты · {n} строка|скрыты секреты · {n} строки|скрыты секреты · {n} строк"},
 
 	"activity.note":        {EN: "Everything that changed, as sentences. Each one links to what it's about.", RU: "Всё, что менялось, предложениями. Каждое ведёт к своему объекту."},

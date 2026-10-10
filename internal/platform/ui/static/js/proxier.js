@@ -331,8 +331,8 @@
       case 'g': setPending(true); e.preventDefault(); return;
       case 'j': case 'ArrowDown': if (rows().length) { setCursor(cursor + 1); e.preventDefault(); } return;
       case 'k': case 'ArrowUp': if (rows().length) { setCursor(cursor < 0 ? 0 : cursor - 1); e.preventDefault(); } return;
-      case 'f': { var lg = $('#log'); if (lg) { follow = !follow; if (follow && lg.lastElementChild) lg.lastElementChild.scrollIntoView(); say(follow ? 'Following' : 'Not following'); e.preventDefault(); } return; }
-      case 'G': if (!rows().length) { var l2 = $('#log'); if (l2 && l2.lastElementChild) { l2.lastElementChild.scrollIntoView(); e.preventDefault(); } } else if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
+      case 'f': { var lg = $('#log'); if (lg) { setFollow(lg, !follow); say(lg.getAttribute(follow ? 'data-t-follow-on' : 'data-t-follow-off')); e.preventDefault(); } return; }
+      case 'G': if (!rows().length) { var l2 = $('#log'); if (l2) { setFollow(l2, true); e.preventDefault(); } } else if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
       case 'Enter': {
         var r = currentRow();
         if (r) {
@@ -364,12 +364,63 @@
     }
   });
 
-  // ---- live job log: EventSource reconnects with Last-Event-ID by itself
+  // ---- the log box (#log) scrolls on its own: it opens at its end (the
+  // newest lines, where a failure says why) and follows new lines while the
+  // reader is at the end. Scrolling up to read stops following; scrolling back
+  // to the end, Follow, f or G starts it again. Only the box moves, never the
+  // page: what is below the log stays where the reader left it.
   var follow = true;
+  function logAtEnd(l) { return l.scrollHeight - l.scrollTop - l.clientHeight < 4; }
+  function showFollow(on) {
+    var c = $('[data-log-follow]');
+    if (c) c.checked = on;
+  }
+  function setFollow(l, on) {
+    follow = on;
+    showFollow(on);
+    if (on) l.scrollTop = l.scrollHeight;
+  }
+  // Expand is offered when the box holds more than it shows (or is expanded)
+  function logTools(l) {
+    var b = $('[data-log-expand]');
+    var sec = l.closest('.jobmain');
+    if (b) b.classList.toggle('hidden', !(sec && sec.classList.contains('log-full')) && l.scrollHeight <= l.clientHeight);
+  }
+  (function () {
+    var log = $('#log');
+    if (!log) return;
+    log.scrollTop = log.scrollHeight;
+    logTools(log);
+    log.addEventListener('scroll', function () {
+      var end = logAtEnd(log);
+      if (end !== follow) { follow = end; showFollow(end); }
+    }, { passive: true });
+    document.addEventListener('change', function (e) {
+      if (e.target.matches && e.target.matches('[data-log-follow]')) setFollow(log, e.target.checked);
+    });
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest && e.target.closest('[data-log-expand]');
+      var sec = log.closest('.jobmain');
+      if (!b || !sec) return;
+      // expanded, the log's column is the window's height: brought to its top,
+      // the box fills the window under the head
+      var full = sec.classList.toggle('log-full');
+      b.setAttribute('aria-pressed', full ? 'true' : 'false');
+      b.textContent = b.getAttribute(full ? 'data-t-less' : 'data-t-more');
+      if (follow) log.scrollTop = log.scrollHeight;
+      if (full) sec.scrollIntoView({ block: 'start' });
+      logTools(log);
+    });
+    window.addEventListener('resize', function () { logTools(log); });
+  })();
+
+  // ---- live job log: EventSource reconnects with Last-Event-ID by itself
   (function () {
     var log = $('#log[data-stream]');
     if (!log || !window.EventSource) return;
     var es = new EventSource(log.getAttribute('data-stream'));
+    var fl = $('[data-log-follow]');
+    if (fl) fl.closest('label').classList.remove('hidden');
     function swap(id, html) {
       var old = document.getElementById(id);
       if (!old) return;
@@ -379,13 +430,16 @@
     }
     es.addEventListener('line', function (e) {
       log.insertAdjacentHTML('beforeend', e.data);
-      if (follow && log.lastElementChild) log.lastElementChild.scrollIntoView({ block: 'nearest' });
+      if (follow) log.scrollTop = log.scrollHeight;
+      logTools(log);
     });
     es.addEventListener('steps', function (e) { swap('job-steps', e.data); });
     es.addEventListener('info', function (e) { var n = $('#job-log-info'); if (n) n.textContent = e.data; });
     es.addEventListener('state', function (e) { swap('job-head', e.data); });
     es.addEventListener('done', function () {
       es.close();
+      // nothing more to follow
+      if (fl) fl.closest('label').classList.add('hidden');
       // a page whose other parts depend on the job's outcome (a server being provisioned)
       if (log.hasAttribute('data-reload-on-done')) setTimeout(function () { window.location.reload(); }, 600);
     });

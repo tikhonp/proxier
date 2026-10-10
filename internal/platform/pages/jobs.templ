@@ -139,6 +139,7 @@ templ jobPage(s ui.Shell, v jobView) {
 					<h2 id="lg-h">{ i18n.T(ctx, "job.log") }</h2>
 					<span id="job-log-info" class="sm subtle">{ v.LogInfo }</span>
 					<span class="flex1"></span>
+					@ui.LogTools(v.Live)
 					<button type="button" class="pc-btn pc-sm" data-copy-from="#log" data-key="y">{ i18n.T(ctx, "job.copy") }</button>
 					<a class="pc-btn pc-sm" href={ templ.SafeURL("/jobs/" + strconv.FormatInt(v.ID, 10) + "/log.txt") }>{ i18n.T(ctx, "job.download") }</a>
 				</div>

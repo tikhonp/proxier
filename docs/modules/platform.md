@@ -57,7 +57,7 @@ Proxier joins the headscale tailnet as its own node (`proxier`) through an embed
 Queues, states, steps, keys, retries, cancellation and logs are described in [architecture](../architecture.md#jobs). The UI:
 
 - **Jobs page**: every job, newest first, filterable by queue, state, type and subject. Running jobs show their current step. Failed jobs show the error line.
-- **Job page**: steps with state and duration, the live log (follow mode, copy, download), payload summary (redacted), attempts, **Cancel** and **Retry**. The subject (server, router…) is linked.
+- **Job page**: steps with state and duration, the live log (in its own scrolling box: follow mode, expand, copy, download), payload summary (redacted), attempts, **Cancel** and **Retry**. The subject (server, router…) is linked.
 - **Header indicator**: the number of running jobs, opening a list of the running ones with their progress. Failed jobs since the last visit are marked.
 - Objects (server, router, discovery run) embed their latest job's progress, so the admin rarely needs the Jobs page itself.
 

@@ -126,6 +126,83 @@ func TestValidationResultsComeIntoView(t *testing.T) {
 	}
 }
 
+// A job's log scrolls in its own box. It grew with its content, so on a
+// server being provisioned the areas below the log were thousands of pixels
+// down, and following new lines scrolled the whole page to the log's end.
+func TestLogScrollsOnItsOwn(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		`.log { flex: 1; max-height: max(240px, 60vh); overflow-y: auto;`,
+		`.jobmain { display: flex; flex-direction: column; min-width: 0; background: var(--base); }`,
+		`.jobmain.log-full { height: calc(100vh - var(--keyline-h)); }`,
+		`.jobmain.log-full .log { flex: 1 1 0; min-height: 0; max-height: none; }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	// a wheel over the log goes on to the page at its ends
+	if m := regexp.MustCompile(`(?m)^\.log \{[^}]*\}`).FindString(css); strings.Contains(m, "overscroll-behavior") {
+		t.Errorf("the log traps the page's scrolling: %s", m)
+	}
+	phone := regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.jobcols \{ grid-template-columns: minmax\(0, 1fr\); \}[^@]*\}`).FindString(css)
+	if !strings.Contains(phone, `.jobmain.log-full { height: 100vh; }`) {
+		t.Errorf("on a phone (no key line) the expanded log stops short of the window's bottom: %s", phone)
+	}
+
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`function logAtEnd(l) { return l.scrollHeight - l.scrollTop - l.clientHeight < 4; }`,
+		`log.addEventListener('scroll'`, // scrolling up stops following, back at the end starts it
+		`if (follow) log.scrollTop = log.scrollHeight;`,
+		`e.target.matches('[data-log-follow]')`,
+		`e.target.closest('[data-log-expand]')`,
+		`sec.classList.toggle('log-full')`,
+		`if (full) sec.scrollIntoView({ block: 'start' });`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+	// only the box moves: scrolling a line into view scrolled the page too
+	if regexp.MustCompile(`(lg|l2|log)\.lastElementChild\.scrollIntoView`).MatchString(js) {
+		t.Error("following the log scrolls the page")
+	}
+
+	// every log box has its tools in its head
+	n := 0
+	err = filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		for _, sec := range strings.Split(string(b), `<section class="jobmain"`)[1:] {
+			sec = sec[:strings.Index(sec, "</section>")]
+			if !strings.Contains(sec, "@ui.JobLog(") {
+				continue
+			}
+			n++
+			if !strings.Contains(sec, "@ui.LogTools(") {
+				t.Errorf("%s: a log without Follow and Expand", p)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 2 {
+		t.Fatalf("only %d logs found", n)
+	}
+}
+
 // Every table in the templates (a .colhead and its rows) sits in a .tbl box,
 // so the stylesheet's scrolling and minimum widths apply to it.
 func TestEveryTableIsInATableBox(t *testing.T) {
