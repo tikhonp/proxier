@@ -92,9 +92,11 @@ templ generatePage(s ui.Shell, v genView, title string) {
 					</div>
 				</div>
 				<aside class="newsum" aria-labelledby="gen-sum-h">
-					<h2 id="gen-sum-h">{ i18n.T(ctx, "generations.sum.title") }</h2>
-					<div id="gen-summary">
-						@summaryBody(v)
+					<div class="stick">
+						<h2 id="gen-sum-h">{ i18n.T(ctx, "generations.sum.title") }</h2>
+						<div id="gen-summary">
+							@summaryBody(v)
+						</div>
 					</div>
 				</aside>
 			</form>

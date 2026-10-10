@@ -28,60 +28,62 @@ templ paramsPanel(v panelView) {
 		}
 		aria-label={ i18n.T(ctx, "scripts.panel.title") }
 	>
-		<div class="pc-title">
-			<h2>{ i18n.T(ctx, "scripts.panel.count", i18n.Args{"n": v.Params}) }</h2>
-			if v.Live {
-				<span class="note">{ i18n.T(ctx, "scripts.panel.live") }</span>
-			}
-			<span class="flex1"></span>
-		</div>
-		if !v.Block {
-			<p class="subtle area-body">{ i18n.T(ctx, "scripts.panel.no_block") }</p>
-		}
-		for _, g := range v.Groups {
-			<div class="rs-group">
-				if g.Heading != "" {
-					<p class="rs-heading">{ g.Heading }</p>
+		<div class="stick">
+			<div class="pc-title">
+				<h2>{ i18n.T(ctx, "scripts.panel.count", i18n.Args{"n": v.Params}) }</h2>
+				if v.Live {
+					<span class="note">{ i18n.T(ctx, "scripts.panel.live") }</span>
 				}
-				for _, it := range g.Items {
-					<div class={ "rs-item", templ.KV("computed", it.Computed) }>
-						<div class="rs-line">
-							<span class="bold">{ it.Name }</span>
-							if it.Computed {
-								<span class="subtle">= { it.Expr }</span>
-								if it.Value != "" {
-									<span class="gold">→ { it.Value }</span>
+				<span class="flex1"></span>
+			</div>
+			if !v.Block {
+				<p class="subtle area-body">{ i18n.T(ctx, "scripts.panel.no_block") }</p>
+			}
+			for _, g := range v.Groups {
+				<div class="rs-group">
+					if g.Heading != "" {
+						<p class="rs-heading">{ g.Heading }</p>
+					}
+					for _, it := range g.Items {
+						<div class={ "rs-item", templ.KV("computed", it.Computed) }>
+							<div class="rs-line">
+								<span class="bold">{ it.Name }</span>
+								if it.Computed {
+									<span class="subtle">= { it.Expr }</span>
+									if it.Value != "" {
+										<span class="gold">→ { it.Value }</span>
+									}
+								} else {
+									<span class="gold">{ it.Default }</span>
+									if it.Ann != "" {
+										<span class="iris">{ it.Ann }</span>
+									}
 								}
-							} else {
-								<span class="gold">{ it.Default }</span>
-								if it.Ann != "" {
-									<span class="iris">{ it.Ann }</span>
-								}
+							</div>
+							if it.Desc != "" {
+								<p class="sm subtle">{ it.Desc }</p>
 							}
 						</div>
-						if it.Desc != "" {
-							<p class="sm subtle">{ it.Desc }</p>
-						}
-					</div>
-				}
-			</div>
-		}
-		if v.Computed > 0 {
-			<p class="sm muted area-body">{ i18n.N(ctx, "scripts.panel.computed", int64(v.Computed)) }</p>
-		}
-		if len(v.Problems) > 0 {
-			<ul class="rs-problems">
-				for _, p := range v.Problems {
-					<li data-code-finding data-line={ strconv.Itoa(p.Line) } data-sev={ p.Sev } data-msg={ p.Text }>
-						<span class={ "st", sevClass(p.Sev) } aria-hidden="true"></span>
-						if p.Line > 0 {
-							<span class="bold">{ i18n.T(ctx, "scripts.panel.line", i18n.Args{"line": strconv.Itoa(p.Line)}) }</span>
-						}
-						<span class={ templ.KV("love", p.Sev == "error"), templ.KV("gold", p.Sev != "error") }>{ p.Text }</span>
-					</li>
-				}
-			</ul>
-		}
+					}
+				</div>
+			}
+			if v.Computed > 0 {
+				<p class="sm muted area-body">{ i18n.N(ctx, "scripts.panel.computed", int64(v.Computed)) }</p>
+			}
+			if len(v.Problems) > 0 {
+				<ul class="rs-problems">
+					for _, p := range v.Problems {
+						<li data-code-finding data-line={ strconv.Itoa(p.Line) } data-sev={ p.Sev } data-msg={ p.Text }>
+							<span class={ "st", sevClass(p.Sev) } aria-hidden="true"></span>
+							if p.Line > 0 {
+								<span class="bold">{ i18n.T(ctx, "scripts.panel.line", i18n.Args{"line": strconv.Itoa(p.Line)}) }</span>
+							}
+							<span class={ templ.KV("love", p.Sev == "error"), templ.KV("gold", p.Sev != "error") }>{ p.Text }</span>
+						</li>
+					}
+				</ul>
+			}
+		</div>
 	</aside>
 }
 

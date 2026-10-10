@@ -52,6 +52,7 @@ Time is shown relative ("4 min ago") with the absolute time on hover or tap.
 ## Shared components
 
 - **Tables** (column heads and rows) keep their columns readable at any zoom: every column has a minimum width, and when the page is narrower (a laptop zoomed to 150 % and more, a small window) the table scrolls sideways in its own box instead of squeezing them. A cell keeps to one line and a long value (a name, a hostname, a template) ends in "…" with the whole value on hover; messages (an error, a reason) wrap between words. On a phone each row stacks, as before. Two-column pages (template, subscription, service, search, script editor, generation, Settings) stack into one column below 1100 px.
+- **Side panels** stay in view: New server's live summary, the generate form's summary, the script's **Detected parameters** and the search preview stick to the top of the window while the form or list beside them scrolls, with their divider the full height of the page part; one taller than the window scrolls on its own. Stacked (below 1100 px) they are part of the page.
 - **Toolbars** never run off the page: filter rows, bulk actions, title actions and breadcrumbs wrap between their items, tabs scroll sideways, and a line of facts ("Netherlands · 10.0.0.1 · nl-1.example.com") wraps between facts, never inside one.
 - **Status badge** (above), with an optional "since" and a reason tooltip.
 - **Live log viewer**: monospaced, step markers, follow mode, copy and download, redacted secrets shown as `•••`.

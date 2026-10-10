@@ -100,13 +100,15 @@ templ newServerPage(s ui.Shell, v newView) {
 					</div>
 				</div>
 				<aside class="newsum" aria-labelledby="sum-h">
-					<h2 id="sum-h">{ i18n.T(ctx, "servers.new.summary") }</h2>
-					<div id="summary">
-						@summaryBody(v)
+					<div class="stick">
+						<h2 id="sum-h">{ i18n.T(ctx, "servers.new.summary") }</h2>
+						<div id="summary">
+							@summaryBody(v)
+						</div>
+						if v.Errs["dns"] != "" {
+							<p class="err" role="alert">{ v.Errs["dns"] }</p>
+						}
 					</div>
-					if v.Errs["dns"] != "" {
-						<p class="err" role="alert">{ v.Errs["dns"] }</p>
-					}
 				</aside>
 			</form>
 		}

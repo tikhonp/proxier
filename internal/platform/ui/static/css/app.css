@@ -401,10 +401,11 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .srv-cards { display: none; }
 .row.srv-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 10px 16px; text-decoration: none; color: inherit; }
 .row.srv-card > .bold { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.newcols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0; align-items: start; }
+.newcols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0; }
 .newform { max-width: 640px; }
 .newform .grp, .newsum .grp { margin: 8px 0 0; font-size: var(--fs-label); line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-.newsum { border-left: 1px solid var(--overlay); padding: 16px; position: sticky; top: var(--header-h); }
+.newsum { border-left: 1px solid var(--overlay); }
+.newsum > .stick { padding: 16px; }
 .newsum h2 { margin: 0 0 12px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 .inline { display: flex; gap: 8px; align-items: stretch; }
 .inline .pc-inp { flex: 1; min-width: 0; }
@@ -430,7 +431,7 @@ a.row.tpl { text-decoration: none; color: inherit; }
   .srv-table, .bulk { display: none; }
   .srv-cards { display: block; }
   .newcols { grid-template-columns: minmax(0, 1fr); }
-  .newsum { border-left: 0; border-top: 1px solid var(--overlay); position: static; }
+  .newsum { border-left: 0; border-top: 1px solid var(--overlay); }
   .row.ep { grid-template-columns: minmax(0, 1fr); }
   .row.evt { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
@@ -660,7 +661,7 @@ a.row.rlist { text-decoration: none; color: inherit; }
 .cause { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .search-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; }
 .search-form input[type=search] { flex: 1 1 260px; }
-.search-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); align-items: start; }
+.search-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); }
 .search-cols .preview:empty { display: none; }
 .search-cols:has(.preview:empty) { grid-template-columns: minmax(0, 1fr); }
 .preview { border-left: 1px solid var(--overlay); }
@@ -768,7 +769,7 @@ a.row.rscript { text-decoration: none; color: inherit; }
 .row.rscript, .colhead.rscript { grid-template-columns: minmax(180px, 1.6fr) 110px 120px 100px minmax(120px, 1fr); align-items: start; }
 .rs-form { max-width: 760px; }
 .rs-form .rs-paste { min-height: 280px; font-family: inherit; }
-.rs-editor { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); align-items: start; border-top: 1px solid var(--overlay); }
+.rs-editor { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); border-top: 1px solid var(--overlay); }
 .rs-draft, .rs-code { min-width: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .rs-draft .rs-body { min-height: 480px; font-family: inherit; white-space: pre; }
 .rs-panel { min-width: 0; border-left: 1px solid var(--overlay); }
@@ -829,12 +830,22 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
   .gen-fetch .btns > *, .gen-fetch .btns form, .gen-fetch .btns .pc-btn { width: 100%; }
 }
 
+/* A side panel beside a long form or list (New server's "Will be created", the
+   generate form's summary, a script's parameters, a catalog preview) is a column as
+   tall as the row, so its divider runs the whole height; its content (.stick) stays
+   at the top of the window while the page scrolls. The header scrolls away, so the
+   offset is 0 (an offset left a gap above the panel). Taller than the window above
+   the key line, the panel scrolls on its own instead of hiding its end. */
+.stick { position: sticky; top: 0; max-height: calc(100vh - var(--keyline-h)); overflow-y: auto; }
+
 /* Side-by-side page columns need room: below 1100 px (a laptop zoomed to 125 % and
    more, a narrow window) they stack, as on a phone, instead of squeezing their tables. */
 @media (max-width: 1100px) {
   .tgrid, .subcols, .newcols, .search-cols, .rs-editor, .gen-cols, .rej-cols { grid-template-columns: minmax(0, 1fr); }
   .search-cols .preview, .rs-panel { border-left: 0; border-top: 1px solid var(--overlay); }
-  .newsum { border-left: 0; border-top: 1px solid var(--overlay); position: static; }
+  .newsum { border-left: 0; border-top: 1px solid var(--overlay); }
+  /* stacked, a panel is part of the page again */
+  .stick { position: static; max-height: none; overflow: visible; }
   .settings { flex-direction: column; }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; }

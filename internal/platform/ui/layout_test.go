@@ -115,3 +115,83 @@ func inTableBox(lines []string, i int) bool {
 	}
 	return false
 }
+
+// A side panel beside a long form or list (New server's "Will be created", the
+// generate form's summary, a script's parameters, a catalog preview) stays in
+// view while the page scrolls: its column runs the row's height, so the divider
+// does too, and its content sticks to the top of the window. The header scrolls
+// away, so an offset of its height left a gap above the panel.
+func TestSidePanelsStickToTheTop(t *testing.T) {
+	css := appCSS(t)
+	stick := `.stick { position: sticky; top: 0; max-height: calc(100vh - var(--keyline-h)); overflow-y: auto; }`
+	if !strings.Contains(css, stick) {
+		t.Errorf("app.css lacks %q", stick)
+	}
+	if regexp.MustCompile(`position: sticky; top: var\(--header-h\)`).MatchString(css) {
+		t.Error("something sticks below the header, which is not fixed: a gap above it")
+	}
+	// the panel's column is as tall as the row: no align-items: start on the grid
+	for _, sel := range []string{".newcols", ".search-cols", ".rs-editor"} {
+		m := regexp.MustCompile(`(?m)^` + regexp.QuoteMeta(sel) + ` \{[^}]*\}`).FindString(css)
+		if m == "" {
+			t.Errorf("no %s rule", sel)
+		} else if strings.Contains(m, "align-items: start") {
+			t.Errorf("%s keeps its side panel only as tall as its content: %s", sel, m)
+		}
+	}
+	for _, want := range []string{`.newsum { border-left: 1px solid var(--overlay); }`, `.preview { border-left: 1px solid var(--overlay); }`, `.rs-panel { min-width: 0; border-left: 1px solid var(--overlay); }`} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	// stacked under 1100 px, a panel is part of the page again
+	i, j := strings.Index(css, stick), strings.LastIndex(css, "@media (max-width: 1100px)")
+	if i < 0 || j < i || !strings.Contains(css[j:], `.stick { position: static; max-height: none; overflow: visible; }`) {
+		t.Error("the panels still stick once the columns stack under 1100px")
+	}
+
+	// every side panel in the templates holds its content in a .stick box
+	panel := regexp.MustCompile(`<aside class="newsum"|class="rs-panel"|class="area drawer-panel`)
+	n := 0
+	err := filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(string(b), "\n")
+		for k, l := range lines {
+			if !panel.MatchString(l) {
+				continue
+			}
+			n++
+			if !hasStick(lines, k) {
+				t.Errorf("%s:%d: a side panel without a .stick box", p, k+1)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 4 {
+		t.Fatalf("only %d side panels found", n)
+	}
+}
+
+// hasStick reports whether the element opened on line i is itself the .stick
+// box or holds one as its first child.
+func hasStick(lines []string, i int) bool {
+	stick := regexp.MustCompile(`class="(?:[^"]* )?stick(?: [^"]*)?"`)
+	for k := i; k < len(lines)-1; k++ {
+		if stick.MatchString(lines[k]) {
+			return true
+		}
+		if strings.HasSuffix(strings.TrimSpace(lines[k]), ">") { // the end of the opening tag
+			return stick.MatchString(lines[k+1])
+		}
+	}
+	return false
+}
