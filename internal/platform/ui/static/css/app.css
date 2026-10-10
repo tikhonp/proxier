@@ -785,7 +785,9 @@ code.fp { word-break: break-all; }
   .row.unmanaged { flex-direction: column; }
 }
 /* Discovery (3g) */
-.row.disc-recent { grid-template-columns: 16px minmax(0, 1fr) auto; align-items: start; }
+/* a recent run is one line: the site, its state, then "run #2 · se-1 · 6 h ago" (the
+   caret is placed absolutely and takes no column); narrower, that line goes under the site */
+.row.disc-recent { grid-template-columns: minmax(0, 1.2fr) 110px minmax(0, 1fr); gap: 4px 16px; align-items: baseline; }
 .row.disc-sug { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--overlay); }
 .disc-visit { border-top: 1px solid var(--overlay); }
 .disc-shots { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
@@ -797,6 +799,10 @@ code.fp { word-break: break-all; }
 .row.disc-host { background: var(--base); }
 .row.disc-host > .col { padding-left: 16px; }
 .disc-form .form-actions { flex-wrap: wrap; align-items: center; }
+@media (max-width: 1100px) {
+  .row.disc-recent { grid-template-columns: minmax(0, 1fr) 110px; }
+  .row.disc-recent .run-line { grid-column: 1 / -1; }
+}
 @media (max-width: 760px) {
   .colhead.disc-pick { display: none; }
   .row.disc-pick { grid-template-columns: 20px minmax(0, 1fr); gap: 4px 8px; }

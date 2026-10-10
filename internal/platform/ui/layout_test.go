@@ -476,3 +476,142 @@ func TestSignOutStaysInTheHeader(t *testing.T) {
 		}
 	}
 }
+
+// A row's grid has a cell for every column. The caret is placed absolutely,
+// so it takes no cell: a column drawn for it was left empty and every cell
+// moved one column to the left. The 16 px column of Discover's recent runs
+// took the site and its line, which broke after every word and ran under the
+// status.
+func TestRowGridsHaveACellPerColumn(t *testing.T) {
+	css := appCSS(t)
+	// the grids outside @media (rules there are indented)
+	tracks := map[string]int{}
+	rule := regexp.MustCompile(`(?m)^([^\s@}][^{]*)\{([^}]*)\}`)
+	cols := regexp.MustCompile(`grid-template-columns: ([^;]+);`)
+	rowSel := regexp.MustCompile(`(?:^|[\s,])(?:[a-z]+)?(?:\.row)?\.([a-z0-9-]+)(?:[\s,]|$)`) // .row.jobrow or .jobrow
+	for _, m := range rule.FindAllStringSubmatch(css, -1) {
+		c := cols.FindStringSubmatch(m[2])
+		if c == nil {
+			continue
+		}
+		for _, s := range rowSel.FindAllStringSubmatch(strings.TrimSpace(m[1]), -1) {
+			if _, ok := tracks[s[1]]; !ok {
+				tracks[s[1]] = countTracks(c[1])
+			}
+		}
+	}
+	if tracks["disc-recent"] != 3 {
+		t.Fatalf("Discover's recent runs are not the site, its state and its line: %d columns", tracks["disc-recent"])
+	}
+	// narrower, the line goes under the site instead of being cut
+	if !regexp.MustCompile(`(?s)@media \(max-width: 1100px\) \{\n  \.row\.disc-recent \{ grid-template-columns: minmax\(0, 1fr\) 110px; \}\n  \.row\.disc-recent \.run-line \{ grid-column: 1 / -1; \}`).MatchString(css) {
+		t.Error("under 1100px a recent run's line stays beside the site")
+	}
+	placedCaret := map[string]bool{}
+	for _, m := range regexp.MustCompile(`\.row\.([a-z0-9-]+) \.caret \{ position: static; \}`).FindAllStringSubmatch(css, -1) {
+		placedCaret[m[1]] = true
+	}
+
+	open := regexp.MustCompile(`^\t*<(div|a|form|summary|li|label) [^>]*class="row ([a-z0-9-]+)[ "]`)
+	n := 0
+	err := filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(string(b), "\n")
+		for i, l := range lines {
+			m := open.FindStringSubmatch(l)
+			if m == nil || tracks[m[2]] == 0 {
+				continue
+			}
+			cells, ok := rowCells(lines, i, placedCaret[m[2]])
+			if !ok || !strings.Contains(strings.Join(lines[i:min(i+3, len(lines))], "\n"), `<span class="caret"`) {
+				continue // a for loop makes the cells, or no caret: a dashboard row may leave a column of a shared grid empty
+			}
+			n++
+			if cells < tracks[m[2]] {
+				t.Errorf("%s:%d: .row.%s has %d columns for %d cells", p, i+1, m[2], tracks[m[2]], cells)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 20 {
+		t.Fatalf("only %d rows with a caret found", n)
+	}
+}
+
+// countTracks counts the columns of a grid-template-columns value.
+func countTracks(v string) int {
+	n, depth, in := 0, 0, false
+	for _, r := range v {
+		switch {
+		case r == '(':
+			depth++
+		case r == ')':
+			depth--
+		case r == ' ' && depth == 0:
+			in = false
+			continue
+		}
+		if !in {
+			n++
+			in = true
+		}
+	}
+	return n
+}
+
+// rowCells counts the grid cells of the row opened on line i: its direct
+// children, an absolutely placed caret left out, an if (and its else) counted
+// as its larger branch. ok is false when a for loop makes them.
+func rowCells(lines []string, i int, placedCaret bool) (cells int, ok bool) {
+	indent := func(s string) int { return len(s) - len(strings.TrimLeft(s, "\t")) }
+	base := indent(lines[i])
+	for !strings.HasSuffix(strings.TrimSpace(lines[i]), ">") { // the end of the opening tag
+		i++
+	}
+	cell := func(l string) bool {
+		switch {
+		case strings.HasPrefix(l, `<span class="caret"`):
+			return placedCaret
+		case strings.HasPrefix(l, "</"), strings.HasPrefix(l, "//"), l == `{ " " }`:
+			return false
+		}
+		return strings.HasPrefix(l, "<") || strings.HasPrefix(l, "@") || strings.HasPrefix(l, "{ ")
+	}
+	branch, best := 0, 0
+	inIf := false
+	for j := i + 1; j < len(lines); j++ {
+		l := strings.TrimSpace(lines[j])
+		in := indent(lines[j])
+		if l == "" {
+			continue
+		}
+		if in <= base {
+			break
+		}
+		switch {
+		case in == base+1 && strings.HasPrefix(l, "for "):
+			return 0, false
+		case in == base+1 && strings.HasPrefix(l, "if "):
+			inIf, branch, best = true, 0, 0
+		case in == base+1 && strings.HasPrefix(l, "} else"):
+			best, branch = max(best, branch), 0
+		case in == base+1 && l == "}" && inIf:
+			cells += max(best, branch)
+			inIf = false
+		case in == base+1 && cell(l):
+			cells++
+		case in == base+2 && inIf && cell(l):
+			branch++
+		}
+	}
+	return cells, true
+}

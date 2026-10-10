@@ -70,11 +70,9 @@ templ discoverPage(s ui.Shell, v discoverForm) {
 				for _, r := range v.Recent {
 					<div class="row disc-recent pc-row" data-row={ i64(r.ID) } data-href={ runHref(r.ID) }>
 						<span class="caret" aria-hidden="true">›</span>
-						<span class="col">
-							<a href={ templ.SafeURL(runHref(r.ID)) } class="bold">{ r.Host }</a>
-							<span class="sm subtle">{ r.Line }</span>
-						</span>
+						<a href={ templ.SafeURL(runHref(r.ID)) } class="bold cut" title={ r.Host }>{ r.Host }</a>
 						@ui.Status(r.StatusKind, r.Word)
+						<span class="sm subtle cut run-line" title={ r.Line }>{ r.Line }</span>
 					</div>
 				}
 			}

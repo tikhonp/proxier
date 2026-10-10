@@ -116,6 +116,10 @@ func TestDiscoverPages(t *testing.T) {
 	h.Drain()
 	recent := h.Login.Get("/routing/discover").Body.String()
 	has(t, "recent runs", recent, "Recent runs", ">www.example.com<", "· nl-1 ·")
+	// a row is the site, its state and its line, each a cell of the row's grid
+	// (the caret takes none); a long site or line ends in "…" with the whole in a title
+	has(t, "recent run cells", recent, `class="bold cut" title="www.example.com">www.example.com</a>`,
+		`<span class="sm subtle cut run-line" title="run #2 · nl-1 · `)
 	if rec := h.Login.Get("/routing/discover/999"); rec.Code != http.StatusNotFound {
 		t.Errorf("a missing run: %d", rec.Code)
 	}
