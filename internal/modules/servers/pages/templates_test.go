@@ -203,6 +203,8 @@ func TestEditorSaveAndValidate(t *testing.T) {
 		t.Error("Validate does not bring its results into view")
 	}
 	contains(t, "results panel", body, `<aside class="ed-side" id="ed-side" aria-live="polite" tabindex="-1">`)
+	// the editor fills the window; the file's bar holds Wrap lines and Full screen, the keys sheet the editor's keys
+	contains(t, "editor tools", body, `class="ed code-fill"`, `data-code-wrap`, `data-code-full`, ">Full screen<", "In a code editor", "Indent two spaces")
 
 	// Save: the whole draft is stored as one revision; the browser's CRLF becomes LF
 	d, _ := e.Svc.Draft(ctx, id)

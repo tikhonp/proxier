@@ -137,12 +137,26 @@ var messages = i18n.Messages{
 	"settings.field.security.lockout_duration":      {EN: "Locked for", RU: "Блокировка на"},
 	"settings.field.security.lockout_duration.help": {EN: "How long the IP is refused, e.g. 15m.", RU: "Как долго IP получает отказ, например 15m."},
 
+	// Code editors (ui.CodeTools, ui.CodeKeys)
+	"ui.code.wrap":      {EN: "Wrap lines", RU: "Переносить строки"},
+	"ui.code.full":      {EN: "Full screen", RU: "Во весь экран"},
+	"ui.code.full_exit": {EN: "Exit full screen", RU: "Обычный вид"},
+	"ui.code.full_hint": {EN: "esc leaves full screen", RU: "esc выходит из полноэкранного режима"},
+	"ui.hints.code":     {EN: "⌘S save · ⌘F find · tab indent · esc leave the code", RU: "⌘S сохранить · ⌘F поиск · tab отступ · esc выйти из кода"},
+	"keys.code":         {EN: "In a code editor", RU: "В редакторе кода"},
+	"keys.code.save":    {EN: "Save", RU: "Сохранить"},
+	"keys.code.indent":  {EN: "Indent two spaces", RU: "Отступ в два пробела"},
+	"keys.code.find":    {EN: "Find in the file", RU: "Поиск в файле"},
+	"keys.code.undo":    {EN: "Undo", RU: "Отменить"},
+	"keys.code.leave":   {EN: "Leave the code", RU: "Выйти из кода"},
+	"keys.code.full":    {EN: "Leave the code, then full screen", RU: "Выйти из кода, затем из полноэкранного режима"},
+
 	// Keys sheet
 	"keys.anywhere": {EN: "Anywhere", RU: "Везде"},
 	"keys.search":   {EN: "Search things and actions", RU: "Поиск объектов и действий"},
 	"keys.actions":  {EN: "Actions only", RU: "Только действия"},
 	"keys.keys":     {EN: "This list", RU: "Этот список"},
-	"keys.esc":      {EN: "Close, cancel, leave a field", RU: "Закрыть, отменить, выйти из поля"},
+	"keys.esc":      {EN: "Close, cancel, leave a field or full screen", RU: "Закрыть, отменить, выйти из поля или полноэкранного режима"},
 	"keys.goto":     {EN: "Go to (g, then a letter)", RU: "Перейти (g, затем буква)"},
 	"keys.lists":    {EN: "In a list", RU: "В списке"},
 	"keys.move":     {EN: "Move", RU: "Выбор строки"},

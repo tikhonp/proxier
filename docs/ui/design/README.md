@@ -91,6 +91,7 @@ The desktop layout, from top to bottom:
 - **Logs** scroll in their own box (the `--base` well), at most 60 % of the window, as the provisioning screen draws its fixed-height log, so the page below a log is a short scroll away. The box opens at its end and follows new lines while the reader is there; **Follow** in the log's head shows it, and **Expand** makes the box as tall as the window under its head.
 - **Parts of an area body** under each other (a URL and its buttons, the note under them, the QR's note, **Show QR** and the code, a fingerprint and its buttons) keep 12 px between them, as the Link screen's QR area draws its column, the same as the body's padding above and below them. A secret field's buttons wrap together. **Show QR** turns into **Hide QR** in its place and the code opens under it, as the phone's link screen keeps its toggle above the code: the canvas's desktop Link screen draws the toggle under the code, where it would move the length of the code under the pointer.
 - **Output previews** under padded controls (a subscription's preview under its format select, **Reveal** and **Hide**) sit inside the area's 16 px padding, so their edges are the controls' edges, and wrap anywhere, as the Subscription screen breaks its URIs, rather than scrolling sideways: in the admin's browser the sideways scrollbar ran over the note under it. The canvas draws this preview flush; the controls above it are padded, so it is inset. Its notes are the `.foot` note, 12 px below it, and are left out when there is nothing to say.
+- **Code editors** (a template's draft, a router script's draft, a Shadowrocket base config) run flush across the page column, from its edge (or the file tree) to the side panel, under a title band whose right end holds **Wrap lines** (a checkbox, as a log's Follow) and **Full screen**, as the Script screen draws its draft. On a page whose job is the editor (the template editor, New config, Edit base config) the editor fills the window under the title down to the key line: the page doesn't scroll, the code and the side panels scroll on their own, and the page's actions stay in the title block. Below 1100 px the template editor's results take at most 40 % of the window under the code; a window too short for the code's minimum (360 px with its band) scrolls the page. **Full screen** hides the header and the sidebar and gives the editor the window under the title; **Exit full screen** or `esc` (after the `esc` that leaves the code) returns.
 - **Counts strip**: equal cells in a grid with 1 px gaps. Each cell holds a marker, a label and a big number. A zero count is muted.
 - **Key line** (28 px, desktop only), at the bottom.
 
@@ -139,13 +140,13 @@ The keymap is small and vim-like, "not too crazy". Letters never fire inside a f
 
 | Where | Keys |
 |---|---|
-| Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `esc` close, cancel, leave a field |
+| Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `esc` close, cancel, leave a field or full screen |
 | `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `r` routers · `j` jobs · `a` activity · `g` top of the list. After `g` a which-key strip shows these choices. |
 | In a list | `j k` (arrows too) · `gg G` first, last · `↵` open · `n` new · `space` tick |
 | Row or page | `r` run checks or retry · `s` sync now · `p` pause or resume · `y` copy the URL or value · `e` edit · `[ ]` previous, next tab |
 | Fields and dialogs | `tab` next field · `esc` leave · `⌘↵` save · `↵` confirm a simple dialog |
 | Some pages | `J K` move a row where order matters · `f` follow a log · `G` end of the log |
-| Template editor | vim keys optional, off by default · `:w` save draft · `]d [d` next, previous problem · `esc esc` leave |
+| Code editors | `⌘S` save · `tab` indent · `⌘F` find · `⌘Z` undo · `esc` leave the code, a second `esc` leaves full screen (the keys sheet's "In a code editor"). The canvas also draws, for the template editor, optional vim keys, `:w` and `]d [d`: not built |
 
 The **key line** at the bottom has three parts:
 
@@ -157,7 +158,7 @@ Short messages ("Copied", "Sync started") appear in the key line, not as toasts.
 
 ## Zoomed in
 
-A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the screens are drawn for. Below 1100 px the side-by-side page columns (template, subscription, service, search, script editor, generation, Settings and its section list) stack into one, and tables scroll sideways rather than squeeze. A layout whose columns need more room stacks earlier: the template page's versions and draft below 1270 px. The template editor's results move under the files and the code below 1100 px, as wide as both, and Validate scrolls down to them. Under 760 px (200 % and more) the phone layout takes over.
+A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the screens are drawn for. Below 1100 px the side-by-side page columns (template, subscription, service, search, script editor, generation, Settings and its section list) stack into one, and tables scroll sideways rather than squeeze. A layout whose columns need more room stacks earlier: the template page's versions and draft below 1270 px. The template editor's results move under the files and the code below 1100 px, as wide as both, at most 40 % of the window, and Validate scrolls down to them when they are out of view. Under 760 px (200 % and more) the phone layout takes over.
 
 ## Phone
 

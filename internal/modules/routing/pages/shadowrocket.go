@@ -143,6 +143,8 @@ func (h *handler) renderSRForm(c *echo.Context, status int, v srFormView) error 
 	}
 	s := h.shell(c, title, srPath)
 	s.Scripts = []string{"js/editor.bundle.js"}
+	s.PageKeys = "ui.hints.code"
+	s.Keys = append(s.Keys, ui.CodeKeys)
 	return web.Render(c, status, srFormPage(s, v, title))
 }
 

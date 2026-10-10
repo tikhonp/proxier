@@ -224,8 +224,8 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .jobmain.log-full { height: calc(100vh - var(--keyline-h)); }
 .jobmain.log-full .log { flex: 1 1 0; min-height: 0; max-height: none; }
 .log:focus-visible { outline-offset: -1px; }
-.log-follow { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
-.log-follow input { accent-color: var(--text); margin: 0; }
+.log-follow, .tool-check { display: flex; align-items: center; gap: 8px; font-size: var(--fs-sm); cursor: pointer; }
+.log-follow input, .tool-check input { accent-color: var(--text); margin: 0; }
 .ll { display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 14px; padding: 0 16px; }
 .ll .tx { white-space: pre-wrap; word-break: break-word; }
 .ll-step { background: var(--overlay); font-weight: 600; }
@@ -367,17 +367,17 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .ed-msg:empty { display: none; }
 /* The editor's three columns are a grid, so a narrow window never wraps one of them
    onto a line of its own (the results stuck under the code, a third as wide). */
-.ed { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px; min-height: 640px; }
-.ed-left { min-width: 0; border-right: 1px solid var(--overlay); display: flex; flex-direction: column; }
+.ed { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px; }
+.ed-left { min-width: 0; min-height: 0; border-right: 1px solid var(--overlay); display: flex; flex-direction: column; }
 .ed-head { display: flex; align-items: stretch; min-height: var(--title-band-h); border-bottom: 1px solid var(--overlay); }
 .ed-head .pc-label { display: flex; align-items: center; padding: 0 16px; }
 .ed-add { width: 36px; height: 36px; flex: none; padding: 0; border-left: 1px solid var(--overlay); font-size: 16px; color: var(--subtle); }
-.ed-files { flex: 1; padding: 6px 0; }
+.ed-files { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }
 .ed-tools { display: flex; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--overlay); }
 .ed-tools .pc-btn { cursor: pointer; }
-.ed-main { min-width: 0; display: flex; flex-direction: column; background: var(--black); }
+.ed-main { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--black); }
 .ed-file { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-height: var(--title-band-h); padding: 4px 16px; border-bottom: 1px solid var(--overlay); font-size: var(--fs-sm); }
-.ed-host { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ed-host { flex: 1 1 0; min-height: 0; display: flex; flex-direction: column; min-width: 0; }
 .ed-status { display: flex; align-items: center; gap: 14px; height: 24px; padding: 0 12px; border-top: 1px solid var(--overlay); font-size: var(--fs-sm); color: var(--subtle); }
 .ed-side { min-width: 0; border-left: 1px solid var(--overlay); display: flex; flex-direction: column; overflow: auto; }
 /* Validate focuses the results (proxier.js, data-reveal): the ring sits inside, on the panel's own edges */
@@ -395,16 +395,52 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .ed.ed-on .ed-sources { display: none; }
 .ed.ed-on .ed-tree .ed-file-row { cursor: pointer; }
 .ed:not(.ed-on) .ed-host, .ed:not(.ed-on) .ed-status { display: none; }
+/* The editor fills the window under the title (.code-fill, below); its columns scroll on
+   their own. Without the script it is a form of text areas and the page scrolls. */
+.ed.code-fill { display: grid; flex: 1 1 0; min-height: 480px; grid-template-rows: minmax(0, 1fr); }
+.ed.code-fill:not(.ed-on) { flex: 1 0 auto; grid-template-rows: auto; }
+.ed:not(.ed-on) .ed-files { overflow: visible; }
+
+/* Code editors: a template's draft, a router script's draft, a Shadowrocket base config.
+   The code runs flush from the page's edge (or the file tree) to its side panel, under a
+   band holding Wrap lines and Full screen (ui.CodeTools), and CodeMirror is as tall as its
+   box (editor.js sets no height). A page whose job is its editor (.code-fill: the template
+   editor, New config, Edit base config) fills the window under its title down to the key
+   line: the page doesn't scroll, the code scrolls in its box and the side panels on their
+   own, and the actions in the title block stay in view; a window too short for 320 px of
+   code lets the page scroll. The sidebar takes no part in that height (contain: size), so a
+   nav longer than the window scrolls on its own instead of stretching the editor below it. */
+.code-host { display: flex; flex-direction: column; min-width: 0; }
+.code-host .cm-editor, .ed-host .cm-editor { flex: 1 1 0; min-height: 0; }
+.app:has(.code-fill) .side { contain: size; overflow-y: auto; }
+.code-fill { flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }
+.code-frame { flex: 1 1 0; min-height: 360px; display: flex; flex-direction: column; min-width: 0; }
+.code-frame > .code-host, .code-frame > textarea { flex: 1 1 0; min-height: 0; }
+.code-frame > textarea { width: 100%; resize: none; font-family: inherit; white-space: pre; }
+.code-err { padding: 8px 16px; font-size: var(--fs-sm); line-height: 16px; color: var(--love); border-bottom: 1px solid var(--overlay); }
+.code-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+/* Full screen (the band's button; esc outside the code leaves it): the header and the
+   sidebar go and the editor takes the window under the page's title, whose actions stay.
+   On a router script's page the areas after the draft go too, and the draft fills. */
+.code-full .hdr, .code-full .side { display: none !important; }
+.code-full .rs-area { flex: 1 1 0; min-height: 400px; display: flex; flex-direction: column; padding-bottom: 0; }
+.code-full .rs-area ~ :not(dialog) { display: none; }
+.code-full .rs-editor { flex: 1 1 0; min-height: 0; grid-template-rows: minmax(0, 1fr); }
+.code-full .rs-draft > .code-host { flex: 1 1 0; min-height: 0; }
+.code-full .rs-panel { min-height: 0; overflow-y: auto; }
+.code-full .rs-panel .stick { position: static; max-height: none; overflow: visible; }
 /* The versions table needs 620 px beside the 420 px draft panel, the sidebar and a scrollbar:
    below 1270 px (a 1440 px window zoomed to 125 %) the two stack instead of the
    table scrolling in a squeezed column. */
 @media (max-width: 1270px) {
   .tgrid { grid-template-columns: minmax(0, 1fr); }
 }
-/* Narrower, the editor keeps the files beside the code and puts the results under both. */
+/* Narrower, the editor keeps the files beside the code and puts the results under both,
+   at most 40 % of the window: the code takes the rest. */
 @media (max-width: 1100px) {
   .ed { grid-template-columns: 230px minmax(0, 1fr); }
-  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); }
+  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); max-height: 40vh; }
+  .ed.code-fill { grid-template-rows: minmax(0, 1fr) auto; min-height: 560px; }
 }
 @media (max-width: 760px) {
   .row.tpl, .row.ver { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
@@ -412,6 +448,10 @@ a.row.tpl { text-decoration: none; color: inherit; }
   .row.ver .actions { grid-column: 1 / -1; }
   .colhead.tpl, .colhead.ver { display: none; }
   .ed { grid-template-columns: minmax(0, 1fr); }
+  /* a phone stacks the files, the code and the results: the page scrolls, the code has a box of its own */
+  .ed.code-fill { flex: none; grid-template-rows: auto; min-height: 0; }
+  .ed-host { flex: none; height: max(320px, 70vh); }
+  .ed-side { max-height: none; }
   .vcols { grid-template-columns: minmax(0, 1fr); }
   .vtree { border-right: 0; border-bottom: 1px solid var(--overlay); }
   .ed-left { border: 0; border-bottom: 1px solid var(--overlay); }
@@ -725,7 +765,15 @@ a.row.rlist { text-decoration: none; color: inherit; }
 /* Shadowrocket configs and the mtvpn import (3d) */
 .row.srcfg, .colhead.srcfg { grid-template-columns: minmax(160px, 1.3fr) 110px 120px minmax(140px, 1.2fr) minmax(140px, 1.2fr); align-items: start; }
 a.row.srcfg { text-decoration: none; color: inherit; }
-.sr-form .sr-base { width: 100%; min-height: 360px; font-family: inherit; }
+/* New config and Edit base config: the fields over and under the code wrap in strips */
+.sr-strip { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 12px 24px; padding: 12px 16px; }
+.sr-strip.top { border-bottom: 1px solid var(--overlay); }
+.sr-strip.bottom { border-top: 1px solid var(--overlay); }
+.sr-strip .field { flex: 1 1 220px; min-width: 0; }
+.sr-strip .field.wide { flex: 2 1 320px; }
+.sr-strip .inline-fields { flex-wrap: nowrap; }
+.sr-strip .inline-fields .pc-inp { flex: 1 1 0; width: auto; min-width: 0; }
+.sr-strip input[type="file"] { max-width: 100%; }
 .sr-preview { max-height: 60vh; overflow: auto; background: var(--black); padding: 8px 0; font-size: var(--fs-sm); }
 .sr-line { display: grid; grid-template-columns: 48px minmax(0, 1fr); border-left: 3px solid transparent; }
 .sr-line .ln { text-align: right; padding-right: 12px; color: var(--muted); user-select: none; }
@@ -752,7 +800,6 @@ a.row.srcfg { text-decoration: none; color: inherit; }
   .row.improw { grid-template-columns: 20px minmax(0, 1fr); gap: 4px 8px; }
   .row.improw > :nth-child(n+3) { grid-column: 2 / 3; }
 }
-.code-host { display: flex; border: 1px solid var(--hl-med); }
 /* Routers (3e) */
 .row.rtr, .colhead.rtr { grid-template-columns: minmax(160px, 1.4fr) 110px minmax(100px, .8fr) minmax(160px, 1.6fr) minmax(110px, 1fr) auto; align-items: start; }
 .row.tagplan, .colhead.tagplan { grid-template-columns: minmax(120px, 1fr) minmax(130px, 1.2fr) 70px 80px minmax(150px, 1.2fr); align-items: start; border-top: 1px solid var(--overlay); }
@@ -815,7 +862,11 @@ a.row.rscript { text-decoration: none; color: inherit; }
 .rs-form { max-width: 760px; }
 .rs-form .rs-paste { min-height: 280px; font-family: inherit; }
 .rs-editor { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); border-top: 1px solid var(--overlay); }
-.rs-draft, .rs-code { min-width: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.rs-code { min-width: 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+/* the draft's code runs flush to the panel, as tall as the panel beside it and at least 78 % of the window */
+.rs-draft { min-width: 0; display: flex; flex-direction: column; }
+.rs-draft > .code-host { flex: 1 1 auto; min-height: max(480px, 78vh); }
+.rs-draft > .inline-fields { padding: 10px 16px; border-top: 1px solid var(--overlay); }
 .rs-draft .rs-body { min-height: 480px; font-family: inherit; white-space: pre; }
 .rs-panel { min-width: 0; border-left: 1px solid var(--overlay); }
 .rs-group { padding: 8px 16px; border-top: 1px solid var(--overlay); }
@@ -868,6 +919,7 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
   .rs-editor { grid-template-columns: minmax(0, 1fr); }
   .rs-panel { border-left: 0; border-top: 1px solid var(--overlay); }
   .rs-draft .rs-body { min-height: 320px; }
+  .rs-draft > .code-host { min-height: max(320px, 70vh); }
   .row.gen-val, a.row.rsgen { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 16px; }
   .gen-sub .inline { flex-direction: column; }
   .gen-cols { grid-template-columns: minmax(0, 1fr); }
@@ -894,4 +946,9 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
   .settings { flex-direction: column; }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; }
+  /* full screen, stacked: the script's parameters go under the code, at most 30 % of the
+     window, and the code keeps 280 px (a short window scrolls the page instead) */
+  .code-full .rs-area { min-height: auto; }
+  .code-full .rs-editor { grid-template-rows: minmax(280px, 1fr) auto; }
+  .code-full .rs-panel { max-height: 30vh; }
 }

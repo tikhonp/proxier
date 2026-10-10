@@ -126,7 +126,7 @@ templ scriptPage(s ui.Shell, v scriptView) {
 				{ v.Band }
 			}
 		}
-		<section class="area" id="draft" aria-label={ i18n.T(ctx, "scripts.area.draft") }>
+		<section class="area rs-area" id="draft" aria-label={ i18n.T(ctx, "scripts.area.draft") }>
 			<div class="pc-title">
 				<h2>{ i18n.T(ctx, "scripts.area.draft") }</h2>
 				<span class="note">{ i18n.T(ctx, "scripts.area.draft.note") }</span>
@@ -134,14 +134,19 @@ templ scriptPage(s ui.Shell, v scriptView) {
 				if v.Draft && (v.BasedOn > 0 || v.S.Current > 0) {
 					<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "/diff") } class="sm">{ i18n.T(ctx, "scripts.draft.view_diff") }</a>
 				}
+				if v.Draft {
+					@ui.CodeTools()
+				}
 			</div>
 			if v.Draft {
 				<div class="rs-editor">
 					<form id="draft-form" method="post" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/draft") } enctype="multipart/form-data" class="rs-draft">
 						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 						<input type="hidden" name="revision" value={ strconv.Itoa(v.Revision) }/>
+						if v.BodyErr != "" {
+							<p class="code-err" role="alert">{ v.BodyErr }</p>
+						}
 						<textarea id="draft-body" class="pc-inp pc-ta rs-body" name="body" aria-label={ i18n.T(ctx, "scripts.field.body") } rows="30" spellcheck="false" data-code="routeros" hx-post={ ScriptHref(v.S.ID) + "/draft/parameters" } hx-trigger="input changed delay:400ms" hx-target="#params-panel" hx-swap="outerHTML" aria-invalid?={ v.BodyErr != "" }>{ "\n" + v.Body }</textarea>
-						@fieldErr(v.BodyErr)
 						<div class="inline-fields">
 							<label for="draft-file" class="sm subtle">{ i18n.T(ctx, "scripts.field.replace_file") }</label>
 							<input id="draft-file" type="file" name="file" accept=".rsc,.txt,text/plain"/>

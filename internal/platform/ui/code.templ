@@ -1,6 +1,10 @@
 package ui
 
-import "strconv"
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+)
 
 // Code is a read-only, highlighted file with a number and an anchor on every
 // line (#<id>-L<n>), and its findings under the lines they belong to.
@@ -25,4 +29,25 @@ func hasMark(l CodeLine, sev string) bool {
 		}
 	}
 	return false
+}
+
+// CodeTools are a code editor's controls for its band: Wrap lines (long lines
+// wrap instead of scrolling sideways, every editor of the browser) and Full
+// screen (the header and the sidebar go, the editor takes the window under
+// the page's title and its actions; esc or the button returns). Both need the
+// editor bundle, so they start hidden and the bundle shows them.
+templ CodeTools() {
+	<span class="code-tools hidden" data-code-tools>
+		<label class="tool-check"><input type="checkbox" data-code-wrap/>{ i18n.T(ctx, "ui.code.wrap") }</label>
+		<button
+			type="button"
+			class="pc-btn pc-sm"
+			data-code-full
+			data-action="code.full"
+			aria-pressed="false"
+			data-t-more={ i18n.T(ctx, "ui.code.full") }
+			data-t-less={ i18n.T(ctx, "ui.code.full_exit") }
+			data-t-hint={ i18n.T(ctx, "ui.code.full_hint") }
+		>{ i18n.T(ctx, "ui.code.full") }</button>
+	</span>
 }

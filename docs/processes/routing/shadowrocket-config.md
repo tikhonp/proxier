@@ -23,7 +23,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 
 ## Steps — editing
 
-1. **Edit base config** opens the editor. Saving validates and creates a new base version. Older versions can be viewed, diffed and restored (a restore creates a new version). → `routing.shadowrocket_updated`
+1. **Edit base config** opens the editor: the code across the page, filling the window, with **Save** in the title and the upload, the import and the version's note under the code. Saving validates and creates a new base version. Older versions can be viewed, diffed and restored (a restore creates a new version). → `routing.shadowrocket_updated`
 2. **Preview** shows the rendered output exactly as the phone would get it.
 3. **Change routing list**, **change rule policy**: from the next fetch on.
 4. **Regenerate token**: the old URL returns `404`, and the new URL is shown.

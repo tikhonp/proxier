@@ -136,6 +136,8 @@ func TestNewConfigPage(t *testing.T) {
 		`data-code="shadowrocket"`, `name="base_file"`, `name="import_url"`, `formaction="/routing/shadowrocket/import-base"`, "js/editor.bundle.js",
 		`enctype="multipart/form-data"`)
 	checkNoInline(t, "new", body)
+	has(t, "new editor", body, `form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.create" data-code-save`, `class="sr-form code-fill"`,
+		`<div class="sr-strip top">`, `<section class="code-frame"`, `data-code-full`)
 
 	// pasted text
 	rec := h.Login.PostMultipart("/routing/shadowrocket", url.Values{"name": {"iphone"}, "list": {"1"}, "policy": {"PROXY"}, "base": {srBase}}, nil)
@@ -183,9 +185,19 @@ func TestNewConfigPage(t *testing.T) {
 	// Edit base config: the editor page, saving what the textarea posts
 	body = h.Login.Get("/routing/shadowrocket/1/base").Body.String()
 	has(t, "edit base", body, "Edit base config of iphone", `data-code="shadowrocket"`, "js/editor.bundle.js", "RULE-SET,https://example.com/ads.list")
+	// the page is its editor: the code fills the window (not the 560 px .form column), Save stays
+	// in the title block (⌘S presses it), and the band holds Wrap lines and Full screen
+	if !regexp.MustCompile(`(?s)<div class="actions"><button type="submit" form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.save" data-code-save>Save</button>`).MatchString(body) {
+		t.Error("Save is not in the title block")
+	}
+	has(t, "edit base editor", body, `id="sr-form"`, `class="sr-form code-fill"`, `<section class="code-frame"`, `data-code-wrap`, `data-code-full`,
+		`data-action="code.full"`, ">Wrap lines<", ">Full screen<", "In a code editor", "Leave the code, then full screen")
+	if strings.Contains(body, `class="form sr-form`) {
+		t.Error("the base config sits in the narrow form column")
+	}
 	checkNoInline(t, "edit base", body)
 	rec = h.Login.PostMultipart("/routing/shadowrocket/1/base", url.Values{"base": {"[General]\n"}}, nil)
-	if rec.Code != 422 || !strings.Contains(rec.Body.String(), "No [Rule] section") {
+	if rec.Code != 422 || !strings.Contains(rec.Body.String(), `<p class="code-err" role="alert">No [Rule] section`) {
 		t.Errorf("edit no rule: %d", rec.Code)
 	}
 	rec = h.Login.PostMultipart("/routing/shadowrocket/1/base", url.Values{"base": {srBase + "# edited\r\n"}}, nil)

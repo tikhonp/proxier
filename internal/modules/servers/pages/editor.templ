@@ -89,7 +89,7 @@ templ editorPage(s ui.Shell, v editorView) {
 		<div id="ed-msg" class="ed-msg" role="status"></div>
 		<form
 			id="draft-form"
-			class="ed"
+			class="ed code-fill"
 			method="post"
 			action={ templ.SafeURL(actionHref(v.T.ID, "/draft")) }
 			data-ed
@@ -129,6 +129,8 @@ templ editorPage(s ui.Shell, v editorView) {
 				<div class="ed-file">
 					<span class="bold" id="ed-name">{ v.Active }</span>
 					<span class="subtle sm" id="ed-lang"></span>
+					<span class="flex1"></span>
+					@ui.CodeTools()
 				</div>
 				<div id="ed-host" class="ed-host"></div>
 				<div class="ed-status">

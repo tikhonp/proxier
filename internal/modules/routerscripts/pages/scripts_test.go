@@ -148,7 +148,7 @@ func TestScriptPage(t *testing.T) {
 			t.Errorf("no draft: no %q", want)
 		}
 	}
-	if strings.Contains(page, `data-code="routeros"`) || strings.Contains(page, "Discard draft") {
+	if strings.Contains(page, `data-code="routeros"`) || strings.Contains(page, "Discard draft") || strings.Contains(page, "data-code-full") {
 		t.Error("an editor without a draft")
 	}
 	res := h.Login.Post("/router-scripts/1/edit", nil)
@@ -168,7 +168,9 @@ func TestScriptPage(t *testing.T) {
 	}
 	for _, want := range []string{`name="revision" value="1"`, `id="params-panel"`, `data-code-findings="draft-body"`, "Detected parameters · 18",
 		"Publish v2…", "js/editor.bundle.js", `data-code-save`, `form="draft-form"`, "draft based on v1", "Discard draft…", "The draft is dropped; v1 stays current.",
-		"interface names", "vpnGateway", "→ 192.168.89.2", `&#34;10.230.1&#34;`, "Saved the draft of fresh-router"} {
+		"interface names", "vpnGateway", "→ 192.168.89.2", `&#34;10.230.1&#34;`, "Saved the draft of fresh-router",
+		// the draft's band holds Wrap lines and Full screen; the keys sheet lists the editor's keys
+		`<section class="area rs-area" id="draft"`, `data-code-wrap`, `data-code-full`, ">Full screen<", "In a code editor"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("draft: no %q", want)
 		}

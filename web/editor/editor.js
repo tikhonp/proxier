@@ -16,7 +16,7 @@
 // vim mode in Safari) take the keys typed in the editor as commands.
 // Keys typed in the editor stop at its host so the page's key map
 // (g d, j k, /, ?) never sees them.
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { indentUnit, syntaxHighlighting, HighlightStyle, StreamLanguage, bracketMatching, indentOnInput } from "@codemirror/language";
@@ -30,8 +30,10 @@ import { tags as t } from "@lezer/highlight";
 
 // ---- Rosé Pine, from the page's tokens.css variables -------------------------
 
+// The editor's size is the page's: app.css gives it the height of its box
+// (the window under the title on an editor page), so it is not set here.
 const theme = EditorView.theme({
-  "&": { color: "var(--text)", backgroundColor: "var(--black)", fontSize: "12.5px", flex: "1 1 auto", minWidth: "0", minHeight: "480px", maxHeight: "78vh" },
+  "&": { color: "var(--text)", backgroundColor: "var(--black)", fontSize: "12.5px", minWidth: "0" },
   ".cm-scroller": { fontFamily: "var(--font)", lineHeight: "20px", overflow: "auto" },
   ".cm-content": { caretColor: "var(--text)", padding: "8px 0 16px" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text)" },
@@ -68,6 +70,42 @@ const highlight = syntaxHighlighting(HighlightStyle.define([
   { tag: [t.variableName, t.labelName, t.typeName, t.className], color: "var(--rose)" },
   { tag: [t.invalid], color: "var(--iris)", textDecoration: "underline wavy var(--love)" },
 ]));
+
+// ---- code tools: Wrap lines ------------------------------------------------------
+
+// Long lines wrap or scroll sideways, for every editor on the page at once.
+// The choice is this browser's, kept between pages; storage may be off
+// (a private window), so it is only a convenience.
+const wrapping = new Compartment();
+const views = new Set();
+const WRAP_KEY = "proxier.code.wrap";
+let wrapOn = false;
+try { wrapOn = window.localStorage.getItem(WRAP_KEY) === "1"; } catch (e) { /* storage off */ }
+
+function wrapExt() { return wrapping.of(wrapOn ? EditorView.lineWrapping : []); }
+
+// wrapView brings a view (or a state just set on it) to the current choice
+function wrapView(view) {
+  view.dispatch({ effects: wrapping.reconfigure(wrapOn ? EditorView.lineWrapping : []) });
+}
+
+function setWrap(on) {
+  wrapOn = on;
+  try { window.localStorage.setItem(WRAP_KEY, on ? "1" : "0"); } catch (e) { /* storage off */ }
+  for (const v of views) wrapView(v);
+  for (const c of $$("[data-code-wrap]")) c.checked = on;
+}
+
+// showTools shows the tools in the editors' bands (Wrap lines, Full screen):
+// they need this script, so the page draws them hidden.
+function showTools() {
+  for (const t of $$("[data-code-tools]")) t.classList.remove("hidden");
+  for (const c of $$("[data-code-wrap]")) c.checked = wrapOn;
+}
+
+document.addEventListener("change", (e) => {
+  if (e.target.matches && e.target.matches("[data-code-wrap]")) setWrap(e.target.checked);
+});
 
 // ---- files ---------------------------------------------------------------------
 
@@ -121,6 +159,7 @@ class Editor {
     this.t = (k) => form.dataset[k] || "";
     this.host = $("#ed-host");
     this.view = new EditorView({ parent: this.host, state: EditorState.create({ doc: "" }) });
+    views.add(this.view);
     this.host.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !e.defaultPrevented) this.view.contentDOM.blur();
       e.stopPropagation();
@@ -167,7 +206,7 @@ class Editor {
           indentWithTab, ...searchKeymap, ...historyKeymap, ...lintKeymap, ...defaultKeymap,
         ]),
         languageExt(langOf(file.path)),
-        theme, highlight,
+        theme, highlight, wrapExt(),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             file.el.value = u.state.doc.toString();
@@ -207,6 +246,8 @@ class Editor {
       cm.style.display = "";
       this.binaryNote.classList.add("hidden");
       this.view.setState(f.state);
+      // a file's state keeps the wrapping it was made with
+      wrapView(this.view);
       this.diagnose();
     }
     this.status();
@@ -558,7 +599,7 @@ function initCodeAreas() {
             { key: "Mod-s", preventDefault: true, run: () => { saveCode(); return true; } },
             indentWithTab, ...searchKeymap, ...historyKeymap, ...lintKeymap, ...defaultKeymap,
           ]),
-          lang ? lang() : [], theme, highlight,
+          lang ? lang() : [], theme, highlight, wrapExt(),
           EditorView.updateListener.of((u) => {
             if (!u.docChanged) return;
             ta.value = u.state.doc.toString();
@@ -568,6 +609,7 @@ function initCodeAreas() {
         ],
       }),
     });
+    views.add(view);
     codeFindings(view, ta);
     document.body.addEventListener("htmx:afterSettle", () => codeFindings(view, ta));
     host.addEventListener("keydown", (e) => {
@@ -584,6 +626,7 @@ function init() {
   const form = document.querySelector("form[data-ed]");
   if (form && !form.classList.contains("ed-on")) window.proxierEditor = new Editor(form);
   initCodeAreas();
+  if (views.size) showTools();
   if (!form && document.querySelector("[data-code-save]")) {
     document.addEventListener("keydown", (e) => {
       if (!e.defaultPrevented && (e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "s") { e.preventDefault(); saveCode(); }

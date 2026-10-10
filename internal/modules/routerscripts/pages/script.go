@@ -206,6 +206,7 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 	sh := h.shell(c, s.Name, ListPath)
 	if v.Draft {
 		sh.Scripts = []string{"js/editor.bundle.js"}
+		sh.Keys = append(sh.Keys, ui.CodeKeys)
 	}
 	return web.Render(c, code, scriptPage(sh, v))
 }

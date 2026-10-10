@@ -71,7 +71,7 @@ func TestTemplatePagesHoldUpWhenZoomed(t *testing.T) {
 		"@media (max-width: 1270px) {\n  .tgrid { grid-template-columns: minmax(0, 1fr); }\n}",
 		`.tbl .row .clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;`,
 		`.ed { flex: 1; display: grid; grid-template-columns: 230px minmax(0, 1fr) 330px;`,
-		"@media (max-width: 1100px) {\n  .ed { grid-template-columns: 230px minmax(0, 1fr); }\n  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); }",
+		"@media (max-width: 1100px) {\n  .ed { grid-template-columns: 230px minmax(0, 1fr); }\n  .ed-side { grid-column: 1 / -1; border-left: 0; border-top: 1px solid var(--overlay); max-height: 40vh; }",
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("app.css lacks %q", want)
@@ -614,4 +614,101 @@ func rowCells(lines []string, i int, placedCaret bool) (cells int, ok bool) {
 		}
 	}
 	return cells, true
+}
+
+// A code editor spans the page column and, on a page whose job is the editor,
+// fills the window under the title: the Shadowrocket base config was a 560 px
+// column (.form) whose code clipped its long lines, with a 78vh box of its own
+// inside a page that scrolled too. The editors have Wrap lines and Full
+// screen; esc leaves the code first and full screen with the next one.
+func TestCodeEditorsFillTheWindow(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		`.code-host .cm-editor, .ed-host .cm-editor { flex: 1 1 0; min-height: 0; }`,
+		`.app:has(.code-fill) .side { contain: size; overflow-y: auto; }`, // a long nav doesn't stretch the editor
+		`.code-fill { flex: 1 0 auto; display: flex; flex-direction: column; min-width: 0; }`,
+		`.code-frame { flex: 1 1 0; min-height: 360px; display: flex; flex-direction: column; min-width: 0; }`,
+		`.code-frame > .code-host, .code-frame > textarea { flex: 1 1 0; min-height: 0; }`,
+		`.ed.code-fill { display: grid; flex: 1 1 0; min-height: 480px; grid-template-rows: minmax(0, 1fr); }`,
+		`.ed-files { flex: 1; min-height: 0; overflow-y: auto; padding: 6px 0; }`,
+		`.ed-host { flex: 1 1 0; min-height: 0;`,
+		`.code-full .hdr, .code-full .side { display: none !important; }`,
+		`.code-full .rs-area ~ :not(dialog) { display: none; }`,
+		`.rs-draft > .code-host { flex: 1 1 auto; min-height: max(480px, 78vh); }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	// the code runs flush, as the canvas draws the editors: no box inside the page's padding
+	if regexp.MustCompile(`\.code-host \{[^}]*border`).MatchString(css) || regexp.MustCompile(`\.rs-draft \{[^}]*padding`).MatchString(css) {
+		t.Error("the code sits in a bordered box inside padding")
+	}
+	stacked := regexp.MustCompile(`(?s)@media \(max-width: 1100px\) \{\s*\.ed \{ grid-template-columns: 230px minmax\(0, 1fr\); \}[^@]*\}`).FindString(css)
+	if !strings.Contains(stacked, `.ed.code-fill { grid-template-rows: minmax(0, 1fr) auto; min-height: 560px; }`) {
+		t.Errorf("under 1100 px the results push the code out of the window: %s", stacked)
+	}
+	phone := regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.ed \{ grid-template-columns: minmax\(0, 1fr\); \}[^@]*\}`).FindString(css)
+	if !strings.Contains(phone, `.ed.code-fill { flex: none; grid-template-rows: auto; min-height: 0; }`) || !strings.Contains(phone, `.ed-host { flex: none; height: max(320px, 70vh); }`) {
+		t.Errorf("a phone squeezes the stacked editor into the window: %s", phone)
+	}
+
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`a.classList.toggle('code-full', on);`,
+		`if (t.hasAttribute('data-code-full')) { setCodeFull(!codeFull()); return; }`,
+		// a field (the code's own esc only leaves it) and a dialog keep esc
+		`if (typing(e.target)) { e.target.blur(); setPending(false); return; }`,
+		`if (codeFull() && !(e.target.closest && e.target.closest('dialog'))) { setCodeFull(false); e.preventDefault(); }`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+	// pop-ups close before full screen does
+	if i, j := strings.Index(js, `if (closeKeys())`), strings.Index(js, `setCodeFull(false)`); i < 0 || j < i {
+		t.Error("esc leaves full screen before closing the keys sheet")
+	}
+	b, err = fs.ReadFile(ui.StaticFS, "js/editor.bundle.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	bundle := string(b)
+	for _, want := range []string{"proxier.code.wrap", "[data-code-wrap]", "[data-code-tools]"} {
+		if !strings.Contains(bundle, want) {
+			t.Errorf("the editor bundle lacks %q (make editor)", want)
+		}
+	}
+	if strings.Contains(bundle, `maxHeight:"78vh"`) {
+		t.Error("the editor bundle caps CodeMirror's height itself (make editor)")
+	}
+
+	// every code editor in the templates has the tools in its band
+	n := 0
+	err = filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		src := string(b)
+		eds := strings.Count(src, `data-code="`) + strings.Count(src, `id="ed-host"`)
+		n += eds
+		if eds > 0 && strings.Count(src, "@ui.CodeTools()") < eds {
+			t.Errorf("%s: a code editor without Wrap lines and Full screen", p)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 3 {
+		t.Fatalf("only %d code editors found", n)
+	}
 }

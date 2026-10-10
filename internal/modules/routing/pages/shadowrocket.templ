@@ -69,8 +69,10 @@ templ srListPage(s ui.Shell, rows []srRow) {
 	}
 }
 
-// srFormPage is New config (C zero) or Edit base config: the base config is
-// a textarea the editor bundle puts CodeMirror on; the form works without it.
+// srFormPage is New config (C zero) or Edit base config. The base config is
+// a textarea the editor bundle puts CodeMirror on (the form works without
+// it): the page is its editor, so the code takes the window under the title
+// and the other fields, and Save stays in the title block.
 templ srFormPage(s ui.Shell, v srFormView, title string) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -82,8 +84,18 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 				}
 				<h1>{ title }</h1>
 			</div>
+			<div class="actions">
+				if v.C.ID == 0 {
+					<button type="submit" form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.create" data-code-save>{ i18n.T(ctx, "shadowrocket.create") }</button>
+					<a href={ templ.SafeURL(srPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				} else {
+					<button type="submit" form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.save" data-code-save>{ i18n.T(ctx, "shadowrocket.save") }</button>
+					<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				}
+			</div>
 		</div>
 		<form
+			id="sr-form"
 			method="post"
 			if v.C.ID == 0 {
 				action={ templ.SafeURL(srPath) }
@@ -91,73 +103,74 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 				action={ templ.SafeURL(srHref(v.C.ID) + "/base") }
 			}
 			enctype="multipart/form-data"
-			class="form sr-form"
+			class="sr-form code-fill"
 		>
 			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 			<input type="hidden" name="config" value={ i64(v.C.ID) }/>
 			if v.C.ID == 0 {
-				<div class="field">
-					<label for="sr-name">{ i18n.T(ctx, "shadowrocket.field.name") }</label>
-					<input id="sr-name" class="pc-inp" name="name" value={ v.Name } maxlength="63" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
-					<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.name.help") }</p>
-					if v.Errs["name"] != "" {
-						<p class="err" role="alert">{ v.Errs["name"] }</p>
-					}
-				</div>
-				<div class="field">
-					<label for="sr-list">{ i18n.T(ctx, "shadowrocket.field.list") }</label>
-					<select id="sr-list" class="pc-inp" name="list">
-						for _, l := range v.Lists {
-							<option value={ i64(l.ID) } selected?={ l.ID == v.ListID }>{ l.Name }</option>
+				<div class="sr-strip top">
+					<div class="field">
+						<label for="sr-name">{ i18n.T(ctx, "shadowrocket.field.name") }</label>
+						<input id="sr-name" class="pc-inp" name="name" value={ v.Name } maxlength="63" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
+						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.name.help") }</p>
+						if v.Errs["name"] != "" {
+							<p class="err" role="alert">{ v.Errs["name"] }</p>
 						}
-					</select>
-					if v.Errs["list"] != "" {
-						<p class="err" role="alert">{ v.Errs["list"] }</p>
-					}
-				</div>
-				<div class="field">
-					<label for="sr-policy">{ i18n.T(ctx, "shadowrocket.field.policy") }</label>
-					<input id="sr-policy" class="pc-inp" name="policy" value={ v.Policy } maxlength="64" autocomplete="off" aria-invalid?={ v.Errs["policy"] != "" }/>
-					<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.policy.help") }</p>
-					if v.Errs["policy"] != "" {
-						<p class="err" role="alert">{ v.Errs["policy"] }</p>
-					}
+					</div>
+					<div class="field">
+						<label for="sr-list">{ i18n.T(ctx, "shadowrocket.field.list") }</label>
+						<select id="sr-list" class="pc-inp" name="list">
+							for _, l := range v.Lists {
+								<option value={ i64(l.ID) } selected?={ l.ID == v.ListID }>{ l.Name }</option>
+							}
+						</select>
+						if v.Errs["list"] != "" {
+							<p class="err" role="alert">{ v.Errs["list"] }</p>
+						}
+					</div>
+					<div class="field">
+						<label for="sr-policy">{ i18n.T(ctx, "shadowrocket.field.policy") }</label>
+						<input id="sr-policy" class="pc-inp" name="policy" value={ v.Policy } maxlength="64" autocomplete="off" aria-invalid?={ v.Errs["policy"] != "" }/>
+						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.policy.help") }</p>
+						if v.Errs["policy"] != "" {
+							<p class="err" role="alert">{ v.Errs["policy"] }</p>
+						}
+					</div>
 				</div>
 			}
-			<div class="field">
-				<label for="sr-base">{ i18n.T(ctx, "shadowrocket.field.base") }</label>
+			<section class="code-frame" aria-labelledby="sr-base-label">
+				<div class="pc-title">
+					<label id="sr-base-label" for="sr-base" class="pc-label">{ i18n.T(ctx, "shadowrocket.field.base") }</label>
+					<span class="flex1"></span>
+					@ui.CodeTools()
+				</div>
 				if v.Errs["base"] != "" {
-					<p class="err" role="alert">{ v.Errs["base"] }</p>
+					<p class="code-err" role="alert">{ v.Errs["base"] }</p>
 				}
 				<textarea id="sr-base" class="pc-inp sr-base" name="base" rows="24" spellcheck="false" data-code="shadowrocket" aria-invalid?={ v.Errs["base"] != "" }>{ v.Base }</textarea>
-				<div class="inline-fields">
-					<label for="sr-file" class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.file") }</label>
+			</section>
+			<div class="sr-strip bottom">
+				<div class="field">
+					<label for="sr-file">{ i18n.T(ctx, "shadowrocket.field.file") }</label>
 					<input id="sr-file" type="file" name="base_file" accept=".conf,.txt,text/plain"/>
 				</div>
-				<div class="inline-fields">
-					<label for="sr-import" class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.import_url") }</label>
-					<input id="sr-import" class="pc-inp" name="import_url" value={ v.ImportURL } placeholder="https://…/base.conf" autocomplete="off" aria-invalid?={ v.Errs["import_url"] != "" }/>
-					<button type="submit" class="pc-btn pc-sm" formaction={ templ.SafeURL(srPath + "/import-base") } formenctype="application/x-www-form-urlencoded" data-action="shadowrocket.import_base">{ i18n.T(ctx, "shadowrocket.import_base") }</button>
+				<div class="field wide">
+					<label for="sr-import">{ i18n.T(ctx, "shadowrocket.field.import_url") }</label>
+					<div class="inline-fields">
+						<input id="sr-import" class="pc-inp flex1" name="import_url" value={ v.ImportURL } placeholder="https://…/base.conf" autocomplete="off" aria-invalid?={ v.Errs["import_url"] != "" }/>
+						<button type="submit" class="pc-btn pc-sm" formaction={ templ.SafeURL(srPath + "/import-base") } formenctype="application/x-www-form-urlencoded" data-action="shadowrocket.import_base">{ i18n.T(ctx, "shadowrocket.import_base") }</button>
+					</div>
+					if v.Errs["import_url"] != "" {
+						<p class="err" role="alert">{ v.Errs["import_url"] }</p>
+					}
 				</div>
-				if v.Errs["import_url"] != "" {
-					<p class="err" role="alert">{ v.Errs["import_url"] }</p>
-				}
-			</div>
-			<div class="field">
-				<label for="sr-note">{ i18n.T(ctx, "shadowrocket.field.note") }</label>
-				<input id="sr-note" class="pc-inp" name="note" value={ v.Note } maxlength="200" autocomplete="off" aria-invalid?={ v.Errs["note"] != "" }/>
-				if v.Errs["note"] != "" {
-					<p class="err" role="alert">{ v.Errs["note"] }</p>
-				}
-			</div>
-			<div class="form-actions">
-				if v.C.ID == 0 {
-					<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.create">{ i18n.T(ctx, "shadowrocket.create") }</button>
-					<a href={ templ.SafeURL(srPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
-				} else {
-					<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.save">{ i18n.T(ctx, "shadowrocket.save") }</button>
-					<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
-				}
+				<div class="field">
+					<label for="sr-note">{ i18n.T(ctx, "shadowrocket.field.note") }</label>
+					<input id="sr-note" class="pc-inp" name="note" value={ v.Note } maxlength="200" autocomplete="off" aria-invalid?={ v.Errs["note"] != "" }/>
+					if v.Errs["note"] != "" {
+						<p class="err" role="alert">{ v.Errs["note"] }</p>
+					}
+				</div>
 			</div>
 		</form>
 	}

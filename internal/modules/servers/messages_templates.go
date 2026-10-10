@@ -218,10 +218,4 @@ var templateMessages = i18n.Messages{
 	"templates.hints.version_page":    {EN: "d diff with the previous version · j k move", RU: "d сравнить с предыдущей версией · j k выбор"},
 	"templates.hints.version":         {EN: "↵ view v{v} · j k move", RU: "↵ открыть v{v} · j k выбор"},
 	"templates.hints.editor":          {EN: "⌘S save · ⌘F find · tab indent · esc leave the editor", RU: "⌘S сохранить · ⌘F поиск · tab отступ · esc выйти из редактора"},
-	"templates.keys.editor":           {EN: "Template editor", RU: "Редактор шаблона"},
-	"templates.keys.save":             {EN: "Save the draft", RU: "Сохранить черновик"},
-	"templates.keys.indent":           {EN: "Indent two spaces", RU: "Отступ в два пробела"},
-	"templates.keys.find":             {EN: "Find in the file", RU: "Поиск в файле"},
-	"templates.keys.undo":             {EN: "Undo", RU: "Отменить"},
-	"templates.keys.leave":            {EN: "Leave the editor", RU: "Выйти из редактора"},
 }

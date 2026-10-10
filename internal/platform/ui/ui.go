@@ -164,6 +164,14 @@ type KeyGroup struct {
 
 type Key struct{ Keys, What string } // "g d", i18n key
 
+// CodeKeys is the keys sheet's group on a page with a code editor (a
+// template's draft, a router script's draft, a Shadowrocket base config).
+// The editor's own esc leaves the code, so leaving full screen takes a second.
+var CodeKeys = KeyGroup{Where: "keys.code", Keys: []Key{
+	{Keys: "⌘S", What: "keys.code.save"}, {Keys: "tab", What: "keys.code.indent"}, {Keys: "⌘F", What: "keys.code.find"},
+	{Keys: "⌘Z", What: "keys.code.undo"}, {Keys: "esc", What: "keys.code.leave"}, {Keys: "esc esc", What: "keys.code.full"},
+}}
+
 // SignInView is what the sign-in page shows.
 type SignInView struct {
 	Username  string

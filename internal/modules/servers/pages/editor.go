@@ -158,10 +158,7 @@ func (h *handler) editorShell(c *echo.Context, info templates.Info) ui.Shell {
 	s := h.shell(c, info.Name, "/templates")
 	s.Scripts = []string{"js/editor.bundle.js"}
 	s.PageKeys = "templates.hints.editor"
-	s.Keys = append(s.Keys, ui.KeyGroup{Where: "templates.keys.editor", Keys: []ui.Key{
-		{Keys: "⌘S", What: "templates.keys.save"}, {Keys: "tab", What: "templates.keys.indent"}, {Keys: "⌘F", What: "templates.keys.find"},
-		{Keys: "⌘Z", What: "templates.keys.undo"}, {Keys: "esc", What: "templates.keys.leave"},
-	}})
+	s.Keys = append(s.Keys, ui.CodeKeys)
 	return s
 }
 

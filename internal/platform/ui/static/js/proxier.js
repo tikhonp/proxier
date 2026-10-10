@@ -175,11 +175,30 @@
     return true;
   }
 
+  // ---- code editors: Full screen -------------------------------------------
+  // The header and the sidebar go and the editor takes the window under the
+  // page's title (app.css, .code-full); the title's actions stay. The editor's
+  // own esc leaves the code (editor.js), the next esc leaves full screen.
+  function codeFull() { var a = $('#app'); return !!a && a.classList.contains('code-full'); }
+  function setCodeFull(on) {
+    var a = $('#app');
+    if (!a) return;
+    a.classList.toggle('code-full', on);
+    $$('[data-code-full]').forEach(function (b) {
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+      b.textContent = b.getAttribute(on ? 'data-t-less' : 'data-t-more');
+    });
+    window.scrollTo(0, 0);
+    var hb = $('[data-code-full]');
+    if (on && hb) say(hb.getAttribute('data-t-hint'));
+  }
+
   // ---- clicks ------------------------------------------------------------
   document.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('[data-open-palette],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-copy-from],[data-switch]') : null;
+    var t = e.target.closest ? e.target.closest('[data-code-full],[data-open-palette],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-copy-from],[data-switch]') : null;
     if (pal && !pal.classList.contains('hidden') && e.target === pal) closePalette();
     if (!t) return;
+    if (t.hasAttribute('data-code-full')) { setCodeFull(!codeFull()); return; }
     if (t.hasAttribute('data-open-palette')) { openPalette(t.getAttribute('data-open-palette')); return; }
     if (t.hasAttribute('data-drawer-toggle')) { document.body.classList.toggle('drawer-open'); return; }
     if (t.hasAttribute('data-dialog-open')) {
@@ -275,8 +294,10 @@
       var esc = $('[data-esc]');
       if (esc && esc.offsetParent !== null && !typing(e.target)) { esc.click(); e.preventDefault(); return; }
       if (document.body.classList.contains('drawer-open')) { document.body.classList.remove('drawer-open'); return; }
-      if (typing(e.target)) { e.target.blur(); }
+      if (typing(e.target)) { e.target.blur(); setPending(false); return; }
       setPending(false);
+      // after a field (the code's own esc only leaves the code) and never from a dialog
+      if (codeFull() && !(e.target.closest && e.target.closest('dialog'))) { setCodeFull(false); e.preventDefault(); }
       return;
     }
 
