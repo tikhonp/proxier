@@ -91,6 +91,9 @@ func isCurrent(path, href string) bool {
 	return path == href || (len(path) > len(href) && path[:len(href)] == href && path[len(href)] == '/')
 }
 
+// header ends with the admin's name and Sign out, a cell of its own so a long
+// name gives way and never pushes it off the screen. Settings has no cell: it
+// is in the sidebar, and its hidden action keeps it in the : pop-up.
 templ header(s Shell) {
 	<header class="hdr">
 		<button class="hdr-menu pc-menu pc-seg" type="button" data-drawer-toggle aria-label={ i18n.T(ctx, "ui.menu") }>
@@ -106,13 +109,11 @@ templ header(s Shell) {
 		if s.Warning != nil {
 			<a href={ templ.SafeURL(s.Warning.Href) } class="hdr-cell hdr-warn pc-seg pc-hide-s"><span class="st st-look" aria-hidden="true"></span>{ s.Warning.Text }</a>
 		}
-		<div class="admin-menu">
-			<button type="button" class="pc-seg" data-menu-toggle aria-haspopup="true" aria-expanded="false" title={ s.Admin }><span class="admin-name">{ s.Admin }</span><span class="caret-down" aria-hidden="true">▾</span></button>
-			<div class="admin-pop hidden" id="admin-pop" role="menu">
-				@ActionButton(Action{ID: "nav.settings", Label: "nav.settings", Method: "GET", Href: "/settings", Kind: Ghost})
-				@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Kind: Ghost})
-			</div>
+		<div class="hdr-cell hdr-admin"><span class="admin-name" title={ s.Admin }>{ s.Admin }</span></div>
+		<div class="hdr-out">
+			@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Small: true})
 		</div>
+		@ActionButton(Action{ID: "nav.settings", Label: "nav.settings", Method: "GET", Href: "/settings", Hidden: true})
 	</header>
 }
 

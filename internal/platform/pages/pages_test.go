@@ -149,9 +149,9 @@ func TestLanguageChangesInSettings(t *testing.T) {
 	}
 }
 
-// Settings → General is the only place that changes the language: the admin
-// menu has no switch, so neither has the : pop-up, which lists the buttons
-// on the page.
+// Settings → General is the only place that changes the language: the header
+// has no switch, so neither has the : pop-up, which lists the buttons on the
+// page.
 func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
@@ -163,7 +163,7 @@ func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
 			}
 		}
 		if !strings.Contains(page, `data-action="auth.sign_out"`) {
-			t.Errorf("%s: the admin menu lost Sign out", path)
+			t.Errorf("%s: the header lost Sign out", path)
 		}
 	}
 	if rec := l.Post("/me/language", url.Values{"lang": {"ru"}}); rec.Code == 303 {
@@ -171,6 +171,57 @@ func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
 	}
 	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "en" {
 		t.Error("the language changed outside Settings")
+	}
+}
+
+// The header ends with the admin's name as plain text and Sign out, one
+// click (a POST with the CSRF token, no dialog); there is no account menu.
+// Settings, which the menu held, is in the sidebar (g ,) and stays in the
+// : pop-up through a hidden action.
+func TestHeaderShowsNameAndSignOut(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	for _, path := range []string{"/", "/settings/general", "/jobs"} {
+		page := l.Get(path).Body.String()
+		hdr := page[strings.Index(page, `<header class="hdr">`):strings.Index(page, "</header>")]
+		if !strings.Contains(hdr, `<div class="hdr-cell hdr-admin"><span class="admin-name" title="admin">admin</span></div>`) {
+			t.Errorf("%s: the admin's name is not plain text in the header", path)
+		}
+		out := hdr[strings.Index(hdr, `<div class="hdr-out">`):]
+		for _, want := range []string{
+			`<form method="post" action="/logout"`,
+			`name="_csrf" value="` + l.CSRF + `"`,
+			`<button type="submit" class="pc-btn pc-sm" data-action="auth.sign_out" data-key="">Sign out</button>`,
+		} {
+			if !strings.Contains(out, want) {
+				t.Errorf("%s: the header's Sign out cell lacks %s", path, want)
+			}
+		}
+		for _, bad := range []string{"data-menu-toggle", "admin-pop", "aria-haspopup", "▾", "data-dialog-open"} {
+			if strings.Contains(hdr, bad) {
+				t.Errorf("%s: the header still holds %s", path, bad)
+			}
+		}
+		if !strings.Contains(hdr, `<a href="/settings" class="pc-btn hidden" data-action="nav.settings" data-key="">Settings</a>`) {
+			t.Errorf("%s: Settings left the : pop-up", path)
+		}
+		if !strings.Contains(page, `href="/settings" data-goto=","`) {
+			t.Errorf("%s: the sidebar has no Settings", path)
+		}
+	}
+	// without the token nothing ends
+	if rec := s.Do(sitetest.Req{Method: http.MethodPost, Path: "/logout", Cookies: []*http.Cookie{l.Cookie}}); rec.Code != 403 {
+		t.Errorf("sign out without CSRF: %d", rec.Code)
+	}
+	if rec := l.Get("/"); rec.Code != 200 {
+		t.Fatalf("the session ended without CSRF: %d", rec.Code)
+	}
+	rec := l.Post("/logout", nil)
+	if rec.Code != 303 || rec.Header().Get("Location") != "/login" {
+		t.Fatalf("sign out: %d %q", rec.Code, rec.Header().Get("Location"))
+	}
+	if rec := l.Get("/"); rec.Code != 303 || !strings.HasPrefix(rec.Header().Get("Location"), "/login") {
+		t.Errorf("the session outlived Sign out: %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 }
 

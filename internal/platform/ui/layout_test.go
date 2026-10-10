@@ -442,3 +442,37 @@ func pageColumnLines(lines []string) []int {
 	}
 	return out
 }
+
+// The header ends with the admin's name and a small Sign out, not a menu. A
+// long name (an email) gives way and ends in "…", sharing what is left with
+// the search, and Sign out, a cell that never shrinks, stays on the screen at
+// any width, also on a phone, where buttons may otherwise wrap.
+func TestSignOutStaysInTheHeader(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		`.hdr-search { flex: 1 1 160px; min-width: 0;`,
+		`.hdr-admin { min-width: 0; padding-right: 12px; }`,
+		`.admin-name, .hdr-ph { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`,
+		`.admin-name { max-width: 32ch; color: var(--subtle); }`,
+		`.hdr-out { flex: none; display: flex; align-items: center; padding-right: 16px; }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	// on a phone a button's label may wrap; Sign out's must not, and the rule
+	// comes after the one it overrides
+	wrap, keep := strings.Index(css, `white-space: normal; text-align: center; }`), strings.Index(css, `.hdr-out .pc-btn { padding: 0 10px; white-space: nowrap; }`)
+	if keep < 0 || keep < wrap {
+		t.Error("on a phone Sign out may wrap")
+	}
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, gone := range []string{"admin-pop", "admin-menu", "data-menu-toggle", "closeMenu"} {
+		if strings.Contains(css, gone) || strings.Contains(string(b), gone) {
+			t.Errorf("the account menu's %s is left over", gone)
+		}
+	}
+}

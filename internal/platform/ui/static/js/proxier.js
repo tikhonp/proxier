@@ -175,30 +175,12 @@
     return true;
   }
 
-  // ---- admin menu, drawer -------------------------------------------------
-  function closeMenu() {
-    var p = $('#admin-pop');
-    if (p && !p.classList.contains('hidden')) {
-      p.classList.add('hidden');
-      var b = $('[data-menu-toggle]'); if (b) b.setAttribute('aria-expanded', 'false');
-      return true;
-    }
-    return false;
-  }
-
   // ---- clicks ------------------------------------------------------------
   document.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('[data-open-palette],[data-menu-toggle],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-copy-from],[data-switch]') : null;
-    var menu = $('#admin-pop');
-    if (menu && !menu.classList.contains('hidden') && !(e.target.closest && e.target.closest('.admin-menu'))) closeMenu();
+    var t = e.target.closest ? e.target.closest('[data-open-palette],[data-drawer-toggle],[data-dialog-open],[data-dialog-close],[data-copy],[data-copy-from],[data-switch]') : null;
     if (pal && !pal.classList.contains('hidden') && e.target === pal) closePalette();
     if (!t) return;
     if (t.hasAttribute('data-open-palette')) { openPalette(t.getAttribute('data-open-palette')); return; }
-    if (t.hasAttribute('data-menu-toggle')) {
-      var hidden = menu.classList.toggle('hidden');
-      t.setAttribute('aria-expanded', hidden ? 'false' : 'true');
-      return;
-    }
     if (t.hasAttribute('data-drawer-toggle')) { document.body.classList.toggle('drawer-open'); return; }
     if (t.hasAttribute('data-dialog-open')) {
       var d = document.getElementById(t.getAttribute('data-dialog-open'));
@@ -288,7 +270,7 @@
     }
 
     if (k === 'Escape') {
-      if (closeKeys() || closeMenu()) { e.preventDefault(); return; }
+      if (closeKeys()) { e.preventDefault(); return; }
       // a panel that closes with esc (the catalog preview) carries data-esc on its ×
       var esc = $('[data-esc]');
       if (esc && esc.offsetParent !== null && !typing(e.target)) { esc.click(); e.preventDefault(); return; }

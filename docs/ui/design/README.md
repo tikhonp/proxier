@@ -77,7 +77,7 @@ The desktop layout, from top to bottom:
   - the search field, which stretches to fill the rest;
   - the jobs cell;
   - an optional warning cell, such as "Telegram unreachable";
-  - the admin menu.
+  - the admin's name in plain subtle text, then a small **Sign out** button (`.pc-btn.pc-sm`) in a cell of its own at the end. When the window is narrow, the name and the search give way (the name ends in "…"); Sign out never does. There is no account menu: Settings is in the sidebar.
 - **Sidebar** (212 px), with grouped navigation. The current page is an overlay row with a `›`.
 - **Main area**:
   - the page title block: an `h1`, then one status line in words;
@@ -162,7 +162,7 @@ A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the
 Under 760 px the layout changes:
 
 - The sidebar becomes a drawer behind a ☰ cell, and the key line goes away.
-- The header grows to 56 px, with flush cells: ☰, the logo, jobs and search.
+- The header grows to 56 px, with flush cells: ☰, the logo, jobs and search, then the admin's name and Sign out.
 - A back row (`‹ Servers`) sits under the header.
 - Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width.
 
@@ -178,6 +178,7 @@ The files in `screens/` are the canvas source (`.dc.html`). Use them as a refere
 
 - They need the canvas runtime (`support.js`), so they don't open on their own.
 - The markup and inline styles are exact. The `<helmet>` block carries the same classes as `tokens.css`.
+- Their header ends in an `admin ▾` menu cell, which is gone: the header ends with the admin's name and **Sign out** (Layout, above).
 - The sample data is in the `renderVals()` script at the bottom.
 
 | Area | File | Screen |

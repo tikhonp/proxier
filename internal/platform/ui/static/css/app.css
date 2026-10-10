@@ -21,21 +21,19 @@
 .hdr { position: relative; z-index: 4; height: var(--header-h); flex: none; display: flex; align-items: stretch; border-bottom: 1px solid var(--overlay); }
 .hdr-logo { width: var(--sidebar-w); flex: none; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-right: 1px solid var(--overlay); font-weight: 700; text-decoration: none; }
 .logo-mark { width: 10px; height: 10px; background: var(--text); flex: none; }
-.hdr-search { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 0; color: var(--muted); text-align: left; cursor: text; }
+/* the search and a long name share what is left: neither squeezes the other to nothing */
+.hdr-search { flex: 1 1 160px; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 0; color: var(--muted); text-align: left; cursor: text; }
 .hdr-search .slash { color: var(--subtle); font-weight: 600; }
 .hdr-cell { display: flex; align-items: center; gap: 8px; padding: 0 16px; border-left: 1px solid var(--overlay); }
 .hdr-cell.quiet { color: var(--subtle); }
-.hdr-menu { display: none; align-items: center; justify-content: center; width: 48px; padding: 0; border-right: 1px solid var(--overlay); }
+.hdr-menu { display: none; flex: none; align-items: center; justify-content: center; width: 48px; padding: 0; border-right: 1px solid var(--overlay); }
 .hdr-warn { color: var(--gold); }
-.caret-down { color: var(--muted); }
-.admin-menu { position: relative; display: flex; }
-.admin-menu > button { display: flex; align-items: center; gap: 8px; padding: 0 16px; border-left: 1px solid var(--overlay); height: 100%; }
-/* a username may be a long email: it must not push the header wider than the screen */
+/* the admin's name, plain text, then Sign out at the header's end; a username
+   may be a long email: its cell gives way, so Sign out is never pushed off the screen */
+.hdr-admin { min-width: 0; padding-right: 12px; }
 .admin-name, .hdr-ph { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.admin-name { max-width: 32ch; }
-.admin-pop { position: absolute; right: 0; top: 100%; min-width: 220px; z-index: 6; background: var(--black); border: 1px solid var(--hl-high); padding: 4px 0; }
-.admin-pop form { margin: 0; }
-.admin-pop .pc-mi { text-decoration: none; }
+.admin-name { max-width: 32ch; color: var(--subtle); }
+.hdr-out { flex: none; display: flex; align-items: center; padding-right: 16px; }
 .body { flex: 1; display: flex; align-items: stretch; min-height: 0; }
 .side { width: var(--sidebar-w); flex: none; border-right: 1px solid var(--overlay); padding: 4px 0 24px; }
 .side-group { padding: 16px 16px 6px; font-size: var(--fs-label); line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
@@ -251,8 +249,9 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 @media (max-width: 760px) {
   :root { --header-h: 56px; }
   .hdr-logo { width: auto; border-right: 0; }
-  .hdr-search { padding: 0 12px; }
-  .hdr-cell, .admin-menu > button { padding: 0 12px; }
+  .hdr-search { flex-basis: 96px; padding: 0 12px; }
+  .hdr-cell { padding: 0 12px; }
+  .hdr-out { padding-right: 12px; }
   .admin-name { max-width: 10ch; }
   .settings { flex-direction: column; }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
@@ -269,6 +268,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .pc-inp, .signin .pc-inp { min-height: 48px; }
   /* a label longer than the screen ("Add service to <a long name>") wraps inside its button */
   .pc-btn { max-width: 100%; height: auto; padding-top: 6px; padding-bottom: 6px; white-space: normal; text-align: center; }
+  .hdr-out .pc-btn { padding: 0 10px; white-space: nowrap; }
   .drawer-open .pc-side { display: block !important; position: fixed; z-index: 11; top: var(--header-h); bottom: 0; left: 0; width: min(300px, 86vw); background: var(--black); border-right: 1px solid var(--hl-high); overflow: auto; }
   .drawer-open .side a { height: 44px; }
 }

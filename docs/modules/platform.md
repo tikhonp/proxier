@@ -90,7 +90,7 @@ Telegram is the only channel in the first version. Channels are an extension poi
 ## Languages and time
 
 - The UI is in **English and Russian** from the first version. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
-- The admin's language is changed only in Settings → General → **Language** (`admin.language_changed`); the admin menu and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`.
+- The admin's language is changed only in Settings → General → **Language** (`admin.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`.
 - Each **link has a language** (default from Settings), used for its stub entry text.
 - Telegram messages use the admin's language.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.

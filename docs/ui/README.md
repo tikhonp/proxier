@@ -29,7 +29,7 @@ This document lists every screen, what it shows, what can be done there, and the
   - **search** (`/`): a pop-up near the top of the screen that finds servers, links, subscriptions, services, routers and router scripts by name, and the actions you can run on them, in one grouped list; `:` opens it with actions only. It has no ×: `esc` or a click outside closes it. Every button is also an action there, with the same words;
   - **jobs indicator**: the number of running jobs, opening a list with their current step, and a mark when a job failed since the last look;
   - **notifications health**: a warning if Telegram isn't configured or deliveries are failing;
-  - the **admin menu** (Settings, sign out). It has no language switch, and neither has the `:` pop-up: the language changes only in Settings → General.
+  - the **admin's name** as plain text (a long one, an email, ends in "…" with the whole name on hover, so it never pushes what follows off the screen), then a small **Sign out** button at the end: one click, no confirmation. There is no account menu. **Settings** is in the sidebar (`g ,`) and in the `:` pop-up. Nothing in the header or the `:` pop-up switches the language: it changes only in Settings → General.
 - **Key line** at the bottom of every desktop screen: the keys for the row under the cursor on the left, `/ : g ?` on the right. Hidden on a phone.
 - **Breadcrumbs** on detail pages. A **page header** with the object's name, its main status badge, and its primary actions. Secondary actions sit in a "more" menu.
 

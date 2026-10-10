@@ -21,7 +21,7 @@ There is one admin. Sign-in is a password on a public host with no second factor
 ## Steps — sessions
 
 1. Each request with a session updates its last-seen time (at most once a minute). A session ends after 7 days without requests or 30 days after creation, whichever comes first.
-2. **Sign out** ends the current session.
+2. **Sign out**, the last cell of the header on every page, ends the current session with one click, with no confirmation, and goes to the sign-in page.
 3. Settings → Security lists the sessions (created, last seen, IP, browser, "this one"). **Sign out** on a row ends that one. **Sign out everywhere** ends all, including the current one. → `auth.signed_out_everywhere{sessions}`
 4. **Change password** asks for the current password and the new one twice. It ends every other session. → `auth.password_changed{via: ui}` (notifies)
 
@@ -56,3 +56,4 @@ There is one admin. Sign-in is a password on a public host with no second factor
 - Password change on the laptop → the phone's session ends at once. The laptop's stays.
 - `reset-password` from the shell during a lockout → works, and all sessions end. The lockout still applies to that IP until it expires.
 - A POST without a CSRF token → `403`, nothing changes.
+- **Sign out** from the header → the session ends; the next admin page redirects to `/login`. Without the CSRF token → `403`, and the session goes on.
