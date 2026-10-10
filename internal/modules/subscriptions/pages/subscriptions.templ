@@ -320,20 +320,22 @@ templ settingsArea(v pageView) {
 templ previewBody(v previewView) {
 	<div id="preview-body">
 		<pre class="preview-out">{ v.Text }</pre>
-		<div class="preview-notes">
-			if v.Base64 {
-				<span class="sm subtle">{ i18n.T(ctx, "subs.preview.base64") }</span>
-			}
-			if !v.Revealed {
-				<span class="sm subtle">{ i18n.T(ctx, "subs.preview.masked") }</span>
-			}
-			for _, n := range v.Notes {
-				<span class="sm gold">{ n }</span>
-			}
-			if v.AllHidden {
-				<span class="sm gold">{ i18n.T(ctx, "subs.preview.all_hidden") }</span>
-			}
-		</div>
+		if v.Base64 || !v.Revealed || len(v.Notes) > 0 || v.AllHidden {
+			<div class="foot preview-notes">
+				if v.Base64 {
+					<span>{ i18n.T(ctx, "subs.preview.base64") }</span>
+				}
+				if !v.Revealed {
+					<span>{ i18n.T(ctx, "subs.preview.masked") }</span>
+				}
+				for _, n := range v.Notes {
+					<span class="gold">{ n }</span>
+				}
+				if v.AllHidden {
+					<span class="gold">{ i18n.T(ctx, "subs.preview.all_hidden") }</span>
+				}
+			</div>
+		}
 	</div>
 }
 

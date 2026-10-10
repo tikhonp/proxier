@@ -580,7 +580,10 @@ a.row.sub { text-decoration: none; color: inherit; }
 .row.addsrv { grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr); }
 .preview-out { margin: 0; padding: 12px 16px; overflow-x: auto; white-space: pre; background: var(--base); color: var(--text); font: inherit; font-size: var(--fs-sm); }
 .preview-out .h { color: var(--subtle); }
-.preview-notes { padding: 8px 16px; display: flex; flex-direction: column; gap: 4px; }
+/* a subscription's preview sits inside the area's padding, its edges those of the format and Reveal above, and wraps rather than
+   scrolling sideways: the sideways scrollbar's box ran over the notes under it */
+#preview-body .preview-out { margin: 0 16px 4px; white-space: pre-wrap; word-break: break-all; overflow-x: visible; }
+.preview-notes { display: flex; flex-direction: column; gap: 4px; }
 fieldset.field { border: 0; padding: 0; margin-left: 0; margin-right: 0; min-width: 0; }
 fieldset.field legend { padding: 0; font-size: var(--fs-sm); color: var(--subtle); margin-bottom: 6px; }
 .inline-fields .check.sm { font-size: var(--fs-sm); color: var(--subtle); }

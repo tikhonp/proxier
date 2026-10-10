@@ -1,6 +1,7 @@
 package pages_test
 
 import (
+	"io/fs"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
 func mustContain(t *testing.T, body string, wants ...string) {
@@ -127,6 +129,57 @@ func TestPreviewReveal(t *testing.T) {
 	}
 	// the page itself never carries a credential
 	mustNotContain(t, page(t, h, "/subscriptions/1"), substest.Credential(1), substest.Credential(2))
+}
+
+// The preview's output ran edge to edge under the padded format and Reveal
+// controls and scrolled sideways, and its scrollbar's box covered the first
+// line of the notes under it. It now sits inside the area's padding and wraps,
+// and the notes are the shared .foot note, drawn only when there is one.
+func TestPreviewSitsInsideThePadding(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "css/app.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	css := string(b)
+	for _, want := range []string{
+		`#preview-body .preview-out { margin: 0 16px 4px; white-space: pre-wrap; word-break: break-all; overflow-x: visible; }`,
+		`.preview-notes { display: flex; flex-direction: column; gap: 4px; }`,
+		`.foot { padding: 12px 16px;`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+
+	h := substest.New(t)
+	h.Subscription("Family", 1, 2)
+	notes := regexp.MustCompile(`<div class="foot preview-notes">(.*?)</div>`)
+	// masked, on the page and in the answer to Hide
+	for _, body := range []string{page(t, h, "/subscriptions/1"), h.Login.Get("/subscriptions/1/preview?format=uri-plain&reveal=0", hx()).Body.String()} {
+		m := notes.FindStringSubmatch(body)
+		if m == nil || strings.TrimSpace(m[1]) != "<span>Credentials and paths are masked until you reveal them.</span>" {
+			t.Errorf("masked: notes %q", m)
+		}
+	}
+	// revealed with nothing to say: no notes block at all
+	body := h.Login.Get("/subscriptions/1/preview?format=uri-plain&reveal=1", hx()).Body.String()
+	mustNotContain(t, body, "preview-notes", "masked until")
+	mustContain(t, body, `<pre class="preview-out">`)
+	// a hidden server: the notes say so in gold, revealed too; masked base64
+	// adds its two notes
+	if _, err := h.Mod.Subs.Update(t.Context(), 1, settings(h, 1, func(v url.Values) { v.Set("hide", "1") }), "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Catalog.SetHealth(2, "blocked", h.Now.Add(-time.Hour))
+	hidden := `<span class="gold">de-1 hidden: blocked for 1 h (more than 30 min)</span>`
+	m := notes.FindStringSubmatch(h.Login.Get("/subscriptions/1/preview?format=uri-plain&reveal=1", hx()).Body.String())
+	if m == nil || strings.TrimSpace(m[1]) != hidden {
+		t.Errorf("revealed with de-1 hidden: notes %q", m)
+	}
+	m = notes.FindStringSubmatch(h.Login.Get("/subscriptions/1/preview?format=uri-base64&reveal=0", hx()).Body.String())
+	if m == nil || !strings.Contains(m[1], "<span>Sent base64-encoded; shown decoded.</span>") || !strings.Contains(m[1], "<span>Credentials and paths are masked") || !strings.Contains(m[1], hidden) {
+		t.Errorf("masked base64 with de-1 hidden: notes %q", m)
+	}
 }
 
 func TestServerListActions(t *testing.T) {
