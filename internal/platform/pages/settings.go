@@ -58,6 +58,19 @@ func (h *handler) generalPage(c *echo.Context) error {
 	return h.renderGeneral(c, http.StatusOK, nil, nil, c.QueryParam("saved") == "1")
 }
 
+// setLanguage changes the admin's language. Settings → General is the only
+// place that changes it: the admin menu and the : pop-up have no switch.
+func (h *handler) setLanguage(c *echo.Context) error {
+	l := i18n.Lang(c.FormValue("lang"))
+	if !l.Valid() {
+		return echo.NewHTTPError(400, "unknown language")
+	}
+	if err := h.Auth.SetLanguage(c.Request().Context(), l); err != nil {
+		return err
+	}
+	return web.Redirect(c, "/settings/general?language=saved")
+}
+
 func (h *handler) renderGeneral(c *echo.Context, status int, submitted map[string]string, errs settings.FieldErrors, saved bool) error {
 	ctx := c.Request().Context()
 	vals, sec, err := h.sectionValues(ctx, "general", submitted)
@@ -65,7 +78,8 @@ func (h *handler) renderGeneral(c *echo.Context, status int, submitted map[strin
 		return err
 	}
 	s := h.shell(c, i18n.T(ctx, "settings.general"), "/settings")
-	return web.Render(c, status, generalPage(s, h.sortedPages(), sec, vals, errs, saved, h.Cfg.BaseURL.String()))
+	lang := generalLang{Current: s.Lang, Saved: c.QueryParam("language") == "saved"}
+	return web.Render(c, status, generalPage(s, h.sortedPages(), sec, vals, errs, saved, h.Cfg.BaseURL.String(), lang))
 }
 
 func (h *handler) generalSave(c *echo.Context) error {

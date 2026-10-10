@@ -6,7 +6,13 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, vals []settings.Value, errs settings.FieldErrors, saved bool, baseURL string) {
+// generalLang is the admin's own language on Settings → General.
+type generalLang struct {
+	Current i18n.Lang
+	Saved   bool
+}
+
+templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, vals []settings.Value, errs settings.FieldErrors, saved bool, baseURL string, lang generalLang) {
 	@ui.SettingsLayout(s, pages, "general") {
 		<div class="set-head">
 			<h2>{ i18n.T(ctx, "settings.general") }</h2>
@@ -27,5 +33,28 @@ templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, val
 			</div>
 		</div>
 		@ui.SettingsForm(sec, vals, errs, "/settings/general")
+		<section class="set-section" aria-labelledby="lang-h">
+			<div class="pc-title"><h2 id="lang-h">{ i18n.T(ctx, "ui.language") }</h2></div>
+			<form method="post" action="/settings/general/language" class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				if lang.Saved {
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "ui.saved") }
+					}
+				}
+				<div class="field">
+					<label for="f-lang" class="lbl">{ i18n.T(ctx, "settings.language.label") }</label>
+					<select id="f-lang" name="lang" class="pc-inp">
+						for _, l := range i18n.Langs {
+							<option value={ string(l) } selected?={ l == lang.Current }>{ i18n.T(ctx, "ui.language."+string(l)) }</option>
+						}
+					</select>
+					<div class="help">{ i18n.T(ctx, "settings.language.help") }</div>
+				</div>
+				<div class="form-actions">
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+				</div>
+			</form>
+		</section>
 	}
 }

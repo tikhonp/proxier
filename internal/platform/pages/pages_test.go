@@ -122,18 +122,55 @@ func TestSignInPageLanguage(t *testing.T) {
 	}
 }
 
-func TestLanguageSwitch(t *testing.T) {
+func TestLanguageChangesInSettings(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
-	rec := l.Post("/me/language", url.Values{"lang": {"ru"}, "next": {"/settings/security"}})
-	if rec.Code != 303 || rec.Header().Get("Location") != "/settings/security" {
+	page := l.Get("/settings/general").Body.String()
+	for _, want := range []string{`action="/settings/general/language"`, `<option value="en" selected>English</option>`, `<option value="ru">Русский</option>`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("Settings → General lacks %s", want)
+		}
+	}
+	rec := l.Post("/settings/general/language", url.Values{"lang": {"ru"}, "next": {"/settings/security"}})
+	if rec.Code != 303 || rec.Header().Get("Location") != "/settings/general?language=saved" {
 		t.Fatalf("%d %q", rec.Code, rec.Header().Get("Location"))
 	}
-	if !strings.Contains(l.Get("/settings/security").Body.String(), "Безопасность") {
-		t.Error("page not in Russian")
+	page = l.Get("/settings/general?language=saved").Body.String()
+	for _, want := range []string{"Ваш язык", `<option value="ru" selected>Русский</option>`, "Сохранено."} {
+		if !strings.Contains(page, want) {
+			t.Errorf("after the change the page lacks %s", want)
+		}
 	}
-	if rec := l.Post("/me/language", url.Values{"lang": {"fr"}}); rec.Code != 400 {
+	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "ru" {
+		t.Errorf("admin language = %q", a.Language)
+	}
+	if rec := l.Post("/settings/general/language", url.Values{"lang": {"fr"}}); rec.Code != 400 {
 		t.Errorf("unknown language: %d", rec.Code)
+	}
+}
+
+// Settings → General is the only place that changes the language: the admin
+// menu has no switch, so neither has the : pop-up, which lists the buttons
+// on the page.
+func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	for _, path := range []string{"/", "/settings/general", "/settings/security", "/jobs", "/activity"} {
+		page := l.Get(path).Body.String()
+		for _, bad := range []string{`data-action="me.language`, "/me/language", ">Русский</button>"} {
+			if strings.Contains(page, bad) {
+				t.Errorf("%s holds %s", path, bad)
+			}
+		}
+		if !strings.Contains(page, `data-action="auth.sign_out"`) {
+			t.Errorf("%s: the admin menu lost Sign out", path)
+		}
+	}
+	if rec := l.Post("/me/language", url.Values{"lang": {"ru"}}); rec.Code == 303 {
+		t.Errorf("the old switch still answers: %d", rec.Code)
+	}
+	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "en" {
+		t.Error("the language changed outside Settings")
 	}
 }
 

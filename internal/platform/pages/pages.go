@@ -99,7 +99,6 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	r.Admin.POST("/jobs/:id/cancel", h.jobCancel)
 	r.Admin.POST("/jobs/:id/retry", h.jobRetry)
 	r.Admin.GET("/activity", h.activityPage)
-	r.Admin.POST("/me/language", h.setLanguage)
 
 	r.Admin.GET("/settings/integrations", h.integrationsPage)
 	r.Admin.GET("/settings/integrations/tailnet", h.tailnetPage)
@@ -125,6 +124,7 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	r.Admin.GET("/settings", func(c *echo.Context) error { return web.Redirect(c, "/settings/general") })
 	r.Admin.GET("/settings/general", h.generalPage)
 	r.Admin.POST("/settings/general", h.generalSave)
+	r.Admin.POST("/settings/general/language", h.setLanguage)
 	r.Admin.GET("/settings/security", h.securityPage)
 	r.Admin.POST("/settings/security/password", h.changePassword)
 	r.Admin.POST("/settings/security/lockout", h.saveLockout)

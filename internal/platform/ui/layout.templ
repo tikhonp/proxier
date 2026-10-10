@@ -109,12 +109,6 @@ templ header(s Shell) {
 		<div class="admin-menu">
 			<button type="button" class="pc-seg" data-menu-toggle aria-haspopup="true" aria-expanded="false" title={ s.Admin }><span class="admin-name">{ s.Admin }</span><span class="caret-down" aria-hidden="true">▾</span></button>
 			<div class="admin-pop hidden" id="admin-pop" role="menu">
-				<div class="grp">{ i18n.T(ctx, "ui.language") }</div>
-				for _, l := range i18n.Langs {
-					if l != s.Lang {
-						@ActionButton(Action{ID: "me.language." + string(l), Label: "ui.language." + string(l), Method: "POST", Href: "/me/language", Fields: map[string]string{"lang": string(l), "next": s.Path}, Kind: Ghost})
-					}
-				}
 				@ActionButton(Action{ID: "nav.settings", Label: "nav.settings", Method: "GET", Href: "/settings", Kind: Ghost})
 				@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Kind: Ghost})
 			</div>

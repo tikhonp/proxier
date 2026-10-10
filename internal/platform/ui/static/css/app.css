@@ -34,7 +34,6 @@
 .admin-pop { position: absolute; right: 0; top: 100%; min-width: 220px; z-index: 6; background: var(--black); border: 1px solid var(--hl-high); padding: 4px 0; }
 .admin-pop form { margin: 0; }
 .admin-pop .pc-mi { text-decoration: none; }
-.admin-pop .grp { padding: 6px 12px 2px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
 .body { flex: 1; display: flex; align-items: stretch; min-height: 0; }
 .side { width: var(--sidebar-w); flex: none; border-right: 1px solid var(--overlay); padding: 4px 0 24px; }
 .side-group { padding: 16px 16px 6px; font-size: var(--fs-label); line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }

@@ -76,9 +76,14 @@ var messages = i18n.Messages{
 	"dash.empty_next": {EN: "Servers, links and routers appear here as their modules arrive.", RU: "Серверы, ссылки и роутеры появятся здесь вместе со своими модулями."},
 
 	// Settings
-	"settings.general":      {EN: "General", RU: "Общие"},
-	"settings.general.note": {EN: "The instance's name, time zone and language.", RU: "Название, часовой пояс и язык."},
-	"settings.base_url":     {EN: "Base URL", RU: "Базовый адрес"},
+	"settings.general":        {EN: "General", RU: "Общие"},
+	"settings.general.note":   {EN: "The instance's name, time zone and language.", RU: "Название, часовой пояс и язык."},
+	"settings.base_url":       {EN: "Base URL", RU: "Базовый адрес"},
+	"settings.language.label": {EN: "Your language", RU: "Ваш язык"},
+	"settings.language.help": {
+		EN: "The language of these pages and of Telegram messages.",
+		RU: "Язык этих страниц и сообщений в Telegram.",
+	},
 	"settings.base_url.help": {
 		EN: "Set by PROXIER_BASE_URL; change it in the deployment.",
 		RU: "Задаётся PROXIER_BASE_URL; меняется в настройках развёртывания.",

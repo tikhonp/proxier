@@ -125,7 +125,7 @@ func TestLocationsPageInRussian(t *testing.T) {
 		t.Fatal(err)
 	}
 	// signed in, the admin's language applies
-	l.Post("/me/language", url.Values{"lang": {"ru"}})
+	l.Post("/settings/general/language", url.Values{"lang": {"ru"}})
 	body := l.Get("/locations").Body.String()
 	for _, want := range []string{"Локации", "Нидерланды", "Изменить", "Удалить"} {
 		if !strings.Contains(body, want) {

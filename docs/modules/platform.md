@@ -20,7 +20,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 
 | Section | Contents |
 |---|---|
-| General | Instance name, public base URL (read-only, from env), display time zone, default language, admin contact shown in stub entries (e.g. `@tikhonp`). |
+| General | Instance name, public base URL (read-only, from env), display time zone, default language (the admin's language when the account is created), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the admin's own language. |
 | Security | Change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). |
@@ -90,7 +90,7 @@ Telegram is the only channel in the first version. Channels are an extension poi
 ## Languages and time
 
 - The UI is in **English and Russian** from the first version. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
-- The admin's language is a setting in the user menu. The sign-in page follows the browser's `Accept-Language`.
+- The admin's language is changed only in Settings → General → **Language** (`admin.language_changed`); the admin menu and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`.
 - Each **link has a language** (default from Settings), used for its stub entry text.
 - Telegram messages use the admin's language.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.

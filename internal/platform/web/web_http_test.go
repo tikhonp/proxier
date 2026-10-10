@@ -21,7 +21,7 @@ import (
 func TestCrossSitePostIsRefused(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
-	rec := s.Do(sitetest.Req{Method: "POST", Path: "/me/language", Cookies: []*http.Cookie{l.Cookie},
+	rec := s.Do(sitetest.Req{Method: "POST", Path: "/settings/general/language", Cookies: []*http.Cookie{l.Cookie},
 		Form: url.Values{"lang": {"ru"}, "_csrf": {l.CSRF}}, Header: http.Header{"Sec-Fetch-Site": {"cross-site"}}})
 	if rec.Code != 403 {
 		t.Fatalf("status %d, want 403", rec.Code)
@@ -30,7 +30,7 @@ func TestCrossSitePostIsRefused(t *testing.T) {
 		t.Error("the language changed")
 	}
 	// the same request from the same site works
-	rec = s.Do(sitetest.Req{Method: "POST", Path: "/me/language", Cookies: []*http.Cookie{l.Cookie},
+	rec = s.Do(sitetest.Req{Method: "POST", Path: "/settings/general/language", Cookies: []*http.Cookie{l.Cookie},
 		Form: url.Values{"lang": {"ru"}, "_csrf": {l.CSRF}}, Header: http.Header{"Sec-Fetch-Site": {"same-origin"}}})
 	if rec.Code != 303 {
 		t.Fatalf("same-origin status %d", rec.Code)
@@ -40,7 +40,7 @@ func TestCrossSitePostIsRefused(t *testing.T) {
 func TestCSRFTokenIsTiedToTheSession(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	a, b := s.SignIn(""), s.SignIn("198.51.100.4:1")
-	rec := s.Do(sitetest.Req{Method: "POST", Path: "/me/language", Cookies: []*http.Cookie{a.Cookie},
+	rec := s.Do(sitetest.Req{Method: "POST", Path: "/settings/general/language", Cookies: []*http.Cookie{a.Cookie},
 		Form: url.Values{"lang": {"ru"}, "_csrf": {b.CSRF}}})
 	if rec.Code != 403 {
 		t.Fatalf("a token from another session: status %d", rec.Code)
@@ -50,7 +50,7 @@ func TestCSRFTokenIsTiedToTheSession(t *testing.T) {
 func TestCSRFTokenInHTMXHeader(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
-	rec := s.Do(sitetest.Req{Method: "POST", Path: "/me/language", Cookies: []*http.Cookie{l.Cookie},
+	rec := s.Do(sitetest.Req{Method: "POST", Path: "/settings/general/language", Cookies: []*http.Cookie{l.Cookie},
 		Form: url.Values{"lang": {"ru"}}, Header: http.Header{web.CSRFHeader: {l.CSRF}, "HX-Request": {"true"}}})
 	if rec.Code != 200 || rec.Header().Get("HX-Redirect") == "" {
 		t.Fatalf("status %d, HX-Redirect %q", rec.Code, rec.Header().Get("HX-Redirect"))
