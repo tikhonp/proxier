@@ -44,7 +44,7 @@ templ sshPage(s ui.Shell, pages []ui.SettingsPage, v sshView) {
 				</div>
 				<div class="form-actions">
 					<button type="button" class="pc-btn pc-sm" data-action="ssh.copy" data-copy={ v.Line }>{ i18n.T(ctx, "ssh.copy") }</button>
-					<span class="muted">{ i18n.T(ctx, "ssh.fingerprint") } <span class="subtle">{ v.Fingerprint }</span></span>
+					<span class="muted fp-line">{ i18n.T(ctx, "ssh.fingerprint") } <span class="subtle">{ v.Fingerprint }</span></span>
 				</div>
 				<div class="help">{ i18n.T(ctx, "ssh.key.help") }</div>
 			</div>
@@ -107,7 +107,7 @@ templ sshPage(s ui.Shell, pages []ui.SettingsPage, v sshView) {
 				}
 				<div class="row host" data-row={ strconv.FormatInt(k.ID, 10) }>
 					<span class="caret" aria-hidden="true">›</span>
-					<span>
+					<span class="cut" title={ k.Address }>
 						<span class="bold">{ k.Address }</span>
 						if k.Subject != "" {
 							<span class="subtle"> · { k.Subject }</span>
@@ -115,7 +115,7 @@ templ sshPage(s ui.Shell, pages []ui.SettingsPage, v sshView) {
 					</span>
 					<span class="subtle fp-cell">{ k.KeyType } <code>{ k.Fingerprint }</code></span>
 					<span class="subtle">
-						{ i18n.T(ctx, "ssh.first_seen") }
+						{ i18n.T(ctx, "ssh.first_seen") + " " }
 						@ui.Time(k.FirstSeenAt.Time)
 					</span>
 					<span class="subtle">

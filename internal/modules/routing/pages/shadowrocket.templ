@@ -38,31 +38,33 @@ templ srListPage(s ui.Shell, rows []srRow) {
 		if len(rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "shadowrocket.empty"), i18n.T(ctx, "shadowrocket.empty.next"))
 		} else {
-			<div class="colhead srcfg" aria-hidden="true">
-				<span>{ i18n.T(ctx, "shadowrocket.col.config") }</span>
-				<span>{ i18n.T(ctx, "shadowrocket.col.list") }</span>
-				<span>{ i18n.T(ctx, "shadowrocket.col.policy") }</span>
-				<span>{ i18n.T(ctx, "shadowrocket.col.url") }</span>
-				<span>{ i18n.T(ctx, "shadowrocket.col.last") }</span>
+			<div class="tbl">
+				<div class="colhead srcfg" aria-hidden="true">
+					<span>{ i18n.T(ctx, "shadowrocket.col.config") }</span>
+					<span>{ i18n.T(ctx, "shadowrocket.col.list") }</span>
+					<span>{ i18n.T(ctx, "shadowrocket.col.policy") }</span>
+					<span>{ i18n.T(ctx, "shadowrocket.col.url") }</span>
+					<span>{ i18n.T(ctx, "shadowrocket.col.last") }</span>
+				</div>
+				for _, r := range rows {
+					<a href={ templ.SafeURL(srHref(r.ID)) } class="row srcfg pc-row" data-row={ i64(r.ID) } data-href={ srHref(r.ID) } data-hint={ i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold" title={ r.Name }>{ r.Name }</span>
+							<span class="sm subtle">{ r.Sub }</span>
+						</span>
+						<span class="subtle">{ r.List }</span>
+						<span class="subtle">{ r.Policy }</span>
+						<span class="sm muted" title={ r.URL }>{ r.URL }</span>
+						<span class="sm subtle">
+							if r.Disabled {
+								@ui.Status("off", i18n.T(ctx, "shadowrocket.disabled"))
+							}
+							{ r.Last }
+						</span>
+					</a>
+				}
 			</div>
-			for _, r := range rows {
-				<a href={ templ.SafeURL(srHref(r.ID)) } class="row srcfg pc-row" data-row={ i64(r.ID) } data-href={ srHref(r.ID) } data-hint={ i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<span class="bold">{ r.Name }</span>
-						<span class="sm subtle">{ r.Sub }</span>
-					</span>
-					<span class="subtle">{ r.List }</span>
-					<span class="subtle">{ r.Policy }</span>
-					<span class="sm muted">{ r.URL }</span>
-					<span class="sm subtle">
-						if r.Disabled {
-							@ui.Status("off", i18n.T(ctx, "shadowrocket.disabled"))
-						}
-						{ r.Last }
-					</span>
-				</a>
-			}
 		}
 	}
 }

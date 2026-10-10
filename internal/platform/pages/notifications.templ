@@ -32,7 +32,7 @@ templ notificationsPage(s ui.Shell, pages []ui.SettingsPage, v notificationsView
 						}
 						<span class="caret" aria-hidden="true">›</span>
 						<button type="submit" role="switch" class="pc-sw" aria-checked={ fmt.Sprint(r.Enabled) } aria-label={ r.Type.Name } data-key=" " data-row-only="1"></button>
-						<span class="bold">{ r.Type.Name }</span>
+						<span class="bold cut" title={ r.Type.Name }>{ r.Type.Name }</span>
 						<span class="subtle">{ r.Type.Description }</span>
 						<span class={ "sm", templ.KV("changed", r.Enabled != r.Default), templ.KV("muted", r.Enabled == r.Default) }>
 							if r.Enabled == r.Default {

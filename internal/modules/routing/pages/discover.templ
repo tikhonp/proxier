@@ -212,46 +212,48 @@ templ runPicks(v runView) {
 	<form method="post" action={ templ.SafeURL(runHref(v.Run.ID) + "/create") } class="disc-form">
 		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 		@ui.Area("3 · "+i18n.T(ctx, "discovery.area.pick"), i18n.T(ctx, "discovery.area.pick.note")) {
-			<div class="colhead disc-pick" aria-hidden="true">
-				<span></span>
-				<span>{ i18n.T(ctx, "discovery.col.domain") }</span>
-				<span>{ i18n.T(ctx, "discovery.col.class") }</span>
-				<span>{ i18n.T(ctx, "discovery.col.requests") }</span>
-				<span>{ i18n.T(ctx, "discovery.col.failures") }</span>
-				<span>{ i18n.T(ctx, "discovery.col.covered") }</span>
-			</div>
-			for gi, g := range v.Groups {
-				<details class="disc-group">
-					<summary class="row disc-pick pc-row" data-row={ "g" + strconv.Itoa(gi) } data-enter data-hint={ i18n.T(ctx, "discovery.hints.row") }>
-						<span><input type="checkbox" name="group" value={ g.Domain } checked?={ g.Ticked } data-key=" " data-pick aria-label={ g.Domain }/></span>
-						<span class="col">
-							<span class="bold seltext">{ g.Domain }</span>
-							<span class="sm subtle">{ i18n.T(ctx, "discovery.as_suffix") } · { g.Hosts }</span>
-						</span>
-						<span class="sm">{ g.Class }</span>
-						<span class="sm">{ g.Requests }</span>
-						<span class="sm love">{ g.Failed }</span>
-						<span class="sm subtle">{ g.Covered }</span>
-					</summary>
-					for hi, hr := range g.Rows {
-						<div class="row disc-pick disc-host pc-row" data-row={ "g" + strconv.Itoa(gi) + "h" + strconv.Itoa(hi) }>
-							<span>
-								if hr.Tickable {
-									<input type="checkbox" name="host" value={ hr.Host } checked?={ hr.Ticked } data-key=" " data-pick aria-label={ hr.Host }/>
-								}
-							</span>
+			<div class="tbl">
+				<div class="colhead disc-pick" aria-hidden="true">
+					<span></span>
+					<span>{ i18n.T(ctx, "discovery.col.domain") }</span>
+					<span>{ i18n.T(ctx, "discovery.col.class") }</span>
+					<span>{ i18n.T(ctx, "discovery.col.requests") }</span>
+					<span>{ i18n.T(ctx, "discovery.col.failures") }</span>
+					<span>{ i18n.T(ctx, "discovery.col.covered") }</span>
+				</div>
+				for gi, g := range v.Groups {
+					<details class="disc-group">
+						<summary class="row disc-pick pc-row" data-row={ "g" + strconv.Itoa(gi) } data-enter data-hint={ i18n.T(ctx, "discovery.hints.row") }>
+							<span><input type="checkbox" name="group" value={ g.Domain } checked?={ g.Ticked } data-key=" " data-pick aria-label={ g.Domain }/></span>
 							<span class="col">
-								<span class="seltext">{ hr.Host }</span>
-								<span class="sm subtle">{ i18n.T(ctx, "discovery.as_exact") }</span>
+								<span class="bold seltext" title={ g.Domain }>{ g.Domain }</span>
+								<span class="sm subtle">{ i18n.T(ctx, "discovery.as_suffix") } · { g.Hosts }</span>
 							</span>
-							<span class="sm">{ hr.Class }</span>
-							<span class="sm">{ hr.Requests }</span>
-							<span class="sm love">{ hr.Failed }</span>
-							<span class="sm subtle">{ hr.Covered }</span>
-						</div>
-					}
-				</details>
-			}
+							<span class="sm">{ g.Class }</span>
+							<span class="sm">{ g.Requests }</span>
+							<span class="sm love">{ g.Failed }</span>
+							<span class="sm subtle">{ g.Covered }</span>
+						</summary>
+						for hi, hr := range g.Rows {
+							<div class="row disc-pick disc-host pc-row" data-row={ "g" + strconv.Itoa(gi) + "h" + strconv.Itoa(hi) }>
+								<span>
+									if hr.Tickable {
+										<input type="checkbox" name="host" value={ hr.Host } checked?={ hr.Ticked } data-key=" " data-pick aria-label={ hr.Host }/>
+									}
+								</span>
+								<span class="col">
+									<span class="seltext" title={ hr.Host }>{ hr.Host }</span>
+									<span class="sm subtle">{ i18n.T(ctx, "discovery.as_exact") }</span>
+								</span>
+								<span class="sm">{ hr.Class }</span>
+								<span class="sm">{ hr.Requests }</span>
+								<span class="sm love">{ hr.Failed }</span>
+								<span class="sm subtle">{ hr.Covered }</span>
+							</div>
+						}
+					</details>
+				}
+			</div>
 			if v.IPs != "" {
 				<p class="area-body sm subtle">{ v.IPs }</p>
 			}

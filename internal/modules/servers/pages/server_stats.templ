@@ -55,23 +55,25 @@ templ statsPage(s ui.Shell, v statsView) {
 				}
 			</div>
 			@ui.Area(i18n.T(ctx, "stats.containers"), i18n.T(ctx, "stats.containers.note", i18n.Args{"ago": v.SampleAt})) {
-				<div class="colhead ct" aria-hidden="true">
-					<span>{ i18n.T(ctx, "stats.col.service") }</span>
-					<span>{ i18n.T(ctx, "stats.col.state") }</span>
-					<span>{ i18n.T(ctx, "stats.col.restarts") }</span>
-					<span>{ i18n.T(ctx, "stats.col.image") }</span>
-				</div>
-				if len(v.Containers) == 0 {
-					<p class="subtle area-body">{ i18n.T(ctx, "stats.containers.none") }</p>
-				}
-				for _, ct := range v.Containers {
-					<div class="row ct">
-						<span class="bold">{ ct.Name }</span>
-						<span>@ui.Status(ct.Kind, ct.State)</span>
-						<span>{ itoa(ct.Restarts) }</span>
-						<span class="subtle">{ ct.Image }</span>
+				<div class="tbl">
+					<div class="colhead ct" aria-hidden="true">
+						<span>{ i18n.T(ctx, "stats.col.service") }</span>
+						<span>{ i18n.T(ctx, "stats.col.state") }</span>
+						<span>{ i18n.T(ctx, "stats.col.restarts") }</span>
+						<span>{ i18n.T(ctx, "stats.col.image") }</span>
 					</div>
-				}
+					if len(v.Containers) == 0 {
+						<p class="subtle area-body">{ i18n.T(ctx, "stats.containers.none") }</p>
+					}
+					for _, ct := range v.Containers {
+						<div class="row ct">
+							<span class="bold">{ ct.Name }</span>
+							<span>@ui.Status(ct.Kind, ct.State)</span>
+							<span>{ itoa(ct.Restarts) }</span>
+							<span class="subtle" title={ ct.Image }>{ ct.Image }</span>
+						</div>
+					}
+				</div>
 			}
 		}
 	}

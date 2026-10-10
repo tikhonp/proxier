@@ -50,33 +50,35 @@ templ linksPage(s ui.Shell, v linksView) {
 					<a href={ templ.SafeURL(v.ClearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
 				}
 			</div>
-			<div class="colhead lnk" aria-hidden="true">
-				<span>{ i18n.T(ctx, "links.col.link") }</span>
-				<span>{ i18n.T(ctx, "links.col.subscription") }</span>
-				<span>{ i18n.T(ctx, "links.col.status") }</span>
-				<span>{ i18n.T(ctx, "links.col.expires") }</span>
-				<span>{ i18n.T(ctx, "links.col.last") }</span>
-				<span>{ i18n.T(ctx, "links.col.fetches") }</span>
+			<div class="tbl">
+				<div class="colhead lnk" aria-hidden="true">
+					<span>{ i18n.T(ctx, "links.col.link") }</span>
+					<span>{ i18n.T(ctx, "links.col.subscription") }</span>
+					<span>{ i18n.T(ctx, "links.col.status") }</span>
+					<span>{ i18n.T(ctx, "links.col.expires") }</span>
+					<span>{ i18n.T(ctx, "links.col.last") }</span>
+					<span>{ i18n.T(ctx, "links.col.fetches") }</span>
+				</div>
+				if len(v.Rows) == 0 {
+					@ui.EmptyState(i18n.T(ctx, "links.none_match"), "")
+				}
+				for _, r := range v.Rows {
+					<a href={ templ.SafeURL(linkHref(r.ID)) } class="row lnk pc-row" data-row={ i64(r.ID) } data-href={ linkHref(r.ID) } data-hint={ i18n.T(ctx, "links.hints.row", i18n.Args{"name": r.Name}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="bold" title={ r.Name }>{ r.Name }</span>
+						<span class="subtle" title={ r.Subscription }>{ r.Subscription }</span>
+						<span class="lnk-status">
+							@ui.Status(r.Kind, r.Word)
+							if r.Alert {
+								@ui.Status("look", i18n.T(ctx, "alerts.looks_shared"))
+							}
+						</span>
+						<span class="sm subtle">{ r.Expires }</span>
+						<span class="sm subtle">{ r.Last }</span>
+						<span class="subtle">{ strconv.Itoa(r.Fetches) }</span>
+					</a>
+				}
 			</div>
-			if len(v.Rows) == 0 {
-				@ui.EmptyState(i18n.T(ctx, "links.none_match"), "")
-			}
-			for _, r := range v.Rows {
-				<a href={ templ.SafeURL(linkHref(r.ID)) } class="row lnk pc-row" data-row={ i64(r.ID) } data-href={ linkHref(r.ID) } data-hint={ i18n.T(ctx, "links.hints.row", i18n.Args{"name": r.Name}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="bold">{ r.Name }</span>
-					<span class="subtle">{ r.Subscription }</span>
-					<span class="lnk-status">
-						@ui.Status(r.Kind, r.Word)
-						if r.Alert {
-							@ui.Status("look", i18n.T(ctx, "alerts.looks_shared"))
-						}
-					</span>
-					<span class="sm subtle">{ r.Expires }</span>
-					<span class="sm subtle">{ r.Last }</span>
-					<span class="subtle">{ strconv.Itoa(r.Fetches) }</span>
-				</a>
-			}
 			if v.Tombs > 0 {
 				<p class="list-foot"><a href={ templ.SafeURL(v.TombsHref) }>{ i18n.N(ctx, "links.tombs", int64(v.Tombs)) }</a></p>
 			}

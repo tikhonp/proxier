@@ -86,6 +86,7 @@ The desktop layout, from top to bottom:
 - **Areas** each start with a 36 px **title band**: an uppercase label, a short subtle note, and on the right either a `Thing →` link or small buttons. Areas sit side by side in a grid with 1 px gaps on the `--overlay` colour, so the lines come from the gaps and not from borders.
 - **Page actions** sit in the title block or the title band, on the right. The one main action is the light (`.pc-pri`) button.
 - **Rows** have no dividers. Hover is `--base`; the keyboard cursor row is `--overlay` plus a `›` caret in the left gutter. Every block uses a 16 px side gutter.
+- **Tables** never squeeze: each column has a minimum width, and a table wider than the page scrolls sideways in its own box (`.tbl`), as the Servers screen draws it. A cell is one line; a long value ends in "…" with the whole value in a tooltip. Words are never broken inside; only messages wrap, between words.
 - **Counts strip**: equal cells in a grid with 1 px gaps. Each cell holds a marker, a label and a big number. A zero count is muted.
 - **Key line** (28 px, desktop only), at the bottom.
 
@@ -149,6 +150,10 @@ The **key line** at the bottom has three parts:
 - **Right:** a live indicator.
 
 Short messages ("Copied", "Sync started") appear in the key line, not as toasts.
+
+## Zoomed in
+
+A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the screens are drawn for. Below 1100 px the side-by-side page columns (template, subscription, service, search, script editor, generation, Settings and its section list) stack into one, and tables scroll sideways rather than squeeze. Under 760 px (200 % and more) the phone layout takes over.
 
 ## Phone
 

@@ -101,29 +101,31 @@ templ rolloutTable(v rolloutView) {
 		}
 	>
 		<p class="sm subtle">{ v.Summary }</p>
-		<div class="colhead rollout" aria-hidden="true">
-			<span></span>
-			<span>{ i18n.T(ctx, "servers.col.name") }</span>
-			<span>{ i18n.T(ctx, "servers.col.status") }</span>
-			<span>{ i18n.T(ctx, "servers.rollout.col.version") }</span>
-			<span>{ i18n.T(ctx, "servers.rollout.col.step") }</span>
-		</div>
-		for _, r := range v.Rows {
-			<div class={ "row", "rollout", templ.KV("pc-cur", r.Current) }>
-				<span class="subtle">{ strconv.Itoa(r.Position + 1) }</span>
-				<a href={ templ.SafeURL(r.Href) } class="bold">{ r.Flag } { r.Name }</a>
-				<span>
-					@ui.Status(r.Kind, r.Word)
-				</span>
-				<span>{ r.Version }</span>
-				<span class={ templ.KV("err", r.Error), templ.KV("subtle", !r.Error) }>
-					{ r.Step }
-					if r.JobHref != "" {
-						<a href={ templ.SafeURL(r.JobHref) } class="sm">→</a>
-					}
-				</span>
+		<div class="tbl">
+			<div class="colhead rollout" aria-hidden="true">
+				<span></span>
+				<span>{ i18n.T(ctx, "servers.col.name") }</span>
+				<span>{ i18n.T(ctx, "servers.col.status") }</span>
+				<span>{ i18n.T(ctx, "servers.rollout.col.version") }</span>
+				<span>{ i18n.T(ctx, "servers.rollout.col.step") }</span>
 			</div>
-		}
+			for _, r := range v.Rows {
+				<div class={ "row", "rollout", templ.KV("pc-cur", r.Current) }>
+					<span class="subtle">{ strconv.Itoa(r.Position + 1) }</span>
+					<a href={ templ.SafeURL(r.Href) } class="bold" title={ r.Name }>{ r.Flag } { r.Name }</a>
+					<span>
+						@ui.Status(r.Kind, r.Word)
+					</span>
+					<span>{ r.Version }</span>
+					<span class={ "wrap", templ.KV("err", r.Error), templ.KV("subtle", !r.Error) }>
+						{ r.Step }
+						if r.JobHref != "" {
+							<a href={ templ.SafeURL(r.JobHref) } class="sm">→</a>
+						}
+					</span>
+				</div>
+			}
+		</div>
 		if v.FinishedN != "" {
 			<p class="sm subtle">{ v.FinishedN }</p>
 		}

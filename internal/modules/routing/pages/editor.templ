@@ -51,44 +51,46 @@ templ editorForm(v editorView) {
 			if v.Errs["rows"] != "" {
 				<p class="err area-body" role="alert">{ v.Errs["rows"] }</p>
 			}
-			if len(v.Rows) == 0 {
-				<p class="subtle area-body">{ i18n.T(ctx, "services.editor.empty") }</p>
-			} else {
-				<div class="colhead edrow" aria-hidden="true">
-					<span></span>
-					<span>{ i18n.T(ctx, "services.editor.col.domain") }</span>
-					<span>{ i18n.T(ctx, "services.editor.col.match") }</span>
-					<span>{ i18n.T(ctx, "services.editor.col.note") }</span>
-					<span></span>
-				</div>
-			}
-			for _, r := range v.Rows {
-				<div class={ "row", "edrow", templ.KV("invalid", r.Err != "") } data-row={ strconv.Itoa(r.N) }>
-					<span class="mark" aria-hidden="true">
-						if r.New {
-							+
-						}
-					</span>
-					<span class="col">
-						<input class="pc-inp" name={ "domain." + strconv.Itoa(r.N) } value={ r.Domain } aria-label={ i18n.T(ctx, "services.editor.col.domain") } autocomplete="off" spellcheck="false" aria-invalid?={ r.Err != "" }/>
-						if r.Unicode != "" {
-							<span class="sm subtle">{ r.Unicode }</span>
-						}
-						if r.Err != "" {
-							<span class="err sm" role="alert">{ r.Err }</span>
-						}
-						if r.Hint != "" {
-							<span class="sm cover-hint">{ r.Hint }</span>
-						}
-					</span>
-					<span class="inline-fields" role="radiogroup" aria-label={ i18n.T(ctx, "services.editor.col.match") }>
-						<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="suffix" checked?={ !r.Exact }/>{ i18n.T(ctx, "services.kind.suffix") }</label>
-						<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="exact" checked?={ r.Exact }/>{ i18n.T(ctx, "services.kind.exact") }</label>
-					</span>
-					<input class="pc-inp" name={ "note." + strconv.Itoa(r.N) } value={ r.Note } maxlength="200" aria-label={ i18n.T(ctx, "services.editor.col.note") } autocomplete="off"/>
-					<button type="submit" name="op" value={ "remove-" + strconv.Itoa(r.N) } class="pc-btn pc-sm pc-ghost" aria-label={ i18n.T(ctx, "services.editor.remove_row", i18n.Args{"name": r.Domain}) }>×</button>
-				</div>
-			}
+			<div class="tbl">
+				if len(v.Rows) == 0 {
+					<p class="subtle area-body">{ i18n.T(ctx, "services.editor.empty") }</p>
+				} else {
+					<div class="colhead edrow" aria-hidden="true">
+						<span></span>
+						<span>{ i18n.T(ctx, "services.editor.col.domain") }</span>
+						<span>{ i18n.T(ctx, "services.editor.col.match") }</span>
+						<span>{ i18n.T(ctx, "services.editor.col.note") }</span>
+						<span></span>
+					</div>
+				}
+				for _, r := range v.Rows {
+					<div class={ "row", "edrow", templ.KV("invalid", r.Err != "") } data-row={ strconv.Itoa(r.N) }>
+						<span class="mark" aria-hidden="true">
+							if r.New {
+								+
+							}
+						</span>
+						<span class="col">
+							<input class="pc-inp" name={ "domain." + strconv.Itoa(r.N) } value={ r.Domain } aria-label={ i18n.T(ctx, "services.editor.col.domain") } autocomplete="off" spellcheck="false" aria-invalid?={ r.Err != "" }/>
+							if r.Unicode != "" {
+								<span class="sm subtle">{ r.Unicode }</span>
+							}
+							if r.Err != "" {
+								<span class="err sm" role="alert">{ r.Err }</span>
+							}
+							if r.Hint != "" {
+								<span class="sm cover-hint wrap">{ r.Hint }</span>
+							}
+						</span>
+						<span class="inline-fields" role="radiogroup" aria-label={ i18n.T(ctx, "services.editor.col.match") }>
+							<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="suffix" checked?={ !r.Exact }/>{ i18n.T(ctx, "services.kind.suffix") }</label>
+							<label class="check sm"><input type="radio" name={ "match." + strconv.Itoa(r.N) } value="exact" checked?={ r.Exact }/>{ i18n.T(ctx, "services.kind.exact") }</label>
+						</span>
+						<input class="pc-inp" name={ "note." + strconv.Itoa(r.N) } value={ r.Note } maxlength="200" aria-label={ i18n.T(ctx, "services.editor.col.note") } autocomplete="off"/>
+						<button type="submit" name="op" value={ "remove-" + strconv.Itoa(r.N) } class="pc-btn pc-sm pc-ghost" aria-label={ i18n.T(ctx, "services.editor.remove_row", i18n.Args{"name": r.Domain}) }>×</button>
+					</div>
+				}
+			</div>
 		</section>
 		@ui.Area(i18n.T(ctx, "services.editor.paste"), "") {
 			<div class="area-body form wide">

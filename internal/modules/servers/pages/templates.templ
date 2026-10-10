@@ -33,44 +33,46 @@ templ templatesPage(s ui.Shell, v templatesView) {
 				@ui.EmptyState(i18n.T(ctx, "templates.empty"), i18n.T(ctx, "templates.empty_next"))
 			}
 		} else {
-			<div class="colhead tpl" aria-hidden="true">
-				<span>{ i18n.T(ctx, "templates.col.template") }</span>
-				<span>{ i18n.T(ctx, "templates.col.default") }</span>
-				<span>{ i18n.T(ctx, "templates.col.versions") }</span>
-				<span>{ i18n.T(ctx, "templates.col.servers") }</span>
-				<span>{ i18n.T(ctx, "templates.col.draft") }</span>
-			</div>
-			for _, t := range v.Items {
-				<a href={ templ.SafeURL(tplHref(t.ID)) } class="row tpl pc-row" data-row={ i64(t.ID) } data-href={ tplHref(t.ID) } data-hint={ i18n.T(ctx, "templates.hints.row", i18n.Args{"name": t.Slug}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<span class="bold">{ t.Name }</span>
-						<span class="sm subtle">
-							{ t.Slug }
-							if t.Description != "" {
-								· { t.Description }
+			<div class="tbl">
+				<div class="colhead tpl" aria-hidden="true">
+					<span>{ i18n.T(ctx, "templates.col.template") }</span>
+					<span>{ i18n.T(ctx, "templates.col.default") }</span>
+					<span>{ i18n.T(ctx, "templates.col.versions") }</span>
+					<span>{ i18n.T(ctx, "templates.col.servers") }</span>
+					<span>{ i18n.T(ctx, "templates.col.draft") }</span>
+				</div>
+				for _, t := range v.Items {
+					<a href={ templ.SafeURL(tplHref(t.ID)) } class="row tpl pc-row" data-row={ i64(t.ID) } data-href={ tplHref(t.ID) } data-hint={ i18n.T(ctx, "templates.hints.row", i18n.Args{"name": t.Slug}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold" title={ t.Name }>{ t.Name }</span>
+							<span class="sm subtle">
+								{ t.Slug }
+								if t.Description != "" {
+									· { t.Description }
+								}
+							</span>
+						</span>
+						<span>
+							if t.DefaultVersion > 0 {
+								{ vlabel(t.DefaultVersion) }
+							} else {
+								<span class="muted">—</span>
 							}
 						</span>
-					</span>
-					<span>
-						if t.DefaultVersion > 0 {
-							{ vlabel(t.DefaultVersion) }
-						} else {
-							<span class="muted">—</span>
-						}
-					</span>
-					<span class="subtle">{ itoa(t.Versions) }</span>
-					<span class="subtle">{ serversByVersion(ctx, t.ServersByVersion) }</span>
-					<span class="col">
-						if t.HasDraft {
-							@ui.Status("unknown", i18n.T(ctx, "templates.draft.exists"))
-							<span class="sm subtle">{ draftBasedOn(ctx, t.DraftBasedOn) }</span>
-						} else {
-							<span class="muted">{ i18n.T(ctx, "templates.draft.none") }</span>
-						}
-					</span>
-				</a>
-			}
+						<span class="subtle">{ itoa(t.Versions) }</span>
+						<span class="subtle">{ serversByVersion(ctx, t.ServersByVersion) }</span>
+						<span class="col">
+							if t.HasDraft {
+								@ui.Status("unknown", i18n.T(ctx, "templates.draft.exists"))
+								<span class="sm subtle">{ draftBasedOn(ctx, t.DraftBasedOn) }</span>
+							} else {
+								<span class="muted">{ i18n.T(ctx, "templates.draft.none") }</span>
+							}
+						</span>
+					</a>
+				}
+			</div>
 		}
 	}
 }

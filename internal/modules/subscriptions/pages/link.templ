@@ -130,20 +130,22 @@ templ linkPage(s ui.Shell, v linkView) {
 					if len(v.Fetches) == 0 {
 						<p class="subtle area-body">{ i18n.T(ctx, "links.fetchlog.none") }</p>
 					} else {
-						<div class="colhead fetch" aria-hidden="true">
-							<span>{ i18n.T(ctx, "links.fetchlog.time") }</span>
-							<span>{ i18n.T(ctx, "links.fetchlog.ip") }</span>
-							<span>{ i18n.T(ctx, "links.fetchlog.app") }</span>
-							<span>{ i18n.T(ctx, "links.fetchlog.outcome") } · { i18n.T(ctx, "links.fetchlog.format") }</span>
-						</div>
-						for _, f := range v.Fetches {
-							<div class="row fetch">
-								<span class="subtle">{ f.Time }</span>
-								<span>{ f.IP }<span class="cc subtle">{ f.Country }</span></span>
-								<span class="ua">{ f.App }</span>
-								<span><span class={ templ.KV("subtle", f.OK), templ.KV("gold", !f.OK) }>{ f.Outcome }</span><span class="cc subtle">{ f.Format }</span></span>
+						<div class="tbl">
+							<div class="colhead fetch" aria-hidden="true">
+								<span>{ i18n.T(ctx, "links.fetchlog.time") }</span>
+								<span>{ i18n.T(ctx, "links.fetchlog.ip") }</span>
+								<span>{ i18n.T(ctx, "links.fetchlog.app") }</span>
+								<span>{ i18n.T(ctx, "links.fetchlog.outcome") } · { i18n.T(ctx, "links.fetchlog.format") }</span>
 							</div>
-						}
+							for _, f := range v.Fetches {
+								<div class="row fetch">
+									<span class="subtle">{ f.Time }</span>
+									<span>{ f.IP }<span class="cc subtle">{ f.Country }</span></span>
+									<span class="ua" title={ f.App }>{ f.App }</span>
+									<span><span class={ templ.KV("subtle", f.OK), templ.KV("gold", !f.OK) }>{ f.Outcome }</span><span class="cc subtle">{ f.Format }</span></span>
+								</div>
+							}
+						</div>
 						if v.OlderHref != "" {
 							<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "links.fetchlog.older") }</a></p>
 						}

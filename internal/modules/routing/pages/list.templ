@@ -143,14 +143,14 @@ templ membersArea(v membersView) {
 				@ui.ActionButton(ui.Action{ID: "lists.add.empty", Label: "lists.add", Method: "GET", Href: listHref(v.ListID) + "/add", Small: true})
 			</p>
 		} else {
-			<div data-sortable>
+			<div class="tbl" data-sortable>
 				for _, r := range v.Rows {
 					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.member", i18n.Args{"tag": r.Tag}) } data-href={ svcHref(r.ID) } data-cursor?={ r.Cursor }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "lists.drag") }>⋮⋮</span>
 						<span class="subtle">{ strconv.Itoa(r.Pos) }</span>
 						<span class="col">
-							<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold">{ r.Tag }</a>
+							<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold" title={ r.Tag }>{ r.Tag }</a>
 							if r.Sub != "" {
 								<span class="sm subtle seltext">{ r.Sub }</span>
 							}

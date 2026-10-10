@@ -48,32 +48,34 @@ templ listsPage(s ui.Shell, v listsView) {
 				@ui.ActionButton(ui.Action{ID: "mtvpn.open", Label: "mtvpn.open", Method: "GET", Href: importPath})
 			</div>
 		</div>
-		<div class="colhead rlist" aria-hidden="true">
-			<span>{ i18n.T(ctx, "lists.col.list") }</span>
-			<span>{ i18n.T(ctx, "lists.col.services") }</span>
-			<span>{ i18n.T(ctx, "lists.col.domains") }</span>
-			<span>{ i18n.T(ctx, "lists.col.targets") }</span>
-			<span>{ i18n.T(ctx, "lists.col.warnings") }</span>
-		</div>
-		for _, r := range v.Rows {
-			<a href={ templ.SafeURL(listHref(r.ID)) } class="row rlist pc-row" data-row={ i64(r.ID) } data-href={ listHref(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}) }>
-				<span class="caret" aria-hidden="true">›</span>
-				<span class="col">
-					<span class="bold">{ r.Name }</span>
-					if r.Sub != "" {
-						<span class="sm subtle">{ r.Sub }</span>
+		<div class="tbl">
+			<div class="colhead rlist" aria-hidden="true">
+				<span>{ i18n.T(ctx, "lists.col.list") }</span>
+				<span>{ i18n.T(ctx, "lists.col.services") }</span>
+				<span>{ i18n.T(ctx, "lists.col.domains") }</span>
+				<span>{ i18n.T(ctx, "lists.col.targets") }</span>
+				<span>{ i18n.T(ctx, "lists.col.warnings") }</span>
+			</div>
+			for _, r := range v.Rows {
+				<a href={ templ.SafeURL(listHref(r.ID)) } class="row rlist pc-row" data-row={ i64(r.ID) } data-href={ listHref(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span class="col">
+						<span class="bold" title={ r.Name }>{ r.Name }</span>
+						if r.Sub != "" {
+							<span class="sm subtle">{ r.Sub }</span>
+						}
+					</span>
+					<span class="subtle">{ r.Services }</span>
+					<span class="subtle">{ r.Domains }</span>
+					@targetsCell(r.Targets)
+					if r.Warn != "" {
+						<span class="sm gold">▲ { r.Warn }</span>
+					} else {
+						<span class="sm muted">{ i18n.T(ctx, "lists.none") }</span>
 					}
-				</span>
-				<span class="subtle">{ r.Services }</span>
-				<span class="subtle">{ r.Domains }</span>
-				@targetsCell(r.Targets)
-				if r.Warn != "" {
-					<span class="sm gold">▲ { r.Warn }</span>
-				} else {
-					<span class="sm muted">{ i18n.T(ctx, "lists.none") }</span>
-				}
-			</a>
-		}
+				</a>
+			}
+		</div>
 		<p class="pager">{ v.Line }</p>
 	}
 }
@@ -154,8 +156,8 @@ templ addToListPage(s ui.Shell, v addToListView) {
 					<label class="row pick">
 						<input type="checkbox" name="service" value={ i64(r.ID) } checked?={ r.Checked }/>
 						<span class="col">
-							<span class="bold">{ r.Tag }</span>
-							<span class="sm subtle seltext">{ r.Selector }</span>
+							<span class="bold cut" title={ r.Tag }>{ r.Tag }</span>
+							<span class="sm subtle seltext cut" title={ r.Selector }>{ r.Selector }</span>
 						</span>
 						<span class="sm subtle">{ r.Source }</span>
 						<span class="sm subtle">{ i18n.T(ctx, "lists.add.domains", i18n.Args{"n": r.Domains}) }</span>

@@ -23,25 +23,27 @@ templ jobsPage(s ui.Shell, v jobsView) {
 		if len(v.Rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "jobs.empty"), "")
 		} else {
-			<div class="jobrow jobhead" aria-hidden="true">
-				<span>#</span><span>{ i18n.T(ctx, "jobs.col.job") }</span><span>{ i18n.T(ctx, "jobs.col.subject") }</span><span>{ i18n.T(ctx, "jobs.col.state") }</span><span>{ i18n.T(ctx, "jobs.col.started") }</span><span>{ i18n.T(ctx, "jobs.col.took") }</span>
+			<div class="tbl">
+				<div class="colhead jobrow" aria-hidden="true">
+					<span>#</span><span>{ i18n.T(ctx, "jobs.col.job") }</span><span>{ i18n.T(ctx, "jobs.col.subject") }</span><span>{ i18n.T(ctx, "jobs.col.state") }</span><span>{ i18n.T(ctx, "jobs.col.started") }</span><span>{ i18n.T(ctx, "jobs.col.took") }</span>
+				</div>
+				for _, r := range v.Rows {
+					<a href={ templ.SafeURL(r.Href) } class="row jobrow pc-row" data-row={ strconv.FormatInt(r.ID, 10) } data-href={ r.Href } data-hint={ r.Hint }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="muted">{ strconv.FormatInt(r.ID, 10) }</span>
+						<span class="col"><span class="bold">{ r.Type }</span><span class="sm subtle">{ r.By }</span></span>
+						<span class="subtle" title={ r.Subject.Label }>{ r.Subject.Label }</span>
+						<span class="col">
+							@ui.Status(r.Kind, r.State)
+							if r.Detail != "" {
+								<span class="sm subtle">{ r.Detail }</span>
+							}
+						</span>
+						<span class="subtle">{ r.Started }</span>
+						<span class="subtle">{ r.Took }</span>
+					</a>
+				}
 			</div>
-			for _, r := range v.Rows {
-				<a href={ templ.SafeURL(r.Href) } class="row jobrow pc-row" data-row={ strconv.FormatInt(r.ID, 10) } data-href={ r.Href } data-hint={ r.Hint }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="muted">{ strconv.FormatInt(r.ID, 10) }</span>
-					<span class="col"><span class="bold">{ r.Type }</span><span class="sm subtle">{ r.By }</span></span>
-					<span class="subtle">{ r.Subject.Label }</span>
-					<span class="col">
-						@ui.Status(r.Kind, r.State)
-						if r.Detail != "" {
-							<span class="sm subtle">{ r.Detail }</span>
-						}
-					</span>
-					<span class="subtle">{ r.Started }</span>
-					<span class="subtle">{ r.Took }</span>
-				</a>
-			}
 		}
 		@ui.Pager(v.Info, v.Older)
 	}

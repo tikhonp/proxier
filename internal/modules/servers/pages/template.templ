@@ -97,60 +97,62 @@ templ templatePage(s ui.Shell, v templateView) {
 				if len(v.Versions) == 0 {
 					@ui.EmptyState(i18n.T(ctx, "templates.versions.none"), i18n.T(ctx, "templates.versions.none_next"))
 				} else {
-					<div class="colhead ver" aria-hidden="true">
-						<span>{ i18n.T(ctx, "templates.col.ver") }</span>
-						<span>{ i18n.T(ctx, "templates.col.published") }</span>
-						<span>{ i18n.T(ctx, "templates.col.notes") }</span>
-						<span>{ i18n.T(ctx, "templates.col.servers") }</span>
-					</div>
-					for i, ver := range v.Versions {
-						<div class="row ver pc-row" data-row={ itoa(ver.Number) } data-hint={ i18n.T(ctx, "templates.hints.version", i18n.Args{"v": ver.Number}) }>
-							<span class="caret" aria-hidden="true">›</span>
-							<span class="bold">
-								<a href={ templ.SafeURL(actionHref(v.T.ID, "/versions/"+itoa(ver.Number))) } data-action={ "tpl.view." + itoa(ver.Number) }>{ vlabel(ver.Number) }</a>
-								if ver.Default {
-									<span class="sm subtle normal"> · { i18n.T(ctx, "templates.default") }</span>
-								}
-							</span>
-							<span class="subtle">@ui.Time(ver.PublishedAt.Time)</span>
-							<span class="subtle col">
-								<span>{ ver.Notes }</span>
-								if ver.Warnings > 0 {
-									<span class="sm gold">{ i18n.N(ctx, "templates.warnings", int64(ver.Warnings)) }</span>
-								}
-								if t := sourceText(ctx, ver.Source); t != "" && ver.Source.Kind != "version" {
-									<span class="sm muted">{ t }</span>
-								}
-							</span>
-							<span class="subtle">
-								if s := serverStates(ctx, ver.Servers); s != "" {
-									{ s }
-								} else {
-									—
-								}
-							</span>
-							<span class="actions">
-								if !ver.Default {
-									@ui.ActionButton(ui.Action{ID: "tpl.default." + itoa(ver.Number), Label: "templates.make_default", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/default"), Small: true})
-								}
-								if i+1 < len(v.Versions) {
-									@ui.ActionButton(ui.Action{ID: "tpl.diff." + itoa(ver.Number), Label: "templates.diff", Method: "GET", Href: actionHref(v.T.ID, "/diff?a="+itoa(v.Versions[i+1].Number)+"&b="+itoa(ver.Number)), Small: true})
-								}
-								@ui.ActionButton(ui.Action{ID: "tpl.export." + itoa(ver.Number), Label: "templates.export", Method: "GET", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/export"), Small: true})
-								if v.T.HasDraft {
-									@ui.ActionButton(ui.Action{
-										ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true,
-										Confirm: &ui.Confirm{
-											Strength: 2, Title: i18n.T(ctx, "templates.redraft.title", i18n.Args{"v": ver.Number}), Body: i18n.T(ctx, "templates.redraft.body"),
-											Consequences: []string{i18n.T(ctx, "templates.redraft.lose"), i18n.T(ctx, "templates.redraft.next", i18n.Args{"n": v.T.Latest + 1})},
-										},
-									})
-								} else {
-									@ui.ActionButton(ui.Action{ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true})
-								}
-							</span>
+					<div class="tbl">
+						<div class="colhead ver" aria-hidden="true">
+							<span>{ i18n.T(ctx, "templates.col.ver") }</span>
+							<span>{ i18n.T(ctx, "templates.col.published") }</span>
+							<span>{ i18n.T(ctx, "templates.col.notes") }</span>
+							<span>{ i18n.T(ctx, "templates.col.servers") }</span>
 						</div>
-					}
+						for i, ver := range v.Versions {
+							<div class="row ver pc-row" data-row={ itoa(ver.Number) } data-hint={ i18n.T(ctx, "templates.hints.version", i18n.Args{"v": ver.Number}) }>
+								<span class="caret" aria-hidden="true">›</span>
+								<span class="bold">
+									<a href={ templ.SafeURL(actionHref(v.T.ID, "/versions/"+itoa(ver.Number))) } data-action={ "tpl.view." + itoa(ver.Number) }>{ vlabel(ver.Number) }</a>
+									if ver.Default {
+										<span class="sm subtle normal"> · { i18n.T(ctx, "templates.default") }</span>
+									}
+								</span>
+								<span class="subtle">@ui.Time(ver.PublishedAt.Time)</span>
+								<span class="subtle col">
+									<span title={ ver.Notes }>{ ver.Notes }</span>
+									if ver.Warnings > 0 {
+										<span class="sm gold">{ i18n.N(ctx, "templates.warnings", int64(ver.Warnings)) }</span>
+									}
+									if t := sourceText(ctx, ver.Source); t != "" && ver.Source.Kind != "version" {
+										<span class="sm muted">{ t }</span>
+									}
+								</span>
+								<span class="subtle">
+									if s := serverStates(ctx, ver.Servers); s != "" {
+										{ s }
+									} else {
+										—
+									}
+								</span>
+								<span class="actions">
+									if !ver.Default {
+										@ui.ActionButton(ui.Action{ID: "tpl.default." + itoa(ver.Number), Label: "templates.make_default", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/default"), Small: true})
+									}
+									if i+1 < len(v.Versions) {
+										@ui.ActionButton(ui.Action{ID: "tpl.diff." + itoa(ver.Number), Label: "templates.diff", Method: "GET", Href: actionHref(v.T.ID, "/diff?a="+itoa(v.Versions[i+1].Number)+"&b="+itoa(ver.Number)), Small: true})
+									}
+									@ui.ActionButton(ui.Action{ID: "tpl.export." + itoa(ver.Number), Label: "templates.export", Method: "GET", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/export"), Small: true})
+									if v.T.HasDraft {
+										@ui.ActionButton(ui.Action{
+											ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true,
+											Confirm: &ui.Confirm{
+												Strength: 2, Title: i18n.T(ctx, "templates.redraft.title", i18n.Args{"v": ver.Number}), Body: i18n.T(ctx, "templates.redraft.body"),
+												Consequences: []string{i18n.T(ctx, "templates.redraft.lose"), i18n.T(ctx, "templates.redraft.next", i18n.Args{"n": v.T.Latest + 1})},
+											},
+										})
+									} else {
+										@ui.ActionButton(ui.Action{ID: "tpl.redraft." + itoa(ver.Number), Label: "templates.redraft", Method: "POST", Href: actionHref(v.T.ID, "/versions/"+itoa(ver.Number)+"/draft"), Small: true})
+									}
+								</span>
+							</div>
+						}
+					</div>
 				}
 			</section>
 			<section class="area" aria-label={ i18n.T(ctx, "templates.draft") }>

@@ -72,33 +72,35 @@ templ searchResults(v searchView) {
 				</p>
 			}
 		} else {
-			<div class="colhead cat" aria-hidden="true">
-				<span>{ i18n.T(ctx, "catalog.col.selector") }</span>
-				<span>{ i18n.T(ctx, "catalog.col.kind") }</span>
-				<span>{ i18n.T(ctx, "catalog.col.lists") }</span>
-				<span></span>
-			</div>
-			for _, r := range v.Rows {
-				<div class="row cat pc-row" data-row={ r.Selector } data-href={ r.PreviewHref } data-hint={ i18n.T(ctx, "catalog.hints.row") }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<span class="bold seltext">{ r.Selector }</span>
-						<span class="sm subtle">{ r.Line }</span>
-					</span>
-					<span class="subtle">{ r.Kind }</span>
-					if r.Lists != "" {
-						<span class="sm">{ r.Lists }</span>
-					} else {
-						<span class="sm muted">{ i18n.T(ctx, "catalog.not_a_service") }</span>
-					}
-					<span class="acts">
-						<a href={ templ.SafeURL(r.PreviewHref) } class="pc-btn pc-sm pc-ghost" hx-get={ previewURL(r.Selector) } hx-target="#preview" hx-swap="innerHTML" hx-push-url="false">{ i18n.T(ctx, "catalog.preview") }</a>
-						if r.AddHref != "" {
-							<a href={ templ.SafeURL(r.AddHref) } class="pc-btn pc-sm" data-key="a" data-row-only>{ i18n.T(ctx, r.AddLabel) }</a>
-						}
-					</span>
+			<div class="tbl">
+				<div class="colhead cat" aria-hidden="true">
+					<span>{ i18n.T(ctx, "catalog.col.selector") }</span>
+					<span>{ i18n.T(ctx, "catalog.col.kind") }</span>
+					<span>{ i18n.T(ctx, "catalog.col.lists") }</span>
+					<span></span>
 				</div>
-			}
+				for _, r := range v.Rows {
+					<div class="row cat pc-row" data-row={ r.Selector } data-href={ r.PreviewHref } data-hint={ i18n.T(ctx, "catalog.hints.row") }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold seltext" title={ r.Selector }>{ r.Selector }</span>
+							<span class="sm subtle">{ r.Line }</span>
+						</span>
+						<span class="subtle">{ r.Kind }</span>
+						if r.Lists != "" {
+							<span class="sm">{ r.Lists }</span>
+						} else {
+							<span class="sm muted">{ i18n.T(ctx, "catalog.not_a_service") }</span>
+						}
+						<span class="acts">
+							<a href={ templ.SafeURL(r.PreviewHref) } class="pc-btn pc-sm pc-ghost" hx-get={ previewURL(r.Selector) } hx-target="#preview" hx-swap="innerHTML" hx-push-url="false">{ i18n.T(ctx, "catalog.preview") }</a>
+							if r.AddHref != "" {
+								<a href={ templ.SafeURL(r.AddHref) } class="pc-btn pc-sm" data-key="a" data-row-only>{ i18n.T(ctx, r.AddLabel) }</a>
+							}
+						</span>
+					</div>
+				}
+			</div>
 			if v.More != "" {
 				<p class="pager">{ v.More }</p>
 			}

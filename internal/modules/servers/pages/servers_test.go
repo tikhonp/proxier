@@ -545,6 +545,10 @@ func TestServerListColumns(t *testing.T) {
 	mustContain(t, body, "nl-1", "Unknown", "127.0.0.1", "nl-1.hosts.tikhonnnnn.com", "VLESS XHTTP behind nginx v1", "Run checks now", "Upgrade to default version", "Pause checks")
 	mustNotContain(t, body, `role="meter"`, "available")
 	mustContain(t, body, `<span class="subtle">—</span>`)
+	// zoomed in, the table scrolls in its own box and a cut-off value keeps its whole text in a tooltip
+	mustContain(t, body, `class="srv-table tbl"`, `title="nl-1"`, `title="nl-1.hosts.tikhonnnnn.com"`, `title="VLESS XHTTP behind nginx v1"`)
+	// and the server's header line wraps between facts, never inside a hostname
+	mustContain(t, page(t, h, "/servers/"+sid(id)), `<p class="subtle facts"><span>Netherlands</span> · <span>`, `title="nl-1.hosts.tikhonnnnn.com">nl-1.hosts.tikhonnnnn.com</span></p>`)
 
 	// with a sample, a proxy test and a newer default version
 	insertSample(t, h, id, func(s *store.Sample) {

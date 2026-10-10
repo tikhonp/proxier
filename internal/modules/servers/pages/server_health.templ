@@ -116,35 +116,37 @@ templ healthMatrix(v healthView) {
 
 templ matrixBody(v healthView) {
 	@ui.Area(i18n.T(ctx, "health.matrix"), i18n.T(ctx, "health.matrix.note")) {
-		<div class="colhead mx" aria-hidden="true">
-			<span>{ i18n.T(ctx, "health.col.check") }</span>
-			<span>{ i18n.T(ctx, "health.col.result") }</span>
-			<span>{ i18n.T(ctx, "health.col.detail") }</span>
-			<span>{ i18n.T(ctx, "health.col.when") }</span>
-			<span>{ i18n.T(ctx, "health.col.history") }</span>
-		</div>
-		for _, r := range v.Matrix {
-			if r.Group != "" {
-				<div class="mx-group">{ r.Group }</div>
-			} else {
-				<div class={ "row", "mx", templ.KV("mx-sub", r.Indent) }>
-					<span class="bold">
-						{ r.Label }
-						if r.Sub != "" {
-							<span class="sm subtle">{ r.Sub }</span>
-						}
-					</span>
-					<span>@ui.Status(r.Kind, r.Result)</span>
-					<span class="subtle">{ r.Detail }</span>
-					<span class="sm subtle" title={ r.At }>{ r.When }</span>
-					<span>
-						if len(r.Strip) > 0 {
-							@ui.Strip(r.Strip, r.StripLabel)
-						}
-					</span>
-				</div>
+		<div class="tbl">
+			<div class="colhead mx" aria-hidden="true">
+				<span>{ i18n.T(ctx, "health.col.check") }</span>
+				<span>{ i18n.T(ctx, "health.col.result") }</span>
+				<span>{ i18n.T(ctx, "health.col.detail") }</span>
+				<span>{ i18n.T(ctx, "health.col.when") }</span>
+				<span>{ i18n.T(ctx, "health.col.history") }</span>
+			</div>
+			for _, r := range v.Matrix {
+				if r.Group != "" {
+					<div class="mx-group">{ r.Group }</div>
+				} else {
+					<div class={ "row", "mx", templ.KV("mx-sub", r.Indent) }>
+						<span class="bold" title={ r.Label }>
+							{ r.Label }
+							if r.Sub != "" {
+								<span class="sm subtle">{ r.Sub }</span>
+							}
+						</span>
+						<span class="wrap">@ui.Status(r.Kind, r.Result)</span>
+						<span class="subtle wrap">{ r.Detail }</span>
+						<span class="sm subtle" title={ r.At }>{ r.When }</span>
+						<span>
+							if len(r.Strip) > 0 {
+								@ui.Strip(r.Strip, r.StripLabel)
+							}
+						</span>
+					</div>
+				}
 			}
-		}
+		</div>
 	}
 }
 

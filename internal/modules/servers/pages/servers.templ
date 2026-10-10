@@ -310,7 +310,7 @@ templ serverHead(v serverView, tab string) {
 					<span class="sm subtle">{ v.Reason }</span>
 				}
 			</div>
-			<p class="subtle">{ v.S.LocationName } · { v.S.IP } · { v.S.ManagementHostname }</p>
+			<p class="subtle facts"><span>{ v.S.LocationName }</span> · <span>{ v.S.IP }</span> · <span title={ v.S.ManagementHostname }>{ v.S.ManagementHostname }</span></p>
 		</div>
 		<div class="actions">
 			if v.CanCancel {
@@ -461,7 +461,7 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 				for _, e := range v.Endpoints {
 					<div class="row ep" id={ "ep-" + e.Key }>
 						<span class="bold">{ e.Display }</span>
-						<span class="subtle">{ e.Key } · { e.Type } · { e.Address }</span>
+						<span class="subtle facts"><span>{ e.Key }</span> · <span>{ e.Type }</span> · <span title={ e.Address }>{ e.Address }</span></span>
 						<span class="uri" id={ "uri-" + e.Key }>
 							<code class="masked">vless://••••••••@{ e.Address }</code>
 							<button type="button" class="pc-btn pc-sm" hx-get={ e.URIHref } hx-target={ "#uri-" + e.Key } hx-swap="innerHTML">{ i18n.T(ctx, "servers.ep.reveal") }</button>

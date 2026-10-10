@@ -31,41 +31,43 @@ templ listPage(s ui.Shell, v listView) {
 			if len(v.Rows) == 0 {
 				@ui.EmptyState(i18n.T(ctx, "services.none_match"), "")
 			} else {
-				<div class="colhead svc" aria-hidden="true">
-					<span>{ i18n.T(ctx, "services.col.service") }</span>
-					<span>{ i18n.T(ctx, "services.col.source") }</span>
-					<span>{ i18n.T(ctx, "services.col.domains") }</span>
-					<span>{ i18n.T(ctx, "services.col.refreshed") }</span>
-					<span>{ i18n.T(ctx, "services.col.state") }</span>
-					<span>{ i18n.T(ctx, "services.col.lists") }</span>
-				</div>
-				for _, r := range v.Rows {
-					<div class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ rowHint(ctx, r) }>
-						<span class="caret" aria-hidden="true">›</span>
-						<span class="col">
-							<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold">{ r.Tag }</a>
-							<span class="sm subtle seltext">{ r.Sub }</span>
-						</span>
-						<span class="subtle">{ r.Source }</span>
-						<span class="subtle">{ r.Domains }</span>
-						<span class="sm subtle">{ r.When }</span>
-						<span class="state">
-							@ui.Status(r.StateKind, r.State)
-							if r.Upstream {
-								<form method="post" action={ templ.SafeURL(svcHref(r.ID) + "/refresh") } class="inline">
-									<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-									<input type="hidden" name="from" value="list"/>
-									<button type="submit" class="pc-btn pc-sm pc-ghost" data-key="r" data-row-only aria-label={ i18n.T(ctx, "refresh.row", i18n.Args{"tag": r.Tag}) }>↻</button>
-								</form>
-							}
-						</span>
-						if r.NoLists {
-							<span class="sm muted">{ i18n.T(ctx, "services.none") }</span>
-						} else {
-							<span class="sm subtle">{ r.Lists }</span>
-						}
+				<div class="tbl">
+					<div class="colhead svc" aria-hidden="true">
+						<span>{ i18n.T(ctx, "services.col.service") }</span>
+						<span>{ i18n.T(ctx, "services.col.source") }</span>
+						<span>{ i18n.T(ctx, "services.col.domains") }</span>
+						<span>{ i18n.T(ctx, "services.col.refreshed") }</span>
+						<span>{ i18n.T(ctx, "services.col.state") }</span>
+						<span>{ i18n.T(ctx, "services.col.lists") }</span>
 					</div>
-				}
+					for _, r := range v.Rows {
+						<div class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ rowHint(ctx, r) }>
+							<span class="caret" aria-hidden="true">›</span>
+							<span class="col">
+								<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold" title={ r.Tag }>{ r.Tag }</a>
+								<span class="sm subtle seltext" title={ r.Sub }>{ r.Sub }</span>
+							</span>
+							<span class="subtle">{ r.Source }</span>
+							<span class="subtle">{ r.Domains }</span>
+							<span class="sm subtle">{ r.When }</span>
+							<span class="state">
+								@ui.Status(r.StateKind, r.State)
+								if r.Upstream {
+									<form method="post" action={ templ.SafeURL(svcHref(r.ID) + "/refresh") } class="inline">
+										<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+										<input type="hidden" name="from" value="list"/>
+										<button type="submit" class="pc-btn pc-sm pc-ghost" data-key="r" data-row-only aria-label={ i18n.T(ctx, "refresh.row", i18n.Args{"tag": r.Tag}) }>↻</button>
+									</form>
+								}
+							</span>
+							if r.NoLists {
+								<span class="sm muted">{ i18n.T(ctx, "services.none") }</span>
+							} else {
+								<span class="sm subtle" title={ r.Lists }>{ r.Lists }</span>
+							}
+						</div>
+					}
+				</div>
 				<p class="pager">
 					{ v.Info }
 					if v.PrevHref != "" {

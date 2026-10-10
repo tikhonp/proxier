@@ -45,36 +45,38 @@ templ routersPage(s ui.Shell, rows []routerRow, notice string) {
 		if len(rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "routers.empty"), i18n.T(ctx, "routers.empty.next"))
 		} else {
-			<div class="colhead rtr" aria-hidden="true">
-				<span>{ i18n.T(ctx, "routers.col.router") }</span>
-				<span>{ i18n.T(ctx, "routers.col.state") }</span>
-				<span>{ i18n.T(ctx, "routers.col.list") }</span>
-				<span>{ i18n.T(ctx, "routers.col.last") }</span>
-				<span>{ i18n.T(ctx, "routers.col.watch") }</span>
-				<span></span>
-			</div>
-			for _, r := range rows {
-				<div class="row rtr pc-row" data-row={ i64(r.ID) } data-href={ routerHref(r.ID) } data-hint={ i18n.T(ctx, "routers.hints.row", i18n.Args{"name": r.Name}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<a class="bold" href={ templ.SafeURL(routerHref(r.ID)) }>{ r.Name }</a>
-						<span class="sm subtle">{ r.Addr }</span>
-					</span>
-					<span class="subtle">{ r.State }</span>
-					<span class="subtle">{ r.List }</span>
-					<span class="col">
-						@ui.Status(r.Kind, r.Word)
-						if r.Detail != "" {
-							<span class="sm subtle">{ r.Detail }</span>
-						}
-					</span>
-					<span class={ "sm", templ.KV("gold", r.Watched), templ.KV("subtle", !r.Watched) }>{ r.Watch }</span>
-					<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
-						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-						<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
-					</form>
+			<div class="tbl">
+				<div class="colhead rtr" aria-hidden="true">
+					<span>{ i18n.T(ctx, "routers.col.router") }</span>
+					<span>{ i18n.T(ctx, "routers.col.state") }</span>
+					<span>{ i18n.T(ctx, "routers.col.list") }</span>
+					<span>{ i18n.T(ctx, "routers.col.last") }</span>
+					<span>{ i18n.T(ctx, "routers.col.watch") }</span>
+					<span></span>
 				</div>
-			}
+				for _, r := range rows {
+					<div class="row rtr pc-row" data-row={ i64(r.ID) } data-href={ routerHref(r.ID) } data-hint={ i18n.T(ctx, "routers.hints.row", i18n.Args{"name": r.Name}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<a class="bold" href={ templ.SafeURL(routerHref(r.ID)) } title={ r.Name }>{ r.Name }</a>
+							<span class="sm subtle" title={ r.Addr }>{ r.Addr }</span>
+						</span>
+						<span class="subtle">{ r.State }</span>
+						<span class="subtle" title={ r.List }>{ r.List }</span>
+						<span class="col">
+							@ui.Status(r.Kind, r.Word)
+							if r.Detail != "" {
+								<span class="sm subtle">{ r.Detail }</span>
+							}
+						</span>
+						<span class={ "sm", templ.KV("gold", r.Watched), templ.KV("subtle", !r.Watched) }>{ r.Watch }</span>
+						<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
+							<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+							<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
+						</form>
+					</div>
+				}
+			</div>
 		}
 	}
 }
@@ -454,27 +456,29 @@ templ testButton(id int64) {
 }
 
 templ planTable(rows []planRow) {
-	<div class="colhead tagplan" aria-hidden="true">
-		<span>{ i18n.T(ctx, "routers.plan.col.tag") }</span>
-		<span>{ i18n.T(ctx, "routers.plan.col.service") }</span>
-		<span>{ i18n.T(ctx, "routers.plan.col.want") }</span>
-		<span>{ i18n.T(ctx, "routers.plan.col.have") }</span>
-		<span>{ i18n.T(ctx, "routers.plan.col.plan") }</span>
-	</div>
-	for _, r := range rows {
-		<div class="row tagplan">
-			<span class="bold">{ r.Tag }</span>
-			<span class="sm subtle">{ r.Service }</span>
-			<span>{ r.Want }</span>
-			<span>{ r.Have }</span>
-			<span class="col">
-				@ui.Status(r.Kind, r.Action)
-				if r.Why != "" {
-					<span class="sm subtle">{ r.Why }</span>
-				}
-			</span>
+	<div class="tbl">
+		<div class="colhead tagplan" aria-hidden="true">
+			<span>{ i18n.T(ctx, "routers.plan.col.tag") }</span>
+			<span>{ i18n.T(ctx, "routers.plan.col.service") }</span>
+			<span>{ i18n.T(ctx, "routers.plan.col.want") }</span>
+			<span>{ i18n.T(ctx, "routers.plan.col.have") }</span>
+			<span>{ i18n.T(ctx, "routers.plan.col.plan") }</span>
 		</div>
-	}
+		for _, r := range rows {
+			<div class="row tagplan">
+				<span class="bold">{ r.Tag }</span>
+				<span class="sm subtle" title={ r.Service }>{ r.Service }</span>
+				<span>{ r.Want }</span>
+				<span>{ r.Have }</span>
+				<span class="col">
+					@ui.Status(r.Kind, r.Action)
+					if r.Why != "" {
+						<span class="sm subtle wrap">{ r.Why }</span>
+					}
+				</span>
+			</div>
+		}
+	</div>
 }
 
 // previewArea is the Sync preview; while it runs it polls itself.

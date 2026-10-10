@@ -24,42 +24,44 @@ templ listPage(s ui.Shell, rows []rowView) {
 		if len(rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "subs.empty"), i18n.T(ctx, "subs.empty_next"))
 		} else {
-			<div class="colhead sub" aria-hidden="true">
-				<span>{ i18n.T(ctx, "subs.col.subscription") }</span>
-				<span>{ i18n.T(ctx, "subs.col.servers") }</span>
-				<span>{ i18n.T(ctx, "subs.col.links") }</span>
-				<span>{ i18n.T(ctx, "subs.col.formats") }</span>
-				<span>{ i18n.T(ctx, "subs.col.hide") }</span>
+			<div class="tbl">
+				<div class="colhead sub" aria-hidden="true">
+					<span>{ i18n.T(ctx, "subs.col.subscription") }</span>
+					<span>{ i18n.T(ctx, "subs.col.servers") }</span>
+					<span>{ i18n.T(ctx, "subs.col.links") }</span>
+					<span>{ i18n.T(ctx, "subs.col.formats") }</span>
+					<span>{ i18n.T(ctx, "subs.col.hide") }</span>
+				</div>
+				for _, r := range rows {
+					<a href={ templ.SafeURL(subHref(r.ID)) } class="row sub pc-row" data-row={ i64(r.ID) } data-href={ subHref(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.row", i18n.Args{"name": r.Name}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold" title={ r.Name }>{ r.Name }</span>
+							<span class="sm subtle">{ i18n.T(ctx, "subs.shown_as", i18n.Args{"title": r.Title}) }</span>
+						</span>
+						<span class="col">
+							if len(r.Servers) == 0 {
+								<span class="muted">{ i18n.T(ctx, "subs.servers.none") }</span>
+							} else {
+								<span class="sub-servers">
+									for _, c := range r.Servers {
+										<span class="stat" title={ c.Word }>
+											<span class={ "st", "st-" + c.Kind } aria-hidden="true"></span>
+											<span>{ c.Name }</span>
+										</span>
+									}
+								</span>
+							}
+							for _, n := range r.HiddenNow {
+								<span class="sm gold">{ i18n.T(ctx, "subs.hidden_now", i18n.Args{"name": n}) }</span>
+							}
+						</span>
+						<span class="subtle">{ strconv.Itoa(r.Links) }</span>
+						<span class="sm subtle">{ r.Formats }</span>
+						<span class="sm subtle">{ r.Hide }</span>
+					</a>
+				}
 			</div>
-			for _, r := range rows {
-				<a href={ templ.SafeURL(subHref(r.ID)) } class="row sub pc-row" data-row={ i64(r.ID) } data-href={ subHref(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.row", i18n.Args{"name": r.Name}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<span class="bold">{ r.Name }</span>
-						<span class="sm subtle">{ i18n.T(ctx, "subs.shown_as", i18n.Args{"title": r.Title}) }</span>
-					</span>
-					<span class="col">
-						if len(r.Servers) == 0 {
-							<span class="muted">{ i18n.T(ctx, "subs.servers.none") }</span>
-						} else {
-							<span class="sub-servers">
-								for _, c := range r.Servers {
-									<span class="stat" title={ c.Word }>
-										<span class={ "st", "st-" + c.Kind } aria-hidden="true"></span>
-										<span>{ c.Name }</span>
-									</span>
-								}
-							</span>
-						}
-						for _, n := range r.HiddenNow {
-							<span class="sm gold">{ i18n.T(ctx, "subs.hidden_now", i18n.Args{"name": n}) }</span>
-						}
-					</span>
-					<span class="subtle">{ strconv.Itoa(r.Links) }</span>
-					<span class="sm subtle">{ r.Formats }</span>
-					<span class="sm subtle">{ r.Hide }</span>
-				</a>
-			}
 		}
 	}
 }
@@ -164,9 +166,9 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 					for _, l := range v.LinkRows {
 						<a href={ templ.SafeURL(linkHref(l.ID)) } class="row sublink pc-row" data-row={ i64(l.ID) } data-href={ linkHref(l.ID) }>
 							<span class="caret" aria-hidden="true">›</span>
-							<span class="bold">{ l.Name }</span>
+							<span class="bold cut" title={ l.Name }>{ l.Name }</span>
 							@ui.Status(l.Kind, l.Word)
-							<span class="sm subtle">{ l.Last }</span>
+							<span class="sm subtle cut" title={ l.Last }>{ l.Last }</span>
 						</a>
 					}
 				}
@@ -206,7 +208,7 @@ templ serversArea(v serversView) {
 		if len(v.Rows) == 0 {
 			<p class="subtle area-body">{ i18n.T(ctx, "subs.servers.empty") }</p>
 		} else {
-			<div data-sortable>
+			<div class="tbl" data-sortable>
 				for _, r := range v.Rows {
 					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.member", i18n.Args{"name": r.Name}) } data-href={ "/servers/" + i64(r.ID) } data-cursor?={ r.Cursor }>
 						<span class="caret" aria-hidden="true">›</span>
@@ -216,7 +218,7 @@ templ serversArea(v serversView) {
 							if r.Flag != "" {
 								{ r.Flag }
 							}
-							<a href={ templ.SafeURL("/servers/" + i64(r.ID)) }>{ r.Name }</a>
+							<a href={ templ.SafeURL("/servers/" + i64(r.ID)) } title={ r.Name }>{ r.Name }</a>
 						</span>
 						<span class="hl">
 							@ui.Status(r.Kind, r.Word)

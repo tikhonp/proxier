@@ -80,48 +80,50 @@ templ importPreviewForm(v importView) {
 	}
 	<form method="post" action={ templ.SafeURL(importHref(v.Im.ID)) } class="form wide">
 		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-		<div class="colhead improw" aria-hidden="true">
-			<span></span>
-			<span>{ i18n.T(ctx, "mtvpn.col.selector") }</span>
-			<span>{ i18n.T(ctx, "mtvpn.col.from") }</span>
-			<span>{ i18n.T(ctx, "mtvpn.col.status") }</span>
-			<span>{ i18n.T(ctx, "mtvpn.col.choice") }</span>
-		</div>
-		for _, r := range v.Rows {
-			<div class="row improw">
-				<span>
-					if r.Row.Status != "invalid" {
-						<input type="checkbox" name="include" value={ strconv.Itoa(r.I) } checked?={ r.Row.Include } aria-label={ r.Row.Selector }/>
-					}
-				</span>
-				<span class="col">
-					<span>{ r.Row.Selector }</span>
-					if r.Row.Tag != "" {
-						<span class="sm subtle">{ i18n.T(ctx, "mtvpn.tag", i18n.Args{"tag": r.Row.Tag}) }</span>
-					}
-				</span>
-				<span class="sm subtle">{ r.Row.From }</span>
-				<span class="col">
-					@ui.Status(r.StatusKind, r.Status)
-					if r.Row.Status == "exists" && r.Row.ExistingAs != "" && r.Row.ExistingAs != r.Row.Selector {
-						<span class="sm subtle">{ i18n.T(ctx, "mtvpn.existing_as", i18n.Args{"selector": r.Row.ExistingAs}) }</span>
-					}
-					if r.Problem != "" {
-						<span class="sm love">{ r.Problem }</span>
-					}
-				</span>
-				<span>
-					if r.Row.URL && r.Row.Status == "new" {
-						<select class="pc-inp pc-sm" name={ "convert." + strconv.Itoa(r.I) } aria-label={ i18n.T(ctx, "mtvpn.col.choice") }>
-							<option value="0" selected?={ !r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.keep") }</option>
-							<option value="1" selected?={ r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.convert") }</option>
-						</select>
-					} else {
-						<span class="sm muted">—</span>
-					}
-				</span>
+		<div class="tbl">
+			<div class="colhead improw" aria-hidden="true">
+				<span></span>
+				<span>{ i18n.T(ctx, "mtvpn.col.selector") }</span>
+				<span>{ i18n.T(ctx, "mtvpn.col.from") }</span>
+				<span>{ i18n.T(ctx, "mtvpn.col.status") }</span>
+				<span>{ i18n.T(ctx, "mtvpn.col.choice") }</span>
 			</div>
-		}
+			for _, r := range v.Rows {
+				<div class="row improw">
+					<span>
+						if r.Row.Status != "invalid" {
+							<input type="checkbox" name="include" value={ strconv.Itoa(r.I) } checked?={ r.Row.Include } aria-label={ r.Row.Selector }/>
+						}
+					</span>
+					<span class="col">
+						<span title={ r.Row.Selector }>{ r.Row.Selector }</span>
+						if r.Row.Tag != "" {
+							<span class="sm subtle">{ i18n.T(ctx, "mtvpn.tag", i18n.Args{"tag": r.Row.Tag}) }</span>
+						}
+					</span>
+					<span class="sm subtle">{ r.Row.From }</span>
+					<span class="col">
+						@ui.Status(r.StatusKind, r.Status)
+						if r.Row.Status == "exists" && r.Row.ExistingAs != "" && r.Row.ExistingAs != r.Row.Selector {
+							<span class="sm subtle">{ i18n.T(ctx, "mtvpn.existing_as", i18n.Args{"selector": r.Row.ExistingAs}) }</span>
+						}
+						if r.Problem != "" {
+							<span class="sm love wrap">{ r.Problem }</span>
+						}
+					</span>
+					<span>
+						if r.Row.URL && r.Row.Status == "new" {
+							<select class="pc-inp pc-sm" name={ "convert." + strconv.Itoa(r.I) } aria-label={ i18n.T(ctx, "mtvpn.col.choice") }>
+								<option value="0" selected?={ !r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.keep") }</option>
+								<option value="1" selected?={ r.Row.Convert }>{ i18n.T(ctx, "mtvpn.choice.convert") }</option>
+							</select>
+						} else {
+							<span class="sm muted">—</span>
+						}
+					</span>
+				</div>
+			}
+		</div>
 		<div class="field">
 			<label for="imp-list">{ i18n.T(ctx, "mtvpn.field.list") }</label>
 			<select id="imp-list" class="pc-inp" name="list">

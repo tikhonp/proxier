@@ -48,28 +48,30 @@ templ listPage(s ui.Shell, v listView) {
 		} else if len(v.Rows) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "scripts.empty.archived"), "")
 		} else {
-			<div class="colhead rscript" aria-hidden="true">
-				<span>{ i18n.T(ctx, "scripts.col.script") }</span>
-				<span>{ i18n.T(ctx, "scripts.col.current") }</span>
-				<span>{ i18n.T(ctx, "scripts.col.published") }</span>
-				<span>{ i18n.T(ctx, "scripts.col.generations") }</span>
-				<span>{ i18n.T(ctx, "scripts.col.draft") }</span>
+			<div class="tbl">
+				<div class="colhead rscript" aria-hidden="true">
+					<span>{ i18n.T(ctx, "scripts.col.script") }</span>
+					<span>{ i18n.T(ctx, "scripts.col.current") }</span>
+					<span>{ i18n.T(ctx, "scripts.col.published") }</span>
+					<span>{ i18n.T(ctx, "scripts.col.generations") }</span>
+					<span>{ i18n.T(ctx, "scripts.col.draft") }</span>
+				</div>
+				for _, r := range v.Rows {
+					<a href={ templ.SafeURL(ScriptHref(r.ID)) } class="row rscript pc-row" data-row={ i64(r.ID) } data-href={ ScriptHref(r.ID) } data-hint={ i18n.T(ctx, "scripts.hints.row", i18n.Args{"name": r.Name}) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span class="col">
+							<span class="bold" title={ r.Name }>{ r.Name }</span>
+							if r.Description != "" {
+								<span class="sm subtle">{ r.Description }</span>
+							}
+						</span>
+						<span>{ r.Current }</span>
+						<span class="subtle">{ r.Published }</span>
+						<span class="subtle">{ r.Generations }</span>
+						<span class={ "sm", templ.KV("love", r.DraftErrors), templ.KV("subtle", !r.DraftErrors) }>{ r.Draft }</span>
+					</a>
+				}
 			</div>
-			for _, r := range v.Rows {
-				<a href={ templ.SafeURL(ScriptHref(r.ID)) } class="row rscript pc-row" data-row={ i64(r.ID) } data-href={ ScriptHref(r.ID) } data-hint={ i18n.T(ctx, "scripts.hints.row", i18n.Args{"name": r.Name}) }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="col">
-						<span class="bold">{ r.Name }</span>
-						if r.Description != "" {
-							<span class="sm subtle">{ r.Description }</span>
-						}
-					</span>
-					<span>{ r.Current }</span>
-					<span class="subtle">{ r.Published }</span>
-					<span class="subtle">{ r.Generations }</span>
-					<span class={ "sm", templ.KV("love", r.DraftErrors), templ.KV("subtle", !r.DraftErrors) }>{ r.Draft }</span>
-				</a>
-			}
 		}
 	}
 }
