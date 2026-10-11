@@ -133,18 +133,18 @@ Buttons say what they do. Some buttons start real work even though their label b
 - **Search** (`/`) is a pop-up, 680 px wide, near the top. It has no ×: `esc` or a click outside closes it.
   - Results come in one list with two groups: **Go to** (servers, links, routers, pages) and **Actions** (every button in the app, under the same words).
   - `:` opens the same box with actions only. Backspace on an empty box goes back to everything.
-  - The footer shows the keys: `↑ ↓` move, `↵` open or run, `:` actions only, `esc` close.
+  - The footer shows the keys: `↑ ↓ ⌃N ⌃P` move, `↵` open or run, `:` actions only, `esc` close.
 - **Keys** (`?`) is a pop-up listing the whole keymap.
 
 ## Keys
 
-The keymap is small and vim-like, "not too crazy". Letters never fire inside a field, and nothing destructive gets a single key.
+The keymap is small and vim-like, "not too crazy". Letters never fire inside a field, and nothing destructive gets a single key. `⌃N ⌃P` move a selection down and up wherever `↓ ↑` do (the search and actions pop-up, a list's rows), as in Emacs and macOS lists; in any other field and in a code editor they stay the field's own, and with `⌘`, `⌥` or `⇧` they are the browser's. The key line's hints keep `j k move` for room; the keys sheet lists `⌃N ⌃P` under In a list.
 
 | Where | Keys |
 |---|---|
 | Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `esc` close, cancel, leave a field or full screen |
 | `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `r` routers · `j` jobs · `a` activity · `g` top of the list. After `g` a which-key strip shows these choices. |
-| In a list | `j k` (arrows too) · `gg G` first, last · `↵` open · `n` new · `space` tick |
+| In a list | `j k` (arrows and `⌃N ⌃P` too) · `gg G` first, last · `↵` open · `n` new · `space` tick |
 | Row or page | `r` run checks or retry · `s` sync now · `p` pause or resume · `y` copy the URL or value · `e` edit · `[ ]` previous, next tab |
 | Fields and dialogs | `tab` next field · `esc` leave · `⌘↵` save · `↵` confirm a simple dialog |
 | Some pages | `J K` move a row where order matters · `f` follow a log · `G` end of the log |

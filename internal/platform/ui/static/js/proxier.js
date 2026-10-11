@@ -28,6 +28,16 @@
     return t === 'INPUT' || t === 'TEXTAREA' || t === 'SELECT' || el.isContentEditable;
   }
 
+  // ⌃N ⌃P move a selection down and up, as ↓ ↑ do, wherever the arrows move
+  // one: the pop-ups and a list's rows (never a plain field or the code, where
+  // they stay the field's own). With ⌘ ⌥ ⇧ they are the browser's. A layout
+  // that isn't Latin (Russian) gives a Cyrillic e.key, so its physical key counts.
+  function ctrlStep(e) {
+    if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return 0;
+    var k = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : ({ KeyN: 'n', KeyP: 'p' })[e.code];
+    return k === 'n' ? 1 : k === 'p' ? -1 : 0;
+  }
+
   // ---- row cursor (j k) --------------------------------------------------
   var cursor = -1;
   function rows() { return $$('[data-row]').filter(function (r) { return r.offsetParent !== null; }); }
@@ -290,8 +300,8 @@
     // inside the search pop-up
     if (pal && !pal.classList.contains('hidden')) {
       if (k === 'Escape') { closePalette(); e.preventDefault(); }
-      else if (k === 'ArrowDown') { palIdx = Math.min(palItems.length - 1, palIdx + 1); markPalette(); e.preventDefault(); }
-      else if (k === 'ArrowUp') { palIdx = Math.max(0, palIdx - 1); markPalette(); e.preventDefault(); }
+      else if (k === 'ArrowDown' || ctrlStep(e) > 0) { palIdx = Math.min(palItems.length - 1, palIdx + 1); markPalette(); e.preventDefault(); }
+      else if (k === 'ArrowUp' || ctrlStep(e) < 0) { palIdx = Math.max(0, palIdx - 1); markPalette(); e.preventDefault(); }
       else if (k === 'Enter') { if (palItems[palIdx]) runItem(palItems[palIdx]); e.preventDefault(); }
       else if (k === 'Backspace' && e.target.id === 'pal-input' && e.target.value === '' && palMode === 'act') {
         palMode = 'all'; $('#pal-prompt').textContent = '/'; refreshPalette(); e.preventDefault();
@@ -316,6 +326,15 @@
     if (k === 'Enter' && (e.metaKey || e.ctrlKey)) {
       var f = e.target.closest && e.target.closest('form');
       if (f) { f.requestSubmit(); e.preventDefault(); }
+      return;
+    }
+
+    var step = ctrlStep(e);
+    if (step) {
+      if (typing(e.target) || (e.target.closest && e.target.closest('dialog')) || !rows().length) return;
+      setPending(false);
+      setCursor(step > 0 ? cursor + 1 : cursor < 0 ? 0 : cursor - 1);
+      e.preventDefault();
       return;
     }
 

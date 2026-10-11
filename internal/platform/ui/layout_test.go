@@ -913,3 +913,43 @@ func TestWhichKeyStripSitsAboveTheKeyLine(t *testing.T) {
 		}
 	}
 }
+
+// ⌃N ⌃P move a selection like ↓ ↑: in the search and actions pop-up (its
+// field is the one place they leave a field's own meaning) and over a list's
+// rows, never in another field, a dialog or with ⌘ ⌥ ⇧, and a Russian layout's
+// physical N and P count. The pop-up's footer says so.
+func TestCtrlNPMoveLikeTheArrows(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return 0;`,
+		`var k = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : ({ KeyN: 'n', KeyP: 'p' })[e.code];`,
+		`return k === 'n' ? 1 : k === 'p' ? -1 : 0;`,
+		`else if (k === 'ArrowDown' || ctrlStep(e) > 0) { palIdx = Math.min(palItems.length - 1, palIdx + 1);`,
+		`else if (k === 'ArrowUp' || ctrlStep(e) < 0) { palIdx = Math.max(0, palIdx - 1);`,
+		`if (typing(e.target) || (e.target.closest && e.target.closest('dialog')) || !rows().length) return;`,
+		`setCursor(step > 0 ? cursor + 1 : cursor < 0 ? 0 : cursor - 1);`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+	// the rows take them before the early return for any key held with ⌃
+	rowsAt := strings.Index(js, `var step = ctrlStep(e);`)
+	modsAt := strings.Index(js, `if (e.metaKey || e.ctrlKey || e.altKey) return;`)
+	if rowsAt < 0 || modsAt < 0 || rowsAt > modsAt {
+		t.Error("the rows' ⌃N ⌃P come after the return for modified keys, so they never move")
+	}
+	var page strings.Builder
+	cat := i18n.NewCatalog()
+	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))
+	if err := ui.Layout(ui.Shell{Title: "t", Lang: i18n.EN}).Render(ctx, &page); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(page.String(), `<span class="k">↑ ↓ ⌃N ⌃P</span>`) {
+		t.Error("the pop-up's footer doesn't mention ⌃N ⌃P")
+	}
+}
