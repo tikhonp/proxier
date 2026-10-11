@@ -90,11 +90,11 @@ templ importPreviewForm(v importView) {
 			</div>
 			for _, r := range v.Rows {
 				<div class="row improw">
-					<span>
+					<label class="tick">
 						if r.Row.Status != "invalid" {
 							<input type="checkbox" name="include" value={ strconv.Itoa(r.I) } checked?={ r.Row.Include } aria-label={ r.Row.Selector }/>
 						}
-					</span>
+					</label>
 					<span class="col">
 						<span title={ r.Row.Selector }>{ r.Row.Selector }</span>
 						if r.Row.Tag != "" {
