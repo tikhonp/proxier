@@ -169,7 +169,7 @@ A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the
 Under 760 px the layout changes:
 
 - The sidebar becomes a drawer behind a ☰ cell, and the key line goes away.
-- The header grows to 56 px, with flush cells: ☰, the logo, then at the right search as a 48 px magnifier cell (a field there was a 60 px stub reading "/ S…"), the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
+- The header grows to 56 px, with flush cells: ☰, the logo (12 px sides), then at the right search as a 48 px magnifier cell (a field there was a 60 px stub reading "/ S…"), the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
 - Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
 - Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row (stacked, they took 650 px before the code).

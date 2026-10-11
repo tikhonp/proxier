@@ -1,6 +1,6 @@
 # Phone test: UI and functional findings (2026-10-11)
 
-A walk through every UI page on a real Android phone, with the problems seen. Every finding is fixed (commits 6b0c651, 27ef8e3, 937a87d and the one adding this table); the table at the end says how. The fixes were checked in headless Chrome at 360 px with touch emulation, not yet on the phone: the "Recheck on the phone" column marks what only the phone can confirm.
+A walk through every UI page on a real Android phone, with the problems seen. Every finding is fixed (commits 6b0c651, 27ef8e3, 937a87d, d92ac68 and a header follow-up); the table at the end says how. The fixes were checked in headless Chrome at 360 px with touch emulation, then rechecked on the same phone (the "On the phone" column).
 
 ## Setup
 
@@ -51,17 +51,17 @@ Flows that worked: sign-in (by session cookie), language switch, creating a subs
 
 ## What was done
 
-| # | Fix | Recheck on the phone |
+| # | Fix | On the phone |
 |---|---|---|
-| 1 | The current tab is scrolled into the strip on load; an end with more tabs fades. | yes |
-| 2 | On a phone the search is a 48 px magnifier cell beside the name, which has the rest of the row. | |
-| 3 | A touch screen with no hover hides the key hints (`.pc-keys-only`). | yes |
-| 4 | The editor's scroller is padded by the gutters' width (`scroll-padding-left`), so aligning the code into view stops beside the line numbers. Headless Chrome reproduced the 56 px shift by aligning the code, not by a tap. | **yes, the main one** |
+| 1 | The current tab is scrolled into the strip on load; an end with more tabs fades. | shows Notifications whole, the left end fades |
+| 2 | On a phone the search is a 48 px magnifier cell beside the name, which has the rest of the row; the logo's sides are 12 px. | "adm…" at first: the row was 3 px short (the phone's font is wider than headless Chrome's); the logo's sides went 16 → 12 px and "admin" shows whole |
+| 3 | A touch screen with no hover hides the key hints (`.pc-keys-only`). | no hints in the pop-up; the touch query matches |
+| 4 | The editor's scroller is padded by the gutters' width (`scroll-padding-left`), so aligning the code into view stops beside the line numbers. Headless Chrome reproduced the 56 px shift by aligning the code, not by a tap. | three `adb input` taps in the code, keyboard open: `scrollLeft` stays 0, lines start at "name" |
 | 5 | The editor's actions go two to a row at 40 px, Publish first (202 px). | |
-| 6 | The time field is 120 px on a phone. | yes (Android's picker) |
-| 7 | Chips and segments 40 px; switches keep their look with a 48×46 tap area; breadcrumbs and Activity's links get 40 px tap areas. Radios and checkboxes sit inside their labels; the row ticks on Import and Discover, which had none, are in a 40 px `.tick` label (the Servers table's bulk ticks are desktop only). | yes |
+| 6 | The time field is 120 px on a phone. | "--:--" whole at 120 px; the clock icon opens Android's picker |
+| 7 | Chips and segments 40 px; switches keep their look with a 48×46 tap area; breadcrumbs and Activity's links get 40 px tap areas. Radios and checkboxes sit inside their labels; the row ticks on Import and Discover, which had none, are in a 40 px `.tick` label (the Servers table's bulk ticks are desktop only). | chips 40 px; a tap 8 px below a switch turns it on; Activity's links 39 px. The Import and Discover ticks were not reached (no import file, no Chromium) |
 | 8 | A filter row's selects share its width; its button is 48 px like them. | |
-| 9 | Each module's rules fold under a summary with counts; on a phone they start folded, and switching a rule comes back with its group open. | |
+| 9 | Each module's rules fold under a summary with counts; on a phone they start folded, and switching a rule comes back with its group open. | 730 px folded; a switched rule comes back at its `#rule-` with its group open |
 | 10 | The alert's sentence and link are one span. | |
 | 11 | A custom service's tag field shows the tag the name gives as it's typed, and its page headlines the name with the tag under it. A Shadowrocket name is made a file name the same way ("iPhone Mom" → `iphone-mom`), shown as "File name: iphone-mom.conf" while typing. | |
 | 12 | Unconfigured Telegram and Cloudflare rows say **Set up**. | |
