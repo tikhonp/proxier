@@ -523,184 +523,202 @@ func editorForm(v editorView) templ.Component {
 				}
 			}
 			if r.Hint != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span class=\"sm cover-hint wrap\">")
+				var templ_7745c5c3_Var31 = []any{"sm", "wrap", templ.KV("cover-hint", r.Taken), templ.KV("subtle", !r.Taken)}
+				templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var31...)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var31 string
-				templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(r.Hint)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 82, Col: 49}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 39, "<span class=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "</span>")
+				var templ_7745c5c3_Var32 string
+				templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var31).String())
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 1, Col: 0}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</span> <span class=\"inline-fields\" role=\"radiogroup\" aria-label=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var32 string
-			templ_7745c5c3_Var32, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.col.match"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 85, Col: 105}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var32)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "\"><label class=\"check sm\"><input type=\"radio\" name=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var33 string
-			templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.ResolveAttributeValue("match." + strconv.Itoa(r.N))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 86, Col: 86}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var33)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\" value=\"suffix\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if !r.Exact {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, " checked")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "\">")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				var templ_7745c5c3_Var33 string
+				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(r.Hint)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 82, Col: 108}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 41, "</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, "</span> <span class=\"inline-fields\" role=\"radiogroup\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var34 string
-			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.kind.suffix"))
+			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.col.match"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 86, Col: 164}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 85, Col: 105}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var34)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, "</label> <label class=\"check sm\"><input type=\"radio\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\"><label class=\"check sm\"><input type=\"radio\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var35 string
 			templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.ResolveAttributeValue("match." + strconv.Itoa(r.N))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 87, Col: 86}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 86, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var35)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" value=\"exact\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "\" value=\"suffix\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			if r.Exact {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, " checked")
+			if !r.Exact {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 45, " checked")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, ">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 46, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var36 string
-			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.kind.exact"))
+			templ_7745c5c3_Var36, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.kind.suffix"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 87, Col: 161}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 86, Col: 164}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var36))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, "</label></span> <input class=\"pc-inp\" name=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "</label> <label class=\"check sm\"><input type=\"radio\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var37 string
-			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("note." + strconv.Itoa(r.N))
+			templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.ResolveAttributeValue("match." + strconv.Itoa(r.N))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 62}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 87, Col: 86}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var37)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 48, "\" value=\"exact\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			if r.Exact {
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, " checked")
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 50, ">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var38 string
-			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Note)
+			templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.kind.exact"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 79}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 87, Col: 161}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var38)
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" maxlength=\"200\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "</label></span> <input class=\"pc-inp\" name=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var39 string
-			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.col.note"))
+			templ_7745c5c3_Var39, templ_7745c5c3_Err = templ.ResolveAttributeValue("note." + strconv.Itoa(r.N))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 150}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 62}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var39)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" autocomplete=\"off\"> <button type=\"submit\" name=\"op\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var40 string
-			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue("remove-" + strconv.Itoa(r.N))
+			templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.ResolveAttributeValue(r.Note)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 90, Col: 75}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 79}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var40)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" class=\"pc-btn pc-sm pc-ghost\" aria-label=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 53, "\" maxlength=\"200\" aria-label=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var41 string
-			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.remove_row", i18n.Args{"name": r.Domain}))
+			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.col.note"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 90, Col: 191}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 89, Col: 150}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var41)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\">×</button></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\" autocomplete=\"off\"> <button type=\"submit\" name=\"op\" value=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var42 string
+			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.ResolveAttributeValue("remove-" + strconv.Itoa(r.N))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 90, Col: 75}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var42)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 55, "\" class=\"pc-btn pc-sm pc-ghost\" aria-label=\"")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var43 string
+			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "services.editor.remove_row", i18n.Args{"name": r.Domain}))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 90, Col: 191}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var43)
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\">×</button></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "</div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "</div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Var42 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
+		templ_7745c5c3_Var44 := templruntime.GeneratedTemplate(func(templ_7745c5c3_Input templruntime.GeneratedComponentInput) (templ_7745c5c3_Err error) {
 			templ_7745c5c3_W, ctx := templ_7745c5c3_Input.Writer, templ_7745c5c3_Input.Context
 			templ_7745c5c3_Buffer, templ_7745c5c3_IsBuffer := templruntime.GetBuffer(templ_7745c5c3_W)
 			if !templ_7745c5c3_IsBuffer {
@@ -712,227 +730,227 @@ func editorForm(v editorView) templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 57, "<div class=\"area-body form wide\"><div class=\"field\"><label for=\"svc-paste\" class=\"offscreen\">")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var43 string
-			templ_7745c5c3_Var43, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.paste"))
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 98, Col: 84}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var43))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</label> <textarea id=\"svc-paste\" class=\"pc-inp\" name=\"paste\" rows=\"6\" spellcheck=\"false\" placeholder=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var44 string
-			templ_7745c5c3_Var44, templ_7745c5c3_Err = templ.ResolveAttributeValue("https://www.example.com/page\n*.cdn.example.net\nfull:api.example.org")
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 99, Col: 171}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var44)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<div class=\"area-body form wide\"><div class=\"field\"><label for=\"svc-paste\" class=\"offscreen\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var45 string
-			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(v.Paste)
+			templ_7745c5c3_Var45, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.paste"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 99, Col: 183}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 98, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var45))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "</textarea><p class=\"help\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "</label> <textarea id=\"svc-paste\" class=\"pc-inp\" name=\"paste\" rows=\"6\" spellcheck=\"false\" placeholder=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var46 string
-			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.paste.help"))
+			templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.ResolveAttributeValue("https://www.example.com/page\n*.cdn.example.net\nfull:api.example.org")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 100, Col: 64}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 99, Col: 171}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var46)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</p></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, "\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var47 string
+			templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(v.Paste)
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 99, Col: 183}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 61, "</textarea><p class=\"help\">")
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			var templ_7745c5c3_Var48 string
+			templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.paste.help"))
+			if templ_7745c5c3_Err != nil {
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 100, Col: 64}
+			}
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
+			if templ_7745c5c3_Err != nil {
+				return templ_7745c5c3_Err
+			}
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "</p></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if v.Report != nil {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<div class=\"paste-report\" role=\"status\"><p class=\"bold\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "<div class=\"paste-report\" role=\"status\"><p class=\"bold\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var47 string
-				templ_7745c5c3_Var47, templ_7745c5c3_Err = templ.JoinStringErrs(v.Report.Line)
+				var templ_7745c5c3_Var49 string
+				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(v.Report.Line)
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 104, Col: 37}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var47))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 63, "</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				for _, l := range v.Report.Lines {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 64, "<p class=\"sm subtle\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "<p class=\"sm subtle\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					var templ_7745c5c3_Var48 string
-					templ_7745c5c3_Var48, templ_7745c5c3_Err = templ.JoinStringErrs(l)
+					var templ_7745c5c3_Var50 string
+					templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(l)
 					if templ_7745c5c3_Err != nil {
 						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 106, Col: 31}
 					}
-					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var48))
+					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "</p>")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</p>")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 66, "</div>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "</div>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 67, "<div class=\"form-actions\"><button type=\"submit\" name=\"op\" value=\"preview\" class=\"pc-btn pc-sm\" data-action=\"services.editor.preview\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<div class=\"form-actions\"><button type=\"submit\" name=\"op\" value=\"preview\" class=\"pc-btn pc-sm\" data-action=\"services.editor.preview\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var49 string
-			templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.preview"))
+			var templ_7745c5c3_Var51 string
+			templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.preview"))
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 111, Col: 152}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "</button> ")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "</button> ")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			if v.Report != nil && v.Report.Preview {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 69, "<button type=\"submit\" name=\"op\" value=\"add\" class=\"pc-btn pc-sm\" data-action=\"services.editor.add\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "<button type=\"submit\" name=\"op\" value=\"add\" class=\"pc-btn pc-sm\" data-action=\"services.editor.add\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var50 string
-				templ_7745c5c3_Var50, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "services.editor.add", int64(v.Report.Addable)))
+				var templ_7745c5c3_Var52 string
+				templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "services.editor.add", int64(v.Report.Addable)))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 113, Col: 166}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var50))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 70, "</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			} else {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "<button type=\"submit\" name=\"op\" value=\"add\" class=\"pc-btn pc-sm\" data-action=\"services.editor.add\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "<button type=\"submit\" name=\"op\" value=\"add\" class=\"pc-btn pc-sm\" data-action=\"services.editor.add\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var51 string
-				templ_7745c5c3_Var51, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.add_all"))
+				var templ_7745c5c3_Var53 string
+				templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "services.editor.add_all"))
 				if templ_7745c5c3_Err != nil {
 					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 115, Col: 145}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var51))
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "</button>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "</button>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 73, "</div></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</div></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			return nil
 		})
-		templ_7745c5c3_Err = ui.Area(i18n.T(ctx, "services.editor.paste"), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var42), templ_7745c5c3_Buffer)
+		templ_7745c5c3_Err = ui.Area(i18n.T(ctx, "services.editor.paste"), "").Render(templ.WithChildren(ctx, templ_7745c5c3_Var44), templ_7745c5c3_Buffer)
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if v.Footer != "" {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "<p class=\"sm subtle area-body\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "<p class=\"sm subtle area-body\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			var templ_7745c5c3_Var52 string
-			templ_7745c5c3_Var52, templ_7745c5c3_Err = templ.JoinStringErrs(v.Footer)
+			var templ_7745c5c3_Var54 string
+			templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(v.Footer)
 			if templ_7745c5c3_Err != nil {
 				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 121, Col: 44}
 			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var52))
+			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 75, "</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<div class=\"form-actions area-body\"><button type=\"submit\" name=\"op\" value=\"save\" class=\"pc-btn pc-pri\" data-action=\"services.editor.save\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var53 string
-		templ_7745c5c3_Var53, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "services.editor.save", int64(len(v.Rows))))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 124, Col: 162}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var53))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, " <span class=\"k\">⌘↵</span></button> <a href=\"")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var54 templ.SafeURL
-		templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(svcHref(v.It.ID)))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 125, Col: 44}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "\" class=\"pc-btn pc-ghost\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 77, "<div class=\"form-actions area-body\"><button type=\"submit\" name=\"op\" value=\"save\" class=\"pc-btn pc-pri\" data-action=\"services.editor.save\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var55 string
-		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
+		templ_7745c5c3_Var55, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.N(ctx, "services.editor.save", int64(len(v.Rows))))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 125, Col: 97}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 124, Col: 162}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var55))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "</a></div></form>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, " <span class=\"k\">⌘↵</span></button> <a href=\"")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var56 templ.SafeURL
+		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL(svcHref(v.It.ID)))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 125, Col: 44}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 79, "\" class=\"pc-btn pc-ghost\">")
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		var templ_7745c5c3_Var57 string
+		templ_7745c5c3_Var57, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/editor.templ`, Line: 125, Col: 97}
+		}
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var57))
+		if templ_7745c5c3_Err != nil {
+			return templ_7745c5c3_Err
+		}
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "</a></div></form>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}

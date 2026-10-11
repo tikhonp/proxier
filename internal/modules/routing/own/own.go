@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tikhonp/proxier/internal/modules/routing/domain"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 )
 
@@ -28,7 +27,7 @@ type Server struct {
 
 // Why a name of a service isn't installed under its tag.
 const (
-	ReasonCovered = "covered" // another service has it, or a suffix above it, as a suffix
+	ReasonCovered = "covered" // an exact name another service has as a suffix
 	ReasonOwned   = "owned"   // an earlier service has it in the same form
 	ReasonGuarded = "guarded" // it covers a server's hostname
 	ReasonPinned  = "pinned"  // excluded by the caller (a router's infra pins, 3e)
@@ -40,7 +39,7 @@ type Drop struct {
 	Exact  bool
 	Reason string // ReasonCovered, ReasonOwned, ReasonGuarded, ReasonPinned
 	By     string // the covering or owning tag; the server's name for Guarded
-	Via    string // the covering suffix; the hostname for ReasonGuarded; the reason text for ReasonPinned
+	Via    string // the covering suffix (the name itself); the hostname for ReasonGuarded; the reason text for ReasonPinned
 }
 
 // Owned is what one service of a list installs.
@@ -92,22 +91,22 @@ type GuardedName struct {
 // Compute applies the guard, the exclusions (name → reason text) and ADR 0013:
 //
 //  1. Names that cover a server's hostname, or are excluded, are taken out of
-//     every set first: they are installed by nobody and cover nothing.
-//  2. A suffix name is dropped as covered when another service has a proper
-//     parent of it as a suffix; else as owned when an earlier service has it
-//     as a suffix.
-//  3. An exact name is dropped as covered when another service has it, or a
-//     parent of it, as a suffix; else as owned when an earlier service has it
-//     as an exact name.
+//     every set first: they are installed by nobody.
+//  2. An exact name is dropped as covered when another service has the same
+//     name as a suffix: a router holds one entry per name.
+//  3. A name several services have in the same form is dropped as owned from
+//     all but the first of them.
 //
-// Names under a service's own suffixes stay (mtvpn compatibility).
+// A name under another service's suffix is installed all the same: the
+// router resolves only the names it is given, and puts their addresses into
+// the address list (ADR 0016). Names under a service's own suffixes stay too.
 func Compute(members []Member, servers []Server, exclude map[string]string) Result {
 	type entry struct {
 		suffix, exact []string
 	}
 	kept := make([]entry, len(members))
 	res := Result{Services: make([]Owned, len(members))}
-	// where each suffix and exact name is, in list order
+	// which services hold each suffix name, in list order
 	suffixAt := map[string][]int{}
 	for i, m := range members {
 		o := Owned{ServiceID: m.ServiceID, Tag: m.Tag, Total: m.Set.Count()}
@@ -141,31 +140,11 @@ func Compute(members []Member, servers []Server, exclude map[string]string) Resu
 		}
 		return 0, false
 	}
-	// cover is the broadest suffix of another service above name (or name
-	// itself when self is true), and the service that has it.
-	cover := func(name string, i int, self bool) (string, int, bool) {
-		via, by, ok := "", 0, false
-		if self {
-			if j, found := other(name, i); found {
-				via, by, ok = name, j, true
-			}
-		}
-		for _, p := range domain.Parents(name) {
-			if j, found := other(p, i); found {
-				via, by, ok = p, j, true // keep going: the broadest wins
-			}
-		}
-		return via, by, ok
-	}
 	// the first service that installs a name owns it
 	ownerS, ownerE := map[string]string{}, map[string]string{}
 	for i := range members {
 		o := &res.Services[i]
 		for _, n := range kept[i].suffix {
-			if via, j, ok := cover(n, i, false); ok {
-				o.Dropped = append(o.Dropped, Drop{Name: n, Reason: ReasonCovered, By: members[j].Tag, Via: via})
-				continue
-			}
 			if by, ok := ownerS[n]; ok {
 				o.Dropped = append(o.Dropped, Drop{Name: n, Reason: ReasonOwned, By: by})
 				continue
@@ -174,8 +153,8 @@ func Compute(members []Member, servers []Server, exclude map[string]string) Resu
 			o.Suffix = append(o.Suffix, n)
 		}
 		for _, n := range kept[i].exact {
-			if via, j, ok := cover(n, i, true); ok {
-				o.Dropped = append(o.Dropped, Drop{Name: n, Exact: true, Reason: ReasonCovered, By: members[j].Tag, Via: via})
+			if j, ok := other(n, i); ok {
+				o.Dropped = append(o.Dropped, Drop{Name: n, Exact: true, Reason: ReasonCovered, By: members[j].Tag, Via: n})
 				continue
 			}
 			if by, ok := ownerE[n]; ok {

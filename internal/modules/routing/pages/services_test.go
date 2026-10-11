@@ -208,13 +208,17 @@ func TestEditor(t *testing.T) {
 
 	// Preview: the report, the table unchanged
 	f := editForm("example.com")
-	f.Set("paste", "https://www.kinopoisk.ru/film/1\n*.hd.kinopoisk.ru\nfull:api.ott.kinopoisk.ru\nkinopoisk.ru\nКинопоиск.рф\n93.158.134.11\napi.example.com")
+	f.Set("paste", "https://www.kinopoisk.ru/film/1\n*.hd.kinopoisk.ru\nfull:api.ott.kinopoisk.ru\nkinopoisk.ru\nКинопоиск.рф\n93.158.134.11\napi.example.com\nexample.com")
 	f.Set("op", "preview")
 	rec := h.Login.Post(path, f)
 	body = rec.Body.String()
-	has(t, "preview", body, "+2 added · 4 merged · 1 refused", "merged: www.kinopoisk.ru goes under kinopoisk.ru",
-		"merged: api.example.com goes under example.com", "punycode: кинопоиск.рф → xn--h1aaecngahu.xn--p1ai",
-		"refused: 93.158.134.11 is an IP address", "Add 2 to the table", "Domains · 1", `name="rows" value="1"`)
+	// names under kinopoisk.ru and example.com stay (ADR 0016); only the duplicate merges
+	has(t, "preview", body, "+6 added · 1 merged · 1 refused", "merged: example.com was there twice",
+		"punycode: кинопоиск.рф → xn--h1aaecngahu.xn--p1ai",
+		"refused: 93.158.134.11 is an IP address", "Add 6 to the table", "Domains · 1", `name="rows" value="1"`)
+	if strings.Contains(body, "goes under") {
+		t.Error("a name under a suffix was merged")
+	}
 	if rec.Code != 200 || !strings.Contains(body, "https://www.kinopoisk.ru/film/1") {
 		t.Errorf("the paste was not kept: %d", rec.Code)
 	}
@@ -222,8 +226,8 @@ func TestEditor(t *testing.T) {
 	// Add to the table: the rows with the + marker, the paste cleared; htmx swaps the form only
 	f.Set("op", "add")
 	body = hx(h, "POST", path, f)
-	has(t, "added", body, "Domains · 3", `name="rows" value="3"`, `value="kinopoisk.ru"`, `value="xn--h1aaecngahu.xn--p1ai"`, "кинопоиск.рф")
-	if strings.Contains(body, "<html") || strings.Contains(body, "https://www.kinopoisk.ru/film/1") || strings.Count(body, `<span class="mark" aria-hidden="true">+</span>`) != 2 {
+	has(t, "added", body, "Domains · 7", `name="rows" value="7"`, `value="kinopoisk.ru"`, `value="www.kinopoisk.ru"`, `value="api.ott.kinopoisk.ru"`, `value="api.example.com"`, `value="xn--h1aaecngahu.xn--p1ai"`, "кинопоиск.рф")
+	if strings.Contains(body, "<html") || strings.Contains(body, "https://www.kinopoisk.ru/film/1") || strings.Count(body, `<span class="mark" aria-hidden="true">+</span>`) != 6 {
 		t.Errorf("the htmx answer: %d new rows", strings.Count(body, `<span class="mark" aria-hidden="true">+</span>`))
 	}
 	if rows, _ := h.Mod.Services.CustomRows(ctx, id); len(rows) != 1 {
@@ -256,7 +260,7 @@ func TestEditor(t *testing.T) {
 	}
 
 	// Save (also with no op: ⌘↵)
-	f = editForm("example.com", "=api.other.org", "other.org")
+	f = editForm("example.com", "=other.org", "other.org")
 	f.Set("note.3", "the other one")
 	rec = h.Login.Post(path, f)
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != fmt.Sprintf("/routing/services/%d?saved=1&merged=1", id) {
@@ -266,7 +270,7 @@ func TestEditor(t *testing.T) {
 	if len(rows) != 2 || rows[1] != (services.DomainRow{Domain: "other.org", Note: "the other one"}) {
 		t.Errorf("saved: %+v", rows)
 	}
-	// the band says api.other.org went under other.org
+	// the band says other.org was there twice
 	has(t, "saved page", h.Login.Get(rec.Header().Get("Location")).Body.String(), "Saved mine: 2 names. 1 row was merged into another.", "the other one")
 	if rec := h.Login.Get("/routing/services/999/edit"); rec.Code != 404 {
 		t.Errorf("missing: %d", rec.Code)

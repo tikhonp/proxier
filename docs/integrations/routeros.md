@@ -52,7 +52,7 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 - It removes the tag's own entries, then any other entry for the same names (adopting untagged duplicates), but never an `mtvpn:` entry. Then it adds everything, tagged.
 - One `:set` per line: the console caps line length, so one big array literal fails.
 - The keyed array makes adoption linear instead of a `[find]` per domain.
-- Proxier's ownership rules ([ADR 0013](../adr/0013-one-owner-service-per-domain.md)) mean two tags never claim the same name, so the "remove other entries for these names" part only ever adopts untagged leftovers or moves a name whose owner changed.
+- Proxier's ownership rules ([ADR 0013](../adr/0013-one-owner-service-per-domain.md)) mean two tags never claim the same name (names under another tag's suffix are different names, installed under their own tag: [ADR 0016](../adr/0016-every-listed-name-reaches-the-router.md)), so the "remove other entries for these names" part only ever adopts untagged leftovers or moves a name whose owner changed.
 
 **Removal** of a tag:
 

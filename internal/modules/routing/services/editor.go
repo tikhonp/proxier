@@ -26,13 +26,10 @@ type Edit struct {
 // Report is what Paste many and Save say about the rows.
 type Report struct {
 	Added    []domain.Name
-	Merged   []Merge
+	Merged   []string // names given more than once, kept once
 	Refused  []Refuse
 	Punycode []domain.Name
 }
-
-// Merge is a duplicate (Under == Name) or a name absorbed under a suffix.
-type Merge struct{ Name, Under string }
 
 // Refuse is a pasted line that isn't a domain; Reason is an i18n key.
 type Refuse struct{ Line, Reason string }
@@ -121,41 +118,23 @@ func normaliseRows(in []DomainRow) []DomainRow {
 }
 
 // merge keeps one row per domain (suffix wins over exact, the first note
-// wins) and drops every row a suffix row covers, in table order.
-func merge(rows []DomainRow) ([]DomainRow, []Merge) {
-	var merged []Merge
+// wins), in table order. A row under a suffix row stays: the router resolves
+// only the names it is given (ADR 0016).
+func merge(rows []DomainRow) ([]DomainRow, []string) {
+	var merged []string
 	idx := map[string]int{}
-	var uniq []DomainRow
+	var out []DomainRow
 	for _, r := range rows {
 		if i, ok := idx[r.Domain]; ok {
-			merged = append(merged, Merge{Name: r.Domain, Under: r.Domain})
-			uniq[i].Exact = uniq[i].Exact && r.Exact
-			if uniq[i].Note == "" {
-				uniq[i].Note = r.Note
+			merged = append(merged, r.Domain)
+			out[i].Exact = out[i].Exact && r.Exact
+			if out[i].Note == "" {
+				out[i].Note = r.Note
 			}
 			continue
 		}
-		idx[r.Domain] = len(uniq)
-		uniq = append(uniq, r)
-	}
-	var out []DomainRow
-	for _, r := range uniq {
-		if under := coveredBy(r.Domain, idx, uniq); under != "" {
-			merged = append(merged, Merge{Name: r.Domain, Under: under})
-			continue
-		}
+		idx[r.Domain] = len(out)
 		out = append(out, r)
 	}
 	return out, merged
-}
-
-// coveredBy is the topmost suffix row above name, "" for none.
-func coveredBy(name string, idx map[string]int, rows []DomainRow) string {
-	under := ""
-	for _, p := range domain.Parents(name) {
-		if i, ok := idx[p]; ok && !rows[i].Exact {
-			under = p
-		}
-	}
-	return under
 }

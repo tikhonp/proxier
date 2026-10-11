@@ -225,8 +225,8 @@ func (h *handler) droppedViews(ctx context.Context, it services.Item, ms []lists
 	return out, nil
 }
 
-// dropReason says why a name isn't installed: "covered by anthropic.com
-// (anthropic)", "owned by anthropic (first in Main)", "left out: covers
+// dropReason says why a name isn't installed: "anthropic has it as a
+// suffix", "owned by anthropic (first in Main)", "left out: covers
 // nl-1.hosts.tikhonnnnn.com (nl-1)".
 func dropReason(ctx context.Context, d own.Drop, list string) string {
 	return i18n.T(ctx, "lists.drop."+d.Reason, i18n.Args{"by": d.By, "via": d.Via, "list": list})
@@ -336,7 +336,7 @@ func (h *handler) domainsView(ctx context.Context, it services.Item, acc service
 }
 
 // ownSuffix is the topmost suffix of the same set above name ("" for none):
-// an upstream service keeps such names (mtvpn compatibility).
+// a service keeps such names (ADR 0016).
 func ownSuffix(s snapshot.Set, name string, exact bool) string {
 	under := ""
 	if exact && s.Has(name, false) {

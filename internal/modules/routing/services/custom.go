@@ -248,7 +248,7 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 
 // CreateCustomTx makes a custom service already holding names (the import's
 // "Copy into a custom service"), in the caller's transaction: its rows are
-// the set's names, absorbed under its own suffixes as a save would, and its
+// the set's names, merged as a save would, and its
 // first snapshot holds them. Errors are store.FieldErrors (nothing written).
 func (s *Service) CreateCustomTx(ctx context.Context, tx *sqlx.Tx, c Custom, set snapshot.Set, actor string) (int64, error) {
 	name, tag, desc := strings.TrimSpace(c.Name), strings.ToLower(strings.TrimSpace(c.Tag)), strings.TrimSpace(c.Description)

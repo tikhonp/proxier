@@ -10,8 +10,8 @@ type Cover struct {
 }
 
 // CoveredBy lists the other members (all but except) that hold the name in
-// the same form, or a suffix above it, in member order: the custom editor's
-// "covered by openai in Main" hints.
+// the same form, or a suffix above it, in member order: discovery's
+// "Covered by" column and the custom editor's "also covered by" hints.
 func CoveredBy(name string, exact bool, members []Member, except int64) []Cover {
 	var out []Cover
 	for _, m := range members {
@@ -35,4 +35,27 @@ func CoveredBy(name string, exact bool, members []Member, except int64) []Cover 
 		}
 	}
 	return out
+}
+
+// Holder is the other member that installs the name instead of the service
+// self, as Compute decides it (the guard aside): for an exact name, the first
+// other member with it as a suffix; else the first member before self with it
+// in the same form. The custom editor's "not installed in Main: openai has it".
+func Holder(name string, exact bool, members []Member, self int64) (Cover, bool) {
+	if exact {
+		for _, m := range members {
+			if m.ServiceID != self && m.Set.Has(name, false) {
+				return Cover{Tag: m.Tag, Via: name}, true
+			}
+		}
+	}
+	for _, m := range members {
+		if m.ServiceID == self {
+			break
+		}
+		if m.Set.Has(name, exact) {
+			return Cover{Tag: m.Tag, Via: name, Exact: exact}, true
+		}
+	}
+	return Cover{}, false
 }

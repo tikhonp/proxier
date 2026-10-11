@@ -239,6 +239,51 @@ func TestNameNeverLostWhenOwnerLeaves(t *testing.T) {
 	}
 }
 
+// A name under another service's suffix reaches the router under its own tag
+// (ADR 0016): the router resolves it and fills the address list. A reorder or
+// the covering service leaving doesn't touch it.
+func TestSubdomainUnderAnotherServiceInstalled(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("anthropic", "anthropic.com\nclaude.ai\n")
+	anthropic := h.Upstream("v2fly:anthropic")
+	mine := h.Custom("mine", "full:console.anthropic.com", "api.claude.ai")
+	main := h.List("Main", anthropic, mine)
+	r, id := h.Router("Home", 0)
+	syncNow(t, h, id)
+	if !slices.Equal(r.Names("anthropic"), []string{"anthropic.com", "claude.ai"}) || !slices.Equal(r.Names("mine"), []string{"api.claude.ai", "console.anthropic.com"}) {
+		t.Fatalf("first: %v %v", r.Names("anthropic"), r.Names("mine"))
+	}
+	dns, list := r.Tag("mine")
+	for _, d := range dns {
+		if d.Subdomain != (d.Name == "api.claude.ai") || d.Type != "FWD" {
+			t.Errorf("entry: %+v", d)
+		}
+	}
+	if len(list) != 2 {
+		t.Errorf("address list: %+v", list)
+	}
+	imports := len(r.Imports())
+	if _, _, err := h.Mod.Lists.Move(bg, main, mine, false, "admin"); err != nil { // mine up
+		t.Fatal(err)
+	}
+	h.Advance(31 * time.Second)
+	h.Settle()
+	if n := len(r.Imports()); n != imports {
+		t.Errorf("a reorder pushed %d files", n-imports)
+	}
+	if err := h.Mod.Lists.Remove(bg, main, anthropic, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Advance(31 * time.Second)
+	h.Settle()
+	if !slices.Equal(r.Tags(), []string{"mine"}) || !slices.Equal(r.Names("mine"), []string{"api.claude.ai", "console.anthropic.com"}) {
+		t.Fatalf("after: %v %v", r.Tags(), r.Names("mine"))
+	}
+	if body := string(r.Import(len(r.Imports()))); strings.Contains(body, "# update mine") || !strings.Contains(body, "# remove anthropic") {
+		t.Errorf("only anthropic's removal:\n%s", body)
+	}
+}
+
 func TestRenamedTagReplaced(t *testing.T) {
 	h := routingtest.New(t)
 	mine := h.Custom("mine", "mine.org")

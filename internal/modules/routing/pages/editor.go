@@ -27,7 +27,8 @@ type edRow struct {
 	Note            string
 	New             bool
 	Err             string
-	Hint            string // "covered by openai in Main"
+	Hint            string // "not installed in Main: openai has it", "installed; also covered by openai in Main"
+	Taken           bool   // the hint says another service installs it instead
 }
 
 type reportView struct {
@@ -119,8 +120,9 @@ func (h *handler) renderEditor(c *echo.Context, status int, v editorView) error 
 	return web.Render(c, status, editorPage(h.shell(c, i18n.T(ctx, "services.editor.title", i18n.Args{"tag": v.It.Tag}), listPath), v))
 }
 
-// coverHints marks the rows that another service of a list holding this one
-// has, or covers with a suffix above, and words the footer.
+// coverHints marks the rows another service of a list holding this one
+// installs instead ("not installed in Main: openai has it"), or covers with a
+// suffix above while the row is installed all the same, and words the footer.
 func (h *handler) coverHints(ctx context.Context, v *editorView) error {
 	ms, err := h.Lists.Memberships(ctx, v.It.ID)
 	if err != nil || len(ms) == 0 {
@@ -148,11 +150,22 @@ func (h *handler) coverHints(ctx context.Context, v *editorView) error {
 		}
 		for i := range v.Rows {
 			r := &v.Rows[i]
-			if r.Hint != "" || r.Domain == "" {
+			if r.Taken || r.Err != "" || r.Domain == "" {
 				continue
 			}
-			if cs := own.CoveredBy(strings.ToLower(r.Domain), r.Exact, members, v.It.ID); len(cs) > 0 {
-				r.Hint = i18n.T(ctx, "lists.editor.covered", i18n.Args{"tag": cs[0].Tag, "list": m.List.Name})
+			name := strings.ToLower(r.Domain)
+			if c, ok := own.Holder(name, r.Exact, members, v.It.ID); ok {
+				r.Hint, r.Taken = i18n.T(ctx, "lists.editor.taken", i18n.Args{"tag": c.Tag, "list": m.List.Name}), true
+				continue
+			}
+			if r.Hint != "" {
+				continue
+			}
+			for _, c := range own.CoveredBy(name, r.Exact, members, v.It.ID) {
+				if c.Via != name {
+					r.Hint = i18n.T(ctx, "lists.editor.covered", i18n.Args{"tag": c.Tag, "list": m.List.Name})
+					break
+				}
 			}
 		}
 	}
@@ -230,7 +243,7 @@ func (h *handler) edit(c *echo.Context) error {
 		if res.Changed {
 			q = "?saved=1"
 			if n := len(res.Report.Merged); n > 0 {
-				// the band says how many rows the save merged or absorbed
+				// the band says how many duplicate rows the save merged
 				q += "&merged=" + strconv.Itoa(n)
 			}
 		}
@@ -247,11 +260,7 @@ func report(ctx context.Context, r services.Report) *reportView {
 	v := &reportView{Line: "+" + loc.N("services.paste.added", int64(len(r.Added))) + " · " +
 		loc.N("services.paste.merged", int64(len(r.Merged))) + " · " + loc.N("services.paste.refused", int64(len(r.Refused)))}
 	for _, m := range r.Merged {
-		if m.Under == m.Name {
-			v.Lines = append(v.Lines, i18n.T(ctx, "services.paste.duplicate", i18n.Args{"name": m.Name}))
-		} else {
-			v.Lines = append(v.Lines, i18n.T(ctx, "services.paste.absorbed", i18n.Args{"name": m.Name, "under": m.Under}))
-		}
+		v.Lines = append(v.Lines, i18n.T(ctx, "services.paste.duplicate", i18n.Args{"name": m}))
 	}
 	for _, p := range r.Punycode {
 		v.Lines = append(v.Lines, i18n.T(ctx, "services.paste.punycode", i18n.Args{"unicode": p.Unicode, "name": p.Domain}))

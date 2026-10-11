@@ -32,7 +32,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 
 ## Rules
 
-- Within one service too, a rule another rule of the config covers is dropped (mtvpn's `shadowrocket_rules`): a suffix name under any suffix name of the config, an exact name equal to or under one. Routers keep those names; Shadowrocket's `DOMAIN-SUFFIX` already matches them.
+- A rule another rule of the config covers is dropped, within one service or across services (mtvpn's `shadowrocket_rules`): a suffix name under any suffix name of the config, an exact name equal to or under one. Routers keep those names ([ADR 0016](../../adr/0016-every-listed-name-reaches-the-router.md)); Shadowrocket's `DOMAIN-SUFFIX` already matches them.
 - The header's time is the render time, in UTC, to the minute.
 - The base's line endings are kept: a base whose first line ends in CRLF gets CRLF inserted lines.
 - **Preview** can be downloaded as `<name>.conf` (the same bytes; rendering it records nothing). The fetch log keeps 90 days.
@@ -48,7 +48,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 - A base whose `[Rule]` has no `FINAL` and is followed by `[Host]` → services at the end of `[Rule]`, then `FINAL,DIRECT`, then a blank line before `[Host]`.
 - A base without `[Rule]` → refused on save.
 - Name " iPad " → `ipad`; "iPhone Mom" → `iphone-mom` (then "Iphone Mom" is taken); "мамин" or " - " → refused, the name needs Latin letters or digits.
-- "Main" with `anthropic` (suffix `anthropic.com`) and `mine` (exact `console.anthropic.com`) → only `DOMAIN-SUFFIX,anthropic.com,PROXY`, and `mine` gets no block if it has nothing else.
+- "Main" with `anthropic` (suffix `anthropic.com`) and `mine` (exact `console.anthropic.com`) → only `DOMAIN-SUFFIX,anthropic.com,PROXY`, and `mine` gets no block if it has nothing else, though routers install `console.anthropic.com` under `mine`.
 - Rule policy `Proxy-Group-A` → every inserted rule ends with `,Proxy-Group-A`.
 - A snapshot accepted at 04:05 → the 04:06 fetch includes the change.
 - Regenerate the token → the old URL `404`s, and the new one serves.

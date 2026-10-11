@@ -264,19 +264,24 @@ func TestOwnershipOnServicePages(t *testing.T) {
 		t.Fatalf("add from a list: %d %s", rec.Code, rec.Header().Get("Location"))
 	}
 
-	mine := h.Custom("mine", "claude.ai", "full:console.anthropic.com", "example.com", "full:api.openai.com")
+	mine := h.Custom("mine", "claude.ai", "full:console.anthropic.com", "full:anthropic.com", "example.com", "full:api.openai.com")
 	h.List("Main", mine)
 	h.List("Parents", mine)
 	body = h.Login.Get(fmt.Sprintf("/routing/services/%d", mine)).Body.String()
+	// console.anthropic.com and api.openai.com, under the others' suffixes, are installed (ADR 0016)
 	has(t, "service page", body, "in Main and Parents", "Main #2 · Parents #2", "Not installed in Main: 2 names",
-		"owned by anthropic (first in Main)", "covered by anthropic.com (anthropic)", "Not installed in Parents: 1 name",
-		"covered by openai.com (openai)", fmt.Sprintf(`href="/routing/services/%d/lists"`, mine), "Add to lists…")
+		"owned by anthropic (first in Main)", "anthropic has it as a suffix", fmt.Sprintf(`href="/routing/services/%d/lists"`, mine), "Add to lists…")
+	if strings.Contains(body, "Not installed in Parents") {
+		t.Error("service page: api.openai.com not installed in Parents")
+	}
 
 	// the editor's hints and footer
 	body = h.Login.Get(fmt.Sprintf("/routing/services/%d/edit", mine)).Body.String()
-	has(t, "editor", body, "covered by anthropic in Main", "covered by openai in Parents", "Saving changes what the targets of Main and Parents get.")
-	if strings.Count(body, "cover-hint") != 3 {
-		t.Errorf("%d hints", strings.Count(body, "cover-hint"))
+	has(t, "editor", body, "not installed in Main: anthropic has it", "installed; also covered by anthropic in Main",
+		"installed; also covered by openai in Parents", "Saving changes what the targets of Main and Parents get.")
+	if strings.Count(body, `class="sm wrap cover-hint"`) != 2 || strings.Count(body, "not installed in Main: anthropic has it") != 2 ||
+		strings.Count(body, `class="sm wrap subtle"`) != 2 {
+		t.Errorf("%d warning hints", strings.Count(body, "cover-hint"))
 	}
 
 	// a guard refusal shows above the table and keeps the edits
@@ -366,6 +371,41 @@ func TestListPagesSayThingsOnce(t *testing.T) {
 	for _, want := range []string{`<span class="pc-hide-s">0</span><span class="pc-show-s">0 services</span>`, `<span class="pc-show-s">0 domains</span>`} {
 		if !strings.Contains(lists, want) {
 			t.Errorf("the Lists page lacks %q", want)
+		}
+	}
+}
+
+// The editor says which rows another service installs instead, and which are
+// installed though another service's suffix covers them (ADR 0016).
+func TestEditorOwnershipHints(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nfull:chatgpt.com\n")
+	openai := h.Upstream("v2fly:openai")
+	mine := h.Custom("mine", "openai.com", "api.openai.com", "full:sora.com")
+	h.List("Main", openai, mine)
+	body := h.Login.Get(fmt.Sprintf("/routing/services/%d/edit", mine)).Body.String()
+	hint := func(row string) string {
+		i := strings.Index(body, `value="`+row+`"`)
+		if i < 0 {
+			t.Fatalf("no row %s", row)
+		}
+		rest := body[i:]
+		end := strings.Index(rest, "</span></span>")
+		if j := strings.Index(rest, `<span class="sm wrap `); j >= 0 && j < end {
+			span := rest[j+len(`<span class="sm wrap `) : j+strings.Index(rest[j:], "</span>")]
+			class, text, _ := strings.Cut(span, `">`)
+			return class + ": " + text
+		}
+		return ""
+	}
+	// a name another service installs is a warning; one it only covers is a quiet note
+	for row, want := range map[string]string{
+		"openai.com":     "cover-hint: not installed in Main: openai has it",
+		"api.openai.com": "subtle: installed; also covered by openai in Main",
+		"sora.com":       "",
+	} {
+		if got := hint(row); got != want {
+			t.Errorf("%s: hint %q, want %q", row, got, want)
 		}
 	}
 }

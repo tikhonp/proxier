@@ -28,32 +28,36 @@ func TestPasteNormalises(t *testing.T) {
 	}
 }
 
-func TestSuffixAbsorbs(t *testing.T) {
+// Rows under a suffix row stay: the router resolves only the names it is
+// given (ADR 0016). Only the same name twice merges.
+func TestRowsUnderSuffixStay(t *testing.T) {
 	h := routingtest.New(t)
 	rows, rep := h.Mod.Services.Paste("full:api.example.com\nexample.com\ncdn.example.com\nexample.com\nother.org", nil)
-	if !slices.Equal(rows, []services.DomainRow{{Domain: "example.com"}, {Domain: "other.org"}}) {
+	if !slices.Equal(rows, []services.DomainRow{{Domain: "api.example.com", Exact: true}, {Domain: "example.com"}, {Domain: "cdn.example.com"}, {Domain: "other.org"}}) {
 		t.Errorf("rows: %+v", rows)
 	}
-	if !slices.Contains(rep.Merged, services.Merge{Name: "api.example.com", Under: "example.com"}) ||
-		!slices.Contains(rep.Merged, services.Merge{Name: "cdn.example.com", Under: "example.com"}) ||
-		!slices.Contains(rep.Merged, services.Merge{Name: "example.com", Under: "example.com"}) || len(rep.Merged) != 3 {
-		t.Errorf("merged: %+v", rep.Merged)
+	if !slices.Equal(rep.Merged, []string{"example.com"}) || len(rep.Added) != 4 {
+		t.Errorf("merged: %+v, added %+v", rep.Merged, rep.Added)
 	}
-	// an exact row covers nothing; suffix wins over exact for the same name
+	// suffix wins over exact for the same name; a name under it stays
 	rows, _ = h.Mod.Services.Paste("full:example.net\napi.example.net\nexample.net", nil)
-	if !slices.Equal(rows, []services.DomainRow{{Domain: "example.net"}}) {
+	if !slices.Equal(rows, []services.DomainRow{{Domain: "example.net"}, {Domain: "api.example.net"}}) {
 		t.Errorf("suffix wins: %+v", rows)
 	}
 	id := h.Custom("mine")
 	saved, err := h.Mod.Services.SaveCustom(context.Background(), id, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "example.com"}, {Domain: "api.example.com", Exact: true, Note: "the API"},
 	}}, "admin")
-	if err != nil || len(saved.Report.Merged) != 1 {
+	if err != nil || len(saved.Report.Merged) != 0 {
 		t.Fatalf("%+v %v", saved, err)
 	}
 	stored, _ := h.Mod.Services.CustomRows(context.Background(), id)
-	if !slices.Equal(stored, []services.DomainRow{{Domain: "example.com"}}) {
+	if !slices.Equal(stored, []services.DomainRow{{Domain: "api.example.com", Exact: true, Note: "the API"}, {Domain: "example.com"}}) {
 		t.Errorf("stored: %+v", stored)
+	}
+	acc, _ := h.Mod.Services.Accepted(context.Background(), id)
+	if !slices.Equal(acc.Set.Suffix, []string{"example.com"}) || !slices.Equal(acc.Set.Exact, []string{"api.example.com"}) {
+		t.Errorf("snapshot: %+v", acc.Set)
 	}
 }
 

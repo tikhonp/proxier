@@ -56,8 +56,8 @@ func TestCreateRefusedByGuard(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// assets.example.org is under example.org; a name the run never saw is dropped
-	if !slices.Equal(snap.Set.Suffix, []string{"example.org"}) || !slices.Equal(snap.Set.Exact, []string{"www.tikhonnnnn.com"}) {
+	// assets.example.org, ticked under example.org, stays (ADR 0016); a name the run never saw is dropped
+	if !slices.Equal(snap.Set.Suffix, []string{"example.org"}) || !slices.Equal(snap.Set.Exact, []string{"assets.example.org", "www.tikhonnnnn.com"}) {
 		t.Errorf("names: %v %v", snap.Set.Suffix, snap.Set.Exact)
 	}
 	ls, err := h.Mod.Lists.ListsOf(bg, sid)
@@ -96,8 +96,8 @@ func TestAddToExisting(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// the editor's absorption: cdn.example.org and assets.example.org go under example.org
-	if !slices.Equal(snap.Set.Suffix, []string{"a.com", "example.org"}) || !slices.Equal(snap.Set.Exact, []string{"www.tikhonnnnn.com"}) {
+	// cdn.example.org and assets.example.org stay under example.org (ADR 0016)
+	if !slices.Equal(snap.Set.Suffix, []string{"a.com", "example.org"}) || !slices.Equal(snap.Set.Exact, []string{"assets.example.org", "cdn.example.org", "www.tikhonnnnn.com"}) {
 		t.Errorf("names: %v %v", snap.Set.Suffix, snap.Set.Exact)
 	}
 	// an upstream service can't take picks

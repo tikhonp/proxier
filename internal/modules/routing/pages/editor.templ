@@ -79,7 +79,7 @@ templ editorForm(v editorView) {
 								<span class="err sm" role="alert">{ r.Err }</span>
 							}
 							if r.Hint != "" {
-								<span class="sm cover-hint wrap">{ r.Hint }</span>
+								<span class={ "sm", "wrap", templ.KV("cover-hint", r.Taken), templ.KV("subtle", !r.Taken) }>{ r.Hint }</span>
 							}
 						</span>
 						<span class="inline-fields" role="radiogroup" aria-label={ i18n.T(ctx, "services.editor.col.match") }>

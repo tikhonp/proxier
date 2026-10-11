@@ -19,10 +19,15 @@ func member(id int64, tag string, suffix, exact []string) own.Member {
 }
 
 func TestOwnershipInRules(t *testing.T) {
-	got := shadowrocket.Rules(view(
+	v := view(
 		member(1, "anthropic", []string{"anthropic.com"}, nil),
 		member(2, "mine", nil, []string{"console.anthropic.com"}),
-	))
+	)
+	// routers install it under mine (ADR 0016); the phone's DOMAIN-SUFFIX already matches it
+	if o := v.Result.Services[1]; len(o.Exact) != 1 {
+		t.Fatalf("mine on routers: %+v", o)
+	}
+	got := shadowrocket.Rules(v)
 	want := []shadowrocket.Block{{Tag: "anthropic", Rules: []shadowrocket.Rule{{Name: "anthropic.com"}}}}
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v", got)
