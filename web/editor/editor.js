@@ -17,7 +17,7 @@
 // Keys typed in the editor stop at its host so the page's key map
 // (g d, j k, /, ?) never sees them.
 import { EditorState, Compartment } from "@codemirror/state";
-import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from "@codemirror/view";
+import { EditorView, ViewPlugin, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection, highlightSpecialChars } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { indentUnit, syntaxHighlighting, HighlightStyle, StreamLanguage, bracketMatching, indentOnInput } from "@codemirror/language";
 import { linter, lintGutter, setDiagnostics, lintKeymap } from "@codemirror/lint";
@@ -59,6 +59,22 @@ const theme = EditorView.theme({
   ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--gold)", textUnderlineOffset: "4px" },
   ".cm-lint-marker-error": { content: "none" },
 }, { dark: true });
+
+// A tap in the code focuses .cm-content, wider than the window when lines
+// don't wrap, and the browser scrolls it into view by aligning its left edge
+// with the scroller's: the sticky gutters then covered each line's first
+// characters (")ath:" on a phone). The gutters' width as the scroller's
+// scroll padding keeps that edge beside them.
+const gutterPadding = ViewPlugin.fromClass(class {
+  constructor(view) { this.view = view; this.width = -1; this.measure(); }
+  update(u) { if (u.geometryChanged || u.viewportChanged) this.measure(); }
+  measure() {
+    this.view.requestMeasure({
+      read: (view) => { const g = view.dom.querySelector(".cm-gutters"); return g ? g.offsetWidth : 0; },
+      write: (w, view) => { if (w !== this.width) { this.width = w; view.scrollDOM.style.scrollPaddingLeft = w + "px"; } },
+    });
+  }
+});
 
 const highlight = syntaxHighlighting(HighlightStyle.define([
   { tag: [t.propertyName, t.attributeName, t.tagName], color: "var(--foam)", fontStyle: "italic" },
@@ -206,7 +222,7 @@ class Editor {
           indentWithTab, ...searchKeymap, ...historyKeymap, ...lintKeymap, ...defaultKeymap,
         ]),
         languageExt(langOf(file.path)),
-        theme, highlight, wrapExt(),
+        theme, highlight, gutterPadding, wrapExt(),
         EditorView.updateListener.of((u) => {
           if (u.docChanged) {
             file.el.value = u.state.doc.toString();
@@ -599,7 +615,7 @@ function initCodeAreas() {
             { key: "Mod-s", preventDefault: true, run: () => { saveCode(); return true; } },
             indentWithTab, ...searchKeymap, ...historyKeymap, ...lintKeymap, ...defaultKeymap,
           ]),
-          lang ? lang() : [], theme, highlight, wrapExt(),
+          lang ? lang() : [], theme, highlight, gutterPadding, wrapExt(),
           EditorView.updateListener.of((u) => {
             if (!u.docChanged) return;
             ta.value = u.state.doc.toString();

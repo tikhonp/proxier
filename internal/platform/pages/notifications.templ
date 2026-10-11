@@ -21,10 +21,18 @@ templ notificationsPage(s ui.Shell, pages []ui.SettingsPage, v notificationsView
 			</p>
 		</div>
 		for _, g := range v.Groups {
-			<section class="rules" aria-label={ moduleLabel(ctx, g.Module) }>
-				<div class="pc-title"><h2>{ moduleLabel(ctx, g.Module) }</h2></div>
+			<details class="rules" open aria-label={ moduleLabel(ctx, g.Module) }>
+				<summary class="pc-title">
+					<h2>{ moduleLabel(ctx, g.Module) }</h2>
+					<span class="sm subtle">
+						{ i18n.N(ctx, "notifications.group_count", int64(len(g.Rules))) }
+						if g.Changed > 0 {
+							{ " · " + i18n.N(ctx, "notifications.group_changed", int64(g.Changed)) }
+						}
+					</span>
+				</summary>
 				for _, r := range g.Rules {
-					<form method="post" action={ "/settings/notifications/" + r.Type.Name } class="row rule" data-row={ r.Type.Name }>
+					<form method="post" action={ "/settings/notifications/" + r.Type.Name } class="row rule" id={ "rule-" + r.Type.Name } data-row={ r.Type.Name }>
 						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 						<input type="hidden" name="enabled" value={ onValue(!r.Enabled) }/>
 						if v.OnlyChange {
@@ -43,7 +51,7 @@ templ notificationsPage(s ui.Shell, pages []ui.SettingsPage, v notificationsView
 						</span>
 					</form>
 				}
-			</section>
+			</details>
 		}
 		<p class="rules-foot subtle">
 			if v.OnlyChange {

@@ -3,6 +3,7 @@ package pages_test
 import (
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -26,6 +27,11 @@ func TestServersSettingsZoneWarning(t *testing.T) {
 	body := l.Get("/settings/servers").Body.String()
 	if !strings.Contains(body, "xx-1.hosts.tikhonnnnn.com") || !strings.Contains(body, warning) || !strings.Contains(body, `href="/settings/integrations/cloudflare"`) {
 		t.Errorf("no zone allowed:\n%s", body)
+	}
+	// the sentence and its link are one item of the alert's flex row: as items of
+	// their own the link took a narrow column and broke after every word
+	if !regexp.MustCompile(`<div class="alert gold" role="alert"><span>[^<]*` + warning + `[^<]*<a href="/settings/integrations/cloudflare">`).MatchString(body) {
+		t.Errorf("the warning and its link aren't one span:\n%s", body)
 	}
 	// the side menu lists the page
 	if !strings.Contains(body, `href="/settings/servers"`) {

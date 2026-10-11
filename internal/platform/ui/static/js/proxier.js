@@ -470,6 +470,36 @@
     });
   })();
 
+  // ---- Settings' tab strip, wider than a phone: the current tab is brought into
+  // it (it may be the sixth of seven), and its ends fade where it has more
+  (function () {
+    var nav = $('.settings-nav');
+    if (!nav) return;
+    function ends() {
+      var over = nav.scrollWidth - nav.clientWidth > 1;
+      nav.classList.toggle('more-start', over && nav.scrollLeft > 1);
+      nav.classList.toggle('more-end', over && nav.scrollLeft < nav.scrollWidth - nav.clientWidth - 1);
+    }
+    var cur = $('a[aria-current="page"]', nav);
+    if (cur && nav.scrollWidth > nav.clientWidth) {
+      // only the strip moves, never the page
+      var n = nav.getBoundingClientRect(), c = cur.getBoundingClientRect();
+      nav.scrollLeft += c.left - n.left - (n.width - c.width) / 2;
+    }
+    ends();
+    nav.addEventListener('scroll', ends, { passive: true });
+    window.addEventListener('resize', ends);
+  })();
+
+  // ---- Settings › Notifications on a phone: every group open is a 14,000 px page,
+  // so the groups start closed but the one holding the rule just switched (#rule-…)
+  (function () {
+    var groups = $$('details.rules');
+    if (!groups.length || !window.matchMedia || !window.matchMedia('(max-width: 760px)').matches) return;
+    var at = location.hash && document.getElementById(location.hash.slice(1));
+    groups.forEach(function (g) { if (!at || !g.contains(at)) g.open = false; });
+  })();
+
   // ---- a count of the ticked [data-pick] boxes of a form ([data-pick-count])
   document.addEventListener('change', function (e) {
     if (!e.target.matches || !e.target.matches('input[data-pick]')) return;

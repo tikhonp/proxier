@@ -953,3 +953,133 @@ func TestCtrlNPMoveLikeTheArrows(t *testing.T) {
 		t.Error("the pop-up's footer doesn't mention ⌃N ⌃P")
 	}
 }
+
+// On a 360 px phone the header showed the search as a 60 px stub ("/ S…") and
+// cut "admin" to "a…": there the search is a magnifier button at the right and
+// the name has the rest of the row. Settings' tab strip, wider than a phone,
+// brings the current tab into view and fades where it has more. A touch screen
+// has no keys to press: the search pop-up's and key line's key hints are hidden.
+func TestPhoneHeaderTabsAndTouch(t *testing.T) {
+	css := appCSS(t)
+	phone := css[strings.Index(css, `:root { --header-h: 56px; }`):]
+	for _, want := range []string{
+		`.hdr-search { flex: 0 0 48px; margin-left: auto;`,
+		`.hdr-search .slash, .hdr-search .hdr-ph { display: none; }`,
+		`.hdr-search .hdr-glass { display: block; }`,
+		`.admin-name { max-width: none; }`,
+	} {
+		if !strings.Contains(phone, want) {
+			t.Errorf("the phone rules lack %q", want)
+		}
+	}
+	for _, want := range []string{
+		`.settings-nav.more-end { mask-image:`,
+		`.settings-nav.more-start { mask-image:`,
+		"@media (hover: none) and (pointer: coarse) {\n  .pc-keys-only { display: none !important; }",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`var cur = $('a[aria-current="page"]', nav);`,
+		`nav.scrollLeft += c.left - n.left - (n.width - c.width) / 2;`,
+		`nav.classList.toggle('more-end',`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+	var page strings.Builder
+	cat := i18n.NewCatalog()
+	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))
+	if err := ui.Layout(ui.Shell{Title: "t", Lang: i18n.EN}).Render(ctx, &page); err != nil {
+		t.Fatal(err)
+	}
+	html := page.String()
+	for _, want := range []string{`<svg class="hdr-glass"`, `<div class="pal-foot pc-keys-only">`, `<span id="keyhints" class="pc-keys-only"`, `<div class="keyline-global pc-keys-only">`} {
+		if !strings.Contains(html, want) {
+			t.Errorf("the page lacks %q", want)
+		}
+	}
+}
+
+// A tap in the template editor's code on a phone scrolled the code sideways by
+// the gutters' width (54.5 px), so the line numbers covered each line's start:
+// the browser aligned .cm-content's left edge with the scroller's. The gutters'
+// width is the scroller's scroll padding, so that edge stays beside them.
+func TestTappedCodeKeepsItsLineStarts(t *testing.T) {
+	src, err := os.ReadFile(filepath.Join("..", "..", "..", "web", "editor", "editor.js"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(src), `view.scrollDOM.style.scrollPaddingLeft = w + "px";`) {
+		t.Error("editor.js doesn't pad the scroller by the gutters' width")
+	}
+	if strings.Count(string(src), "theme, highlight, gutterPadding, wrapExt(),") != 2 {
+		t.Error("an editor lacks the gutter padding")
+	}
+	b, err := fs.ReadFile(ui.StaticFS, "js/editor.bundle.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "scrollPaddingLeft") {
+		t.Error("the editor bundle lacks the gutter padding (make editor)")
+	}
+}
+
+// Phone layout from a walk on a 360 px phone: the template editor's six
+// actions stacked into 650 px of full-width rows; chips (26 px), switches
+// (36×18), breadcrumbs and Activity's links were too small to tap; a filter
+// row's buttons were 40 px beside 48 px selects of uneven width; the link
+// form's time field showed "--:-"; Settings › Notifications was 14,000 px.
+func TestPhoneLayoutFits(t *testing.T) {
+	css := appCSS(t)
+	phone := css[strings.Index(css, `:root { --header-h: 56px; }`):]
+	for _, want := range []string{
+		`.titleblock .actions.ed-actions { display: grid; grid-template-columns: 1fr 1fr; }`,
+		`.ed-actions .pc-btn { min-height: 40px; }`,
+		`.filter-form .sel { flex: 1 1 0; min-width: 0; }`,
+		`.filter-form .pc-btn, .search-form .pc-btn { min-height: 48px; }`,
+		`.crumbs a { padding: 10px 0; margin: -10px 0; }`,
+		`.actrow a.text { padding: 10px 0; }`,
+	} {
+		if !strings.Contains(phone, want) {
+			t.Errorf("the phone rules lack %q", want)
+		}
+	}
+	for _, want := range []string{
+		`.row.rule { grid-template-columns: 48px minmax(0, 1fr); gap: 2px 8px;`,
+		`.row.rule .pc-sw { grid-row: 1 / span 3;`,
+		`.rules:not([open]) > summary::after { content: "▸"; }`,
+		"/* a phone's 15 px type left the time as \"--:-\" */\n@media (max-width: 760px) { .expiry-fields .pc-inp.clock { width: 120px; } }",
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	tok, err := fs.ReadFile(ui.StaticFS, "css/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`.pc-chip, .pc-sb { height: auto; min-height: 40px; }`,
+		`.pc-sw::before { content: ""; position: absolute; inset: -14px -6px; }`,
+	} {
+		if !strings.Contains(string(tok), want) {
+			t.Errorf("tokens.css lacks %q", want)
+		}
+	}
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), `groups.forEach(function (g) { if (!at || !g.contains(at)) g.open = false; });`) {
+		t.Error("proxier.js doesn't close Notifications' groups on a phone")
+	}
+}

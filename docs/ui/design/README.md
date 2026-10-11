@@ -169,9 +169,15 @@ A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the
 Under 760 px the layout changes:
 
 - The sidebar becomes a drawer behind a ☰ cell, and the key line goes away.
-- The header grows to 56 px, with flush cells: ☰, the logo, jobs and search, then the admin's name and Sign out.
+- The header grows to 56 px, with flush cells: ☰, the logo, then at the right search as a 48 px magnifier cell (a field there was a 60 px stub reading "/ S…"), the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
+- Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
-- Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width.
+- Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row (stacked, they took 650 px before the code).
+- Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A filter row's selects share its width, its button as tall as they are (48 px).
+- An alert's sentence and its link are one item (a `<span>`): as flex items of their own the link took a narrow column and broke after every word.
+- Settings › Notifications' groups (one per module, with its count of events and of changed ones) start closed; switching a rule comes back to it with its group open. Open, a rule is its switch beside its name, description and default.
+
+A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys) is hidden there, whatever the width.
 
 The phone screens cover the notification flows:
 

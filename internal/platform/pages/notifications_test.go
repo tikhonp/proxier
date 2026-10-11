@@ -21,8 +21,20 @@ func TestNotificationsPageTogglesRules(t *testing.T) {
 		t.Error("notification.failed can be toggled")
 	}
 
-	if rec := l.Post("/settings/notifications/job.failed", url.Values{"enabled": {"0"}}); rec.Code != 303 {
+	// each module's rules are a group that closes (a phone starts with them closed)
+	if !strings.Contains(page, `<details class="rules" open`) || !strings.Contains(page, `<summary class="pc-title"><h2>`) || !strings.Contains(page, ` events`) {
+		t.Errorf("the rules aren't in groups that close:\n%s", page)
+	}
+	rec := l.Post("/settings/notifications/job.failed", url.Values{"enabled": {"0"}})
+	if rec.Code != 303 {
 		t.Fatalf("%d", rec.Code)
+	}
+	// back at the rule, whose group stays open
+	if loc := rec.Header().Get("Location"); loc != "/settings/notifications#rule-job.failed" {
+		t.Errorf("redirected to %q", loc)
+	}
+	if !strings.Contains(l.Get("/settings/notifications").Body.String(), `id="rule-job.failed"`) || !strings.Contains(l.Get("/settings/notifications").Body.String(), "1 changed") {
+		t.Error("the rule has no anchor or its group doesn't count it as changed")
 	}
 	rules, err := s.App.Notify.Rules(t.Context())
 	if err != nil {
