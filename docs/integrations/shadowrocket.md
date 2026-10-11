@@ -28,7 +28,7 @@ The hosted Shadowrocket config is mtvpn's `shadowrocket` command, served at a UR
 
    - One `# <tag>` comment per service, in list order, with no block for a service left with no rules.
    - `DOMAIN-SUFFIX,<domain>,<policy>` for suffix domains and `DOMAIN,<domain>,<policy>` for exact ones, sorted within the service.
-   - Ownership is applied first ([routing lists](../processes/routing/routing-lists.md#rules)): a name covered by another service's broader suffix is dropped, and a name several services share stays with the first. These are the rules mtvpn's `shadowrocket_rules` used.
+   - Ownership is applied first ([routing lists](../processes/routing/routing-lists.md#rules)): a name several services share stays with the first. Then every rule another rule of the config covers is dropped, in any service: a suffix name under any suffix name of the config, an exact name equal to or under one. These are the rules mtvpn's `shadowrocket_rules` used. Routers install those covered names ([ADR 0016](../adr/0016-every-listed-name-reaches-the-router.md)); the phone doesn't need them, since `DOMAIN-SUFFIX` matches the names under it.
    - The policy defaults to `PROXY` and is set per config (e.g. a proxy group's name).
 4. Served as `text/plain; charset=utf-8` with `Cache-Control: no-store`.
 

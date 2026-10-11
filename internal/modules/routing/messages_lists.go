@@ -112,11 +112,12 @@ var listMessages = i18n.Messages{
 
 	// Ownership on the service page and in the editor
 	"lists.dropped_in":     {EN: "Not installed in {list}: {n} name|Not installed in {list}: {n} names", RU: "Не устанавливается в {list}: {n} имя|Не устанавливается в {list}: {n} имени|Не устанавливается в {list}: {n} имён"},
-	"lists.drop.covered":   {EN: "covered by {via} ({by})", RU: "охвачен {via} ({by})"},
+	"lists.drop.covered":   {EN: "{by} has it as a suffix", RU: "в {by} он с поддоменами"},
 	"lists.drop.owned":     {EN: "owned by {by} (first in {list})", RU: "принадлежит {by} (выше в {list})"},
 	"lists.drop.guarded":   {EN: "left out: covers {via} ({by})", RU: "не передаётся: охватывает {via} ({by})"},
 	"lists.drop.pinned":    {EN: "left out: {via}", RU: "не передаётся: {via}"},
-	"lists.editor.covered": {EN: "covered by {tag} in {list}", RU: "охвачен {tag} в списке {list}"},
+	"lists.editor.taken":   {EN: "not installed in {list}: {tag} has it", RU: "не устанавливается в {list}: он есть в {tag}"},
+	"lists.editor.covered": {EN: "installed; also covered by {tag} in {list}", RU: "устанавливается; также охвачен {tag} в списке {list}"},
 	"lists.editor.footer":  {EN: "Saving changes what the targets of {lists} get.", RU: "Сохранение изменит то, что получают цели списков {lists}."},
 
 	// The services list's filters

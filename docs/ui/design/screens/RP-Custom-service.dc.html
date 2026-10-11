@@ -116,7 +116,7 @@ rutracker.org</textarea>
 <p style="font-size:12px;color:#908caa">One per line. URLs, <span style="color:#e0def4">*.</span>, <span style="color:#e0def4">domain:</span> and <span style="color:#e0def4">full:</span> are understood.</p>
 <div style="display:flex;flex-direction:column;gap:4px;padding:10px 12px;background:#191724;border:1px solid #403d52">
 <p><span style="color:#9ccfd8">+12 added</span> · <span>2 merged</span> · <span style="color:#eb6f92">1 refused</span></p>
-<p style="font-size:12px;color:#908caa">merged: hd.kinopoisk.ru and api.ott.kinopoisk.ru go under kinopoisk.ru</p>
+<p style="font-size:12px;color:#908caa">merged: kinopoisk.ru was there twice</p>
 <p style="font-size:12px;color:#908caa">punycode: Кинопоиск.рф → xn--h1aaekdkhcb.xn--p1ai</p>
 <p style="font-size:12px;color:#eb6f92">refused: 93.158.134.11 is an IP address; services hold domains only</p>
 </div>
@@ -124,7 +124,7 @@ rutracker.org</textarea>
 </div>
 </section>
 <section style="padding:12px 16px;color:#908caa;font-size:12px;display:flex;flex-direction:column;gap:6px">
-<p><span style="color:#e0def4">Covered by</span> means another service in the same list already sends it through the tunnel. It's kept, but it does nothing there.</p>
+<p><span style="color:#e0def4">Not installed</span> means another service in the same list installs the same name instead. <span style="color:#e0def4">Also covered by</span> means another service has a suffix above it: it is installed all the same, so the router resolves it too.</p>
 <p>Saving re-syncs Home and iPhone, the targets of Main.</p>
 </section>
 <div style="margin-top:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 16px;border-top:1px solid #26233a">
@@ -188,12 +188,12 @@ class Component extends DCLogic {
     return {
       nav: this.nav('services', {}),
       rows: [
-        r('kinopoisk.ru', false, 'new · absorbed 2 names under it', NEW),
+        r('kinopoisk.ru', false, 'new', NEW),
         r('yastatic.net', false, 'new', NEW),
         r('xn--h1aaekdkhcb.xn--p1ai', false, 'new · Кинопоиск.рф', NEW),
         r('rutracker.org', false, 'new', NEW),
-        r('chatgpt.com', false, 'covered by openai in Main'),
-        r('claude.ai', false, 'covered by anthropic in Main'),
+        r('chatgpt.com', false, 'not installed in Main: openai has it'),
+        r('claude.ai', false, 'not installed in Main: anthropic has it'),
         r('habr.com', false),
         r('medium.com', false),
         r('news.ycombinator.com', true),

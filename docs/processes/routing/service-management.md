@@ -29,15 +29,15 @@ A service is a named set of domains from one source, and the unit that goes into
    - scheme, path, port and a leading `*.` removed (`*.example.com` means suffix `example.com`);
    - internationalised names converted to punycode.
 
-   Then validated: IP addresses are refused (services hold domains only), and so are invalid names. Duplicates are merged (suffix wins over exact), and a suffix entry absorbs every entry under it, exact or suffix, with a note ("api.example.com goes under example.com").
-4. Each entry shows **already covered by** when another service in the same routing lists has it or a suffix above it (informational).
+   Then validated: IP addresses are refused (services hold domains only), and so are invalid names. Duplicates are merged (suffix wins over exact), with a note ("example.com was there twice"). An entry under a suffix entry stays: the router resolves only the names it is given, so `api.example.com` next to `example.com` reaches it too ([ADR 0016](../../adr/0016-every-listed-name-reaches-the-router.md)).
+4. Each entry shows a hint when another service in the same routing lists has it: **not installed in Main: openai has it** when that service installs it instead (the same name in the same form earlier in the list, or as a suffix when the entry is exact), else **installed; also covered by openai in Main** when the other service only has a suffix above it.
 5. **Save** writes the domains and a new snapshot, then the targets of its lists re-sync. → `routing.service_added` (first save) or `routing.service_updated{added, removed}`
 6. Saving is refused if any domain would trip the [server hostname guard](./routing-lists.md#rules) in a list the service is in.
 
 ## Steps — the service page
 
 1. **Overview**: selector, source, portal, tag, counts, last check, last error, consecutive failures, and the lists it's in.
-2. **Domains** of the current snapshot: filterable, suffix and exact marked, the skipped entries with reasons, and which domains another service owns in each list ([ADR 0013](../../adr/0013-one-owner-service-per-domain.md)).
+2. **Domains** of the current snapshot: filterable, suffix and exact marked, the skipped entries with reasons, and which domains another service installs instead in each list ([ADR 0013](../../adr/0013-one-owner-service-per-domain.md)). A name under another service's suffix is installed and isn't listed there ([ADR 0016](../../adr/0016-every-listed-name-reaches-the-router.md)).
 3. **History**: snapshots (accepted, rejected, superseded) with counts and a diff against the previous accepted one. A **rejected** snapshot has **Accept anyway** ([upstream refresh](./upstream-refresh.md)).
 4. Actions:
    - **Refresh now**, which runs the refresh flow for this service;
@@ -67,7 +67,8 @@ A service is a named set of domains from one source, and the unit that goes into
 - Add `iplist:example.org` while the beta portal is down and main/russia answer empty → "not found on main, russia; beta unreachable", nothing created.
 - Add `https://files.example.com/share/x/tunneled-domains.txt` → tag `tunneled-domains`. Add `mine=https://…/list.txt` → tag `mine`.
 - Custom paste `https://www.Example.com/path`, `*.cdn.example.net`, `full:api.example.org`, `1.2.3.4` → suffix `www.example.com`, suffix `cdn.example.net`, exact `api.example.org`, and `1.2.3.4` refused as an IP.
-- Custom domains `example.com` (suffix) and `full:api.example.com` → the exact entry is absorbed, with a note.
+- Custom domains `example.com` (suffix) and `full:api.example.com` → both are kept and installed. `example.com` twice, or as suffix and exact → one suffix row, with a note.
+- A custom service in "Main" after `openai` (suffix `openai.com`, exact `chatgpt.com`), with `openai.com`, `api.openai.com` and `full:sora.com` → hints "not installed in Main: openai has it" on `openai.com`, "installed; also covered by openai in Main" on `api.openai.com`, none on `sora.com`.
 - `пример.рф` → stored as `xn--e1afmkfd.xn--p1ai`, shown with its Unicode form.
 - A custom service with `tikhonnnnn.com` in a list (it covers `nl-1.hosts.tikhonnnnn.com`) → save refused, naming nl-1.
 - New custom service "My Test Service" with no tag → the tag field shows `my-test-service`, which it gets; with tag `mytest` its page headlines "My Test Service" with "Tag mytest" under it.

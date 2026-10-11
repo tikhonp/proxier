@@ -66,14 +66,16 @@ func TestReorderMovesOwnership(t *testing.T) {
 	dropped(t, r.Services[1], Drop{Name: "claude.ai", Reason: ReasonOwned, By: "mine"})
 }
 
-func TestExactCoveredBySuffix(t *testing.T) {
+// A name under another service's suffix is installed all the same: the
+// router resolves only the names it is given.
+func TestSubdomainUnderAnotherServiceInstalled(t *testing.T) {
 	r := Compute([]Member{m(1, "anthropic", "anthropic.com"), m(2, "mine", "full:console.anthropic.com", "full:example.com")}, nil, nil)
-	installs(t, r.Services[1], "full:example.com")
-	dropped(t, r.Services[1], Drop{Name: "console.anthropic.com", Exact: true, Reason: ReasonCovered, By: "anthropic", Via: "anthropic.com"})
+	installs(t, r.Services[0], "anthropic.com")
+	installs(t, r.Services[1], "full:console.anthropic.com", "full:example.com")
+	dropped(t, r.Services[1])
 }
 
-func TestBroaderSuffixWinsWhateverTheOrder(t *testing.T) {
-	want := Drop{Name: "api.example.com", Reason: ReasonCovered, By: "other", Via: "example.com"}
+func TestNarrowerSuffixInstalledWhateverTheOrder(t *testing.T) {
 	for _, order := range [][]Member{
 		{m(1, "mine", "api.example.com"), m(2, "other", "example.com")},
 		{m(2, "other", "example.com"), m(1, "mine", "api.example.com")},
@@ -81,13 +83,14 @@ func TestBroaderSuffixWinsWhateverTheOrder(t *testing.T) {
 		r := Compute(order, nil, nil)
 		for _, o := range r.Services {
 			if o.Tag == "mine" {
-				installs(t, o)
-				dropped(t, o, want)
+				installs(t, o, "api.example.com")
 			} else {
 				installs(t, o, "example.com")
 			}
+			dropped(t, o)
 		}
 	}
+	// removing the broader one changes nothing for mine
 	r := Compute([]Member{m(1, "mine", "api.example.com")}, nil, nil)
 	installs(t, r.Services[0], "api.example.com")
 }
@@ -105,10 +108,11 @@ func TestRedundancyInsideServiceKept(t *testing.T) {
 	dropped(t, r.Services[0])
 
 	// an earlier service listing a name the later one has under its own
-	// suffix: the broader suffix covers it, and the later keeps its own copy
+	// suffix too: the name goes to the first, the suffix to the later
 	r = Compute([]Member{m(1, "mail", "mail.google.com"), m(2, "google", "google.com", "mail.google.com")}, nil, nil)
-	installs(t, r.Services[0])
-	installs(t, r.Services[1], "google.com", "mail.google.com")
+	installs(t, r.Services[0], "mail.google.com")
+	installs(t, r.Services[1], "google.com")
+	dropped(t, r.Services[1], Drop{Name: "mail.google.com", Reason: ReasonOwned, By: "mail"})
 }
 
 func TestGuardedNamesCoverNothing(t *testing.T) {
@@ -172,6 +176,32 @@ func TestCoveringAndCoveredBy(t *testing.T) {
 	if got := CoveredBy("example.org", false, members, 0); len(got) != 0 {
 		t.Errorf("nothing covers example.org: %+v", got)
 	}
+}
+
+func TestHolder(t *testing.T) {
+	members := []Member{m(1, "openai", "openai.com", "full:chatgpt.com"), m(2, "mine", "api.openai.com", "full:chatgpt.com", "full:sora.com"), m(3, "big", "x.api.openai.com", "chatgpt.com", "full:sora.com")}
+	for _, c := range []struct {
+		name  string
+		exact bool
+		want  Cover
+		ok    bool
+	}{
+		{"api.openai.com", false, Cover{}, false},                            // under openai.com: installed in mine
+		{"chatgpt.com", true, Cover{Tag: "big", Via: "chatgpt.com"}, true},   // a suffix of the same name, even later
+		{"sora.com", true, Cover{}, false},                                   // mine is first with it
+		{"openai.com", false, Cover{Tag: "openai", Via: "openai.com"}, true}, // the same form earlier
+	} {
+		got, ok := Holder(c.name, c.exact, members, 2)
+		if got != c.want || ok != c.ok {
+			t.Errorf("Holder(%s, %v) = %+v %v", c.name, c.exact, got, ok)
+		}
+	}
+	if got, ok := Holder("sora.com", true, members, 3); !ok || got != (Cover{Tag: "mine", Via: "sora.com", Exact: true}) {
+		t.Errorf("a later service: %+v %v", got, ok)
+	}
+	// Holder agrees with Compute
+	r := Compute(members, nil, nil)
+	installs(t, r.Services[1], "api.openai.com", "full:sora.com")
 }
 
 func TestMovedNames(t *testing.T) {

@@ -188,7 +188,6 @@ var messages = i18n.Messages{
 	"services.paste.merged":        {EN: "{n} merged|{n} merged", RU: "{n} объединён|{n} объединено|{n} объединено"},
 	"services.paste.refused":       {EN: "{n} refused|{n} refused", RU: "{n} отклонён|{n} отклонено|{n} отклонено"},
 	"services.paste.duplicate":     {EN: "merged: {name} was there twice", RU: "объединено: {name} был дважды"},
-	"services.paste.absorbed":      {EN: "merged: {name} goes under {under}", RU: "объединено: {name} входит в {under}"},
 	"services.paste.punycode":      {EN: "punycode: {unicode} → {name}", RU: "punycode: {unicode} → {name}"},
 	"services.paste.refused_line":  {EN: "refused: {line} {reason}", RU: "отклонено: {line} {reason}"},
 	"services.paste.ip":            {EN: "is an IP address; services hold domains only", RU: "— IP-адрес; сервисы хранят только домены"},

@@ -149,12 +149,12 @@ func TestConvertToCustom(t *testing.T) {
 		t.Fatalf("service: %+v %v", it, err)
 	}
 	snap, _ := h.Mod.Services.Accepted(bg(), it.ID)
-	// www.example.com is absorbed under example.com, as a custom save does
-	if !reflect.DeepEqual(snap.Set.Suffix, []string{"example.com"}) || !reflect.DeepEqual(snap.Set.Exact, []string{"api.example.org"}) {
+	// www.example.com stays next to example.com, as in the file (ADR 0016)
+	if !reflect.DeepEqual(snap.Set.Suffix, []string{"example.com", "www.example.com"}) || !reflect.DeepEqual(snap.Set.Exact, []string{"api.example.org"}) {
 		t.Errorf("names: %+v", snap.Set)
 	}
 	rows, err := h.Mod.Services.CustomRows(bg(), it.ID)
-	if err != nil || len(rows) != 2 {
+	if err != nil || len(rows) != 3 {
 		t.Errorf("custom rows: %+v %v", rows, err)
 	}
 	// the round refreshes upstream services only: the file isn't fetched again

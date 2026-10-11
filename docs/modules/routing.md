@@ -57,12 +57,12 @@ Type a website. Proxier first looks it up in the catalog, suggesting existing se
 
 - A **routing list** is a named, ordered set of services. "Main" exists from the first start and is the default for new targets. Each target follows exactly one list. A service can be in many lists.
 - **Ownership**: within a list, every name is installed once. It is computed (package `own`) whenever a page, a sync or a fetch needs it, never stored.
-  - Names that trip the guard, and a router's infra pins, are taken out first: installed by nobody, they cover nothing.
-  - A name that another service's broader suffix domain covers is dropped.
+  - Names that trip the guard, and a router's infra pins, are taken out first: installed by nobody.
+  - An exact name that another service has as a suffix is dropped: the suffix installs it.
   - A name that several services share in the same form goes to the first of them in list order that installs it.
-  - Names under a service's own suffixes stay (mtvpn compatibility).
+  - Every other name is installed, also one under another service's suffix or under the service's own: the router resolves only the names it is given ([ADR 0016](../adr/0016-every-listed-name-reaches-the-router.md)).
 
-  A list's services show **owned / total**: the names the service installs there, and the names in its snapshot. The service page says, per list, why the others aren't installed ("owned by anthropic (first in Main)", "covered by anthropic.com (anthropic)", "left out: covers nl-1.hosts.tikhonnnnn.com (nl-1)"). Removing, editing or reordering services moves ownership, and every affected tag is re-synced ([ADR 0013](../adr/0013-one-owner-service-per-domain.md)).
+  A list's services show **owned / total**: the names the service installs there, and the names in its snapshot. The service page says, per list, why the others aren't installed ("owned by anthropic (first in Main)", "mine has it as a suffix", "left out: covers nl-1.hosts.tikhonnnnn.com (nl-1)"). Removing, editing or reordering services moves ownership, and every affected tag is re-synced ([ADR 0013](../adr/0013-one-owner-service-per-domain.md)).
 - **Server hostname guard**: a list can't contain a domain that equals or covers a server's management or proxy hostname (e.g. a custom service with `tikhonnnnn.com` would cover `nl-1.hosts.tikhonnnnn.com`). Routing those names would send Proxier's own checks, and the router's mihomo connection, into the tunnel. Adding a service to a list and saving a custom service that is in a list are refused, naming the server and domain; a refresh that brings such a name is accepted, and the name is left out of what targets get, with a warning on the list. Provisioning asks routing (`RoutingGuard`) and refuses a hostname any listed name covers.
 
 Flows: [routing lists](../processes/routing/routing-lists.md).
@@ -99,7 +99,7 @@ Routers are added through **Test connection** (the jump host's and the router's 
 
 ## Shadowrocket config
 
-Proxier renders the config when it's requested: the base config verbatim, with the routing list's rules spliced into `[Rule]` before `FINAL` (or ending with `FINAL,DIRECT`). Rules are `DOMAIN-SUFFIX` / `DOMAIN` with the rule policy, one `# <tag>` block per service, after ownership and suffix coverage. The phone subscribes to the URL once, and from then on every change reaches it on its next refresh. Details: [Shadowrocket config](../processes/routing/shadowrocket-config.md), [Shadowrocket integration](../integrations/shadowrocket.md).
+Proxier renders the config when it's requested: the base config verbatim, with the routing list's rules spliced into `[Rule]` before `FINAL` (or ending with `FINAL,DIRECT`). Rules are `DOMAIN-SUFFIX` / `DOMAIN` with the rule policy, one `# <tag>` block per service, after ownership, without the rules another rule of the config covers. The phone subscribes to the URL once, and from then on every change reaches it on its next refresh. Details: [Shadowrocket config](../processes/routing/shadowrocket-config.md), [Shadowrocket integration](../integrations/shadowrocket.md).
 
 ## Pages
 
