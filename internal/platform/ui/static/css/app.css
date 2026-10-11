@@ -51,6 +51,8 @@
 .titleblock .head { flex: 1 1 320px; min-width: 0; }
 .area { border-bottom: 1px solid var(--overlay); padding-bottom: 8px; }
 .area .pc-title .note { font-size: var(--fs-sm); line-height: 16px; color: var(--subtle); }
+/* a title band's buttons stay at its right end, also when a long title and note wrap them onto a line of their own */
+.pc-title > .pc-btn:last-child { margin-left: auto; }
 .area-body { padding: 12px 16px; }
 /* an area body of parts under each other (a URL and its buttons, a note, Show QR and the code, a button row): the gap is
    their only spacing, the body's 12 px, so text, a button row and the note under it never touch */
@@ -652,9 +654,14 @@ a.row.lnk { text-decoration: none; color: inherit; }
 /* the buttons wrap together, under the URL with the rows' 12 px when it leaves them no room */
 .urlfield { display: flex; flex-wrap: wrap; gap: 12px 8px; align-items: center; }
 .url-btns { display: flex; flex-wrap: wrap; gap: 8px; }
-.urlfield code { font-family: inherit; word-break: break-all; }
+/* ui.URLText marks a break after each slash; a part wider than the line (a token on a phone) breaks where it must */
+.urlfield code { font-family: inherit; overflow-wrap: anywhere; }
 .row.fetch, .colhead.fetch { grid-template-columns: 120px minmax(110px, 1fr) minmax(140px, 1fr) 104px; gap: 12px; align-items: start; font-size: var(--fs-sm); }
-.row.act { grid-template-columns: 190px minmax(0, 1fr); }
+/* an action's button column is as wide as its longest button (a fixed 190 px let "Change routing list or policy…" run over
+   its description); rows in .act-rows share that column (subgrid), so their descriptions line up */
+.row.act { grid-template-columns: minmax(190px, max-content) minmax(0, 1fr); }
+.act-rows { display: grid; grid-template-columns: max-content minmax(0, 1fr); }
+.act-rows > .row.act { grid-column: 1 / -1; grid-template-columns: subgrid; }
 .row.act .pc-btn { justify-self: start; }
 .expiry-fields .pc-inp.date { width: 150px; }
 .expiry-fields .pc-inp.clock { width: 90px; }
@@ -688,6 +695,8 @@ a.pc-sb { display: inline-flex; align-items: center; text-decoration: none; }
   .row.dashlnk { grid-template-columns: minmax(0, 1fr); gap: 4px; }
   .ab-what { grid-template-columns: minmax(0, 1fr); }
   .row.lnk, .row.fetch, .row.act, .row.sublink { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .act-rows { display: block; }
+  .act-rows > .row.act { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* Cut-off (2d): the plan's servers, the link page's progress */
@@ -774,16 +783,24 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 .sr-strip .inline-fields { flex-wrap: nowrap; }
 .sr-strip .inline-fields .pc-inp { flex: 1 1 0; width: auto; min-width: 0; }
 .sr-strip input[type="file"] { max-width: 100%; }
-.sr-preview { max-height: 60vh; overflow: auto; background: var(--black); padding: 8px 0; font-size: var(--fs-sm); }
-.sr-line { display: grid; grid-template-columns: 48px minmax(0, 1fr); border-left: 3px solid transparent; }
+/* The config page: the preview beside versions, fetches and actions. That column needs 540 px for a version's three
+   buttons beside its time, so the page stacks below 1270 px (after these rules). */
+.subcols.sr-cols { grid-template-columns: minmax(0, 1.3fr) minmax(540px, 1fr); }
+.sr-cols > .col-l { align-self: stretch; border-right: 1px solid var(--overlay); }
+/* what the phone gets grows with the page (a box of its own put a second scrollbar beside the page's, and its end
+   under the key line); a long line wraps anywhere, and its continuation is indented under the line's start */
+.sr-preview { background: var(--black); padding: 8px 0; font-size: var(--fs-sm); }
+.sr-line { display: grid; grid-template-columns: 48px minmax(0, 1fr); border-left: 3px solid transparent; padding-right: 16px; }
 .sr-line .ln { text-align: right; padding-right: 12px; color: var(--muted); user-select: none; }
-.sr-line .tx { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--subtle); }
+.sr-line .tx { white-space: pre-wrap; word-break: break-all; padding-left: 4ch; text-indent: -4ch; color: var(--subtle); }
 .sr-line.sr-ours { border-left-color: var(--foam); background: var(--overlay); }
 .sr-line.sr-ours .tx { color: var(--text); }
-.row.srver { grid-template-columns: 40px minmax(0, 1fr) auto; align-items: start; border-top: 1px solid var(--overlay); }
-.sr-acts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.row.srfetch { grid-template-columns: 130px 130px minmax(0, 1fr); gap: 12px; align-items: start; font-size: var(--fs-sm); }
-.row.srfetch > span { min-width: 0; overflow-wrap: anywhere; }
+/* a version: "v4 · current", its time over its note (one line, the whole note in its title), its buttons 8 px apart */
+.row.srver { grid-template-columns: 110px minmax(0, 1fr) auto; align-items: start; border-top: 1px solid var(--overlay); }
+.row.srver .normal { font-weight: 400; }
+.sr-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* a fetch is one line: the user agent ends in "…", the whole of it in its title */
+.row.srfetch { grid-template-columns: 120px 130px minmax(0, 1fr); gap: 12px; font-size: var(--fs-sm); }
 .stepstrip { list-style: none; display: flex; flex-wrap: wrap; gap: 0; margin: 0 16px 16px; padding: 0; }
 .stepstrip li { padding: 6px 14px; border: 1px solid var(--hl-med); margin-left: -1px; color: var(--muted); }
 .stepstrip li.done { color: var(--subtle); }
@@ -794,9 +811,19 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 .sr-offer { border: 1px solid var(--hl-med); margin: 12px 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .sr-offer .check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .sr-offer .check input { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
+@media (max-width: 1270px) {
+  .subcols.sr-cols { grid-template-columns: minmax(0, 1fr); }
+  /* stacked, versions, fetches and actions come before the preview, which may run thousands of lines */
+  .sr-cols > .col-r { order: -1; }
+  .sr-cols > .col-l { border-right: 0; }
+}
 @media (max-width: 760px) {
   .colhead.srcfg, .colhead.improw { display: none; }
   .row.srcfg, .row.srver, .row.srfetch, .row.impres { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .sr-acts { justify-content: flex-start; }
+  /* a fetch on a phone: its time and address, the user agent under them */
+  .row.srfetch { grid-template-columns: 120px minmax(0, 1fr); gap: 4px 12px; }
+  .row.srfetch .ua { grid-column: 1 / -1; }
   .row.improw { grid-template-columns: 20px minmax(0, 1fr); gap: 4px 8px; }
   .row.improw > :nth-child(n+3) { grid-column: 2 / 3; }
 }

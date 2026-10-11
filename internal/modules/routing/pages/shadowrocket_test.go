@@ -45,11 +45,11 @@ func TestShadowrocketPages(t *testing.T) {
 	rec := h.Login.Get("/routing/shadowrocket/1")
 	page := rec.Body.String()
 	has(t, "config page", page, "<h1>iphone</h1>", "routing list Main · policy PROXY · base config v1 · fetched", `data-key="e"`,
-		"http://proxier.test/r/••••••••••••••••/iphone.conf", `hx-get="/routing/shadowrocket/1/url"`, `hx-get="/routing/shadowrocket/1/qr"`,
+		"http://<wbr>proxier.test/<wbr>r/<wbr>••••••••••••••••/<wbr>iphone.conf", `hx-get="/routing/shadowrocket/1/url"`, `hx-get="/routing/shadowrocket/1/qr"`,
 		"In Shadowrocket: Config → + → paste the URL → Use config", `data-key="y"`,
 		"What the phone gets", `class="sr-line sr-ours"`, "DOMAIN-SUFFIX,anthropic.com,PROXY", "RULE-SET,https://example.com/ads.list,REJECT",
 		`href="/routing/shadowrocket/1/output"`, "Download iphone.conf",
-		"Base config versions", ">v1<", "current", `href="/routing/shadowrocket/1/versions/1"`,
+		"Base config versions", `>v1 <span class="pine normal">· current</span>`, `href="/routing/shadowrocket/1/versions/1"`,
 		"Fetches", "kept 90 days", "198.51.100.23",
 		"Actions", "Change routing list or policy…", "Regenerate URL…", "The old URL stops working at once. Paste the new one into Shadowrocket.",
 		"Disable…", "The URL answers 404 until you enable it; Shadowrocket keeps its last config.", "Delete…",
@@ -83,7 +83,7 @@ func TestShadowrocketPages(t *testing.T) {
 	if rec := h.Login.Post("/routing/shadowrocket/1/base", url.Values{"base": {srBase + "# two\n"}, "note": {"second"}}); rec.Code != 303 || rec.Header().Get("Location") != "/routing/shadowrocket/1?saved=2" {
 		t.Fatalf("save: %d %s", rec.Code, rec.Header().Get("Location"))
 	}
-	has(t, "saved", h.Login.Get("/routing/shadowrocket/1?saved=2").Body.String(), "Saved as base config v2.", ">v2<", "second",
+	has(t, "saved", h.Login.Get("/routing/shadowrocket/1?saved=2").Body.String(), "Saved as base config v2.", `>v2 <span class="pine normal">· current</span>`, "second",
 		`href="/routing/shadowrocket/1/versions/2/diff"`, `action="/routing/shadowrocket/1/versions/1/restore"`)
 	has(t, "view", h.Login.Get("/routing/shadowrocket/1/versions/1").Body.String(), "iphone: base config v1", "dns-server")
 	has(t, "diff", h.Login.Get("/routing/shadowrocket/1/versions/2/diff").Body.String(), "iphone: v1 → v2", "# two")
@@ -222,13 +222,13 @@ func TestAreaPartsAreSpaced(t *testing.T) {
 	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
 	h, _, _ := srSetup(t)
 	page := tight(h.Login.Get("/routing/shadowrocket/1").Body.String())
-	if !regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="sr-url"><code class="masked">[^<]*</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><div id="sr-qr" class="qrslot"><button [^>]*>QR</button></div><p class="sm subtle">In Shadowrocket:`).MatchString(page) {
+	if !regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="sr-url"><code class="masked">(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><div id="sr-qr" class="qrslot"><button [^>]*>Show QR</button></div><p class="sm subtle">In Shadowrocket:`).MatchString(page) {
 		t.Error("the config's URL area isn't the URL with its buttons, QR and the note, stacked")
 	}
 	if shown := tight(h.Login.Get("/routing/shadowrocket/1/qr").Body.String()); !regexp.MustCompile(`^<div id="sr-qr" class="qrslot"><button [^>]*>Hide QR</button><svg class="qr"`).MatchString(shown) {
 		t.Errorf("shown: %.200s", shown)
 	}
-	if revealed := tight(h.Login.Get("/routing/shadowrocket/1/url").Body.String()); !regexp.MustCompile(`^<div class="urlfield" id="sr-url"><code>[^<]+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
+	if revealed := tight(h.Login.Get("/routing/shadowrocket/1/url").Body.String()); !regexp.MustCompile(`^<div class="urlfield" id="sr-url"><code>(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
 		t.Errorf("revealed: %s", revealed)
 	}
 
@@ -249,5 +249,57 @@ func TestAreaPartsAreSpaced(t *testing.T) {
 	page = tight(h.Login.Post("/routing/services", url.Values{"selector": {"iplist:anthropic"}}).Body.String())
 	if !regexp.MustCompile(`<section class="area" aria-label="anthropic already exists">.*?<div class="area-body stacked"><dl class="kv">.*?</dl><p>.*?</p><form [^>]*class="form-actions">`).MatchString(page) {
 		t.Error("the taken area isn't stacked")
+	}
+}
+
+// The config page (issue 016): the URL across the page above the columns,
+// breaking only after a slash; the download in the preview's title band, not
+// after a preview that may run thousands of lines; "current" beside the
+// version's number, not against its buttons; a fetch's address and user
+// agent on one line each, the whole value in a title; the action rows
+// sharing one button column.
+func TestConfigPageHoldsTogether(t *testing.T) {
+	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
+	h, _, token := srSetup(t)
+	ua := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15"
+	h.Site.Do(sitetest.Req{Path: "/r/" + token + "/iphone.conf", Addr: "[2001:db8:85a3::8a2e:370:7334]:5000", Header: http.Header{"User-Agent": {ua}}})
+	h.Site.Do(sitetest.Req{Path: "/r/" + token + "/iphone.conf", Addr: "198.51.100.23:5000", Header: http.Header{"User-Agent": {""}}})
+	if _, _, err := h.Mod.Shadowrocket.SaveBase(bg(), 1, srBase+"\n", "imported from mtvpn", "admin"); err != nil {
+		t.Fatal(err)
+	}
+	page := tight(h.Login.Get("/routing/shadowrocket/1").Body.String())
+
+	if !regexp.MustCompile(`</div></div><section class="area" aria-label="URL"><div class="pc-title">.*?</section><div class="subcols sr-cols"><div class="col-l"><section class="area" aria-label="What the phone gets">`).MatchString(page) {
+		t.Error("the URL area isn't across the page above the preview's column")
+	}
+	if !strings.Contains(page, `<code class="masked">http://<wbr>proxier.test/<wbr>r/<wbr>••••••••••••••••/<wbr>iphone.conf</code>`) {
+		t.Error("the masked URL may break inside a word")
+	}
+	if revealed := h.Login.Get("/routing/shadowrocket/1/url").Body.String(); !strings.Contains(revealed, "<code>http://<wbr>proxier.test/<wbr>r/<wbr>"+token+"/<wbr>iphone.conf</code>") ||
+		!strings.Contains(revealed, `data-copy="http://proxier.test/r/`+token+`/iphone.conf"`) {
+		t.Errorf("revealed: %s", revealed)
+	}
+	if !regexp.MustCompile(`<section class="area" aria-label="What the phone gets"><div class="pc-title"><h2>What the phone gets</h2><span class="note">[^<]*</span><span class="flex1"></span><a class="pc-btn pc-sm" href="/routing/shadowrocket/1/output" download data-action="shadowrocket.download">Download iphone.conf</a></div><div class="sr-preview">(<div class="sr-line[^"]*"><span class="ln">\d+</span><span class="tx">[^<]*</span></div>)+</div></section></div>`).MatchString(page) {
+		t.Error("the preview's download isn't in its title band, or something follows the preview")
+	}
+
+	if !regexp.MustCompile(`<div class="row srver"><span class="bold">v2 <span class="pine normal">· current</span></span><span class="col"><span class="sm subtle">[^<]+</span><span class="sm cut" title="imported from mtvpn">imported from mtvpn</span></span><span class="sr-acts"><a class="pc-btn pc-sm" [^>]*>View</a>`).MatchString(page) {
+		t.Error("the current version's row isn't its number with current, its time over its note, then its buttons")
+	}
+	if regexp.MustCompile(`<span class="sr-acts">[^/]*current`).MatchString(page) {
+		t.Error("current sits against the version's buttons")
+	}
+
+	for _, want := range []string{
+		`<div class="row srfetch"><span class="subtle cut">[^<]+</span><span class="cut" title="2001:db8:85a3::8a2e:370:7334">2001:db8:85a3::8a2e:370:7334</span><span class="ua subtle cut" title="` + regexp.QuoteMeta(ua) + `">`,
+		`<div class="row srfetch"><span class="subtle cut">[^<]+</span><span class="cut" title="198\.51\.100\.23">198\.51\.100\.23</span></div>`, // no user agent: no empty cell
+	} {
+		if !regexp.MustCompile(want).MatchString(page) {
+			t.Errorf("fetch rows: no %s", want)
+		}
+	}
+
+	if !regexp.MustCompile(`<section class="area" aria-label="Actions"><div class="pc-title">.*?</div><div class="act-rows">(<div class="row act">.*?</div>){4}</div></section>`).MatchString(page) {
+		t.Error("the action rows don't share a button column")
 	}
 }

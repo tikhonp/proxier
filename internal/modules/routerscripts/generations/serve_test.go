@@ -141,10 +141,10 @@ func TestFetchKeepsTheTokenOut(t *testing.T) {
 		t.Errorf("the token is %d times on the page, %d in Copy buttons", n, copies)
 	}
 	reveal := h.Login.Get("/router-scripts/generations/1/fetch-url/reveal")
-	if reveal.Header().Get("Cache-Control") != "no-store" || !strings.Contains(reveal.Body.String(), "<code>http://proxier.test/f/"+token+"</code>") {
+	if reveal.Header().Get("Cache-Control") != "no-store" || !strings.Contains(reveal.Body.String(), "<code>http://<wbr>proxier.test/<wbr>f/<wbr>"+token+"</code>") {
 		t.Fatalf("reveal: %q %s", reveal.Header().Get("Cache-Control"), reveal.Body.String())
 	}
-	if hide := h.Login.Get("/router-scripts/generations/1/fetch-url/reveal?hide=1").Body.String(); strings.Contains(hide, "<code>http://proxier.test/f/"+token) {
+	if hide := h.Login.Get("/router-scripts/generations/1/fetch-url/reveal?hide=1").Body.String(); strings.Contains(hide, "<code>http://<wbr>proxier.test/<wbr>f/<wbr>"+token) {
 		t.Error("hide shows the URL")
 	}
 

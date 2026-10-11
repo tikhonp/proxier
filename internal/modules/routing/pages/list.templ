@@ -70,27 +70,29 @@ templ rlistPage(s ui.Shell, v listPageView) {
 					}
 				}
 				@ui.Area(i18n.T(ctx, "lists.area.actions"), "") {
-					<div class="row act">
-						@ui.ActionButton(ui.Action{ID: "refresh.all", Label: "refresh.all", Method: "POST", Href: listHref(v.L.ID) + "/refresh", Small: true})
-						<span class="sm subtle">{ i18n.T(ctx, "refresh.all.note") }</span>
-					</div>
-					<div class="row act">
-						@ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true})
-						<span class="sm subtle">{ i18n.T(ctx, "lists.rename.note") }</span>
-					</div>
-					if !v.L.Default {
+					<div class="act-rows">
 						<div class="row act">
-							@ui.ActionButton(ui.Action{ID: "lists.make_default", Label: "lists.make_default", Method: "POST", Href: listHref(v.L.ID) + "/default", Small: true})
-							<span class="sm subtle">{ i18n.T(ctx, "lists.make_default.note") }</span>
+							@ui.ActionButton(ui.Action{ID: "refresh.all", Label: "refresh.all", Method: "POST", Href: listHref(v.L.ID) + "/refresh", Small: true})
+							<span class="sm subtle">{ i18n.T(ctx, "refresh.all.note") }</span>
 						</div>
-					}
-					<div class="row act">
-						@ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger})
-						if v.L.Default {
-							<span class="sm subtle">{ i18n.T(ctx, "lists.delete.default") }</span>
-						} else {
-							<span class="sm subtle">{ i18n.T(ctx, "lists.delete.note") }</span>
+						<div class="row act">
+							@ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true})
+							<span class="sm subtle">{ i18n.T(ctx, "lists.rename.note") }</span>
+						</div>
+						if !v.L.Default {
+							<div class="row act">
+								@ui.ActionButton(ui.Action{ID: "lists.make_default", Label: "lists.make_default", Method: "POST", Href: listHref(v.L.ID) + "/default", Small: true})
+								<span class="sm subtle">{ i18n.T(ctx, "lists.make_default.note") }</span>
+							</div>
 						}
+						<div class="row act">
+							@ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger})
+							if v.L.Default {
+								<span class="sm subtle">{ i18n.T(ctx, "lists.delete.default") }</span>
+							} else {
+								<span class="sm subtle">{ i18n.T(ctx, "lists.delete.note") }</span>
+							}
+						</div>
 					</div>
 				}
 				@ui.Area(i18n.T(ctx, "lists.area.activity"), "") {

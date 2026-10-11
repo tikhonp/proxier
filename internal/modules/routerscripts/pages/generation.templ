@@ -223,9 +223,9 @@ templ fetchURLBox(v fetchView) {
 		if v.Live {
 			<div class="urlfield">
 				if v.Revealed {
-					<code>{ v.URL }</code>
+					<code>@ui.URLText(v.URL)</code>
 				} else {
-					<code class="masked">{ v.Masked }</code>
+					<code class="masked">@ui.URLText(v.Masked)</code>
 				}
 				<span class="url-btns">
 					if v.Revealed {

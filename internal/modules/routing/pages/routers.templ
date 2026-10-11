@@ -422,16 +422,18 @@ templ routerPage(s ui.Shell, v routerView) {
 					}
 				</section>
 				@ui.Area(i18n.T(ctx, "routers.area.actions"), "") {
-					@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
-					@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
-					if v.R.State == "active" {
-						@actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what"))
-					} else if v.R.State == "paused" {
-						@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
-					}
-					if v.R.State != "removing" {
-						@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
-					}
+					<div class="act-rows">
+						@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
+						@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
+						if v.R.State == "active" {
+							@actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what"))
+						} else if v.R.State == "paused" {
+							@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
+						}
+						if v.R.State != "removing" {
+							@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
+						}
+					</div>
 				}
 				@ui.Area(i18n.T(ctx, "routers.area.activity"), "") {
 					if len(v.Activity) == 0 {

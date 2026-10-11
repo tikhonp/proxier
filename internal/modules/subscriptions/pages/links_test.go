@@ -144,7 +144,7 @@ func TestLinkPage(t *testing.T) {
 	body := page(t, h, href)
 	full := "http://proxier.test/s/" + token
 	mustContain(t, body, "Alex", "Copy URL", `data-key="y"`, `data-copy="`+full+`"`,
-		"http://proxier.test/s/"+strings.Repeat("•", 22), "The token is shown only here, never in notifications, events or logs.",
+		"http://<wbr>proxier.test/<wbr>s/<wbr>"+strings.Repeat("•", 22), "The token is shown only here, never in notifications, events or logs.",
 		"Show QR", "In the app: add subscription → scan QR.", "What the app gets now", "Built on every fetch. Nothing is cached.",
 		"vless://••••••••@nl-1.hosts.tikhonnnnn.com", "profile-title: base64:", "Family", "nl-1, de-1",
 		"no expiry", "English", "uri-plain (the subscription&#39;s default)", "just now · Other · 2001:db8:4f2::/48",
@@ -172,7 +172,7 @@ func TestLinkPage(t *testing.T) {
 
 	// Reveal and QR fragments, never cached
 	rec := h.Login.Get(href+"/url", hx())
-	if rec.Code != 200 || rec.Header().Get("Cache-Control") != "no-store" || !strings.Contains(rec.Body.String(), "<code>"+full+"</code>") {
+	if rec.Code != 200 || rec.Header().Get("Cache-Control") != "no-store" || !strings.Contains(rec.Body.String(), "<code>http://<wbr>proxier.test/<wbr>s/<wbr>"+token+"</code>") {
 		t.Errorf("reveal: %d %s", rec.Code, rec.Body.String())
 	}
 	if rec := h.Login.Get(href+"/url?hide=1", hx()); strings.Contains(rec.Body.String(), "<code>"+full) {
@@ -221,7 +221,7 @@ func TestLinkPartsAreSpaced(t *testing.T) {
 	// the spaces templ leaves between inline elements don't matter here
 	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
 	body := tight(page(t, h, href))
-	urlArea := regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="link-url"><code class="masked">[^<]*</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><p class="sm subtle">The token is shown only here`)
+	urlArea := regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="link-url"><code class="masked">(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><p class="sm subtle">The token is shown only here`)
 	if !urlArea.MatchString(body) {
 		t.Error("the URL area isn't the URL, its buttons together, then the note, stacked")
 	}
@@ -230,7 +230,7 @@ func TestLinkPartsAreSpaced(t *testing.T) {
 		t.Error("the QR area isn't the note, then Show QR in its slot, stacked")
 	}
 	revealed := tight(h.Login.Get(href+"/url", hx()).Body.String())
-	if !regexp.MustCompile(`^<div class="urlfield" id="link-url"><code>[^<]+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
+	if !regexp.MustCompile(`^<div class="urlfield" id="link-url"><code>(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {
 		t.Errorf("revealed: %s", revealed)
 	}
 	shown := tight(h.Login.Get(href+"/qr", hx()).Body.String())

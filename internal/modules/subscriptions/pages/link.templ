@@ -153,20 +153,22 @@ templ linkPage(s ui.Shell, v linkView) {
 				}
 				if !v.Deleted {
 					@ui.Area(i18n.T(ctx, "links.area.actions"), "") {
-						@actionRow(ui.Action{
-							ID: "links.regenerate", Label: "links.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate", Small: true,
-							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
-						}, i18n.T(ctx, "links.regenerate.what"))
-						if v.CanCutOff {
-							@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, i18n.T(ctx, "cutoff.action.what"))
-						}
-						@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
-						@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
-						@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
-						@actionRow(ui.Action{
-							ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger,
-							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.delete.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.delete.body")},
-						}, i18n.T(ctx, "links.delete.what"))
+						<div class="act-rows">
+							@actionRow(ui.Action{
+								ID: "links.regenerate", Label: "links.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate", Small: true,
+								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
+							}, i18n.T(ctx, "links.regenerate.what"))
+							if v.CanCutOff {
+								@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, i18n.T(ctx, "cutoff.action.what"))
+							}
+							@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
+							@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
+							@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
+							@actionRow(ui.Action{
+								ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger,
+								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.delete.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.delete.body")},
+							}, i18n.T(ctx, "links.delete.what"))
+						</div>
 					}
 				}
 				@ui.Area(i18n.T(ctx, "links.area.activity"), "") {
@@ -195,9 +197,9 @@ templ actionRow(a ui.Action, what string) {
 templ urlField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="link-url">
 		if revealed {
-			<code>{ full }</code>
+			<code>@ui.URLText(full)</code>
 		} else {
-			<code class="masked">{ masked }</code>
+			<code class="masked">@ui.URLText(masked)</code>
 		}
 		<span class="url-btns">
 			if revealed {

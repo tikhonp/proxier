@@ -212,19 +212,21 @@ templ scriptPage(s ui.Shell, v scriptView) {
 			</div>
 		</div>
 		@ui.Area(i18n.T(ctx, "scripts.area.actions"), "") {
-			@actionRow(ui.Action{ID: "rs.details", Label: "scripts.details", Method: "GET", Href: ScriptHref(v.S.ID) + "/details", Small: true}, i18n.T(ctx, "scripts.details.what"))
-			if v.Draft && v.S.Current > 0 {
-				@actionRow(ui.Action{
-					ID: "rs.discard", Label: "scripts.discard", Method: "POST", Href: ScriptHref(v.S.ID) + "/draft/discard", Small: true,
-					Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "scripts.discard.title"), Body: i18n.T(ctx, "scripts.discard.body", i18n.Args{"version": strconv.Itoa(v.S.Current)})},
-				}, i18n.T(ctx, "scripts.discard.what"))
-			}
-			if v.S.Archived {
-				@actionRow(ui.Action{ID: "rs.unarchive", Label: "scripts.unarchive", Method: "POST", Href: ScriptHref(v.S.ID) + "/unarchive", Small: true}, i18n.T(ctx, "scripts.unarchive.what"))
-			} else {
-				@actionRow(ui.Action{ID: "rs.archive", Label: "scripts.archive", Method: "POST", Href: ScriptHref(v.S.ID) + "/archive", Small: true}, i18n.T(ctx, "scripts.archive.what"))
-			}
-			@actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger}, i18n.T(ctx, "scripts.delete.what"))
+			<div class="act-rows">
+				@actionRow(ui.Action{ID: "rs.details", Label: "scripts.details", Method: "GET", Href: ScriptHref(v.S.ID) + "/details", Small: true}, i18n.T(ctx, "scripts.details.what"))
+				if v.Draft && v.S.Current > 0 {
+					@actionRow(ui.Action{
+						ID: "rs.discard", Label: "scripts.discard", Method: "POST", Href: ScriptHref(v.S.ID) + "/draft/discard", Small: true,
+						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "scripts.discard.title"), Body: i18n.T(ctx, "scripts.discard.body", i18n.Args{"version": strconv.Itoa(v.S.Current)})},
+					}, i18n.T(ctx, "scripts.discard.what"))
+				}
+				if v.S.Archived {
+					@actionRow(ui.Action{ID: "rs.unarchive", Label: "scripts.unarchive", Method: "POST", Href: ScriptHref(v.S.ID) + "/unarchive", Small: true}, i18n.T(ctx, "scripts.unarchive.what"))
+				} else {
+					@actionRow(ui.Action{ID: "rs.archive", Label: "scripts.archive", Method: "POST", Href: ScriptHref(v.S.ID) + "/archive", Small: true}, i18n.T(ctx, "scripts.archive.what"))
+				}
+				@actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger}, i18n.T(ctx, "scripts.delete.what"))
+			</div>
 		}
 		@ui.Area(i18n.T(ctx, "scripts.area.activity"), "") {
 			if len(v.Activity) == 0 {

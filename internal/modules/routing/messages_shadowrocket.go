@@ -68,7 +68,7 @@ var shadowrocketMessages = i18n.Messages{
 	"shadowrocket.reveal":            {EN: "Reveal the URL", RU: "Показать URL"},
 	"shadowrocket.copy":              {EN: "Copy the URL", RU: "Копировать URL"},
 	"shadowrocket.qr":                {EN: "Show the QR code", RU: "Показать QR-код"},
-	"shadowrocket.qr.show":           {EN: "QR", RU: "QR"},
+	"shadowrocket.qr.show":           {EN: "Show QR", RU: "Показать QR"},
 	"shadowrocket.qr.hide":           {EN: "Hide QR", RU: "Скрыть QR"},
 	"shadowrocket.qr.label":          {EN: "QR code of {name}'s URL", RU: "QR-код URL конфига {name}"},
 	"shadowrocket.area.preview":      {EN: "What the phone gets", RU: "Что получает телефон"},

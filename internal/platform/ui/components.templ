@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"io"
+	"strings"
 	"time"
 
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -180,6 +183,36 @@ templ Alert(kind, role string) {
 	<div class={ "alert", kind } role={ role }>
 		{ children... }
 	</div>
+}
+
+// URLText is a URL that may break only after a slash: a long one wraps
+// between its parts (…/r/ | token/ | iphone.conf), never inside a word, as
+// word-break: break-all did ("…/sha" | "dowrocket.conf"). A part wider than
+// the line still breaks where it must (.urlfield code: overflow-wrap: anywhere).
+// Written by hand: templ puts a space after a <wbr> in a loop.
+func URLText(u string) templ.Component {
+	return templ.ComponentFunc(func(_ context.Context, w io.Writer) error {
+		parts := urlParts(u)
+		for i := range parts {
+			parts[i] = templ.EscapeString(parts[i])
+		}
+		_, err := io.WriteString(w, strings.Join(parts, "<wbr>"))
+		return err
+	})
+}
+
+// urlParts splits after each slash that isn't followed by another, so the
+// scheme's "//" stays whole.
+func urlParts(u string) []string {
+	var parts []string
+	start := 0
+	for i := 0; i < len(u)-1; i++ {
+		if u[i] == '/' && u[i+1] != '/' {
+			parts = append(parts, u[start:i+1])
+			start = i + 1
+		}
+	}
+	return append(parts, u[start:])
 }
 
 func num(n int) string { return fmt.Sprint(n) }

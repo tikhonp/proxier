@@ -179,9 +179,9 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 templ srURLField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="sr-url">
 		if revealed {
-			<code>{ full }</code>
+			<code>@ui.URLText(full)</code>
 		} else {
-			<code class="masked">{ masked }</code>
+			<code class="masked">@ui.URLText(masked)</code>
 		}
 		<span class="url-btns">
 			if revealed {
@@ -205,8 +205,10 @@ templ srQRSlot(id int64, name, url string, shown bool) {
 	</div>
 }
 
-// srPage: the URL first (a phone shows it first), then what the phone gets,
-// versions, fetches, actions and activity.
+// srPage: the URL first, across the page (a phone shows it first), then what
+// the phone gets beside versions, fetches, actions and activity. The preview
+// grows with the page rather than scrolling in a box of its own, so the page
+// has one scrollbar; its download sits in its title band, not at its end.
 templ srPage(s ui.Shell, v srView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -230,39 +232,46 @@ templ srPage(s ui.Shell, v srView) {
 				{ v.Band }
 			}
 		}
-		<div class="subcols">
+		@ui.Area(i18n.T(ctx, "shadowrocket.area.url"), "") {
+			<div class="area-body stacked">
+				@srURLField(v.C.ID, v.URL, v.Masked, false)
+				@srQRSlot(v.C.ID, v.C.Name, "", false)
+				<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.url.note") }</p>
+			</div>
+		}
+		<div class="subcols sr-cols">
 			<div class="col-l">
-				@ui.Area(i18n.T(ctx, "shadowrocket.area.url"), "") {
-					<div class="area-body stacked">
-						@srURLField(v.C.ID, v.URL, v.Masked, false)
-						@srQRSlot(v.C.ID, v.C.Name, "", false)
-						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.url.note") }</p>
+				<section class="area" aria-label={ i18n.T(ctx, "shadowrocket.area.preview") }>
+					<div class="pc-title">
+						<h2>{ i18n.T(ctx, "shadowrocket.area.preview") }</h2>
+						<span class="note">{ i18n.T(ctx, "shadowrocket.area.preview.note") }</span>
+						<span class="flex1"></span>
+						<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/output") } download data-action="shadowrocket.download">{ i18n.T(ctx, "shadowrocket.download", i18n.Args{"file": v.C.File()}) }</a>
 					</div>
-				}
-				@ui.Area(i18n.T(ctx, "shadowrocket.area.preview"), i18n.T(ctx, "shadowrocket.area.preview.note")) {
 					<div class="sr-preview">
 						for _, l := range v.Preview {
 							<div class={ "sr-line", templ.KV("sr-ours", l.Ours) }><span class="ln">{ l.N }</span><span class="tx">{ l.Text }</span></div>
 						}
 					</div>
-					<p class="area-body"><a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/output") } download data-action="shadowrocket.download">{ i18n.T(ctx, "shadowrocket.download", i18n.Args{"file": v.C.File()}) }</a></p>
-				}
+				</section>
 			</div>
 			<div class="col-r">
 				@ui.Area(i18n.T(ctx, "shadowrocket.area.versions"), "") {
 					for _, ver := range v.Versions {
 						<div class="row srver">
-							<span class="bold">v{ strconv.Itoa(ver.Number) }</span>
+							<span class="bold">
+								v{ strconv.Itoa(ver.Number) }
+								if ver.Current {
+									<span class="pine normal">· { i18n.T(ctx, "shadowrocket.version.current") }</span>
+								}
+							</span>
 							<span class="col">
 								<span class="sm subtle">{ ver.Time }</span>
 								if ver.Note != "" {
-									<span class="sm">{ ver.Note }</span>
+									<span class="sm cut" title={ ver.Note }>{ ver.Note }</span>
 								}
 							</span>
 							<span class="sr-acts">
-								if ver.Current {
-									<span class="sm pine">{ i18n.T(ctx, "shadowrocket.version.current") }</span>
-								}
 								<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number)) }>{ i18n.T(ctx, "shadowrocket.version.view") }</a>
 								if ver.Prev {
 									<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number) + "/diff") }>{ i18n.T(ctx, "shadowrocket.version.diff") }</a>
@@ -284,9 +293,11 @@ templ srPage(s ui.Shell, v srView) {
 					}
 					for _, f := range v.Fetches {
 						<div class="row srfetch">
-							<span class="subtle">{ f.Time }</span>
-							<span>{ f.IP }</span>
-							<span class="ua">{ f.UA }</span>
+							<span class="subtle cut">{ f.Time }</span>
+							<span class="cut" title={ f.IP }>{ f.IP }</span>
+							if f.UA != "" {
+								<span class="ua subtle cut" title={ f.UA }>{ f.UA }</span>
+							}
 						</div>
 					}
 					if v.OlderHref != "" {
@@ -294,23 +305,25 @@ templ srPage(s ui.Shell, v srView) {
 					}
 				}
 				@ui.Area(i18n.T(ctx, "shadowrocket.area.actions"), "") {
-					@actionRow(ui.Action{ID: "shadowrocket.edit", Label: "shadowrocket.edit", Method: "GET", Href: srHref(v.C.ID) + "/edit", Small: true}, i18n.T(ctx, "shadowrocket.edit.what"))
-					@actionRow(ui.Action{
-						ID: "shadowrocket.regenerate", Label: "shadowrocket.regenerate", Method: "POST", Href: srHref(v.C.ID) + "/token", Small: true,
-						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.regenerate.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.regenerate.body")},
-					}, i18n.T(ctx, "shadowrocket.regenerate.what"))
-					if v.C.Enabled {
+					<div class="act-rows">
+						@actionRow(ui.Action{ID: "shadowrocket.edit", Label: "shadowrocket.edit", Method: "GET", Href: srHref(v.C.ID) + "/edit", Small: true}, i18n.T(ctx, "shadowrocket.edit.what"))
 						@actionRow(ui.Action{
-							ID: "shadowrocket.disable", Label: "shadowrocket.disable", Method: "POST", Href: srHref(v.C.ID) + "/disable", Small: true,
-							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.disable.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.disable.body")},
-						}, i18n.T(ctx, "shadowrocket.disable.what"))
-					} else {
-						@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
-					}
-					@actionRow(ui.Action{
-						ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
-						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
-					}, i18n.T(ctx, "shadowrocket.delete.what"))
+							ID: "shadowrocket.regenerate", Label: "shadowrocket.regenerate", Method: "POST", Href: srHref(v.C.ID) + "/token", Small: true,
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.regenerate.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.regenerate.body")},
+						}, i18n.T(ctx, "shadowrocket.regenerate.what"))
+						if v.C.Enabled {
+							@actionRow(ui.Action{
+								ID: "shadowrocket.disable", Label: "shadowrocket.disable", Method: "POST", Href: srHref(v.C.ID) + "/disable", Small: true,
+								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.disable.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.disable.body")},
+							}, i18n.T(ctx, "shadowrocket.disable.what"))
+						} else {
+							@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
+						}
+						@actionRow(ui.Action{
+							ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
+							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
+						}, i18n.T(ctx, "shadowrocket.delete.what"))
+					</div>
 				}
 				@ui.Area(i18n.T(ctx, "shadowrocket.area.activity"), "") {
 					if len(v.Activity) == 0 {

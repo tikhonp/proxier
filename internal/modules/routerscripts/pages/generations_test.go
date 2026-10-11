@@ -322,7 +322,7 @@ func TestFetchURLArea(t *testing.T) {
 	}
 	checkNoInline(t, "fetch area", page)
 	reveal := h.Login.Get("/router-scripts/generations/1/fetch-url/reveal").Body.String()
-	contains(t, "reveal", reveal, "<code>http://proxier.test/f/"+token+"</code>", "Hide", `fetch-url/reveal?hide=1`,
+	contains(t, "reveal", reveal, "<code>http://<wbr>proxier.test/<wbr>f/<wbr>"+token+"</code>", "Hide", `fetch-url/reveal?hide=1`,
 		`/tool fetch url="http://proxier.test/f/`+token+`" dst-path=fresh-router.rsc`)
 	if strings.Contains(reveal, "<html") {
 		t.Error("the reveal is a whole page")
@@ -330,7 +330,7 @@ func TestFetchURLArea(t *testing.T) {
 	// Reveal (or Hide) and Copy wrap together, never one of them alone under
 	// the URL (the URL field's rhythm is TestLinkPartsAreSpaced's)
 	for name, body := range map[string]string{"masked": page, "revealed": reveal} {
-		if !regexp.MustCompile(`<div class="urlfield">\s*<code[^>]*>[^<]+</code>\s*<span class="url-btns"><button [^>]*>(Reveal|Hide)</button>\s*<button [^>]*>Copy</button></span>\s*</div>`).MatchString(body) {
+		if !regexp.MustCompile(`<div class="urlfield">\s*<code[^>]*>(?:[^<]|<wbr>)+</code>\s*<span class="url-btns"><button [^>]*>(Reveal|Hide)</button>\s*<button [^>]*>Copy</button></span>\s*</div>`).MatchString(body) {
 			t.Errorf("%s: the URL's buttons aren't together", name)
 		}
 	}

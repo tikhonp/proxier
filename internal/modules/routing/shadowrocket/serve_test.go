@@ -154,7 +154,7 @@ func TestTokenStaysOnItsPage(t *testing.T) {
 		t.Errorf("search: %+v", hits)
 	}
 	// the config page holds it (Copy), masked in sight
-	if body := h.Login.Get("/routing/shadowrocket/1").Body.String(); !strings.Contains(body, cur) || !strings.Contains(body, "/r/••••••••••••••••/iphone.conf") {
+	if body := h.Login.Get("/routing/shadowrocket/1").Body.String(); !strings.Contains(body, cur) || !strings.Contains(body, "r/<wbr>••••••••••••••••/<wbr>iphone.conf") {
 		t.Error("the config page lacks the URL or its masked form")
 	}
 }

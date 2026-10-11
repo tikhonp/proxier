@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
@@ -710,5 +711,153 @@ func TestCodeEditorsFillTheWindow(t *testing.T) {
 	}
 	if n < 3 {
 		t.Fatalf("only %d code editors found", n)
+	}
+}
+
+// The Shadowrocket config page (issue 016): the URL breaks only after a
+// slash; what the phone gets grows with the page instead of scrolling in a
+// box of its own (two scrollbars, its end under the key line) and indents a
+// wrapped line's continuation; a version's buttons keep 8 px; a fetch is one
+// line; an action's button column fits its longest button.
+func TestShadowrocketPageHoldsUp(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		`.urlfield code { font-family: inherit; overflow-wrap: anywhere; }`,
+		`.subcols.sr-cols { grid-template-columns: minmax(0, 1.3fr) minmax(540px, 1fr); }`,
+		`.sr-preview { background: var(--black); padding: 8px 0; font-size: var(--fs-sm); }`,
+		`.sr-line .tx { white-space: pre-wrap; word-break: break-all; padding-left: 4ch; text-indent: -4ch; color: var(--subtle); }`,
+		`.row.srver { grid-template-columns: 110px minmax(0, 1fr) auto;`,
+		`.sr-acts { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }`,
+		`.row.srfetch { grid-template-columns: 120px 130px minmax(0, 1fr); gap: 12px; font-size: var(--fs-sm); }`,
+		`.row.act { grid-template-columns: minmax(190px, max-content) minmax(0, 1fr); }`,
+		`.act-rows > .row.act { grid-column: 1 / -1; grid-template-columns: subgrid; }`,
+		`.pc-title > .pc-btn:last-child { margin-left: auto; }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	for what, bad := range map[string]*regexp.Regexp{
+		"the URL breaks inside a word":         regexp.MustCompile(`\.urlfield code \{[^}]*break-all`),
+		"the preview scrolls in its own box":   regexp.MustCompile(`\.sr-preview \{[^}]*(max-height|overflow)`),
+		"an action's button column is fixed":   regexp.MustCompile(`\.row\.act \{ grid-template-columns: \d+px`),
+		"a fetch's cells wrap":                 regexp.MustCompile(`\.row\.srfetch > span \{[^}]*overflow-wrap`),
+		"a version's buttons touch each other": regexp.MustCompile(`\.sr-acts \{[^}]*gap: [0-4]px`),
+	} {
+		if bad.MatchString(css) {
+			t.Error(what)
+		}
+	}
+	// stacked below 1270 px, versions, fetches and actions come before a
+	// preview that may run thousands of lines; a phone puts a fetch's user
+	// agent under its time and address, and its action rows in one column
+	stacked := regexp.MustCompile(`(?s)@media \(max-width: 1270px\) \{\s*\.subcols\.sr-cols \{ grid-template-columns: minmax\(0, 1fr\); \}.*?\n\}`).FindString(css)
+	if !strings.Contains(stacked, `.sr-cols > .col-r { order: -1; }`) {
+		t.Errorf("stacked, the preview comes first: %q", stacked)
+	}
+	if strings.Index(css, `@media (max-width: 1270px) {
+  .subcols.sr-cols`) < strings.Index(css, `.subcols.sr-cols { grid-template-columns: minmax(0, 1.3fr)`) {
+		t.Error("the 1270 px block comes before the rules it overrides")
+	}
+	phone := regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{\s*\.colhead\.srcfg.*?\n\}`).FindString(css)
+	if !strings.Contains(phone, `.row.srfetch { grid-template-columns: 120px minmax(0, 1fr); gap: 4px 12px; }`) || !strings.Contains(phone, `.row.srfetch .ua { grid-column: 1 / -1; }`) {
+		t.Errorf("a phone's fetch: %q", phone)
+	}
+	if !regexp.MustCompile(`(?s)@media \(max-width: 760px\) \{[^@]*\.row\.act, \.row\.sublink \{[^}]*\}\s*\.act-rows \{ display: block; \}\s*\.act-rows > \.row\.act \{ grid-template-columns: minmax\(0, 1fr\); \}`).MatchString(css) {
+		t.Error("on a phone the shared button column stays")
+	}
+}
+
+// URLText lets a URL break only after a slash, never inside the scheme's
+// "//", and escapes its parts.
+func TestURLTextBreaksOnlyAfterSlashes(t *testing.T) {
+	for in, want := range map[string]string{
+		"https://proxier.example/r/tok-en_1/iphone.conf": "https://<wbr>proxier.example/<wbr>r/<wbr>tok-en_1/<wbr>iphone.conf",
+		"http://proxier.test/s/••••":                     "http://<wbr>proxier.test/<wbr>s/<wbr>••••",
+		"https://h/a&b<c>/":                              "https://<wbr>h/<wbr>a&amp;b&lt;c&gt;/",
+		"":                                               "",
+	} {
+		var b strings.Builder
+		if err := ui.URLText(in).Render(t.Context(), &b); err != nil {
+			t.Fatal(err)
+		}
+		if b.String() != want {
+			t.Errorf("%q: %q, want %q", in, b.String(), want)
+		}
+	}
+}
+
+// Content never hides behind the key line: it is sticky at the bottom and in
+// the flow after the page column, so at the end of every page it sits under
+// the content, never over it (a fixed key line would cover the page's end).
+func TestKeyLineNeverCoversThePageEnd(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "css/tokens.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tokens := string(b)
+	if !strings.Contains(tokens, `.pc-keys { position: sticky; bottom: 0;`) {
+		t.Error("the key line isn't sticky at the bottom")
+	}
+	all := tokens + appCSS(t)
+	if regexp.MustCompile(`(\.pc-keys|#keyline|\.keyline)[^{]*\{[^}]*position: fixed`).MatchString(all) {
+		t.Error("the key line is fixed over the page")
+	}
+	var page strings.Builder
+	cat := i18n.NewCatalog()
+	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))
+	if err := ui.Layout(ui.Shell{Title: "t", Lang: i18n.EN}).Render(ctx, &page); err != nil {
+		t.Fatal(err)
+	}
+	if !regexp.MustCompile(`(?s)<div class="app" id="app">.*<div class="body">.*<main class="main" id="main">.*</main>\s*</div>\s*<footer class="pc-keys" id="keyline">`).MatchString(page.String()) {
+		t.Error("the key line isn't in the flow right after the page column")
+	}
+}
+
+// Every action row in the templates sits in .act-rows, so the rows of an
+// Actions area share one button column as wide as their longest button.
+func TestActionRowsShareAButtonColumn(t *testing.T) {
+	actRows := regexp.MustCompile(`class="act-rows"`)
+	n := 0
+	err := filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		lines := strings.Split(string(b), "\n")
+		for i, l := range lines {
+			// an action row: a call of a page's actionRow, or one written out
+			// (actionRow's own body, right under its templ line, is neither)
+			call := strings.HasPrefix(strings.TrimSpace(l), "@actionRow(")
+			literal := strings.Contains(l, `<div class="row act">`) && !strings.HasPrefix(lines[max(i-1, 0)], "templ actionRow(")
+			if !call && !literal {
+				continue
+			}
+			n++
+			indent := func(s string) int { return len(s) - len(strings.TrimLeft(s, "\t")) }
+			inside := false
+			for j := i - 1; j >= 0 && !strings.HasPrefix(lines[j], "templ "); j-- {
+				if actRows.MatchString(lines[j]) && indent(lines[j]) < indent(l) {
+					inside = true
+					break
+				}
+				if strings.Contains(lines[j], "@ui.Area(") {
+					break
+				}
+			}
+			if !inside {
+				t.Errorf("%s:%d: an action row outside .act-rows", p, i+1)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n < 10 {
+		t.Fatalf("only %d action rows found", n)
 	}
 }
