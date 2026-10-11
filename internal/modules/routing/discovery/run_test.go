@@ -172,10 +172,10 @@ func TestWithoutChromium(t *testing.T) {
 		t.Fatalf("run: %+v", r)
 	}
 	body := h.Login.Get(fmt.Sprintf("/routing/discover/%d", r.ID)).Body.String()
-	if !strings.Contains(body, "Chromium is not configured, so only the catalog lookup ran") || !strings.Contains(body, "v2fly:anthropic") {
+	if !strings.Contains(body, "Chromium is not set up, so only the catalog lookup ran") || !strings.Contains(body, "v2fly:anthropic") {
 		t.Error("the page doesn't explain")
 	}
-	if form := h.Login.Get("/routing/discover").Body.String(); !strings.Contains(form, "not configured: set PROXIER_CHROMIUM_URL") {
+	if form := h.Login.Get("/routing/discover").Body.String(); !strings.Contains(form, "not set up: Proxier&#39;s deployment has no Chromium container") || strings.Contains(form, "PROXIER_") {
 		t.Error("the form doesn't say Chromium isn't configured")
 	}
 }

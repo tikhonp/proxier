@@ -55,7 +55,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 - The browser never signs in, never fills forms and never accepts cookie banners. It sees what an anonymous visitor sees. Logged-in app pages are out of reach in the first version (HAR import is in the backlog).
 - Each run uses its own browser context, so nothing carries over between runs.
 - A visit through a server goes out from that server's IP, as a client of its endpoint would. A direct visit goes out from home.
-- Without Chromium configured, a run is the catalog lookup only, and the page explains how to enable visits.
+- Without Chromium configured, a run is the catalog lookup only, and the page explains that visits need a Chromium container where Proxier is deployed, in words, without an environment variable's name (the admin may be on a phone, far from the deployment).
 - Runs and their screenshots are kept 30 days.
 - One run at a time (queue concurrency 1). Others wait in the queue.
 

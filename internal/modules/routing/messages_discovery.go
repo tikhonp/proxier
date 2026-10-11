@@ -11,9 +11,9 @@ var discoveryMessages = i18n.Messages{
 	"discovery.integration":             {EN: "Chromium (discovery)", RU: "Chromium (поиск доменов)"},
 	"discovery.chromium_line":           {EN: "Chromium: {state}", RU: "Chromium: {state}"},
 	"discovery.chromium.connected":      {EN: "connected · {detail}", RU: "подключён · {detail}"},
-	"discovery.chromium.not_configured": {EN: "not configured: set PROXIER_CHROMIUM_URL", RU: "не настроен: задайте PROXIER_CHROMIUM_URL"},
+	"discovery.chromium.not_configured": {EN: "not set up: Proxier's deployment has no Chromium container", RU: "не настроен: в развёртывании Proxier нет контейнера Chromium"},
 	"discovery.chromium.unreachable":    {EN: "unreachable: {detail}", RU: "недоступен: {detail}"},
-	"discovery.no_browser":              {EN: "Chromium is not configured, so only the catalog lookup ran. Set PROXIER_CHROMIUM_URL to the Chromium sidecar (docs/deployment.md) to visit sites.", RU: "Chromium не настроен, поэтому был только поиск по каталогу. Чтобы открывать сайты, задайте PROXIER_CHROMIUM_URL — адрес контейнера Chromium (docs/deployment.md)."},
+	"discovery.no_browser":              {EN: "Chromium is not set up, so only the catalog lookup ran. Visiting sites needs a Chromium container next to Proxier, added where Proxier is deployed.", RU: "Chromium не настроен, поэтому был только поиск по каталогу. Чтобы открывать сайты, рядом с Proxier нужен контейнер Chromium: он добавляется там, где Proxier развёрнут."},
 
 	"discovery.field.website":   {EN: "Website", RU: "Сайт"},
 	"discovery.field.via":       {EN: "Visit through", RU: "Открыть через"},

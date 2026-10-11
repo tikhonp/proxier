@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -301,5 +302,70 @@ func TestOwnershipOnServicePages(t *testing.T) {
 	body = h.Login.Get("/routing/services?list=2").Body.String()
 	if !strings.Contains(body, ">openai<") || strings.Contains(body, ">anthropic<") {
 		t.Error("the list filter")
+	}
+}
+
+// Activity said "Changed routing list Main" whatever changed, and "Created
+// routing list Spare" then "Spare" again as the link after the sentence. A
+// list's change is worded by what changed, and a sentence that names the list
+// links that name instead of repeating it.
+func TestListEventsInActivity(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	yt := h.Custom("youtube", "youtube.com")
+	id, err := h.Mod.Lists.Create(ctx, "Spare", "", "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Mod.Lists.Add(ctx, id, []int64{yt}, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Mod.Lists.Remove(ctx, id, yt, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Mod.Lists.Edit(ctx, id, "Spare", "for trips", "admin"); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Mod.Lists.MakeDefault(ctx, id, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	body := strings.Join(strings.Fields(h.Login.Get("/activity?module=routing").Body.String()), " ")
+	link := fmt.Sprintf(`<a href="/routing/lists/%d" class="text">Spare</a>`, id)
+	for _, want := range []string{
+		"Created routing list " + link + " </span>",
+		"Added youtube to routing list " + link + " </span>",
+		"Took youtube out of routing list " + link + " </span>",
+		"Changed the description of routing list " + link + " </span>",
+		"Made routing list " + link + " the default</span>",
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("activity lacks %q", want)
+		}
+	}
+	if strings.Contains(body, "Changed routing list") || strings.Contains(body, "Spare "+link) || strings.Contains(body, link+" "+link) {
+		t.Errorf("a vague or doubled line")
+	}
+}
+
+// From the phone test: Add services said "custom" twice for each custom
+// service (its selector line and its source cell), and the Lists page's counts
+// read "0 0" on a phone, whose column heads are hidden: they carry their words
+// there.
+func TestListPagesSayThingsOnce(t *testing.T) {
+	h := routingtest.New(t)
+	h.Custom("mine", "example.com")
+	body := strings.Join(strings.Fields(h.Login.Get("/routing/lists/1/add").Body.String()), " ")
+	row := regexp.MustCompile(`<label class="row pick">.*?</label>`).FindString(body)
+	if row == "" || strings.Count(row, ">custom<") != 1 || !strings.Contains(row, ">1 domain<") {
+		t.Errorf("the custom row: %s", row)
+	}
+	if !strings.Contains(body, `placeholder="Tag or selector"`) {
+		t.Error("the filter's placeholder is cut on a phone")
+	}
+	lists := h.Login.Get("/routing/lists").Body.String()
+	for _, want := range []string{`<span class="pc-hide-s">0</span><span class="pc-show-s">0 services</span>`, `<span class="pc-show-s">0 domains</span>`} {
+		if !strings.Contains(lists, want) {
+			t.Errorf("the Lists page lacks %q", want)
+		}
 	}
 }

@@ -35,6 +35,14 @@ func TestActivitySentences(t *testing.T) {
 	if !strings.Contains(body, "job #7") {
 		t.Fatalf("job actor:\n%s", body)
 	}
+
+	// the sign-in's subject is in its sentence, which has a verb in Russian
+	// too, not "Вход с адреса ::1 администратор"
+	record(t, s, "auth.signed_in", events.Subject{Type: "admin", ID: "1"}, "admin", map[string]any{"ip": "::1"})
+	body = strings.Join(strings.Fields(l.Get("/activity").Body.String()), " ")
+	if !strings.Contains(body, "Signed in as") || !strings.Contains(body, `class="text">the admin</a> from ::1`) {
+		t.Errorf("sign-in:\n%s", body)
+	}
 }
 
 func TestActivityFilters(t *testing.T) {

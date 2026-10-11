@@ -307,3 +307,20 @@ func (s *Service) Size(ctx context.Context, id int64) (int, error) {
 	ms, err := store.Members(ctx, s.d.DB.R, id)
 	return len(ms), err
 }
+
+// Change names what a routing.list_updated event changed, by its payload:
+// added, removed, reordered, default or fields (its name or description).
+// The list page and Activity word each one on its own.
+func Change(p map[string]any) string {
+	switch {
+	case p["added"] != nil:
+		return "added"
+	case p["removed"] != nil:
+		return "removed"
+	case p["reordered"] == true:
+		return "reordered"
+	case p["changes"] == "default":
+		return "default"
+	}
+	return "fields"
+}

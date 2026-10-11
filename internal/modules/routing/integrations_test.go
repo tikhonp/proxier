@@ -16,7 +16,7 @@ import (
 func TestChromiumIntegrationRow(t *testing.T) {
 	h := routingtest.New(t)
 	ctx := i18n.WithLocalizer(context.Background(), h.App.I18n.Localizer(i18n.EN, time.UTC))
-	if rows := h.Mod.Integrations(ctx); len(rows) != 1 || rows[0].On || rows[0].State != "not configured: set PROXIER_CHROMIUM_URL" ||
+	if rows := h.Mod.Integrations(ctx); len(rows) != 1 || rows[0].On || rows[0].State != "not set up: Proxier's deployment has no Chromium container" ||
 		rows[0].Name != "Chromium (discovery)" || rows[0].Href != "/routing/discover" {
 		t.Fatalf("not configured: %+v", rows)
 	}

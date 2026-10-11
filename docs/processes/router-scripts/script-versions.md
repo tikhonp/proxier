@@ -12,7 +12,7 @@
    - **errors** block publishing: duplicate parameter names in the PARAMETERS block, or an annotation that is malformed or unknown;
    - **warnings** need a confirmation:
      - no PARAMETERS block at all (the script is still versioned and downloadable, with nothing to fill in);
-     - a PARAMETERS block without `# END PARAMETERS`, with the last detected parameters listed so you can see where it stopped;
+     - a PARAMETERS block without `# END PARAMETERS`, with the last detected parameters listed so you can see where it stopped (or, when it has no `:local` line, saying so);
      - a parameter that was in the version the draft is based on has disappeared ("vethName was in v3 and is gone here").
 
    **Publish vN…** saves the editor first, then opens the publish page: the errors with their lines, then the warnings, the notes, a tick "Publish with these warnings" when there are any, and what happens. On success the draft becomes version N+1 and the **current** version, the confirmed warnings are kept with it, and the first publish fixes the slug. → `routerscript.version_published{version, parameters, warnings}`
@@ -64,6 +64,7 @@ Given this excerpt of today's script:
 ## Edge cases (each is a test)
 
 - Upload today's `fresh-router.rsc` (no end marker) → a warning on publish. The block runs into the PRECHECK section: `minVer` is detected as a parameter, and `ver` and `v` as computed values.
+- A `# PARAMETERS` line followed only by a comment, with no end marker → a warning that the block has no `:local` line, not an empty list of last values ("…are .").
 - The same file with `# END PARAMETERS` added after `dohForwarder` → no warning, 18 parameters and `vpnGateway` computed, with descriptions from the comments above each `:local`.
 - `:local containerIface "container"` under the sub-heading comment `# interface names` → only the comment line directly above `lanIface` is a description. `containerIface` has none.
 - Two `:local lanNet …` lines in the block → publishing refused, "duplicate parameter lanNet".

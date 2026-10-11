@@ -115,19 +115,25 @@ func (h *handler) activityPage(c *echo.Context) error {
 			args[k] = val
 		}
 		key := "event." + e.Type
+		if t, ok := h.Events.Lookup(e.Type); ok && t.Variant != nil && loc.Has(key+"."+t.Variant(e.Payload)) {
+			key += "." + t.Variant(e.Payload)
+		}
 		text := e.Type
 		if loc.Has(key) {
 			text = loc.T(key, args)
 		}
-		if pre, post, ok := strings.Cut(text, sentinel); ok && e.Subject.Type != "" {
+		switch pre, post, ok := strings.Cut(text, sentinel); {
+		case ok && e.Subject.Type != "":
 			row.Pre, row.Post, row.Subject = pre, post, ref
-		} else {
+		case e.Subject.Type != "" && ref.Label != "" && strings.Contains(text, ref.Label):
+			// the sentence names it already ("Created router script {name}"):
+			// that name is the link, not a second copy after the sentence
+			pre, post, _ := strings.Cut(text, ref.Label)
+			row.Pre, row.Post, row.Subject = pre, post, ref
+		case e.Subject.Type != "" && ref.Label != "":
+			row.Pre, row.Subject = text+" ", ref
+		default:
 			row.Plain = strings.ReplaceAll(text, sentinel, ref.Label)
-			if e.Subject.Type != "" && ref.Label != "" {
-				row.Subject = ref
-				row.Pre = row.Plain + " "
-				row.Plain = ""
-			}
 		}
 		cur.Rows = append(cur.Rows, row)
 	}

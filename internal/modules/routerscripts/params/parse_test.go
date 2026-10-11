@@ -180,6 +180,11 @@ func TestBlockLines(t *testing.T) {
 	if s.Ended || s.End != 5 || len(s.Params) != 2 || keys(s.Findings) != "5:warning:params.warn.no_end" {
 		t.Errorf("to the end: %d %s", s.End, keys(s.Findings))
 	}
+	// ...with no :local in it, there are no last values to name
+	s = params.Parse([]byte("# PARAMETERS\n# a comment\n"))
+	if s.Ended || len(s.Params) != 0 || keys(s.Findings) != "2:warning:params.warn.no_end_empty" {
+		t.Errorf("empty to the end: %d %s", s.End, keys(s.Findings))
+	}
 }
 
 func TestGoneParameter(t *testing.T) {

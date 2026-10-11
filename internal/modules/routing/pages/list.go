@@ -171,7 +171,7 @@ func (h *handler) listActivity(ctx context.Context, l lists.List) ([]eventLine, 
 		}
 		key := "event." + e.Type
 		if e.Type == "routing.list_updated" {
-			key = "lists.event." + listChange(e.Payload)
+			key = "lists.event." + lists.Change(e.Payload)
 		}
 		text := e.Type
 		if loc.Has(key) {
@@ -180,21 +180,6 @@ func (h *handler) listActivity(ctx context.Context, l lists.List) ([]eventLine, 
 		out = append(out, eventLine{Time: loc.Ago(e.Time.Time), Text: text})
 	}
 	return out, nil
-}
-
-// listChange picks the wording of a list_updated line.
-func listChange(p map[string]any) string {
-	switch {
-	case p["added"] != nil:
-		return "added"
-	case p["removed"] != nil:
-		return "removed"
-	case p["reordered"] == true:
-		return "reordered"
-	case p["changes"] == "default":
-		return "default"
-	}
-	return "fields"
 }
 
 // answerMembers re-renders the Services area for htmx and redirects to the

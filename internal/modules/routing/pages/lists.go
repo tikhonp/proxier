@@ -104,8 +104,10 @@ type listsRow struct {
 	Name, Sub         string
 	Default           bool
 	Services, Domains string
-	Targets           []targetView
-	Warn              string
+	// the counts with their words, for a phone, where the column heads are hidden ("0 0")
+	ServicesN, DomainsN string
+	Targets             []targetView
+	Warn                string
 }
 
 type listsView struct {
@@ -129,6 +131,7 @@ func (h *handler) lists(c *echo.Context) error {
 		lr := listsRow{
 			ID: r.ID, Name: r.Name, Sub: r.Description, Default: r.Default,
 			Services: loc.Number(int64(r.Services)), Domains: loc.Number(int64(r.Domains)), Targets: ts,
+			ServicesN: loc.N("lists.services_n", int64(r.Services)), DomainsN: loc.N("lists.domains_n", int64(r.Domains)),
 		}
 		if r.Default {
 			lr.Sub = i18n.T(ctx, "lists.default_line")
@@ -252,7 +255,7 @@ func (h *handler) addToListView(ctx context.Context, l lists.List, q string, che
 		}
 		v.Rows = append(v.Rows, pickRow{
 			ID: r.ID, Tag: r.Tag, Selector: sourceWord(ctx, r.Item), Source: string(r.Source),
-			Domains: loc.Number(int64(r.Count)), Checked: checked[r.ID],
+			Domains: loc.N("lists.domains_n", int64(r.Count)), Checked: checked[r.ID],
 		})
 	}
 	return v, nil
