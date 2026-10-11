@@ -280,8 +280,11 @@ templ diffPage(s ui.Shell, v diffView) {
 		</div>
 		if v.Cause != "" {
 			@ui.Alert("gold", "status") {
-				{ v.Cause }
-				<a href={ templ.SafeURL(v.CauseHref) }>{ i18n.T(ctx, "refresh.cause_add_short") }</a>
+				<span>
+					{ v.Cause }
+					{ " " }
+					<a href={ templ.SafeURL(v.CauseHref) }>{ i18n.T(ctx, "refresh.cause_add_short") }</a>
+				</span>
 			}
 		}
 		<div class="subcols">

@@ -16,8 +16,9 @@ import (
 
 // ruleGroup is the rules of one module.
 type ruleGroup struct {
-	Module string
-	Rules  []notify.Rule
+	Module  string
+	Rules   []notify.Rule
+	Changed int // rules not at their default
 }
 
 type notificationsView struct {
@@ -51,7 +52,13 @@ func (h *handler) notificationsPage(c *echo.Context) error {
 	}
 	sort.Strings(mods)
 	for _, m := range mods {
-		v.Groups = append(v.Groups, ruleGroup{Module: m, Rules: by[m]})
+		g := ruleGroup{Module: m, Rules: by[m]}
+		for _, r := range g.Rules {
+			if r.Enabled != r.Default {
+				g.Changed++
+			}
+		}
+		v.Groups = append(v.Groups, g)
 	}
 	s := h.shell(c, i18n.T(ctx, "settings.notifications"), "/settings")
 	return web.Render(c, http.StatusOK, notificationsPage(s, h.sortedPages(), v))
@@ -79,7 +86,8 @@ func (h *handler) notificationsSet(c *echo.Context) error {
 	if c.FormValue("show") == "changed" {
 		to += "?show=changed"
 	}
-	return web.Redirect(c, to)
+	// back at the rule: on a phone its group is the one left open
+	return web.Redirect(c, to+"#rule-"+c.Param("type"))
 }
 
 // notificationRetry sends a failed notification again.

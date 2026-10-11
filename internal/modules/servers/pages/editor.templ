@@ -23,7 +23,7 @@ templ editorPage(s ui.Shell, v editorView) {
 					<p class="sm subtle">{ t }</p>
 				}
 			</div>
-			<div class="actions">
+			<div class="actions ed-actions">
 				<button type="submit" form="draft-form" class="pc-btn" data-action="tpl.save" disabled?={ v.Stale }>{ i18n.T(ctx, "templates.save") }</button>
 				<button
 					type="button"

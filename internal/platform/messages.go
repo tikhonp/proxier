@@ -347,6 +347,8 @@ var messages = i18n.Messages{
 	"notifications.status":          {EN: "Telegram · chat “{chat}”", RU: "Telegram · чат «{chat}»"},
 	"notifications.not_configured":  {EN: "Telegram is not configured: nothing is sent.", RU: "Telegram не настроен: ничего не отправляется."},
 	"notifications.changed":         {EN: "changed", RU: "изменено"},
+	"notifications.group_count":     {EN: "{n} event|{n} events", RU: "{n} событие|{n} события|{n} событий"},
+	"notifications.group_changed":   {EN: "{n} changed|{n} changed", RU: "{n} изменено|{n} изменено|{n} изменено"},
 	"notifications.default_on":      {EN: "default: on", RU: "по умолчанию: вкл"},
 	"notifications.default_off":     {EN: "default: off", RU: "по умолчанию: выкл"},
 	"notifications.showing_changed": {EN: "Showing only changed rules", RU: "Только изменённые правила"},

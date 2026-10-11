@@ -24,6 +24,7 @@
 /* the search and a long name share what is left: neither squeezes the other to nothing */
 .hdr-search { flex: 1 1 160px; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 0 16px; border: 0; color: var(--muted); text-align: left; cursor: text; }
 .hdr-search .slash { color: var(--subtle); font-weight: 600; }
+.hdr-glass { display: none; flex: none; }
 .hdr-cell { display: flex; align-items: center; gap: 8px; padding: 0 16px; border-left: 1px solid var(--overlay); }
 .hdr-cell.quiet { color: var(--subtle); }
 .hdr-menu { display: none; flex: none; align-items: center; justify-content: center; width: 48px; padding: 0; border-right: 1px solid var(--overlay); }
@@ -77,6 +78,11 @@
 .row.rule .pc-sw { margin-left: 6px; }
 .row.failed-note { grid-template-columns: 110px minmax(0, 1fr) auto auto; }
 .rules { border-bottom: 1px solid var(--overlay); padding-bottom: 6px; }
+.rules > summary { list-style: none; cursor: pointer; }
+.rules > summary::-webkit-details-marker { display: none; }
+.rules > summary::after { content: "▾"; margin-left: auto; color: var(--subtle); }
+.rules:not([open]) > summary::after { content: "▸"; }
+.rules:not([open]) { padding-bottom: 0; }
 .rules-foot { padding: 12px 16px; }
 .row.attr { grid-template-columns: 160px minmax(0, 1fr); }
 .row.host { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, .9fr) minmax(0, .9fr) auto; }
@@ -150,6 +156,11 @@ select.pc-inp { appearance: none; background-image: none; }
 .settings-nav a:hover { background: var(--base); }
 .settings-nav a[aria-current="page"] { background: var(--overlay); color: var(--text); }
 .settings-nav .mark { width: 8px; }
+/* a strip of tabs wider than the window fades at the end that has more (proxier.js
+   sets the classes), so the tabs off the screen are seen to be there */
+.settings-nav.more-end { mask-image: linear-gradient(to right, #000 calc(100% - 48px), transparent); }
+.settings-nav.more-start { mask-image: linear-gradient(to left, #000 calc(100% - 48px), transparent); }
+.settings-nav.more-start.more-end { mask-image: linear-gradient(to right, transparent, #000 48px, #000 calc(100% - 48px), transparent); }
 .settings-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .set-head { padding: 14px 16px; border-bottom: 1px solid var(--overlay); }
 .set-head h2 { font-size: var(--fs-dialog); line-height: 22px; font-weight: 600; }
@@ -177,6 +188,11 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .pal-row .caret { position: absolute; left: 4px; top: 6px; visibility: hidden; }
 .pal-row.pc-cur .caret { visibility: visible; }
 .pal-row .meta { font-size: var(--fs-sm); color: var(--subtle); }
+/* a phone or tablet has no keyboard to press these keys on: its touch screen is its
+   only pointer (a laptop's touch screen keeps them, as its trackpad can hover) */
+@media (hover: none) and (pointer: coarse) {
+  .pc-keys-only { display: none !important; }
+}
 .pal-foot { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 8px 16px; border-top: 1px solid var(--overlay); font-size: var(--fs-sm); color: var(--subtle); }
 .keys-sheet { width: min(820px, 100%); margin-top: 8px; background: var(--black); border: 1px solid var(--hl-high); }
 .keys-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 1px; background: var(--overlay); }
@@ -244,7 +260,12 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .dayhead { padding: 14px 16px 4px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
 .stat { display: inline-flex; align-items: center; gap: 7px; }
 @media (max-width: 760px) {
-  .row.rule, .row.chat, .row.failed-note, .row.int { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .row.chat, .row.failed-note, .row.int { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  /* a rule is the switch beside its name, description and default, not four rows */
+  .row.rule { grid-template-columns: 48px minmax(0, 1fr); gap: 2px 8px; padding: 10px 16px 10px 10px; }
+  .row.rule .pc-sw { grid-row: 1 / span 3; align-self: start; margin-top: 2px; }
+  .row.rule > span:not(.caret) { grid-column: 2; }
+  .row.rule > .subtle { font-size: var(--fs-sm); line-height: 18px; }
   .colhead.jobrow { display: none; }
   .jobrow { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .jobcols { grid-template-columns: minmax(0, 1fr); }
@@ -260,10 +281,14 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 @media (max-width: 760px) {
   :root { --header-h: 56px; }
   .hdr-logo { width: auto; border-right: 0; }
-  .hdr-search { flex-basis: 96px; padding: 0 12px; }
+  /* a field 60 px wide showed "/ S…": on a phone the search is a 48 px button with a
+     magnifier, at the right next to the name, and the name has the rest of the row */
+  .hdr-search { flex: 0 0 48px; margin-left: auto; justify-content: center; padding: 0; border-left: 1px solid var(--overlay); }
+  .hdr-search .slash, .hdr-search .hdr-ph { display: none; }
+  .hdr-search .hdr-glass { display: block; }
   .hdr-cell { padding: 0 12px; }
   .hdr-out { padding-right: 12px; }
-  .admin-name { max-width: 10ch; }
+  .admin-name { max-width: none; }
   .settings { flex-direction: column; }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; height: 44px; }
@@ -273,6 +298,19 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .titleblock .actions { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .titleblock .actions > * { flex: 1 1 auto; }
   .titleblock .actions .pc-btn { width: 100%; }
+  /* the template editor's six actions took a screen as full-width rows: two to a row,
+     40 px, Publish first across the row, and the server for Preview across the row */
+  .titleblock .actions.ed-actions { display: grid; grid-template-columns: 1fr 1fr; }
+  .ed-actions .pc-btn { min-height: 40px; }
+  .ed-actions > .pc-pri { order: -1; }
+  .ed-actions > .pc-pri, .ed-actions > select { grid-column: 1 / -1; }
+  /* a filter row's selects share its width; Apply/Find are as tall as them */
+  .filter-form { flex: 1 1 100%; }
+  .filter-form .sel { flex: 1 1 0; min-width: 0; }
+  .filter-form .pc-btn, .search-form .pc-btn { min-height: 48px; }
+  /* breadcrumbs and the links in a sentence (Activity) keep their line, with a taller tap area */
+  .crumbs a { padding: 10px 0; margin: -10px 0; }
+  .actrow a.text { padding: 10px 0; }
   .tabs { padding: 0; }
   .tabs a { padding: 12px 14px; }
   .signin { padding-top: 48px; }
@@ -670,6 +708,8 @@ a.row.lnk { text-decoration: none; color: inherit; }
 .row.act .pc-btn { justify-self: start; }
 .expiry-fields .pc-inp.date { width: 150px; }
 .expiry-fields .pc-inp.clock { width: 90px; }
+/* a phone's 15 px type left the time as "--:-" */
+@media (max-width: 760px) { .expiry-fields .pc-inp.clock { width: 120px; } }
 .lnk-status { display: flex; flex-wrap: wrap; gap: 2px 12px; }
 
 /* Shared-link alerts (2c): the band, "Who fetches it", the dashboard's Links area */

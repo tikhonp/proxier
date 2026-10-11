@@ -187,5 +187,8 @@ button:disabled { cursor: not-allowed; opacity: .45; }
   .pc-menu { display: flex !important; }
   .pc-btn { min-height: 48px; padding: 0 14px; }
   .pc-sm { min-height: 40px; }
+  /* chips and segments were 26 px, a switch 36×18: too small for a finger */
+  .pc-chip, .pc-sb { height: auto; min-height: 40px; }
+  .pc-sw::before { content: ""; position: absolute; inset: -14px -6px; }
   .pc-close { width: 56px; }
 }
