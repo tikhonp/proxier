@@ -227,7 +227,7 @@ Environment variables hold what's needed before the database is readable, plus a
 | Public suffix list | `golang.org/x/net/publicsuffix` | registrable-domain grouping |
 | UI | templ components + htmx (SSE for live logs), plain JS for the keymap, search pop-up, reorder, code editor and charts; styles from [ui/design/tokens.css](./ui/design/tokens.css) | [ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md) |
 | i18n | message catalogs per module, EN and RU | |
-| Images | multi-stage Dockerfile, distroless, non-root; GitHub Actions: build/vet/test/lint/govulncheck, then push to `ghcr.io/tikhonp/proxier` | |
+| Images | multi-stage Dockerfile, distroless, non-root; Forgejo Actions on code.tikhonnnnn.com: build/vet/test/lint/govulncheck, then push to its registry, `code.tikhonnnnn.com/tikhon/proxier` | |
 
 ## Code layout
 

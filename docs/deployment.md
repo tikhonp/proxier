@@ -1,6 +1,6 @@
 # Deployment
 
-Proxier is deployed like the other self-hosted services: an image built by GitHub Actions, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.github/workflows/ci.yaml`). The compose file (`sh-blackberry/proxier.yaml`) and the gateway block (`sh-main/nginx/conf.d/proxier.conf`) live in those repositories; this document describes what they contain.
+Proxier is deployed like the other self-hosted services: an image built by Forgejo Actions on code.tikhonnnnn.com, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.forgejo/workflows/ci.yaml`). The compose file (`sh-blackberry/proxier.yaml`) and the gateway block (`sh-main/nginx/conf.d/proxier.conf`) live in those repositories; this document describes what they contain.
 
 ## Topology
 
@@ -22,7 +22,7 @@ flowchart LR
 
 | Container | Image | Notes |
 |---|---|---|
-| `proxier` | `ghcr.io/tikhonp/proxier` | `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root user (65532), `/data` bind mount owned by that user, `tmpfs /tmp`, no published ports (the tunnel reaches it on the compose network). No Docker socket ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)). Healthy when `proxier healthcheck` (the image has no curl) gets 200 from its own `/healthz`. |
+| `proxier` | `code.tikhonnnnn.com/tikhon/proxier` | `read_only`, `cap_drop: ALL`, `no-new-privileges`, non-root user (65532), `/data` bind mount owned by that user, `tmpfs /tmp`, no published ports (the tunnel reaches it on the compose network). No Docker socket ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)). Healthy when `proxier healthcheck` (the image has no curl) gets 200 from its own `/healthz`. |
 | `ssht-proxier` | `jnovack/autossh` | The reverse tunnel to sh-main, like every other service's. |
 | `chromium` | `chromedp/headless-shell` (pinned tag) | On its own network, `discovery`, shared only with `proxier`; no volume, no ports, memory limit 1 GB. It reaches sites directly (a direct visit goes out from home) or through Proxier's per-visit SOCKS listener (a visit through a server). Optional: without it, discovery runs the catalog lookup only. See [the Chromium sidecar](#the-chromium-sidecar). |
 
@@ -71,10 +71,11 @@ networks:
 
 ## Images and CI
 
-Same pattern as vk2tg and alcs:
+One workflow, `.forgejo/workflows/ci.yaml`, run by the Forgejo runner of code.tikhonnnnn.com (label `ubuntu-latest`; actions resolve through data.forgejo.org):
 
-- `ci.yml` on every push and PR: `go build`, `go vet`, `go test -race` in one job, golangci-lint and govulncheck in a parallel one. A failure of either withholds the image.
-- `docker.yml` (or an `image` job after tests) on `main` and tags: buildx, `linux/amd64` (blackberry is x86-64), pushed to `ghcr.io/tikhonp/proxier` as `:<sha>`, `:<branch>`, `:latest` for `main` and `:<tag>` for releases. `APP_VERSION` is set to `<ref>-<sha>`.
+- On every push and PR: templ freshness, gofmt, `go build`, `go vet` and `make test` in one job (with `PROXIER_TEST_PATIENCE=10` and `-timeout=60m`: the runner is ten times slower than a laptop or more), golangci-lint and govulncheck in a parallel one. A failure of either withholds the image.
+- The `image` job, after both, on pushes to `main` and `v*` tags: buildx, `linux/amd64` (blackberry is x86-64), pushed to Forgejo's container registry as `code.tikhonnnnn.com/tikhon/proxier` with `:<sha>`, `:main`, `:latest` for `main` and `:<tag>` for releases. `APP_VERSION` is set to `<ref>-<sha7>`.
+- Forgejo's automatic token can't write packages, so the job logs in with the repository secret `REGISTRY_TOKEN`: an access token of `tikhon` with the `write:package` scope. The package is public (as the repository is), so blackberry pulls it without logging in.
 - Dozzle's nightly update (04:00, label `dev.dozzle.update=auto`) updates the container, as it does for the other services.
 
 ## The `/data` volume
