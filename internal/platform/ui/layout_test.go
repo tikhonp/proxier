@@ -1083,3 +1083,24 @@ func TestPhoneLayoutFits(t *testing.T) {
 		t.Error("proxier.js doesn't close Notifications' groups on a phone")
 	}
 }
+
+// The name fields of a custom service and a Shadowrocket config show the tag
+// or file name they give as they're typed ([data-slug-of]); proxier.js's slug
+// is selector.Slug's rule (ASCII letters and digits, every other run a "-",
+// up to 63), and a name already of the data-slug-keep shape stays.
+func TestSlugHintFollowsTheName(t *testing.T) {
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`var s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');`,
+		`return s.length > 63 ? s.slice(0, 63).replace(/-+$/, '') : s;`,
+		`var out = keep && new RegExp(keep).test(n) ? n : slug(n);`,
+		`if (el.tagName === 'INPUT') el.placeholder = out; else el.textContent = out;`,
+	} {
+		if !strings.Contains(string(b), want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+}

@@ -32,14 +32,21 @@ func TestCreateConfig(t *testing.T) {
 	if c, _ := h.Mod.Shadowrocket.Get(bg(), id2); err != nil || c.Name != "ipad" {
 		t.Errorf("ipad: %+v %v", c, err)
 	}
+	// a name that isn't a file name yet is made one, as a custom service's tag
+	// is, not refused (the form shows "File name: iphone-mom.conf" as it's typed)
+	id3, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: "iPhone Mom", ListID: 1, Policy: "PROXY", Base: base}, "admin")
+	if c, _ := h.Mod.Shadowrocket.Get(bg(), id3); err != nil || c.Name != "iphone-mom" {
+		t.Errorf("iPhone Mom: %+v %v", c, err)
+	}
 	for _, tc := range []struct {
 		n     shadowrocket.New
 		field string
 		key   string
 	}{
 		{shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name_taken"},
-		{shadowrocket.New{Name: "my phone", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name"},
-		{shadowrocket.New{Name: "-x", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name"},
+		{shadowrocket.New{Name: "Iphone Mom", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name_taken"},
+		{shadowrocket.New{Name: "мамин", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name"},
+		{shadowrocket.New{Name: " - ", ListID: 1, Policy: "PROXY", Base: base}, "name", "shadowrocket.err.name"},
 		{shadowrocket.New{Name: "x", ListID: 1, Policy: "A,B", Base: base}, "policy", "shadowrocket.err.policy"},
 		{shadowrocket.New{Name: "x", ListID: 1, Policy: " ", Base: base}, "policy", "shadowrocket.err.policy"},
 		{shadowrocket.New{Name: "x", ListID: 1, Policy: "PROXY", Base: "[General]\n"}, "base", "shadowrocket.err.no_rule"},
@@ -51,7 +58,7 @@ func TestCreateConfig(t *testing.T) {
 			t.Errorf("%+v: %v", tc.n, err)
 		}
 	}
-	if n := len(h.Events("routing.shadowrocket_created")); n != 2 {
+	if n := len(h.Events("routing.shadowrocket_created")); n != 3 {
 		t.Errorf("%d created events", n)
 	}
 }

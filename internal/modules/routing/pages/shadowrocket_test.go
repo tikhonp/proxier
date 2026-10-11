@@ -132,7 +132,7 @@ func TestShadowrocketPages(t *testing.T) {
 func TestNewConfigPage(t *testing.T) {
 	h := routingtest.New(t)
 	body := h.Login.Get("/routing/shadowrocket/new").Body.String()
-	has(t, "new", body, "New Shadowrocket config", `name="name"`, "Also the file name: iphone.conf", `name="list"`, `value="PROXY"`,
+	has(t, "new", body, "New Shadowrocket config", `name="name"`, `File name: <span class="text" data-slug-of="sr-name" data-slug-keep="^[a-z0-9][a-z0-9._-]{0,62}$" data-slug-empty="iphone">iphone</span>.conf`, `name="list"`, `value="PROXY"`,
 		`data-code="shadowrocket"`, `name="base_file"`, `name="import_url"`, `formaction="/routing/shadowrocket/import-base"`, "js/editor.bundle.js",
 		`enctype="multipart/form-data"`)
 	checkNoInline(t, "new", body)

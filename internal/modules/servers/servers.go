@@ -191,7 +191,7 @@ func (*Module) SettingsPages() []ui.SettingsPage {
 
 // Integrations adds the Cloudflare row to Settings → Integrations.
 func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
-	row := ui.IntegrationRow{Name: "Cloudflare", Href: "/settings/integrations/cloudflare", State: i18n.T(ctx, "integrations.not_configured")}
+	row := ui.IntegrationRow{Name: "Cloudflare", Href: "/settings/integrations/cloudflare", State: i18n.T(ctx, "integrations.not_configured"), SetUp: true}
 	token, err := m.deps.Settings.Get(ctx, cloudflare.TokenKey)
 	if err != nil {
 		m.deps.Log.Error("servers: cloudflare settings", "error", err)

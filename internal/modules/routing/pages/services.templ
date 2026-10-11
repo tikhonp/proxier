@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -210,7 +211,7 @@ templ customFields(name, tag, description string, errs map[string]string, autofo
 	</div>
 	<div class="field">
 		<label for="svc-tag">{ i18n.T(ctx, "services.field.tag") }</label>
-		<input id="svc-tag" class="pc-inp" name="tag" value={ tag } maxlength="63" autocomplete="off" autocapitalize="off" spellcheck="false" aria-invalid?={ errs["tag"] != "" }/>
+		<input id="svc-tag" class="pc-inp" name="tag" value={ tag } placeholder={ selector.Slug(name) } data-slug-of="svc-name" maxlength="63" autocomplete="off" autocapitalize="off" spellcheck="false" aria-invalid?={ errs["tag"] != "" }/>
 		if errs["tag"] != "" {
 			@fieldErr(errs, "tag")
 		} else {

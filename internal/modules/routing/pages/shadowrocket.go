@@ -637,3 +637,12 @@ func (h *handler) srDelete(c *echo.Context) error {
 	}
 	return web.Redirect(c, srPath)
 }
+
+// fileStem is the file name a typed name gives (CleanName), or the example
+// while there is none.
+func fileStem(name string) string {
+	if n := shadowrocket.CleanName(name); n != "" {
+		return n
+	}
+	return "iphone"
+}

@@ -308,6 +308,7 @@ var messages = i18n.Messages{
 	"settings.integrations.note":  {EN: "Outside services Proxier talks to.", RU: "Внешние сервисы, с которыми работает Proxier."},
 	"settings.telegram":           {EN: "Telegram", RU: "Telegram"},
 	"integrations.not_configured": {EN: "not configured", RU: "не настроено"},
+	"integrations.set_up":         {EN: "Set up", RU: "Настроить"},
 	"integrations.telegram.state": {EN: "{bot} · chat “{chat}”", RU: "{bot} · чат «{chat}»"},
 
 	"settings.field.telegram.bot_token":    {EN: "Bot token", RU: "Токен бота"},

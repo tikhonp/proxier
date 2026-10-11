@@ -384,6 +384,8 @@ var messages = i18n.Messages{
 	"settings.subscriptions":                                {EN: "Subscriptions", RU: "Подписки"},
 	"settings.field.subscriptions.link_language":            {EN: "Language of new links", RU: "Язык новых ссылок"},
 	"settings.field.subscriptions.link_language.help":       {EN: "The language of their stub entries (“Link disabled”…).", RU: "Язык их заглушек («Ссылка отключена»…)."},
+	"settings.option.subscriptions.link_language.en":        {EN: "English", RU: "английский"},
+	"settings.option.subscriptions.link_language.ru":        {EN: "Russian", RU: "русский"},
 	"settings.field.subscriptions.expiry_warning":           {EN: "Warn before expiry", RU: "Предупреждать до окончания"},
 	"settings.field.subscriptions.expiry_warning.help":      {EN: "How long before a link expires you get a notification.", RU: "За сколько до окончания ссылки приходит уведомление."},
 	"settings.field.subscriptions.alert_networks":           {EN: "Networks per day", RU: "Сетей в сутки"},

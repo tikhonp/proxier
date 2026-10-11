@@ -500,6 +500,24 @@
     groups.forEach(function (g) { if (!at || !g.contains(at)) g.open = false; });
   })();
 
+  // ---- [data-slug-of]: what a name gives as a tag or file name, as the admin
+  // types it (selector.Slug: ASCII letters and digits, every other run a "-",
+  // up to 63; a name already of the data-slug-keep shape stays as it is). A
+  // field shows it as its placeholder, anything else as its text.
+  function slug(name) {
+    var s = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return s.length > 63 ? s.slice(0, 63).replace(/-+$/, '') : s;
+  }
+  document.addEventListener('input', function (e) {
+    if (!e.target.id) return;
+    $$('[data-slug-of="' + e.target.id + '"]').forEach(function (el) {
+      var n = e.target.value.trim().toLowerCase(), keep = el.getAttribute('data-slug-keep');
+      var out = keep && new RegExp(keep).test(n) ? n : slug(n);
+      out = out || el.getAttribute('data-slug-empty') || '';
+      if (el.tagName === 'INPUT') el.placeholder = out; else el.textContent = out;
+    });
+  });
+
   // ---- a count of the ticked [data-pick] boxes of a form ([data-pick-count])
   document.addEventListener('change', function (e) {
     if (!e.target.matches || !e.target.matches('input[data-pick]')) return;

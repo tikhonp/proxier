@@ -408,3 +408,31 @@ func TestStatesOnListPages(t *testing.T) {
 	}
 	has(t, "refreshing band", h.Login.Get(lh+"?refreshing=3").Body.String(), "Refreshing 3 services.")
 }
+
+// A custom service named "My Test Service" became my-test-service without a
+// word, and its page then headlined the tag while the Name row had the name.
+// The form shows the tag the name gives as the tag field's placeholder (kept
+// up to date by proxier.js as the name is typed), and the page headlines the
+// name with the tag under it.
+func TestCustomServiceNameAndTag(t *testing.T) {
+	h := routingtest.New(t)
+	body := h.Login.Get("/routing/services/new").Body.String()
+	has(t, "new", body, `placeholder="" data-slug-of="svc-name"`)
+	// a refused form keeps the name, and the placeholder is its tag
+	rec := h.Login.Post("/routing/services/custom", url.Values{"name": {"My Test Service"}, "tag": {"a b"}})
+	has(t, "refused", rec.Body.String(), `placeholder="my-test-service" data-slug-of="svc-name"`)
+
+	id, err := h.Mod.Services.CreateCustom(context.Background(), services.Custom{Name: "My Test Service", Tag: "mytest"}, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	body = h.Login.Get(fmt.Sprintf("/routing/services/%d", id)).Body.String()
+	has(t, "page", body, "<h1>My Test Service</h1>", `<p class="sm subtle">Tag <span class="text">mytest</span></p>`)
+	// a service whose name is its tag (or a catalog one, with none) headlines the tag alone
+	id = h.Custom("mine")
+	body = h.Login.Get(fmt.Sprintf("/routing/services/%d", id)).Body.String()
+	has(t, "tag only", body, "<h1>mine</h1>")
+	if strings.Contains(body, `<span class="text">mine</span></p>`) {
+		t.Error("the tag is repeated under a heading that is the tag")
+	}
+}
