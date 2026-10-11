@@ -222,7 +222,7 @@ templ runPicks(v runView) {
 				for gi, g := range v.Groups {
 					<details class="disc-group">
 						<summary class="row disc-pick pc-row" data-row={ "g" + strconv.Itoa(gi) } data-enter data-hint={ i18n.T(ctx, "discovery.hints.row") }>
-							<span><input type="checkbox" name="group" value={ g.Domain } checked?={ g.Ticked } data-key=" " data-pick aria-label={ g.Domain }/></span>
+							<label class="tick"><input type="checkbox" name="group" value={ g.Domain } checked?={ g.Ticked } data-key=" " data-pick aria-label={ g.Domain }/></label>
 							<span class="col">
 								<span class="bold seltext" title={ g.Domain }>{ g.Domain }</span>
 								<span class="sm subtle">{ i18n.T(ctx, "discovery.as_suffix") } · { g.Hosts }</span>
@@ -234,11 +234,11 @@ templ runPicks(v runView) {
 						</summary>
 						for hi, hr := range g.Rows {
 							<div class="row disc-pick disc-host pc-row" data-row={ "g" + strconv.Itoa(gi) + "h" + strconv.Itoa(hi) }>
-								<span>
+								<label class="tick">
 									if hr.Tickable {
 										<input type="checkbox" name="host" value={ hr.Host } checked?={ hr.Ticked } data-key=" " data-pick aria-label={ hr.Host }/>
 									}
-								</span>
+								</label>
 								<span class="col">
 									<span class="seltext" title={ hr.Host }>{ hr.Host }</span>
 									<span class="sm subtle">{ i18n.T(ctx, "discovery.as_exact") }</span>

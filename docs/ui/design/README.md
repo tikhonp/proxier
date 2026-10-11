@@ -173,7 +173,7 @@ Under 760 px the layout changes:
 - Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
 - Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row (stacked, they took 650 px before the code).
-- Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A filter row's selects share its width, its button as tall as they are (48 px).
+- Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A tick box or radio sits in its label, which is tapped; one with no words (a row's tick on Import or Discover) is in a `.tick` label, a 40 px cell around it. A filter row's selects share its width, its button as tall as they are (48 px).
 - An alert's sentence and its link are one item (a `<span>`): as flex items of their own the link took a narrow column and broke after every word.
 - Settings › Notifications' groups (one per module, with its count of events and of changed ones) start closed; switching a rule comes back to it with its group open. Open, a rule is its switch beside its name, description and default.
 

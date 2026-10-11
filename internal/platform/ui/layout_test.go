@@ -1104,3 +1104,36 @@ func TestSlugHintFollowsTheName(t *testing.T) {
 		}
 	}
 }
+
+// A tick box or radio is 16 px: on a phone it is tapped through its label,
+// so each one sits in a <label> (its words, or a .tick cell when it has none),
+// never alone in a span.
+func TestTickBoxesSitInLabels(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "internal")
+	input := regexp.MustCompile(`<input type="(checkbox|radio)"`)
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".templ") {
+			return err
+		}
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		// the Servers table, with its bulk ticks, is desktop only: a phone gets cards
+		if filepath.Base(path) == "server_list.templ" {
+			return nil
+		}
+		src := string(b)
+		for _, at := range input.FindAllStringIndex(src, -1) {
+			before := src[:at[0]]
+			open, closed := strings.LastIndex(before, "<label"), strings.LastIndex(before, "</label>")
+			if open < 0 || closed > open || strings.Count(before[open:], "\n") > 4 {
+				t.Errorf("%s:%d: a tick box outside a label", path, strings.Count(before, "\n")+1)
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}

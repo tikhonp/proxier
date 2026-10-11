@@ -916,6 +916,8 @@ code.fp { word-break: break-all; }
 .disc-group > summary::-webkit-details-marker { display: none; }
 .row.disc-pick, .colhead.disc-pick { grid-template-columns: 20px minmax(200px, 1.4fr) 90px 50px minmax(110px, 1.2fr) minmax(110px, 1fr); align-items: start; border-top: 1px solid var(--overlay); }
 .row.disc-pick input { accent-color: var(--rose); width: 16px; height: 16px; margin: 3px 0 0; }
+/* a tick box alone in its cell: its label is the cell, with a tap area wider than 16 px */
+.tick { display: flex; padding: 12px; margin: -12px; cursor: pointer; }
 .row.disc-host { background: var(--base); }
 .row.disc-host > .col { padding-left: 16px; }
 .disc-form .form-actions { flex-wrap: wrap; align-items: center; }
