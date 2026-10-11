@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -350,15 +351,94 @@ func TestPageTextSitsInsideThePadding(t *testing.T) {
 		t.Error("app.css lacks the .foot note")
 	}
 	padded := map[string]bool{}
-	for _, m := range regexp.MustCompile(`(?m)^\.([a-z][a-z0-9-]*) \{[^}]*\bpadding: \d+px (\d+)px`).FindAllStringSubmatch(css, -1) {
+	for _, m := range regexp.MustCompile(`(?m)^\.([a-z][a-z0-9-]*) \{[^}]*\bpadding: (?:0|\d+px) (\d+)px`).FindAllStringSubmatch(css, -1) {
 		if m[2] != "0" {
 			padded[m[1]] = true
 		}
 	}
 	text := regexp.MustCompile(`^(<(p|span|a|small|strong|em|code|label)[ >]|\{ )`)
 	class := regexp.MustCompile(`class="([^"]*)"`)
+	files, err := templFiles(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
 	n := 0
-	err := filepath.WalkDir(filepath.Join("..", ".."), func(p string, d fs.DirEntry, err error) error {
+	for _, at := range pageColumn(files) {
+		n++
+		l := strings.TrimSpace(at.f.lines[at.i])
+		if !text.MatchString(l) {
+			continue
+		}
+		ok := false
+		if m := class.FindStringSubmatch(l); m != nil {
+			for _, c := range strings.Fields(m[1]) {
+				ok = ok || padded[c]
+			}
+		}
+		if !ok {
+			t.Errorf("%s:%d: text straight in the page column, without padding: %s", at.f.path, at.i+1, l)
+		}
+	}
+	if n < 100 {
+		t.Fatalf("only %d page-column lines found", n)
+	}
+}
+
+// A list in a padded body keeps its bullets or numbers inside the padding
+// too: Import's next steps had the body's 16 px, so the bullets hung
+// in the gutter against the sidebar.
+func TestListMarkersSitInsideThePadding(t *testing.T) {
+	css := appCSS(t)
+	inside := map[string]bool{}
+	for _, m := range regexp.MustCompile(`(?m)^\.([a-z][a-z0-9-]*) \{([^}]*)\}`).FindAllStringSubmatch(css, -1) {
+		left := regexp.MustCompile(`\bpadding-left: (\d+)px|\bpadding: \S+ \S+ \S+ (\d+)px`).FindStringSubmatch(m[2])
+		px := 0
+		if left != nil {
+			px, _ = strconv.Atoi(left[1] + left[2])
+		}
+		inside[m[1]] = px >= 32 || strings.Contains(m[2], "list-style: none")
+	}
+	list := regexp.MustCompile(`<(?:ul|ol) class="([^"]*\barea-body\b[^"]*)"`)
+	files, err := templFiles(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, f := range files {
+		for i, l := range f.lines {
+			m := list.FindStringSubmatch(l)
+			if m == nil {
+				continue
+			}
+			n++
+			ok := false
+			for _, c := range strings.Fields(m[1]) {
+				ok = ok || inside[c]
+			}
+			if !ok {
+				t.Errorf("%s:%d: a list whose markers hang in the gutter: %s", f.path, i+1, strings.TrimSpace(l))
+			}
+		}
+	}
+	if n < 3 {
+		t.Fatalf("only %d lists in a padded body found", n)
+	}
+}
+
+type templFile struct {
+	path  string
+	lines []string
+}
+
+type templLine struct {
+	f *templFile
+	i int
+}
+
+// templFiles reads every .templ file under root.
+func templFiles(root string) ([]*templFile, error) {
+	var out []*templFile
+	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".templ") {
 			return err
 		}
@@ -366,80 +446,91 @@ func TestPageTextSitsInsideThePadding(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		lines := strings.Split(string(b), "\n")
-		for _, i := range pageColumnLines(lines) {
-			n++
-			l := strings.TrimSpace(lines[i])
-			if !text.MatchString(l) {
-				continue
-			}
-			ok := false
-			if m := class.FindStringSubmatch(l); m != nil {
-				for _, c := range strings.Fields(m[1]) {
-					ok = ok || padded[c]
-				}
-			}
-			if !ok {
-				t.Errorf("%s:%d: text straight in the page column, without padding: %s", p, i+1, l)
-			}
-		}
+		out = append(out, &templFile{p, strings.Split(string(b), "\n")})
 		return nil
 	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if n < 100 {
-		t.Fatalf("only %d page-column lines found", n)
-	}
+	return out, err
 }
 
-// pageColumnLines returns the lines inside a ui.Layout or ui.SettingsLayout
-// block that are its direct children, with nothing but if, for and switch
-// blocks between.
-func pageColumnLines(lines []string) []int {
+// pageColumn returns the lines that sit straight in the page column: the
+// direct children of a ui.Layout or ui.SettingsLayout block, and those of a
+// component of the same package called there (followed through further
+// calls). Import's summary line was in such a component (importPreviewForm),
+// out of the walk's sight, and sat flush against the sidebar.
+func pageColumn(files []*templFile) []templLine {
+	defs := map[string]templLine{} // "dir.name" → the templ line
+	def := regexp.MustCompile(`^templ ([A-Za-z_][A-Za-z0-9_]*)\(`)
+	for _, f := range files {
+		for i, l := range f.lines {
+			if m := def.FindStringSubmatch(l); m != nil {
+				defs[filepath.Dir(f.path)+"."+m[1]] = templLine{f, i}
+			}
+		}
+	}
+	call := regexp.MustCompile(`^@([A-Za-z_][A-Za-z0-9_]*)\(`)
+	var out []templLine
+	seen := map[templLine]bool{}
+	var follow func(f *templFile, i int)
+	follow = func(f *templFile, i int) {
+		for _, j := range directChildren(f.lines, i) {
+			out = append(out, templLine{f, j})
+			if m := call.FindStringSubmatch(strings.TrimSpace(f.lines[j])); m != nil {
+				if d, ok := defs[filepath.Dir(f.path)+"."+m[1]]; ok && !seen[d] {
+					seen[d] = true
+					follow(d.f, d.i)
+				}
+			}
+		}
+	}
+	for _, f := range files {
+		for i, l := range f.lines {
+			if l = strings.TrimLeft(l, "\t"); strings.HasPrefix(l, "@ui.Layout(") || strings.HasPrefix(l, "@ui.SettingsLayout(") {
+				follow(f, i)
+			}
+		}
+	}
+	return out
+}
+
+// directChildren returns the lines of the block opened on line i that are its
+// direct children, with nothing but if, for and switch blocks between.
+func directChildren(lines []string, i int) []int {
 	indent := func(s string) int { return len(s) - len(strings.TrimLeft(s, "\t")) }
 	control := regexp.MustCompile(`^(if |for |switch |case |default:|\} else|else)`)
 	var out []int
-	for i := 0; i < len(lines); i++ {
-		if l := strings.TrimLeft(lines[i], "\t"); !strings.HasPrefix(l, "@ui.Layout(") && !strings.HasPrefix(l, "@ui.SettingsLayout(") {
+	base := indent(lines[i])
+	type open struct {
+		indent  int
+		control bool
+	}
+	var stack []open
+	for j := i + 1; j < len(lines); j++ {
+		l := lines[j]
+		if strings.TrimSpace(l) == "" {
 			continue
 		}
-		base := indent(lines[i])
-		type open struct {
-			indent  int
-			control bool
+		in := indent(l)
+		if in <= base {
+			break
 		}
-		var stack []open
-		j := i + 1
-		for ; j < len(lines); j++ {
-			l := lines[j]
-			if strings.TrimSpace(l) == "" {
-				continue
-			}
-			in := indent(l)
-			if in <= base {
+		for len(stack) > 0 && stack[len(stack)-1].indent >= in {
+			stack = stack[:len(stack)-1]
+		}
+		direct := true
+		for _, o := range stack {
+			direct = direct && o.control
+		}
+		if direct {
+			out = append(out, j)
+		}
+		for k := j + 1; k < len(lines); k++ {
+			if strings.TrimSpace(lines[k]) != "" {
+				if indent(lines[k]) > in {
+					stack = append(stack, open{in, control.MatchString(strings.TrimSpace(l))})
+				}
 				break
 			}
-			for len(stack) > 0 && stack[len(stack)-1].indent >= in {
-				stack = stack[:len(stack)-1]
-			}
-			direct := true
-			for _, o := range stack {
-				direct = direct && o.control
-			}
-			if direct {
-				out = append(out, j)
-			}
-			for k := j + 1; k < len(lines); k++ {
-				if strings.TrimSpace(lines[k]) != "" {
-					if indent(lines[k]) > in {
-						stack = append(stack, open{in, control.MatchString(strings.TrimSpace(l))})
-					}
-					break
-				}
-			}
 		}
-		i = j - 1
 	}
 	return out
 }

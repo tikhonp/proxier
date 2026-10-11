@@ -69,10 +69,12 @@ templ importStepPage(s ui.Shell, v importView) {
 }
 
 templ importPreviewForm(v importView) {
-	<p class="bold">{ v.Counts }</p>
-	if v.Ignored != "" {
-		<p class="sm subtle">{ v.Ignored }</p>
-	}
+	<div class="imp-sum">
+		<p class="bold">{ v.Counts }</p>
+		if v.Ignored != "" {
+			<p class="sm subtle">{ v.Ignored }</p>
+		}
+	</div>
 	for _, f := range v.Failures {
 		@ui.Alert("gold", "status") {
 			{ i18n.T(ctx, "mtvpn.list_failed", i18n.Args{"url": f.URL, "error": f.Error}) }
@@ -190,7 +192,7 @@ templ importResult(v importView) {
 			}
 		}
 	}
-	<p class="bold">{ v.Totals }</p>
+	<p class="bold imp-sum">{ v.Totals }</p>
 	@ui.Area(i18n.T(ctx, "mtvpn.area.services"), v.ListName) {
 		for _, r := range v.Rows {
 			if r.Outcome != "" {
@@ -224,7 +226,7 @@ templ importResult(v importView) {
 		}
 	}
 	@ui.Area(i18n.T(ctx, "mtvpn.area.next"), "") {
-		<ul class="area-body">
+		<ul class="area-body imp-next">
 			if v.Im.Shadowrocket.ID != 0 {
 				<li>{ i18n.T(ctx, "mtvpn.next.shadowrocket") } <a href={ templ.SafeURL(srHref(v.Im.Shadowrocket.ID)) }>{ i18n.T(ctx, "mtvpn.config.open", i18n.Args{"name": v.Im.Shadowrocket.Name}) }</a></li>
 			}

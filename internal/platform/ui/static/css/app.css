@@ -855,6 +855,9 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 .row.improw, .colhead.improw { grid-template-columns: 20px minmax(180px, 1.4fr) minmax(100px, .8fr) minmax(130px, 1fr) minmax(120px, 1fr); align-items: start; border-top: 1px solid var(--overlay); padding-left: 0; padding-right: 0; }
 .row.improw input { accent-color: var(--rose); width: 16px; height: 16px; margin: 3px 0 0; }
 .row.impres { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+/* the counts over the preview and the result sit on the page's 16 px gutter, the next steps' bullets inside it */
+.imp-sum { padding: 0 16px; }
+.imp-next { padding-left: 36px; }
 .sr-offer { border: 1px solid var(--hl-med); margin: 12px 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .sr-offer .check { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .sr-offer .check input { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
