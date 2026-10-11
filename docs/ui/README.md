@@ -25,6 +25,7 @@ This document lists every screen, what it shows, what can be done there, and the
   - **Routing**: Lists, Services, Search, Discover, Routers, Shadowrocket
   - **Router scripts**
   - **System**: Jobs, Activity, Settings
+  - under the links, the running build in small muted text (`main-87419a6`, the image's `APP_VERSION`; `dev` for a local build), the whole with "Version" on hover; Settings → General shows it too
 - **Header**:
   - **search** (`/`): a pop-up near the top of the screen that finds servers, links, subscriptions, services, routers and router scripts by name, and the actions you can run on them, in one grouped list; `:` opens it with actions only. `↑ ↓` or `⌃N ⌃P` move through the results; It has no ×: `esc` or a click outside closes it. Every button is also an action there, with the same words;
   - **jobs indicator**: the number of running jobs, opening a list with their current step, and a mark when a job failed since the last look;
@@ -137,7 +138,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 ### System
 - **Jobs**: filterable table. **Job page**: step progress, live log, payload summary, attempts, **Cancel** / **Retry**, link to the subject. → [jobs](../processes/platform/jobs.md)
 - **Activity**: an event stream with filters (module, type, subject, actor, time). Each row reads as a sentence and links to its subject.
-- **Settings**: a section navigation as in [platform](../modules/platform.md#settings). **General** ends with **Language**, the admin's own language (a select and Save), the only place it changes. The notification toggles are a grouped list with each event's description and default.
+- **Settings**: a section navigation as in [platform](../modules/platform.md#settings). **General** starts with the base URL and the running **Version**, both read-only, and ends with **Language**, the admin's own language (a select and Save), the only place it changes. The notification toggles are a grouped list with each event's description and default.
 
 ## Flows to design first
 
