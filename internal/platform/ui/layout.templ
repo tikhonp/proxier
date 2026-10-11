@@ -117,8 +117,20 @@ templ header(s Shell) {
 	</header>
 }
 
+// keyLine holds the which-key strip that g opens: placed over the page right
+// above the line, so showing it neither lengthens the page nor covers the line.
 templ keyLine(s Shell) {
 	<footer class="pc-keys" id="keyline">
+		<div class="whichkey hidden" id="whichkey" role="navigation" aria-label={ i18n.T(ctx, "ui.key.goto") } data-pending-hint={ i18n.T(ctx, "ui.key.go_pending") }>
+			for _, g := range s.Nav {
+				for _, it := range g.Items {
+					if it.GoKey != "" {
+						<a href={ templ.SafeURL(it.Href) } data-go-key={ it.GoKey } class="pc-seg"><span class="k">{ it.GoKey }</span>{ i18n.T(ctx, it.Label) }</a>
+					}
+				}
+			}
+			<span class="wk-top" id="wk-top"><span class="k">g</span>{ i18n.T(ctx, "ui.key.top") }</span>
+		</div>
 		<div class="keyline-in">
 			<span class="msg hidden" id="keymsg" role="status"></span>
 			<span id="keyhints" data-default={ i18n.T(ctx, s.PageKeys) }>{ i18n.T(ctx, s.PageKeys) }</span>
@@ -133,15 +145,6 @@ templ keyLine(s Shell) {
 }
 
 templ popups(s Shell) {
-	<div class="whichkey pc-keys hidden" id="whichkey" role="navigation" aria-label={ i18n.T(ctx, "ui.key.goto") }>
-		for _, g := range s.Nav {
-			for _, it := range g.Items {
-				if it.GoKey != "" {
-					<a href={ templ.SafeURL(it.Href) } data-go-key={ it.GoKey } class="pc-seg"><span class="k">{ it.GoKey }</span>{ i18n.T(ctx, it.Label) }</a>
-				}
-			}
-		}
-	</div>
 	<div
 		class="pal hidden"
 		id="palette"

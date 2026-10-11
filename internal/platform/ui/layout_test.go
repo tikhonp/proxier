@@ -861,3 +861,55 @@ func TestActionRowsShareAButtonColumn(t *testing.T) {
 		t.Fatalf("only %d action rows found", n)
 	}
 }
+
+// g's which-key strip lies over the page right above the key line. It was a
+// sticky block after the line, 28 px tall as the line (.pc-keys) with 36 px
+// cells: its cells ran 8 px down over the line's hints, a second row in a
+// narrow window lay under them, and on a page shorter than the window it
+// lengthened the page and covered the line whole.
+func TestWhichKeyStripSitsAboveTheKeyLine(t *testing.T) {
+	css := appCSS(t)
+	if !strings.Contains(css, `.whichkey { position: absolute; left: 0; right: 0; bottom: calc(100% + 1px); display: flex; flex-wrap: wrap;`) {
+		t.Error("the strip isn't placed out of the flow over the key line's top border")
+	}
+	if regexp.MustCompile(`\.whichkey[^{]*\{[^}]*(position: sticky|height: var\(--keyline-h\))`).MatchString(css) {
+		t.Error("the strip is sticky in the flow or as short as the key line")
+	}
+	var page strings.Builder
+	cat := i18n.NewCatalog()
+	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))
+	shell := ui.Shell{Title: "t", Lang: i18n.EN, Nav: []ui.NavGroup{{Label: "nav.overview", Items: []ui.NavItem{{Label: "nav.dashboard", Href: "/", GoKey: "d"}}}}}
+	if err := ui.Layout(shell).Render(ctx, &page); err != nil {
+		t.Fatal(err)
+	}
+	html := page.String()
+	strip := regexp.MustCompile(`(?s)<footer class="pc-keys" id="keyline">\s*<div class="whichkey hidden" id="whichkey"[^>]*>(.*?)</div>\s*<div class="keyline-in">`).FindStringSubmatch(html)
+	if strip == nil {
+		t.Fatal("the strip isn't the key line's first child")
+	}
+	if strings.Count(html, `id="whichkey"`) != 1 || strings.Contains(html, `class="whichkey pc-keys`) {
+		t.Error("the strip is drawn twice or takes the key line's own box")
+	}
+	for _, want := range []string{`data-go-key="d" class="pc-seg"><span class="k">d</span>`, `<span class="wk-top" id="wk-top"><span class="k">g</span>ui.key.top</span>`} {
+		if !strings.Contains(strip[1], want) {
+			t.Errorf("the strip lacks %q", want)
+		}
+	}
+	if !strings.Contains(html, `data-pending-hint="ui.key.go_pending"`) {
+		t.Error("the key line has nothing to say while g waits")
+	}
+	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
+	if err != nil {
+		t.Fatal(err)
+	}
+	js := string(b)
+	for _, want := range []string{
+		`h.textContent = w.getAttribute('data-pending-hint') || hintBeforeG;`,
+		`if (top) top.classList.toggle('hidden', !rows().length);`,
+		`h.textContent = hintBeforeG;`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Errorf("proxier.js lacks %q", want)
+		}
+	}
+}

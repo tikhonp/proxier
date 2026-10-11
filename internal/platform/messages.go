@@ -40,6 +40,8 @@ var messages = i18n.Messages{
 	"ui.key.actions":       {EN: "actions", RU: "действия"},
 	"ui.key.goto":          {EN: "go to", RU: "перейти"},
 	"ui.key.keys":          {EN: "keys", RU: "клавиши"},
+	"ui.key.go_pending":    {EN: "g then a key from the list · esc cancel", RU: "g, затем клавиша из списка · esc отмена"},
+	"ui.key.top":           {EN: "Top of the list", RU: "В начало списка"},
 	"ui.key.move":          {EN: "move", RU: "выбор"},
 	"ui.key.run":           {EN: "open or run", RU: "открыть или выполнить"},
 	"ui.key.actions_only":  {EN: "actions only", RU: "только действия"},

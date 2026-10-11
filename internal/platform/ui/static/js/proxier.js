@@ -45,10 +45,21 @@
   function currentRow() { var rs = rows(); return cursor >= 0 ? rs[cursor] : null; }
 
   // ---- g + letter --------------------------------------------------------
-  var pendingG = false, gTimer;
+  // While g waits for its letter, the key line says so, as the Main screen
+  // draws it; g g (top of the list) is offered only where there is a list.
+  var pendingG = false, gTimer, hintBeforeG = null;
   function setPending(on) {
+    var w = $('#whichkey'), h = $('#keyhints');
+    if (on && !pendingG && h && w) {
+      hintBeforeG = h.textContent;
+      h.textContent = w.getAttribute('data-pending-hint') || hintBeforeG;
+      var top = $('#wk-top');
+      if (top) top.classList.toggle('hidden', !rows().length);
+    } else if (!on && pendingG && h && hintBeforeG !== null) {
+      h.textContent = hintBeforeG;
+      hintBeforeG = null;
+    }
     pendingG = on;
-    var w = $('#whichkey');
     if (w) w.classList.toggle('hidden', !on);
     clearTimeout(gTimer);
     if (on) gTimer = setTimeout(function () { setPending(false); }, 1800);

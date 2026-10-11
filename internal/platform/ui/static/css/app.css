@@ -106,8 +106,11 @@ textarea.pc-ta { height: auto; min-height: 112px; padding: 8px 10px; width: 100%
 .keyline-in .msg { color: var(--text); }
 .keyline-global { display: flex; align-items: center; gap: 20px; padding: 0 16px; border-left: 1px solid var(--overlay); color: var(--subtle); }
 .keyline-live { display: flex; align-items: center; gap: 8px; padding: 0 16px; border-left: 1px solid var(--overlay); color: var(--subtle); }
-.whichkey { position: sticky; bottom: var(--keyline-h); z-index: 3; display: flex; flex-wrap: wrap; background: var(--black); border-top: 1px solid var(--overlay); }
-.whichkey a { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 16px; border-right: 1px solid var(--overlay); color: var(--subtle); text-decoration: none; }
+/* g's which-key strip lies over the page on the key line's top border, out of
+   the flow (in it, it lengthened a short page and covered the line), and a
+   narrow window wraps it upwards */
+.whichkey { position: absolute; left: 0; right: 0; bottom: calc(100% + 1px); display: flex; flex-wrap: wrap; background: var(--black); border-top: 1px solid var(--overlay); }
+.whichkey a, .whichkey .wk-top { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 16px; border-right: 1px solid var(--overlay); color: var(--subtle); text-decoration: none; }
 
 /* Alerts and bands */
 .alert { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--hl-med); background: var(--base); color: var(--subtle); }
