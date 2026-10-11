@@ -17,6 +17,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 	"github.com/tikhonp/proxier/internal/platform/tailnet"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 func TestClientRestrictsHostKeyAlgorithmToPinned(t *testing.T) {
@@ -291,7 +292,7 @@ func TestKeepAliveClosesADeadConnection(t *testing.T) {
 	c := e.mustConnect(e.target(srv, "server:1"))
 	// A peer that stops answering: the server goes away without closing.
 	srv.Close()
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := testwait.Deadline(3 * time.Second)
 	for time.Now().Before(deadline) {
 		if _, err := c.Run(context.Background(), "x", RunOptions{Timeout: 100 * time.Millisecond}); err != nil {
 			return

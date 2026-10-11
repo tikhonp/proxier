@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/db/dbtest"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 type fixture struct {
@@ -67,7 +68,7 @@ func (f *fixture) cursor(name string) int64 {
 
 func waitFor(t *testing.T, what string, cond func() bool) {
 	t.Helper()
-	for end := time.Now().Add(5 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
+	for end := testwait.Deadline(5 * time.Second); time.Now().Before(end); time.Sleep(5 * time.Millisecond) {
 		if cond() {
 			return
 		}

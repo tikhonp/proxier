@@ -11,6 +11,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 func provisioning(name string, run func(ctx context.Context, r *jobs.Run) error) jobs.Type {
@@ -581,7 +582,7 @@ func TestKickWakesEveryPoolAndKeyWaiters(t *testing.T) {
 		enq(t, h, jobs.Request{Type: "test.check", ResourceKey: "server:1"}).ID,
 		enq(t, h, jobs.Request{Type: "test.provision"}).ID,
 	}
-	deadline := time.Now().Add(5 * time.Second)
+	deadline := testwait.Deadline(5 * time.Second)
 	for _, id := range ids {
 		for h.State(id) != jobs.Succeeded {
 			if time.Now().After(deadline) {

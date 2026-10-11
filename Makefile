@@ -30,9 +30,11 @@ migrate-status:
 # the proxy test's own packages, provisioning and the deploy tests (rotation),
 # which push real XHTTP traffic through the in-process xray server.
 XRAY_TESTS = ./internal/modules/servers/proxy/... ./internal/modules/servers/provision/... ./internal/modules/servers/deploy/...
+# CI passes GOTESTFLAGS=-timeout=60m (its runner is many times slower than a laptop).
+GOTESTFLAGS ?=
 test:
-	go test -race -count=1 $$(go list ./... | grep -Ev '/servers/(proxy|provision|deploy)')
-	go test -count=1 $(XRAY_TESTS)
+	go test -race -count=1 $(GOTESTFLAGS) $$(go list ./... | grep -Ev '/servers/(proxy|provision|deploy)')
+	go test -count=1 $(GOTESTFLAGS) $(XRAY_TESTS)
 
 templ:
 	go run github.com/a-h/templ/cmd/templ@$(TEMPL_VERSION) generate

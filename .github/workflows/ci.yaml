@@ -38,8 +38,14 @@ jobs:
 
       # make test: -race everywhere except the packages that run real XHTTP
       # traffic through the embedded xray (its client has a race of its own).
+      # The runner is ten times slower than a laptop or more, every package
+      # running at once under -race: the tests' waits get ten times their
+      # time (internal/platform/testwait) and each package an hour instead of
+      # go test's 10 minutes.
       - name: Test
-        run: make test
+        env:
+          PROXIER_TEST_PATIENCE: "10"
+        run: make test GOTESTFLAGS=-timeout=60m
 
   # Lint and govulncheck don't wait for the tests: a runner of their own.
   lint:

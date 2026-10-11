@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -120,7 +121,7 @@ func (h *Harness) JobsOf(typ string) []jobs.Job {
 // WaitFor polls cond (real time, up to 30 s) while jobs run.
 func (h *Harness) WaitFor(what string, cond func() bool) {
 	h.T.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := testwait.Deadline(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return
@@ -145,7 +146,7 @@ func splitAddr(addr string) (string, int) {
 func (h *Harness) Settle() {
 	h.T.Helper()
 	h.App.Jobs.Kick()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := testwait.Deadline(60 * time.Second)
 	calm := 0
 	for time.Now().Before(deadline) {
 		var n int

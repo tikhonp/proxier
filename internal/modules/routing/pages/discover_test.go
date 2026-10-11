@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery/discoverytest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 func TestDiscoverPages(t *testing.T) {
@@ -61,7 +62,7 @@ func TestDiscoverPages(t *testing.T) {
 	has(t, "running", body, `hx-trigger="every 2s"`, run+"/status", ">v2fly:example<", "contains example.com as a suffix", "Visiting…",
 		"Discover</a>", "run #", "registrable domain example.com")
 	release()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := testwait.Deadline(10 * time.Second)
 	for strings.Contains(body, "every 2s") && time.Now().Before(deadline) {
 		time.Sleep(20 * time.Millisecond)
 		body = hx(h, "GET", run+"/status", nil)
