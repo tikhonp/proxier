@@ -67,4 +67,4 @@ build:
 	CGO_ENABLED=0 go build -ldflags "-X github.com/tikhonp/proxier/internal/platform/obs.AppVersion=$(APP_VERSION)" -o bin/proxier ./cmd/proxier
 
 build-image:
-	docker buildx build --build-arg APP_VERSION=$(APP_VERSION) -t ghcr.io/tikhonp/proxier:local --load .
+	docker buildx build --build-arg APP_VERSION=$(APP_VERSION) -t code.tikhonnnnn.com/tikhon/proxier:local --load .

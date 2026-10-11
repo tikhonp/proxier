@@ -78,4 +78,4 @@ Explicitly out of scope. Some are in the [backlog](./roadmap.md#later):
 - The blocking Proxier must detect is Russian. Home (where Proxier runs) is in Russia, so Proxier itself is a Russian vantage point ([ADR 0005](./adr/0005-home-is-the-russian-vantage-point.md)).
 - Proxier runs on the home server (blackberry) behind the sh-main gateway, like the other self-hosted services. The admin UI and the public URLs share one public host with password sign-in ([ADR 0006](./adr/0006-one-public-host-for-admin-and-public-urls.md)).
 - DNS is Cloudflare. Notifications are Telegram. Servers run Debian or Ubuntu with Docker.
-- Go, Docker, GitHub Actions building images, SQLite ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). The UI is server-rendered with templ and htmx ([ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)), from the [design](./ui/design/README.md).
+- Go, Docker, Forgejo Actions (code.tikhonnnnn.com) building images, SQLite ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). The UI is server-rendered with templ and htmx ([ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)), from the [design](./ui/design/README.md).
