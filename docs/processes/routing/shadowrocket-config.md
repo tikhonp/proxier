@@ -6,7 +6,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 
 ## Steps — creating
 
-1. Routing → Shadowrocket → **New config**: name (also the file name, e.g. `iphone`), routing list, rule policy (default `PROXY`), and the base config (paste, upload, or **Import from URL**, which reads it once, e.g. from copyparty).
+1. Routing → Shadowrocket → **New config**: name (also the file name, e.g. `iphone`: lower case, and a name that isn't a file name yet is made one as a custom service's tag is, so "iPhone Mom" is `iphone-mom`; the form shows "File name: iphone-mom.conf" as it is typed, and refuses only a name with no Latin letter or digit), routing list, rule policy (default `PROXY`), and the base config (paste, upload, or **Import from URL**, which reads it once, e.g. from copyparty).
 2. The base config is validated: it must have a `[Rule]` section. Otherwise saving is refused, with "no [Rule] section to add the services to".
 3. Saving creates base config version 1 and the token, and shows the URL `https://proxier.tikhonnnnn.com/r/{token}/iphone.conf` with **Copy** and a **QR code**. → `routing.shadowrocket_created`
 4. In Shadowrocket: Config → add the URL, then use it.
@@ -47,6 +47,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 - A base with `[General]`, `[Rule]` containing `RULE-SET,…` lines and `FINAL,DIRECT` → services inserted after the `RULE-SET` lines and before `FINAL,DIRECT`, all other lines unchanged.
 - A base whose `[Rule]` has no `FINAL` and is followed by `[Host]` → services at the end of `[Rule]`, then `FINAL,DIRECT`, then a blank line before `[Host]`.
 - A base without `[Rule]` → refused on save.
+- Name " iPad " → `ipad`; "iPhone Mom" → `iphone-mom` (then "Iphone Mom" is taken); "мамин" or " - " → refused, the name needs Latin letters or digits.
 - "Main" with `anthropic` (suffix `anthropic.com`) and `mine` (exact `console.anthropic.com`) → only `DOMAIN-SUFFIX,anthropic.com,PROXY`, and `mine` gets no block if it has nothing else.
 - Rule policy `Proxy-Group-A` → every inserted rule ends with `,Proxy-Group-A`.
 - A snapshot accepted at 04:05 → the 04:06 fetch includes the change.

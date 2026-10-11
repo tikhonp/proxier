@@ -101,6 +101,9 @@ type SettingsPage struct {
 type IntegrationRow struct {
 	Name, Href, State string // State is already translated
 	On                bool
+	// SetUp marks a row the admin sets up on its page (a token to paste): while
+	// off it says "Set up", as the dashboard's band does, not only "not configured"
+	SetUp bool
 }
 
 // DashboardArea is a module's block on the dashboard. Areas are sorted by

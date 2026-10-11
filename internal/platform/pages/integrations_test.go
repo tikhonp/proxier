@@ -2,6 +2,7 @@ package pages_test
 
 import (
 	"net/url"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -115,5 +116,31 @@ func TestInvalidChatIDIsRefused(t *testing.T) {
 	}
 	if got, _ := s.App.Settings.Get(t.Context(), "telegram.chat_id"); got != "" {
 		t.Errorf("saved %q", got)
+	}
+}
+
+// Telegram's row said only "not configured", with nothing to press, while the
+// dashboard's band says "Set up Telegram": an unconfigured row says Set up,
+// a configured one doesn't, and Tailnet (nothing to paste) never does.
+func TestUnconfiguredIntegrationSaysSetUp(t *testing.T) {
+	_, l, _ := telegramSite(t)
+	setUp := regexp.MustCompile(`(?s)<a class="row int" href="([^"]+)".*?</a>`)
+	rows := func() map[string]bool {
+		out := map[string]bool{}
+		for _, m := range setUp.FindAllStringSubmatch(l.Get("/settings/integrations").Body.String(), -1) {
+			out[m[1]] = strings.Contains(m[0], `<span class="pc-btn pc-sm">Set up</span>`)
+		}
+		return out
+	}
+	got := rows()
+	if !got["/settings/integrations/telegram"] || got["/settings/integrations/tailnet"] {
+		t.Errorf("unconfigured: %v", got)
+	}
+	saveToken(t, l)
+	if rec := l.Post("/settings/integrations/telegram/chat", url.Values{"chat_id": {"6"}}); rec.Code != 303 {
+		t.Fatalf("%d", rec.Code)
+	}
+	if rows()["/settings/integrations/telegram"] {
+		t.Error("a configured Telegram still says Set up")
 	}
 }

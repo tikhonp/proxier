@@ -24,7 +24,13 @@ templ servicePage(s ui.Shell, v pageView) {
 		<div class="titleblock">
 			<div class="head">
 				@crumbs(v.It.ID, v.It.Tag, "")
-				<h1>{ v.It.Tag }</h1>
+				if v.It.Name != "" && v.It.Name != v.It.Tag {
+					// a custom service's name is what the admin typed; its tag is what routers see
+					<h1>{ v.It.Name }</h1>
+					<p class="sm subtle">{ i18n.T(ctx, "services.field.tag") } <span class="text">{ v.It.Tag }</span></p>
+				} else {
+					<h1>{ v.It.Tag }</h1>
+				}
 				<div class="status">
 					@ui.Status(stateKind(v.State), v.Word)
 					<span>{ v.Line }</span>

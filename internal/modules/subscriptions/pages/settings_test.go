@@ -18,6 +18,8 @@ func TestSubscriptionsSettingsPage(t *testing.T) {
 	mustContain(t, body, `href="/settings/subscriptions"`, "Language of new links", "https://ipinfo.io/{ip}/country",
 		"never the person&#39;s own address", `value="72h0m0s"`, `value="4"`, `value="2160h0m0s"`)
 	noInline(t, body)
+	// the languages in words, as the link form names them, not "en" and "ru"
+	mustContain(t, body, `<option value="en">English</option>`, `<option value="ru" selected>Russian</option>`)
 
 	for value, msg := range map[string]string{
 		"ftp://geo.example.com/{ip}":      "must be an http:// or https:// address",

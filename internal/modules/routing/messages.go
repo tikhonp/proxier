@@ -67,7 +67,7 @@ var messages = i18n.Messages{
 	"services.new.submit":        {EN: "Create and edit domains", RU: "Создать и перейти к доменам"},
 	"services.field.name":        {EN: "Name", RU: "Название"},
 	"services.field.tag":         {EN: "Tag", RU: "Тег"},
-	"services.field.tag.help":    {EN: "Routers install its names under this tag. Leave it empty to use the name.", RU: "Роутеры ставят его домены под этим тегом. Оставьте пустым, чтобы взять из названия."},
+	"services.field.tag.help":    {EN: "Routers install its names under this tag. Left empty, it is made from the name, as the field shows.", RU: "Роутеры ставят его домены под этим тегом. Если оставить пустым, он берётся из названия, как показано в поле."},
 	"services.field.description": {EN: "Description", RU: "Описание"},
 
 	// Errors

@@ -13,6 +13,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -28,7 +29,7 @@ const (
 	DefaultPolicy = "PROXY"
 )
 
-var nameShape = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{0,62}$`)
+var nameShape = regexp.MustCompile(NameShape)
 
 // Config is a hosted Shadowrocket config.
 type Config struct {
@@ -118,8 +119,21 @@ func toConfig(r store.Shadowrocket) Config {
 	}
 }
 
-// CleanName is a name as it is stored: trimmed, lower case.
-func CleanName(name string) string { return strings.ToLower(strings.TrimSpace(name)) }
+// NameShape is a stored name's shape, which is also the file's; the form's
+// file-name hint keeps a name of this shape as it is (see CleanName).
+const NameShape = `^[a-z0-9][a-z0-9._-]{0,62}$`
+
+// CleanName is a name as it is stored, which is also the file name: trimmed
+// and lower case, and a name that isn't a file name yet ("iPhone Mom") made
+// one as a custom service's tag is (iphone-mom). The form shows the result
+// as the admin types.
+func CleanName(name string) string {
+	n := strings.ToLower(strings.TrimSpace(name))
+	if nameShape.MatchString(n) {
+		return n
+	}
+	return selector.Slug(n)
+}
 
 // CheckName puts a bad or taken name (already cleaned) into fe under field.
 func CheckName(ctx context.Context, q sqlx.QueryerContext, name string, except int64, field string, fe store.FieldErrors) error {

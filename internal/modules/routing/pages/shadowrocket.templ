@@ -112,7 +112,7 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 					<div class="field">
 						<label for="sr-name">{ i18n.T(ctx, "shadowrocket.field.name") }</label>
 						<input id="sr-name" class="pc-inp" name="name" value={ v.Name } maxlength="63" autocomplete="off" autofocus aria-invalid?={ v.Errs["name"] != "" }/>
-						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.name.help") }</p>
+						<p class="sm subtle">{ i18n.T(ctx, "shadowrocket.field.name.help") } <span class="text" data-slug-of="sr-name" data-slug-keep={ shadowrocket.NameShape } data-slug-empty="iphone">{ fileStem(v.Name) }</span>.conf</p>
 						if v.Errs["name"] != "" {
 							<p class="err" role="alert">{ v.Errs["name"] }</p>
 						}

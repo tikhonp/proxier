@@ -28,7 +28,7 @@ func (h *handler) integrationsPage(c *echo.Context) error {
 	if tg.Configured {
 		state = i18n.T(ctx, "integrations.telegram.state", i18n.Args{"bot": "@" + tg.Username, "chat": tg.chatLabel()})
 	}
-	rows := []integrationRow{{Name: "Telegram", Href: "/settings/integrations/telegram", State: state, On: tg.Configured}}
+	rows := []integrationRow{{Name: "Telegram", Href: "/settings/integrations/telegram", State: state, On: tg.Configured, SetUp: true}}
 	ts := h.Tailnet.Status(ctx)
 	tsState := i18n.T(ctx, "tailnet.state."+string(ts.State))
 	if ts.State == tailnet.Running && ts.IP.IsValid() {

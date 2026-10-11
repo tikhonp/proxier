@@ -21,7 +21,7 @@ A service is a named set of domains from one source, and the unit that goes into
 
 ## Steps — custom services
 
-1. Routing → Services → **New custom service**: name, tag (a slug of the name, editable), description. It starts with no domains (an empty snapshot installs nothing); the editor opens next.
+1. Routing → Services → **New custom service**: name, tag (a slug of the name: ASCII letters and digits, every other run a `-`, so "My Test Service" gives `my-test-service`; editable), description. While the tag is empty its field shows, as it is typed, the tag the name gives. The service's page headlines its name, with the tag under it. It starts with no domains (an empty snapshot installs nothing); the editor opens next.
 2. The **domain editor** is a table of domain, **suffix** or **exact**, and note. Two ways to add domains:
    - **Paste many**: one per line. Accepts v2fly-like lines (`domain:`, `full:`, plain = suffix) and full URLs (the host is taken). `regexp:`, `keyword:` and `include:` lines are refused; `#` comments are ignored. **Preview** shows what the paste does ("+12 added · 2 merged · 1 refused"); **Add to the table** applies it. Nothing is stored until **Save**.
 3. Every domain is normalised:
@@ -70,6 +70,7 @@ A service is a named set of domains from one source, and the unit that goes into
 - Custom domains `example.com` (suffix) and `full:api.example.com` → the exact entry is absorbed, with a note.
 - `пример.рф` → stored as `xn--e1afmkfd.xn--p1ai`, shown with its Unicode form.
 - A custom service with `tikhonnnnn.com` in a list (it covers `nl-1.hosts.tikhonnnnn.com`) → save refused, naming nl-1.
+- New custom service "My Test Service" with no tag → the tag field shows `my-test-service`, which it gets; with tag `mytest` its page headlines "My Test Service" with "Tag mytest" under it.
 - Rename custom tag `mine` to `personal` → routers drop `mine` and install `personal` on the next sync.
 - **Remove** a service that is in "Main" → refused until it is taken out of "Main".
 - **Switch source** of `iplist:apple` to `iplist:beta:apple` → allowed (same tag `apple`). The next snapshot comes from beta.

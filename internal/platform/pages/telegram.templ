@@ -15,8 +15,11 @@ templ integrationsPage(s ui.Shell, pages []ui.SettingsPage, rows []integrationRo
 			<a class="row int" href={ templ.SafeURL(r.Href) } data-row={ r.Name } data-href={ r.Href }>
 				<span class="caret" aria-hidden="true">›</span>
 				<span class="bold">{ r.Name }</span>
-				<span class="muted">
+				<span class="muted int-state">
 					@ui.Status(statusKind(r.On), r.State)
+					if r.SetUp && !r.On {
+						<span class="pc-btn pc-sm">{ i18n.T(ctx, "integrations.set_up") }</span>
+					}
 				</span>
 			</a>
 		}
