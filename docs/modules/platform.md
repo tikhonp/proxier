@@ -20,7 +20,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 
 | Section | Contents |
 |---|---|
-| General | Instance name, public base URL (read-only, from env), display time zone, default language (the admin's language when the account is created), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the admin's own language. |
+| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (the admin's language when the account is created), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the admin's own language. |
 | Security | Change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). |

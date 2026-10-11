@@ -1,6 +1,9 @@
 package ui
 
-import "github.com/tikhonp/proxier/internal/platform/i18n"
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/obs"
+)
 
 // page is the document skeleton shared by every page.
 templ page(title string, lang i18n.Lang) {
@@ -72,6 +75,7 @@ templ Layout(s Shell) {
 								</a>
 							}
 						}
+						<div class="side-ver" title={ i18n.T(ctx, "ui.version") + " " + obs.AppVersion }>{ obs.AppVersion }</div>
 					</nav>
 					<main class="main" id="main">
 						{ children... }

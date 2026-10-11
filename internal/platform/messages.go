@@ -17,6 +17,7 @@ var messages = i18n.Messages{
 	"ui.search_label":       {EN: "Search or run an action", RU: "Поиск или действие"},
 	"ui.search_placeholder": {EN: "Search or run an action…", RU: "Поиск или действие…"},
 	"ui.language":           {EN: "Language", RU: "Язык"},
+	"ui.version":            {EN: "Version", RU: "Версия"},
 	"ui.language.en":        {EN: "English", RU: "English"},
 	"ui.language.ru":        {EN: "Русский", RU: "Русский"},
 	"ui.no_jobs":            {EN: "no jobs running", RU: "нет задач"},
@@ -89,6 +90,11 @@ var messages = i18n.Messages{
 	"settings.base_url.help": {
 		EN: "Set by PROXIER_BASE_URL; change it in the deployment.",
 		RU: "Задаётся PROXIER_BASE_URL; меняется в настройках развёртывания.",
+	},
+	"settings.version": {EN: "Version", RU: "Версия"},
+	"settings.version.help": {
+		EN: "The build that is running: the image's APP_VERSION, <ref>-<commit>.",
+		RU: "Запущенная сборка: APP_VERSION образа, <ветка или тег>-<коммит>.",
 	},
 	"settings.field.general.instance_name":      {EN: "Instance name", RU: "Название"},
 	"settings.field.general.instance_name.help": {EN: "Shown in notifications.", RU: "Показывается в уведомлениях."},

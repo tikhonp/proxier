@@ -78,7 +78,7 @@ The desktop layout, from top to bottom:
   - the jobs cell;
   - an optional warning cell, such as "Telegram unreachable";
   - the admin's name in plain subtle text, then a small **Sign out** button (`.pc-btn.pc-sm`) in a cell of its own at the end. When the window is narrow, the name and the search give way (the name ends in "…"); Sign out never does. There is no account menu: Settings is in the sidebar.
-- **Sidebar** (212 px), with grouped navigation. The current page is an overlay row with a `›`.
+- **Sidebar** (212 px), with grouped navigation. The current page is an overlay row with a `›`. Under the last group, 16 px down, the running version (`.side-ver`: 12 px, muted, one line ending in "…").
 - **Main area**:
   - the page title block: an `h1`, then one status line in words;
   - optional bands;

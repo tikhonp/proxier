@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/platform/obs"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -157,4 +158,23 @@ func fmtInt(n int64) string {
 		n /= 10
 	}
 	return string(b)
+}
+
+// The running build shows at the foot of the sidebar on every page and on
+// Settings › General, so the deployed version is never a guess.
+func TestRunningVersionIsShown(t *testing.T) {
+	was := obs.AppVersion
+	obs.AppVersion = "main-abc1234"
+	t.Cleanup(func() { obs.AppVersion = was })
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	for _, path := range []string{"/", "/jobs"} {
+		if body := l.Get(path).Body.String(); !strings.Contains(body, `<div class="side-ver" title="Version main-abc1234">main-abc1234</div></nav>`) {
+			t.Errorf("%s: no version at the sidebar's foot", path)
+		}
+	}
+	body := l.Get("/settings/general").Body.String()
+	if !strings.Contains(body, `<span class="lbl">Version</span> <span class="v">main-abc1234</span>`) {
+		t.Errorf("Settings › General lacks the version row:\n%s", body)
+	}
 }
