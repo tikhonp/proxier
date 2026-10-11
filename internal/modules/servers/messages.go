@@ -57,6 +57,7 @@ var messages = i18n.Messages{
 	},
 	"servers.cloudflare.token":       {EN: "API token", RU: "API-токен"},
 	"servers.cloudflare.token_help":  {EN: "Needs Zone → DNS → Edit and Zone → Zone → Read on the zones Proxier may use.", RU: "Нужны права Zone → DNS → Edit и Zone → Zone → Read на зоны, которые разрешено использовать."},
+	"servers.cloudflare.token_link":  {EN: "Create a token in Cloudflare ↗", RU: "Создать токен в Cloudflare ↗"},
 	"servers.cloudflare.token_set":   {EN: "A token is saved. Paste a new one to replace it; it is never shown.", RU: "Токен сохранён. Вставьте новый, чтобы заменить; сам токен не показывается."},
 	"servers.cloudflare.token_save":  {EN: "Check and save", RU: "Проверить и сохранить"},
 	"servers.cloudflare.token_empty": {EN: "Paste an API token.", RU: "Вставьте API-токен."},
