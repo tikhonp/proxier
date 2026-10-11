@@ -286,7 +286,7 @@ var messages = i18n.Messages{
 	"activity.actor.agent": {EN: "agent #{id}", RU: "агент #{id}"},
 
 	"event.admin.created":              {EN: "Created the admin account", RU: "Создана учётная запись администратора"},
-	"event.auth.signed_in":             {EN: "Signed in from {ip}", RU: "Вход с адреса {ip}"},
+	"event.auth.signed_in":             {EN: "Signed in as {subject} from {ip}", RU: "Вход как {subject} с адреса {ip}"},
 	"event.auth.sign_in_failed":        {EN: "A sign-in from {ip} failed", RU: "Неудачный вход с адреса {ip}"},
 	"event.auth.locked":                {EN: "Locked out {ip} after {failures} failed sign-ins", RU: "Адрес {ip} заблокирован после {failures} неудачных входов"},
 	"event.auth.password_changed":      {EN: "Changed the password of {subject}", RU: "Изменён пароль: {subject}"},

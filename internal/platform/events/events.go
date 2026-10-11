@@ -76,6 +76,10 @@ type Type struct {
 	NotifyIf func(payload map[string]any) bool
 	// Emoji leads the notification ("🔐").
 	Emoji string
+	// Variant picks a wording by the payload: Activity says the message
+	// event.<name>.<variant> when there is one ("Added youtube to routing
+	// list Main" rather than "Changed routing list Main"). nil: one wording.
+	Variant func(payload map[string]any) string
 }
 
 // ErrUnknownType is returned when recording a type nobody declared.

@@ -180,10 +180,14 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .pc-keys { position: sticky; bottom: 0; z-index: 3; height: var(--keyline-h); display: flex; align-items: stretch; border-top: 1px solid var(--overlay); background: var(--black); font-size: var(--fs-sm); line-height: 16px; white-space: nowrap; color: var(--subtle); }
 .pc-keys b { color: var(--text); font-weight: 600; }
 
+/* Shown on a phone only (the opposite of .pc-hide-s): a count's words where its column head is hidden */
+.pc-show-s { display: none; }
+
 /* Phone: under 760px the sidebar and key line go, touch targets grow */
 @media (max-width: 760px) {
   body { font-size: var(--fs-phone); line-height: var(--lh-phone); }
   .pc-side, .pc-keys, .pc-hide-s { display: none !important; }
+  .pc-show-s { display: revert !important; }
   .pc-menu { display: flex !important; }
   .pc-btn { min-height: 48px; padding: 0 14px; }
   .pc-sm { min-height: 40px; }

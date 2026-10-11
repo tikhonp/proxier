@@ -116,8 +116,8 @@ Username, password, error area (generic message; lockout countdown), language fo
 - **Link page**: the URL as a secret field with a large **QR** (the URL, its buttons, its note, the QR's note and **Show QR** each 12 px apart), state and expiry, subscription, the current output preview, the fetch log (time, network, app icon, outcome), alerts, actions (disable, regenerate, change subscription, expiry, cut off, delete) with their consequence dialogs. → [link lifecycle](../processes/subscriptions/link-lifecycle.md)
 
 ### Routing
-- **Lists**: cards or rows with service count, domain count, targets and their sync state, and default marker.
-- **List page**: sortable services (owned / total domains per service), **Add services** (picker with search), targets, warnings (guard refusals, rejected snapshots). → [routing lists](../processes/routing/routing-lists.md)
+- **Lists**: cards or rows with service count, domain count, targets and their sync state, and default marker. On a phone, where the column heads are hidden, the counts carry their words ("3 services", "120 domains").
+- **List page**: sortable services (owned / total domains per service), **Add services** (picker with search; a custom service says "custom" once), targets, warnings (guard refusals, rejected snapshots). → [routing lists](../processes/routing/routing-lists.md)
 - **Services**: table with source, tag, counts, last refresh, state, lists. **Add service** (selector field + search) and **New custom service**.
 - **Service page**: overview, domains (filter; suffix/exact; owned elsewhere marker), skipped entries, snapshot history with diffs, a rejected-snapshot callout with **Accept anyway** / **Dismiss**. → [service management](../processes/routing/service-management.md)
 - **Custom service editor**: domain table, bulk paste with a normalisation preview ("12 added, 2 merged, 1 refused: IP address"), covered-by hints, save.
@@ -137,7 +137,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 
 ### System
 - **Jobs**: filterable table. **Job page**: step progress, live log, payload summary, attempts, **Cancel** / **Retry**, link to the subject. → [jobs](../processes/platform/jobs.md)
-- **Activity**: an event stream with filters (module, type, subject, actor, time). Each row reads as a sentence and links to its subject.
+- **Activity**: an event stream with filters (module, type, subject, actor, time). Each row reads as a sentence and links to its subject: where the sentence names it ("Created router script Fresh MikroTik"), that name is the link, never a second copy after the sentence. A change is worded by what changed ("Added youtube to routing list Main", not "Changed routing list Main").
 - **Settings**: a section navigation as in [platform](../modules/platform.md#settings). **General** starts with the base URL and the running **Version**, both read-only, and ends with **Language**, the admin's own language (a select and Save), the only place it changes. On a phone the sections are a strip of tabs that scrolls sideways, with the current one brought into view and a fade at an end with more. The notification toggles are a grouped list with each event's description and default; each group (a module, with its counts of events and changed ones) folds, and on a phone they start folded, but the one holding the rule just switched.
 
 ## Flows to design first

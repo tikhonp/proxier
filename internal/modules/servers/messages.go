@@ -46,7 +46,7 @@ var messages = i18n.Messages{
 	},
 	"servers.settings.zone_warning": {
 		EN: "The hostname pattern gives {host}, which is in no zone allowed for Cloudflare, so no server can be built yet.",
-		RU: "По шаблону получается {host}, а этого домена нет ни в одной зоне, разрешённой для Cloudflare, — сервер пока не построить.",
+		RU: "По шаблону получается {host}, а этого домена нет ни в одной зоне, разрешённой для Cloudflare, поэтому построить сервер пока нельзя.",
 	},
 	"servers.settings.zone_warning_link": {EN: "Allow a zone", RU: "Разрешить зону"},
 

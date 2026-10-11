@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -65,8 +66,8 @@ templ listsPage(s ui.Shell, v listsView) {
 							<span class="sm subtle">{ r.Sub }</span>
 						}
 					</span>
-					<span class="subtle">{ r.Services }</span>
-					<span class="subtle">{ r.Domains }</span>
+					<span class="subtle"><span class="pc-hide-s">{ r.Services }</span><span class="pc-show-s">{ r.ServicesN }</span></span>
+					<span class="subtle"><span class="pc-hide-s">{ r.Domains }</span><span class="pc-show-s">{ r.DomainsN }</span></span>
 					@targetsCell(r.Targets)
 					if r.Warn != "" {
 						<span class="sm gold">▲ { r.Warn }</span>
@@ -159,8 +160,13 @@ templ addToListPage(s ui.Shell, v addToListView) {
 							<span class="bold cut" title={ r.Tag }>{ r.Tag }</span>
 							<span class="sm subtle seltext cut" title={ r.Selector }>{ r.Selector }</span>
 						</span>
-						<span class="sm subtle">{ r.Source }</span>
-						<span class="sm subtle">{ i18n.T(ctx, "lists.add.domains", i18n.Args{"n": r.Domains}) }</span>
+						<span class="sm subtle">
+							// a custom service's selector line says "custom" already
+							if r.Source != string(selector.Custom) {
+								{ r.Source }
+							}
+						</span>
+						<span class="sm subtle">{ r.Domains }</span>
 					</label>
 				}
 			</div>

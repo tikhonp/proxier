@@ -1,6 +1,9 @@
 package routing
 
-import "github.com/tikhonp/proxier/internal/platform/events"
+import (
+	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/platform/events"
+)
 
 // Events is the module's event catalog (docs/events.md#routing).
 var Events = []events.Type{
@@ -17,7 +20,7 @@ var Events = []events.Type{
 	{Name: "routing.catalog_refreshed", Description: "The catalog was refreshed."},
 	{Name: "routing.catalog_refresh_failed", Notify: true, Emoji: "🔴", Description: "A catalog source has failed to refresh for three days."},
 	{Name: "routing.list_created", Description: "A routing list was created."},
-	{Name: "routing.list_updated", Description: "A routing list's services, order, name, description or default changed."},
+	{Name: "routing.list_updated", Description: "A routing list's services, order, name, description or default changed.", Variant: lists.Change},
 	{Name: "routing.list_deleted", Description: "A routing list was deleted."},
 	{Name: "routing.list_refused_server_hostname", Description: "A change was refused: it would route a server's own hostname."},
 	{Name: "routing.shadowrocket_created", Description: "A Shadowrocket config was created."},

@@ -117,7 +117,12 @@ func Parse(body []byte) Script {
 		if len(names) > 3 {
 			names = names[len(names)-3:]
 		}
-		s.Findings = append(s.Findings, Finding{Line: s.End, Severity: Warning, Key: "params.warn.no_end",
+		// with no :local read there are no last values to name ("…are .")
+		key := "params.warn.no_end"
+		if len(names) == 0 {
+			key = "params.warn.no_end_empty"
+		}
+		s.Findings = append(s.Findings, Finding{Line: s.End, Severity: Warning, Key: key,
 			Args: map[string]any{"line": s.End, "names": strings.Join(names, ", ")}})
 	}
 	sortFindings(s.Findings)
