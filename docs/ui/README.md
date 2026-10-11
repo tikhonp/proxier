@@ -14,7 +14,7 @@ This document lists every screen, what it shows, what can be done there, and the
 - **Two languages.** English and Russian from day one. Russian strings run about 30 % longer, so no fixed-width labels or buttons.
 - **Dark only**, in Rosé Pine colours (the main variant) on a black ground, with one monospaced typeface, IBM Plex Mono. Colour means state, and every state is also a shape and a word. The full vocabulary is on the [design canvas](https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec) (Rosé Pine page).
 - **Flush blocks, boxed controls.** Big blocks (header, sidebar, areas, tables, banners) run edge to edge and meet along 1 px lines. Buttons and fields keep a border and some room around them, so they always read as controls. There are two exceptions, both for backing out. **Cancel** and **Close** have no border, and a pop-up's **×** fills its top-right corner, flush against the edges like a header cell.
-- **Keyboard first on desktop.** A small vim-like keymap: `j`/`k` to move, `/` to search things and actions, `:` for actions only, `g` then a letter to go to a page, `?` for the full list. A line at the bottom of every desktop screen shows the keys for what is under the cursor. Letters never fire inside a field, and nothing that deletes has a single key.
+- **Keyboard first on desktop.** A small vim-like keymap: `j`/`k` to move (the arrows and `⌃N`/`⌃P` too), `/` to search things and actions, `:` for actions only, `g` then a letter to go to a page, `?` for the full list. A line at the bottom of every desktop screen shows the keys for what is under the cursor. Letters never fire inside a field, and nothing that deletes has a single key.
 
 ## Global layout
 
@@ -26,7 +26,7 @@ This document lists every screen, what it shows, what can be done there, and the
   - **Router scripts**
   - **System**: Jobs, Activity, Settings
 - **Header**:
-  - **search** (`/`): a pop-up near the top of the screen that finds servers, links, subscriptions, services, routers and router scripts by name, and the actions you can run on them, in one grouped list; `:` opens it with actions only. It has no ×: `esc` or a click outside closes it. Every button is also an action there, with the same words;
+  - **search** (`/`): a pop-up near the top of the screen that finds servers, links, subscriptions, services, routers and router scripts by name, and the actions you can run on them, in one grouped list; `:` opens it with actions only. `↑ ↓` or `⌃N ⌃P` move through the results; It has no ×: `esc` or a click outside closes it. Every button is also an action there, with the same words;
   - **jobs indicator**: the number of running jobs, opening a list with their current step, and a mark when a job failed since the last look;
   - **notifications health**: a warning if Telegram isn't configured or deliveries are failing;
   - the **admin's name** as plain text (a long one, an email, ends in "…" with the whole name on hover, so it never pushes what follows off the screen), then a small **Sign out** button at the end: one click, no confirmation. There is no account menu. **Settings** is in the sidebar (`g ,`) and in the `:` pop-up. Nothing in the header or the `:` pop-up switches the language: it changes only in Settings → General.

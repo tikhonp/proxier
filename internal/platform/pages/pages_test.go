@@ -31,7 +31,8 @@ func TestSignInFlow(t *testing.T) {
 	// the dashboard shows the shell
 	l := s.SignIn("")
 	body := l.Get("/").Body.String()
-	for _, want := range []string{"Dashboard", `class="hdr"`, `class="side pc-side"`, `id="keyline"`, "hx-headers"} {
+	for _, want := range []string{"Dashboard", `class="hdr"`, `class="side pc-side"`, `id="keyline"`, "hx-headers",
+		`<span class="bold nowrap">⌃N ⌃P</span><span class="subtle">Move, in search and actions too</span>`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("dashboard lacks %q", want)
 		}

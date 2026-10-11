@@ -940,14 +940,14 @@ func popups(s Shell) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"></label><div class=\"pal-list\" id=\"pal-list\"></div><div class=\"pal-foot\"><span><span class=\"k\">↑ ↓</span> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "\"></label><div class=\"pal-list\" id=\"pal-list\"></div><div class=\"pal-foot\"><span><span class=\"k\">↑ ↓ ⌃N ⌃P</span> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		var templ_7745c5c3_Var56 string
 		templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.key.move"))
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/platform/ui/layout.templ`, Line: 163, Col: 69}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/platform/ui/layout.templ`, Line: 163, Col: 79}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var56))
 		if templ_7745c5c3_Err != nil {
