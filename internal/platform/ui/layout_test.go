@@ -963,6 +963,7 @@ func TestPhoneHeaderTabsAndTouch(t *testing.T) {
 	css := appCSS(t)
 	phone := css[strings.Index(css, `:root { --header-h: 56px; }`):]
 	for _, want := range []string{
+		`.hdr-logo { width: auto; border-right: 0; padding: 0 12px; }`,
 		`.hdr-search { flex: 0 0 48px; margin-left: auto;`,
 		`.hdr-search .slash, .hdr-search .hdr-ph { display: none; }`,
 		`.hdr-search .hdr-glass { display: block; }`,
