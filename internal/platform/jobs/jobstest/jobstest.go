@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 )
 
@@ -122,7 +123,7 @@ func (h *Harness) Start(sys *jobs.System) (stop func()) {
 // Drain waits until no job is running or due.
 func (h *Harness) Drain() {
 	h.T.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := testwait.Deadline(60 * time.Second)
 	calm := 0
 	for time.Now().Before(deadline) {
 		var n int
@@ -147,7 +148,7 @@ func (h *Harness) Drain() {
 // WaitFor polls cond for up to 30 seconds.
 func (h *Harness) WaitFor(what string, cond func() bool) {
 	h.T.Helper()
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := testwait.Deadline(30 * time.Second)
 	for time.Now().Before(deadline) {
 		if cond() {
 			return

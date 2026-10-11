@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 // TestFailedDemoJobReachesTelegram is the Phase 0 exit demo's last leg: a job
@@ -35,7 +36,7 @@ func TestFailedDemoJobReachesTelegram(t *testing.T) {
 	t.Cleanup(func() { stop(); <-done; <-done })
 
 	// The dispatcher's cursors start at the newest event once it is up.
-	deadline := time.Now().Add(30 * time.Second)
+	deadline := testwait.Deadline(30 * time.Second)
 	for {
 		var n int
 		_ = app.DB.R.Get(&n, `SELECT count(*) FROM event_cursors WHERE subscriber = 'platform.notifier'`)

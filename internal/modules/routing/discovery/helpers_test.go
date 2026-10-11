@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery/discoverytest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 var bg = context.Background()
@@ -33,7 +34,7 @@ func start(t *testing.T, h *routingtest.Harness, st discovery.Start) int64 {
 // wait waits until the run reaches the state.
 func wait(t *testing.T, h *routingtest.Harness, id int64, state string) discovery.Run {
 	t.Helper()
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := testwait.Deadline(20 * time.Second)
 	for {
 		r, err := h.Mod.Discovery.Get(bg, id)
 		if err != nil {

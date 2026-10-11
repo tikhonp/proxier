@@ -135,6 +135,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 - Test files that use a module harness are external test packages (`package links_test`): the harness imports the module root, which imports every service.
 - xray's XHTTP client has a data race (`splithttp.WaitReadCloser.Set`), so packages that push XHTTP traffic (`servers/proxy`, `provision`, `deploy`) run without `-race` (`XRAY_TESTS` in the Makefile). Everything else uses `StubProxy()` and runs under `-race`. This xray has no `allowInsecure`: tests pin the self-signed certificate.
 - Never assert the absence of a bare word in a page (CSRF tokens are random): use `>Name<`.
+- A wait on real time (a harness's `Drain`, `Settle`, `WaitFor`, a test's own polling loop) takes its limit from `testwait.Deadline(d)`, never `time.Now().Add(d)`: `d` is sized for a laptop, and CI sets `PROXIER_TEST_PATIENCE=10` (and `-timeout=60m` through `GOTESTFLAGS`) because its runner, every package at once under `-race`, is ten times slower or more.
 - Move a harness clock only with `Advance`. The display zone in tests is Moscow.
 - `TestRealChromium` runs only with `PROXIER_TEST_CHROMIUM_URL` (and `PROXIER_TEST_PAGE_HOST=host.docker.internal` when Chromium is a container).
 

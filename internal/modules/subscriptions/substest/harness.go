@@ -21,6 +21,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 // Harness is the app with the module on a fake catalog.
@@ -197,7 +198,7 @@ func (h *Harness) StartJobs() {
 // Drain waits until no job is queued or running.
 func (h *Harness) Drain() {
 	h.T.Helper()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := testwait.Deadline(60 * time.Second)
 	calm := 0
 	for time.Now().Before(deadline) {
 		var n int

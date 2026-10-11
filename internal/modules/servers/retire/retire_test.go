@@ -18,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 var bg = context.Background()
@@ -575,7 +576,7 @@ func (c *clock) Set(t time.Time) {
 // count of passes ran out there.
 func awaitJobs(t *testing.T, h *serverstest.Harness, clk *clock, done func() bool) {
 	t.Helper()
-	for deadline := time.Now().Add(60 * time.Second); !done() && time.Now().Before(deadline); {
+	for deadline := testwait.Deadline(60 * time.Second); !done() && time.Now().Before(deadline); {
 		var next db.Time
 		err := h.App.DB.R.Get(&next, `SELECT run_after FROM jobs WHERE state = 'queued' ORDER BY run_after LIMIT 1`)
 		if err == nil && next.After(clk.Now()) {

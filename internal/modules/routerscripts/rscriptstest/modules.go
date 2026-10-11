@@ -15,6 +15,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 // Modules is the app with the real subscriptions (on substest's fake
@@ -105,7 +106,7 @@ func (m *Modules) StartJobs() {
 func (m *Modules) Drain() {
 	m.T.Helper()
 	m.App.Jobs.Kick()
-	deadline := time.Now().Add(60 * time.Second)
+	deadline := testwait.Deadline(60 * time.Second)
 	calm := 0
 	for time.Now().Before(deadline) {
 		var n int

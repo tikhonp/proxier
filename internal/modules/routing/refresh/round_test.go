@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 func TestRoundSkipsServicesInNoList(t *testing.T) {
@@ -56,7 +57,7 @@ func TestRoundResumes(t *testing.T) {
 
 	h.StartJobs()
 	job := h.RunSchedule("routing.refresh_round")
-	deadline := time.Now().Add(20 * time.Second)
+	deadline := testwait.Deadline(20 * time.Second)
 	for len(h.Events("routing.snapshot_accepted")) < 2 {
 		if time.Now().After(deadline) {
 			t.Fatal("the first two services weren't refreshed")
