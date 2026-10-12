@@ -16,8 +16,8 @@ type Op struct {
 }
 
 var (
-	reRemoveDNS = regexp.MustCompile(`^/ip dns static remove \[find comment="([^"]*)" address-list="([A-Za-z0-9._-]+)"\]$`)
-	reAddDNS    = regexp.MustCompile(`^/ip dns static add name=(\S+) type=FWD match-subdomain=(yes|no) forward-to=([A-Za-z0-9._-]+) address-list=([A-Za-z0-9._-]+) comment="([^"]*)"$`)
+	reRemoveDNS = regexp.MustCompile(`^/ip dns static remove \[find comment="((?:[^"\\]|\\.)*)" address-list="([A-Za-z0-9._-]+)"\]$`)
+	reAddDNS    = regexp.MustCompile(`^/ip dns static add name=(\S+) type=FWD match-subdomain=(yes|no) forward-to=([A-Za-z0-9._-]+) address-list=([A-Za-z0-9._-]+) comment="((?:[^"\\]|\\.)*)"$`)
 )
 
 // ParseScript reads back what ServiceBlock and RemovalBlock wrote; comment
@@ -50,11 +50,12 @@ func ParseScript(body []byte) ([]Op, error) {
 		case reRemoveDNS.MatchString(l):
 			m := reRemoveDNS.FindStringSubmatch(l)
 			n := Names{List: m[2]}
-			want := RemovalBlock(n, m[1])
+			tag := Unquote(m[1])
+			want := RemovalBlock(n, tag)
 			if i+1 >= len(src) || src[i+1] != want[1] {
-				return nil, fmt.Errorf("routeros: removal of %s without its address-list line", m[1])
+				return nil, fmt.Errorf("routeros: removal of %s without its address-list line", tag)
 			}
-			ops = append(ops, Op{Kind: "remove", Tag: m[1], Names: n})
+			ops = append(ops, Op{Kind: "remove", Tag: tag, Names: n})
 			i += 2
 		default:
 			return nil, fmt.Errorf("routeros: unexpected line %q", l)
@@ -66,7 +67,7 @@ func ParseScript(body []byte) ([]Op, error) {
 func parseBlock(lines []string) (Op, error) {
 	op := Op{Kind: "update"}
 	if len(lines) > 1 && reRemoveDNS.MatchString(lines[1]) {
-		op.Tag = reRemoveDNS.FindStringSubmatch(lines[1])[1]
+		op.Tag = Unquote(reRemoveDNS.FindStringSubmatch(lines[1])[1])
 	} else {
 		op.Kind = "continue"
 	}
@@ -78,7 +79,7 @@ func parseBlock(lines []string) (Op, error) {
 		op.Entries = append(op.Entries, Entry{Name: m[1], Exact: m[2] == "no"})
 		op.Names = Names{List: m[4], Forwarder: m[3]}
 		if op.Tag == "" {
-			op.Tag = m[5]
+			op.Tag = Unquote(m[5])
 		}
 	}
 	if op.Tag == "" || len(op.Entries) == 0 {

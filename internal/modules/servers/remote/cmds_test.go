@@ -118,6 +118,22 @@ func TestHTTPCommandUsesTheURLsPort(t *testing.T) {
 	}
 }
 
+func TestHTTPCommandURLIsNeverAnOption(t *testing.T) {
+	for _, url := range []string{"-o/etc/cron.d/x", "--config=/root/.ssh/id_ed25519"} {
+		cmd := mustHTTP(t, url, "")
+		words, err := remote.Split(cmd)
+		if err != nil || len(words) < 2 || words[len(words)-2] != "--" || words[len(words)-1] != url {
+			t.Fatalf("%q: %q %v", url, words, err)
+		}
+		if c, ok := remote.Parse(cmd); !ok || c.Op != remote.OpHTTP || c.Args[0] != url {
+			t.Fatalf("%q: %+v %v", url, c, ok)
+		}
+	}
+	if _, ok := remote.Parse(`curl -sk -o /dev/null -w '%{http_code}' --max-time 10 https://h.example/`); ok {
+		t.Fatal("a curl without -- parsed")
+	}
+}
+
 func TestOSAndArchChecks(t *testing.T) {
 	for _, c := range []struct {
 		found   string

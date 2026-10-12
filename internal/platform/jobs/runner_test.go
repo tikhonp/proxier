@@ -3,6 +3,8 @@ package jobs_test
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -314,6 +316,51 @@ func TestPermanentErrorFailsAndRecordsJobFailed(t *testing.T) {
 	}
 	if evs[0].Payload["type"] != "test.sync" || evs[0].Actor != events.JobActor(e.ID) || evs[0].Subject != (events.Subject{Type: "job", ID: "1"}) {
 		t.Fatalf("%+v", evs[0])
+	}
+}
+
+func TestFailureErrorIsRedacted(t *testing.T) {
+	h := newH(t)
+	if err := h.Events.Declare(events.Type{Name: "test.sync_failed", Module: "platform"}); err != nil {
+		t.Fatal(err)
+	}
+	gone := errors.New("exit status 1")
+	var sawCause bool
+	typ := jobs.Type{Name: "test.sync", Queue: jobs.Routers, MaxAttempts: 2, Backoff: []time.Duration{0},
+		Steps: []jobs.Step{{Name: "push", Run: func(_ context.Context, r *jobs.Run) error {
+			r.Log().Redact("uuid-added-by-module")
+			return fmt.Errorf("stderr: login hunter2-root-password, client uuid-added-by-module: %w", gone)
+		}}},
+		OnFailed: func(ctx context.Context, tx *sqlx.Tx, j jobs.Info, err error) error {
+			sawCause = errors.Is(err, gone)
+			_, e := h.Events.Record(ctx, tx, events.Event{Type: "test.sync_failed", Actor: j.Actor(), Subject: j.Subject,
+				Payload: map[string]any{"error": err.Error()}})
+			return e
+		}}
+	reg(t, h.Sys, typ)
+	h.Start(h.Sys)
+	e := enq(t, h, jobs.Request{Type: "test.sync", ResourceKey: "router:3", Secrets: map[string]string{"pw": "hunter2-root-password"}})
+	h.Drain()
+	j, _ := h.Sys.Job(bg, e.ID)
+	want := "stderr: login •••, client •••: exit status 1"
+	if j.State != jobs.Failed || j.Error != want {
+		t.Fatalf("%s %q", j.State, j.Error)
+	}
+	if !sawCause {
+		t.Fatal("OnFailed lost the cause")
+	}
+	var stepErr string
+	if err := h.DB.R.Get(&stepErr, `SELECT error FROM job_steps WHERE job_id = ?`, e.ID); err != nil || stepErr != want {
+		t.Fatalf("step error %q %v", stepErr, err)
+	}
+	evs, _ := events.After(bg, h.DB.R, 0, 10)
+	if len(evs) != 1 || evs[0].Payload["error"] != want {
+		t.Fatalf("%+v", evs)
+	}
+	for _, l := range logs(t, h, e.ID) {
+		if strings.Contains(l, "hunter2") || strings.Contains(l, "uuid-added") {
+			t.Fatalf("log: %q", l)
+		}
 	}
 }
 

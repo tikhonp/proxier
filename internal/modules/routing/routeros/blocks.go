@@ -36,8 +36,8 @@ func ServiceBlock(n Names, tag string, entries []Entry, continued bool) []string
 			sub = "no"
 		}
 		out = append(out,
-			fmt.Sprintf(`/ip dns static add name=%s type=FWD match-subdomain=%s forward-to=%s address-list=%s comment="%s"`, x.Name, sub, n.Forwarder, n.List, tag),
-			fmt.Sprintf(`:do {/ip firewall address-list add list=%s address=%s comment="%s"} on-error={}`, n.List, x.Name, tag),
+			fmt.Sprintf(`/ip dns static add name=%s type=FWD match-subdomain=%s forward-to=%s address-list=%s comment="%s"`, x.Name, sub, n.Forwarder, n.List, Quote(tag)),
+			fmt.Sprintf(`:do {/ip firewall address-list add list=%s address=%s comment="%s"} on-error={}`, n.List, x.Name, Quote(tag)),
 		)
 	}
 	return append(out, "}")
@@ -47,7 +47,7 @@ func ServiceBlock(n Names, tag string, entries []Entry, continued bool) []string
 // and its static address-list entries.
 func RemovalBlock(n Names, tag string) []string {
 	return []string{
-		fmt.Sprintf(`/ip dns static remove [find comment="%s" address-list="%s"]`, tag, n.List),
-		fmt.Sprintf(`/ip firewall address-list remove [find list="%s" comment="%s" dynamic=no]`, n.List, tag),
+		fmt.Sprintf(`/ip dns static remove [find comment="%s" address-list="%s"]`, Quote(tag), n.List),
+		fmt.Sprintf(`/ip firewall address-list remove [find list="%s" comment="%s" dynamic=no]`, n.List, Quote(tag)),
 	}
 }

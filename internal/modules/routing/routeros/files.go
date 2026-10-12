@@ -21,14 +21,17 @@ type Part struct {
 func (p Part) Last() bool { return p.Part == p.Parts }
 
 // Describe is "update openai (+31)", "update big (part 2/3, +2000)" or "remove mine".
+// The tag is quoted: an unmanaged one comes from the router, and a carriage
+// return in it would end the file's "#" line.
 func (p Part) Describe() string {
+	tag := Quote(p.Tag)
 	if p.Remove {
-		return "remove " + p.Tag
+		return "remove " + tag
 	}
 	if p.Parts > 1 {
-		return fmt.Sprintf("update %s (part %d/%d, +%d)", p.Tag, p.Part, p.Parts, p.Domains)
+		return fmt.Sprintf("update %s (part %d/%d, +%d)", tag, p.Part, p.Parts, p.Domains)
 	}
-	return fmt.Sprintf("update %s (+%d)", p.Tag, p.Domains)
+	return fmt.Sprintf("update %s (+%d)", tag, p.Domains)
 }
 
 // File is one script pushed and imported.

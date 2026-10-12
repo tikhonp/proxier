@@ -78,3 +78,37 @@ func TestParseCommands(t *testing.T) {
 		}
 	}
 }
+
+func TestARouterTagStaysInsideItsString(t *testing.T) {
+	n := Names{List: "vpn_list", Forwarder: "doh"}
+	for _, tag := range []string{
+		`x"] ; /system reboot ; :put [find comment="`,
+		`back\slash \41`,
+		"$ours ? cr\rlf\nend",
+		"мой тег",
+	} {
+		files := Files(n, "job", "header", []Block{{Tag: tag, Remove: true}})
+		body := string(files[0].Body)
+		for _, l := range strings.Split(body, "\n")[1:] {
+			if strings.ContainsAny(l, "\r") {
+				t.Fatalf("%q: a raw carriage return in %q", tag, l)
+			}
+		}
+		if strings.Contains(body, "/system reboot ;") && !strings.Contains(body, `x\"] ; /system reboot`) {
+			t.Fatalf("%q: quote not escaped:\n%s", tag, body)
+		}
+		ops, err := ParseScript(files[0].Body)
+		if err != nil {
+			t.Fatalf("%q: %v\n%s", tag, err, body)
+		}
+		if len(ops) != 1 || ops[0].Kind != "remove" || ops[0].Tag != tag {
+			t.Fatalf("%q: %+v", tag, ops)
+		}
+		if got := Unquote(Quote(tag)); got != tag {
+			t.Fatalf("round trip %q → %q", tag, got)
+		}
+	}
+	if q := Quote("openai.com-2!"); q != "openai.com-2!" {
+		t.Fatalf("a service tag changed: %q", q)
+	}
+}
