@@ -585,11 +585,14 @@ templ dashboardServers(v DashboardView) {
 	}
 	if v.Total > 0 {
 		<div class="row dashsrv">
+			// A count of zero is noise: the area says which states there are, not which there aren't.
 			for _, st := range []string{"active", "provisioning", "failed"} {
-				<span>
-					<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(v.Counts[st]) }</a>
-					<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
-				</span>
+				if v.Counts[st] > 0 {
+					<span>
+						<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(v.Counts[st]) }</a>
+						<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
+					</span>
+				}
 			}
 			<span class="flex1"></span>
 			<a href="/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.dash.all") }</a>
@@ -597,10 +600,12 @@ templ dashboardServers(v DashboardView) {
 		if v.Counts["active"] > 0 {
 			<div class="row dashcnt">
 				for _, st := range []string{"healthy", "degraded", "blocked", "down", "unknown", "paused"} {
-					<span>
-						@ui.Status(healthKind(st), i18n.T(ctx, "servers.health."+st))
-						<span class="bold">{ strconv.Itoa(v.Health[st]) }</span>
-					</span>
+					if v.Health[st] > 0 {
+						<span>
+							@ui.Status(healthKind(st), i18n.T(ctx, "servers.health."+st))
+							<span class="bold">{ strconv.Itoa(v.Health[st]) }</span>
+						</span>
+					}
 				}
 			</div>
 		}
