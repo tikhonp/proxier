@@ -31,6 +31,7 @@ var agentMessages = i18n.Messages{
 	"agent.err.server": {EN: "That server is not an active server of this template.", RU: "Этот сервер не активен или построен из другого шаблона."},
 
 	"agent.to_template":       {EN: "Back to the template", RU: "К шаблону"},
+	"agent.secret.revoke":     {EN: "To end it sooner, revoke access on the template page.", RU: "Чтобы закончить раньше, отзовите доступ на странице шаблона."},
 	"agent.band.counts":       {EN: "{saves} saves · {validations} validations", RU: "сохранений: {saves} · проверок: {validations}"},
 	"templates.saved.revoked": {EN: "The agent's access was revoked.", RU: "Доступ агента отозван."},
 }

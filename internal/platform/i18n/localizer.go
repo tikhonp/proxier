@@ -179,39 +179,49 @@ func (l *Localizer) Time(t time.Time) string {
 	return t.In(l.TZ).Format("2006-01-02 15:04")
 }
 
-// Ago renders "4 min ago" / "4 мин назад"; older than two days it is a date.
+// Ago renders "4 min ago" / "4 мин назад", and a time to come "in 4 min" /
+// "через 4 мин" (an expiry); more than two months away it is a date.
 func (l *Localizer) Ago(t time.Time) string {
 	d := l.now().Sub(t)
-	if d < 0 {
-		d = 0
-	}
 	ru := l.Lang == RU
-	switch {
-	case d < time.Minute:
+	// less than a minute either way is now: a clock a few seconds apart
+	// must not turn a fresh event into "in 0 min"
+	if d > -time.Minute && d < time.Minute {
 		if ru {
 			return "только что"
 		}
 		return "just now"
-	case d < time.Hour:
-		n := int64(d / time.Minute)
-		if ru {
-			return fmt.Sprintf("%d мин назад", n)
-		}
-		return fmt.Sprintf("%d min ago", n)
-	case d < 48*time.Hour:
-		n := int64(d / time.Hour)
-		if ru {
-			return fmt.Sprintf("%d ч назад", n)
-		}
-		return fmt.Sprintf("%d h ago", n)
-	case d < 60*24*time.Hour:
-		n := int64(d / (24 * time.Hour))
-		if ru {
-			return fmt.Sprintf("%d дн назад", n)
-		}
-		return fmt.Sprintf("%d d ago", n)
 	}
-	return t.In(l.TZ).Format("2006-01-02")
+	future := d < 0
+	if future {
+		d = -d
+	}
+	var unit time.Duration
+	var en, rus string
+	switch {
+	case d < time.Hour:
+		unit, en, rus = time.Minute, "min", "мин"
+	case d < 48*time.Hour:
+		unit, en, rus = time.Hour, "h", "ч"
+	case d < 60*24*time.Hour:
+		unit, en, rus = 24*time.Hour, "d", "дн"
+	default:
+		return t.In(l.TZ).Format("2006-01-02")
+	}
+	if !future {
+		n := int64(d / unit)
+		if ru {
+			return fmt.Sprintf("%d %s назад", n, rus)
+		}
+		return fmt.Sprintf("%d %s ago", n, en)
+	}
+	// rounded, not cut: an access of 2 h shown a second after it opened is
+	// "in 2 h", not "in 1 h"
+	n := int64((d + unit/2) / unit)
+	if ru {
+		return fmt.Sprintf("через %d %s", n, rus)
+	}
+	return fmt.Sprintf("in %d %s", n, en)
 }
 
 type ctxKey struct{}

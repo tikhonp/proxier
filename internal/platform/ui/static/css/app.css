@@ -658,6 +658,13 @@ ul.plain { list-style: none; padding: 12px 0 0; margin: 0; display: flex; flex-d
 .agent-form .check input { accent-color: var(--rose); width: 16px; height: 16px; margin: 0; }
 .agent-scope { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 12px 0; }
 .agent-prompt { margin: 0; padding: 12px 16px; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word; background: var(--base); color: var(--text); font: inherit; font-size: var(--fs); }
+/* the prompt, its warning and the copy row are one block: the prompt runs to the warning strip, which spans the page like
+   the prompt does, and the row under it has the page's 16 px gutter */
+.area.agent-out { padding-bottom: 0; }
+.agent-out .alert { padding: 10px 16px; border-width: 1px 0; }
+.agent-out .alert p { margin: 0; }
+.agent-out .alert b { font-weight: 600; }
+.agent-out .form-actions { padding: 14px 16px; }
 @media (max-width: 760px) { .agent-scope { grid-template-columns: minmax(0, 1fr); } }
 
 /* Subscriptions (2a): the list, the page's two columns, the sortable servers, the preview */

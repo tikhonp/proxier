@@ -73,6 +73,9 @@ func TestHandOffFormOpensASessionOnce(t *testing.T) {
 	if strings.Contains(shown, tok) || !strings.Contains(shown, "pxa_••••") || !strings.Contains(shown, "You are Codex") {
 		t.Fatalf("shown prompt:\n%s", shown)
 	}
+	if warn := between(res, `<div class="alert gold" role="status">`, "</div>"); !strings.Contains(warn, "until the access expires <time datetime=") || !strings.Contains(warn, "</time>. To end it sooner, revoke access on the script page.") {
+		t.Errorf("warning: %s", warn)
+	}
 	sess := openSession(t, h, id)
 	if sess.Agent != "codex" || sess.ExpiresAt.Sub(sess.OpenedAt.Time).Minutes() != 30 || !strings.Contains(sess.Context, `"diff":true`) {
 		t.Errorf("session: %+v", sess)
