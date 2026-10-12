@@ -12,6 +12,7 @@ import (
 
 func TestCutOffPages(t *testing.T) {
 	h := substest.New(t)
+	substest.CutOffRotates(t, h.App, true)
 	h.Catalog.Put(substest.Server(3, "fi-1", "🇫🇮", "Finland", 1))
 	h.Catalog.SetHealth(2, "blocked", substest.HealthySince)
 	h.Rotator.Refuse(3, servers.ErrNothingToRotate)
@@ -105,4 +106,16 @@ func TestCutOffPages(t *testing.T) {
 	if rec := h2.Login.Get(fmt.Sprintf("/links/%d/cutoff", id2)); rec.Code != http.StatusNotFound {
 		t.Errorf("plan without a rotator: %d", rec.Code)
 	}
+}
+
+func TestCutOffPagesWithRotationOff(t *testing.T) {
+	h := substest.New(t)
+	family := h.Subscription("Family", 1, 2)
+	id, _ := h.Link(family, "Alex")
+	href := fmt.Sprintf("/links/%d", id)
+	mustContain(t, page(t, h, href), "Servers keep their credentials: rotation on cut-off is off in Settings.")
+	body := page(t, h, href+"/cutoff")
+	mustContain(t, body, "a copied URI keeps working", "Nothing to rotate", "rotation on cut-off is off")
+	mustNotContain(t, body, "Apps refresh within their update interval")
+	mustContain(t, page(t, h, "/settings/subscriptions"), "Rotate servers on cut-off")
 }

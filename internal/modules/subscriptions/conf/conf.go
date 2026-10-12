@@ -20,6 +20,7 @@ const (
 	NetworkCountryURL = "subscriptions.network_country_url"
 	Tombstone         = "subscriptions.tombstone"
 	FetchRetention    = "subscriptions.fetch_retention"
+	CutOffRotates     = "subscriptions.cutoff_rotates"
 )
 
 const day = 24 * time.Hour
@@ -50,5 +51,8 @@ var Section = settings.Section{
 		{Key: Tombstone, Kind: settings.Duration, Default: "720h0m0s", Min: int64(day), Max: int64(365 * day)},
 		// At least a week: the link page counts the last 7 days.
 		{Key: FetchRetention, Kind: settings.Duration, Default: "2160h0m0s", Min: int64(7 * day), Max: int64(365 * day)},
+		// Off: a URI someone copied keeps working after a cut-off, which the
+		// admin accepts over redeploying every server of the subscription.
+		{Key: CutOffRotates, Kind: settings.Bool, Default: "false"},
 	},
 }

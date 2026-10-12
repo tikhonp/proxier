@@ -1083,7 +1083,7 @@ func linkPage(s ui.Shell, v linkView) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					if v.CanCutOff {
-						templ_7745c5c3_Err = actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, i18n.T(ctx, "cutoff.action.what")).Render(ctx, templ_7745c5c3_Buffer)
+						templ_7745c5c3_Err = actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, cutoffWhat(ctx, v.CutOffOff)).Render(ctx, templ_7745c5c3_Buffer)
 						if templ_7745c5c3_Err != nil {
 							return templ_7745c5c3_Err
 						}

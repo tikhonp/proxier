@@ -18,6 +18,7 @@ import (
 var cutoffReasons = map[string]string{
 	links.ReasonNotInService: "cutoff.reason.not_in_service",
 	links.ReasonNothing:      "cutoff.reason.nothing",
+	links.ReasonRotationOff:  "cutoff.reason.rotation_off",
 }
 
 type cutoffPlanServer struct {
@@ -29,6 +30,7 @@ type cutoffPlanView struct {
 	Rotate []cutoffPlanServer
 	Skip   []cutoffPlanServer
 	Others string
+	Off    bool // rotation on cut-off is off
 }
 
 type cutoffItemView struct {
@@ -59,7 +61,7 @@ func (h *handler) cutoffPlan(c *echo.Context) error {
 		return cutoffErr(err)
 	}
 	loc := h.loc(ctx)
-	v := cutoffPlanView{L: l}
+	v := cutoffPlanView{L: l, Off: p.RotationOff}
 	for _, s := range p.Rotate {
 		v.Rotate = append(v.Rotate, cutoffPlanServer{Name: s.Name, Kind: healthKind(s.Health), Word: loc.T("subs.health." + s.Health)})
 	}
@@ -167,6 +169,9 @@ func (h *handler) cutoffBand(ctx context.Context, l links.Link) (string, error) 
 		return "", err
 	}
 	loc := h.loc(ctx)
+	if p.RotationOff {
+		return loc.T("cutoff.band.off"), nil
+	}
 	if len(p.Rotate) == 0 {
 		return loc.T("cutoff.band.nothing"), nil
 	}
@@ -187,4 +192,12 @@ func cutoffErr(err error) error {
 		return echo.NewHTTPError(http.StatusConflict, "only a failed rotation can be retried")
 	}
 	return actionErr(err)
+}
+
+// cutoffWhat is the Cut off action's line on the link page.
+func cutoffWhat(ctx context.Context, off bool) string {
+	if off {
+		return i18n.T(ctx, "cutoff.action.what.off")
+	}
+	return i18n.T(ctx, "cutoff.action.what")
 }

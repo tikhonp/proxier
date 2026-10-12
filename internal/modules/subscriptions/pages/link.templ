@@ -159,7 +159,7 @@ templ linkPage(s ui.Shell, v linkView) {
 								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
 							}, i18n.T(ctx, "links.regenerate.what"))
 							if v.CanCutOff {
-								@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, i18n.T(ctx, "cutoff.action.what"))
+								@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, cutoffWhat(ctx, v.CutOffOff))
 							}
 							@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
 							@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))

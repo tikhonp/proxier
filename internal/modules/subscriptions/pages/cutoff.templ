@@ -15,7 +15,9 @@ templ cutoffPlanPage(s ui.Shell, v cutoffPlanView) {
 			<div class="head">
 				<nav class="crumbs" aria-label="Breadcrumb"><a href="/links">{ i18n.T(ctx, "links.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(linkHref(v.L.ID)) }>{ v.L.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "cutoff.crumb") }</span></nav>
 				<h1>{ i18n.T(ctx, "cutoff.title", i18n.Args{"name": v.L.Name}) }</h1>
-				if v.L.State == "disabled" {
+				if v.Off {
+					<p class="subtle">{ i18n.T(ctx, "cutoff.note.off") }</p>
+				} else if v.L.State == "disabled" {
 					<p class="subtle">{ i18n.T(ctx, "cutoff.note.disabled") }</p>
 				} else {
 					<p class="subtle">{ i18n.T(ctx, "cutoff.note") }</p>

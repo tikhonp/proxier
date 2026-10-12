@@ -2,6 +2,7 @@ package substest
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -13,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/fetch"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
@@ -86,6 +88,15 @@ func New(t *testing.T, opts ...Option) *Harness {
 	}
 	h.Login = site.SignIn("")
 	return h
+}
+
+// CutOffRotates turns rotation on cut-off (subscriptions.cutoff_rotates) on
+// or off; it is off by default.
+func CutOffRotates(t testing.TB, app *platform.App, on bool) {
+	t.Helper()
+	if err := app.Settings.Set(context.Background(), "admin", "subscriptions", map[string]string{conf.CutOffRotates: fmt.Sprint(on)}); err != nil {
+		t.Fatal(err)
+	}
 }
 
 // Advance moves the module's clock.

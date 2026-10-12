@@ -106,6 +106,7 @@ Section `subscriptions`, on **Settings → Subscriptions**:
 | `subscriptions.network_country_url` | `https://ipinfo.io/{ip}/country` | Country lookup of a network's first address; empty turns it off. |
 | `subscriptions.tombstone` | 30 days | How long a deleted link serves "⛔ Link removed" (and holds its subscription) before it answers `404` (1–365 days). |
 | `subscriptions.fetch_retention` | 90 days | Fetches older than this are deleted (at least 7 days). |
+| `subscriptions.cutoff_rotates` | off | Whether Cut off also rotates every server of the link's subscription. Off: it only disables the link ([cut-off](../processes/servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). |
 
 ## Ports for other modules
 

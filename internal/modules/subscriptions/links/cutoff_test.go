@@ -15,6 +15,7 @@ import (
 func threeServers(t *testing.T) (*substest.Harness, int64) {
 	t.Helper()
 	h := substest.New(t)
+	substest.CutOffRotates(t, h.App, true)
 	h.Catalog.Put(substest.Server(3, "fi-1", "🇫🇮", "Finland", 1))
 	sub := h.Subscription("Family", 1, 2, 3)
 	id, _ := h.Link(sub, "Alex")
@@ -327,3 +328,35 @@ func TestCutOffPlan(t *testing.T) {
 }
 
 func itoa(n int64) string { return strconv.FormatInt(n, 10) }
+
+func TestCutOffWithRotationOffOnlyDisablesTheLink(t *testing.T) {
+	h, id := threeServers(t)
+	substest.CutOffRotates(t, h.App, false)
+	p, err := h.Mod.Links.PlanCutOff(bg, id)
+	if err != nil || !p.RotationOff || len(p.Rotate) != 0 || len(p.Skip) != 3 || p.OtherLinks != 0 {
+		t.Fatalf("plan %+v %v", p, err)
+	}
+	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	off := "skipped:" + links.ReasonRotationOff
+	wantStates(t, h, id, off, off, off)
+	if n := queued(t, h); n != 0 {
+		t.Fatalf("%d rotations queued", n)
+	}
+	if l, _ := h.Mod.Links.Get(bg, id); l.State != "disabled" {
+		t.Fatalf("link %s", l.State)
+	}
+}
+
+func TestTurningRotationOffStopsACutOffUnderWay(t *testing.T) {
+	h, id := threeServers(t)
+	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	c := wantStates(t, h, id, "running", "waiting", "waiting")
+	substest.CutOffRotates(t, h.App, false)
+	finish(t, h, running(t, c), "")
+	off := "skipped:" + links.ReasonRotationOff
+	wantStates(t, h, id, "done", off, off)
+}

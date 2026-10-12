@@ -151,6 +151,7 @@ func TestFetchDuringAndAfterRotation(t *testing.T) {
 func cutOffSetup(t *testing.T) (h *serverstest.Harness, mod *subscriptions.Module, ids []int64, alex int64, momToken string) {
 	t.Helper()
 	h, mod = substest.WithServers(t)
+	substest.CutOffRotates(t, h.App, true)
 	ctx := context.Background()
 	ids = []int64{h.Provisioned(), h.AddServer("10.77.0.2"), h.AddServer("10.77.0.3")}
 	sub, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")

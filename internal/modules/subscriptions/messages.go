@@ -398,6 +398,8 @@ var messages = i18n.Messages{
 	"settings.field.subscriptions.tombstone.help":           {EN: "How long a deleted link serves “Link removed” before its URL answers 404.", RU: "Сколько удалённая ссылка отдаёт «Ссылка удалена», прежде чем отвечать 404."},
 	"settings.field.subscriptions.fetch_retention":          {EN: "Keep fetches for", RU: "Хранить запросы"},
 	"settings.field.subscriptions.fetch_retention.help":     {EN: "Older fetches are deleted. At least 7 days.", RU: "Более старые запросы удаляются. Не меньше 7 дней."},
+	"settings.field.subscriptions.cutoff_rotates":           {EN: "Rotate servers on cut-off", RU: "Менять ключи при отрезании"},
+	"settings.field.subscriptions.cutoff_rotates.help":      {EN: "Off: Cut off only disables the link, and a URI someone copied keeps working. On: every server of its subscription also gets new credentials.", RU: "Выключено: «Отрезать» только отключает ссылку, и скопированный URI продолжает работать. Включено: все серверы её подписки ещё и получают новые ключи."},
 
 	// Events
 	"event.subscription.created":         {EN: "Created subscription {subject}", RU: "Создана подписка {subject}"},
@@ -432,6 +434,7 @@ var messages = i18n.Messages{
 	"cutoff.crumb":                 {EN: "Cut off", RU: "Отрезать"},
 	"cutoff.title":                 {EN: "Cut off {name}", RU: "Отрезать {name}"},
 	"cutoff.note":                  {EN: "The link is disabled at once: its app gets the “disabled” entry on its next refresh. Then every server of its subscription gets new credentials, one at a time, so copied URIs stop working too.", RU: "Ссылка отключается сразу: при следующем обновлении приложение получит заглушку «отключена». Затем каждый сервер её подписки по очереди получает новые ключи, и скопированные URI тоже перестают работать."},
+	"cutoff.note.off":              {EN: "The link is disabled at once: its app gets the “disabled” entry on its next refresh. Servers keep their credentials, so a copied URI keeps working: rotation on cut-off is off in Settings → Subscriptions.", RU: "Ссылка отключается сразу: при следующем обновлении приложение получит заглушку «отключена». Ключи серверов не меняются, и скопированный URI продолжит работать: смена ключей при отрезании выключена в Настройках → Подписки."},
 	"cutoff.note.disabled":         {EN: "The link is already disabled. Every server of its subscription gets new credentials, one at a time, so copied URIs stop working too.", RU: "Ссылка уже отключена. Каждый сервер её подписки по очереди получит новые ключи, и скопированные URI тоже перестанут работать."},
 	"cutoff.rotate":                {EN: "Servers it rotates", RU: "Серверы, которым сменят ключи"},
 	"cutoff.rotate.note":           {EN: "one at a time, in this order", RU: "по одному, в этом порядке"},
@@ -446,10 +449,12 @@ var messages = i18n.Messages{
 	"cutoff.warning":               {EN: "Apps refresh within their update interval (12 h by default). Until an app refreshes, it can't connect to a rotated server. Anyone using a copied URI or a disabled link loses access.", RU: "Приложения обновляются в пределах своего интервала (по умолчанию 12 ч). Пока приложение не обновилось, оно не подключится к серверу с новыми ключами. Кто пользуется скопированным URI или отключённой ссылкой, потеряет доступ."},
 	"cutoff.start":                 {EN: "Cut off", RU: "Отрезать"},
 	"cutoff.action":                {EN: "Cut off…", RU: "Отрезать…"},
+	"cutoff.action.what.off":       {EN: "Disables the link. Servers keep their credentials: rotation on cut-off is off in Settings.", RU: "Отключает ссылку. Ключи серверов не меняются: смена ключей при отрезании выключена в настройках."},
 	"cutoff.action.what":           {EN: "Disables the link and rotates every server of its subscription, so copied URIs stop working too.", RU: "Отключает ссылку и меняет ключи всех серверов её подписки, так что скопированные URI тоже перестают работать."},
 	"cutoff.band":                  {EN: "Cut off {name}…", RU: "Отрезать {name}…"},
 	"cutoff.band.what":             {EN: "Cut off", RU: "Отрезать"},
 	"cutoff.band.text":             {EN: "Disables the link and rotates {servers}, so copied URIs stop working too.", RU: "Отключает ссылку и меняет ключи {servers}, так что скопированные URI тоже перестают работать."},
+	"cutoff.band.off":              {EN: "Disables the link; servers keep their credentials (rotation on cut-off is off).", RU: "Отключает ссылку; ключи серверов не меняются (смена ключей при отрезании выключена)."},
 	"cutoff.band.nothing":          {EN: "Disables the link; no server of its subscription can be rotated now.", RU: "Отключает ссылку; ключи серверов её подписки сейчас сменить нельзя."},
 	"cutoff.area":                  {EN: "Cut-off", RU: "Отрезание"},
 	"cutoff.area.started":          {EN: "started {time} · {ago} · {actor}", RU: "начато {time} · {ago} · {actor}"},
@@ -463,5 +468,6 @@ var messages = i18n.Messages{
 	"cutoff.failed":                {EN: "{error} · still has the old credential", RU: "{error} · ключи прежние"},
 	"cutoff.skipped":               {EN: "{reason} · still has the old credential", RU: "{reason} · ключи прежние"},
 	"cutoff.reason.not_in_service": {EN: "not in service", RU: "не в работе"},
+	"cutoff.reason.rotation_off":   {EN: "rotation on cut-off is off", RU: "смена ключей при отрезании выключена"},
 	"cutoff.reason.nothing":        {EN: "its template has no rotatable values", RU: "в его шаблоне нет сменяемых значений"},
 }
