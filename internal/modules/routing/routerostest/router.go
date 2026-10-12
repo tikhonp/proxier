@@ -40,6 +40,7 @@ type Router struct {
 	failAt   map[int]failAt
 	dropAdds map[string]int
 	holds    map[int]chan struct{}
+	forget   map[int]bool
 	commands []string
 	onImport func(n int)
 }
@@ -58,6 +59,7 @@ func New(t *testing.T, authorized ssh.PublicKey) *Router {
 		version: "7.24.5 (stable)", board: "RB5009UG+S+", identity: "MikroTik",
 		forwarders: map[string]bool{routeros.Defaults.Forwarder: true},
 		outputs:    map[int]string{}, failAt: map[int]failAt{}, dropAdds: map[string]int{}, holds: map[int]chan struct{}{},
+		forget: map[int]bool{},
 	}
 	r.list = []listRow{
 		{List: routeros.Defaults.List, Address: "dns.google", Comment: "mtvpn:doh"},
@@ -132,9 +134,13 @@ func (r *Router) handle(s *sshxtest.Session) int {
 		_, _ = io.WriteString(s.Stdout, r.runImport(call.File))
 		r.mu.Lock()
 		hook, n := r.onImport, len(r.imports)
+		forget := r.forget[n]
 		r.mu.Unlock()
 		if hook != nil {
 			hook(n)
+		}
+		if forget {
+			s.Freeze()
 		}
 	case "remove-file":
 		_ = os.Remove(filepath.Join(r.Server.Dir(), call.File))
@@ -327,6 +333,15 @@ func (r *Router) Hold(n int) (release func()) {
 	release = func() { once.Do(func() { close(ch) }) }
 	r.t.Cleanup(release)
 	return release
+}
+
+// ForgetImport makes the nth import run in full and then never end: the
+// router stops answering on that connection (no exit status, no close, the
+// client's close ignored), as Telepat did to job #3837. New connections work.
+func (r *Router) ForgetImport(n int) {
+	r.mu.Lock()
+	r.forget[n] = true
+	r.mu.Unlock()
 }
 
 // NoForwarder removes the DoH forwarder, as on a router the script never set up.

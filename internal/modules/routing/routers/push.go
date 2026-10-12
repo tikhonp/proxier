@@ -2,6 +2,7 @@ package routers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -39,19 +40,31 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			}
 			return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s failed (%v): does Proxier's group have the ftp policy?", f.Name, err), err: err}
 		}
-		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: routeros.ImportTimeout, Log: log})
+		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: s.ImportTimeout, Log: log})
 		if err == nil {
 			err = routeros.ScanImport(res.ExitCode, append(append([]byte{}, res.Stdout...), res.Stderr...))
 		}
 		if ctx.Err() != nil {
-			return ctx.Err() // a shutdown or a cancel: the resume removes the file
+			return ctx.Err() // a shutdown (the resume removes the file) or a cancel
+		}
+		if err != nil && cl.Closed() {
+			// Run gave up on a session the router never ended and closed the
+			// connection: remove the file and re-read over a new one.
+			log.Warn("The router never ended the import of %s; connecting again.", f.Name)
+			again, cerr := s.connect(ctx, r, rt)
+			if cerr != nil {
+				log.Warn("Connecting again: %v", cerr) // the next attempt removes the file
+				return s.importFailure(f, err)
+			}
+			defer func() { _ = again.Close() }()
+			cl = again
 		}
 		if _, rerr := cl.Run(ctx, routeros.CmdRemoveFile(f.Name), sshx.RunOptions{Timeout: time.Minute}); rerr != nil {
 			log.Warn("Removing %s: %v", f.Name, rerr)
 		}
 		if err != nil {
 			s.landed(ctx, r, cl, rt, f, want)
-			return &failure{step: StepPush, text: fmt.Sprintf("%s: %s", f.Name, strings.TrimPrefix(err.Error(), "import: ")), err: err}
+			return s.importFailure(f, err)
 		}
 		if err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 			now := s.now()
@@ -73,6 +86,15 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 		}
 	}
 	return nil
+}
+
+// importFailure is a failed file as the router page says it.
+func (s *Service) importFailure(f routeros.File, err error) *failure {
+	text := strings.TrimPrefix(err.Error(), "import: ")
+	if errors.Is(err, sshx.ErrTimeout) {
+		text = fmt.Sprintf("the import did not end within %s", s.ImportTimeout)
+	}
+	return &failure{step: StepPush, text: f.Name + ": " + text, err: err}
 }
 
 // landed reads the router after a failed file and records each of its tags

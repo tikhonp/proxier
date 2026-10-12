@@ -477,6 +477,7 @@ type rtPreviewView struct {
 	RouterID        int64
 	SyncID          int64
 	Running, Failed bool
+	WaitJob         int64 // the running job a queued preview waits for
 	Error           string
 	Read, Counts    string
 	Rows            []planRow
@@ -603,7 +604,7 @@ func (h *handler) routerPage(c *echo.Context) error {
 	if p, ok, err := h.Routers.LatestPreview(ctx, r.ID); err != nil {
 		return err
 	} else if superseded := planned && last.Kind == "sync" && last.ID > p.ID; ok && c.QueryParam("closed") != i64(p.ID) && !superseded {
-		pv := h.rtPreviewOf(ctx, r, p)
+		pv := h.rtPreviewOf(ctx, r, p, busy)
 		v.Preview = &pv
 	}
 	if v.Conn, err = h.connOf(ctx, r); err != nil {
@@ -696,9 +697,12 @@ func planRows(ctx context.Context, plan []routers.TagPlan) []planRow {
 	return out
 }
 
-func (h *handler) rtPreviewOf(ctx context.Context, r routers.Router, s routers.Sync) rtPreviewView {
+func (h *handler) rtPreviewOf(ctx context.Context, r routers.Router, s routers.Sync, busy routers.Now) rtPreviewView {
 	loc := i18n.From(ctx)
 	v := rtPreviewView{RouterID: r.ID, SyncID: s.ID, Running: s.State == "running", Failed: s.State == "failed" || s.State == "cancelled", Error: s.Error}
+	if v.Running {
+		v.WaitJob = busy.PreviewWaits
+	}
 	if v.Running || v.Failed {
 		return v
 	}
@@ -833,7 +837,11 @@ func (h *handler) routerPreviewArea(c *echo.Context) error {
 	if !ok {
 		return c.NoContent(http.StatusOK)
 	}
-	return web.Render(c, http.StatusOK, previewArea(h.rtPreviewOf(ctx, r, p)))
+	busy, err := h.Routers.Busy(ctx, r.ID)
+	if err != nil {
+		return err
+	}
+	return web.Render(c, http.StatusOK, previewArea(h.rtPreviewOf(ctx, r, p, busy)))
 }
 
 func (h *handler) loadSync(c *echo.Context, r routers.Router) (routers.Sync, error) {

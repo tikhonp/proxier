@@ -122,6 +122,8 @@ var routerMessages = i18n.Messages{
 	"routers.preview.unmanaged":   {EN: "{n} unmanaged, left alone|{n} unmanaged, left alone", RU: "{n} чужой, не трогаем|{n} чужих, не трогаем|{n} чужих, не трогаем"},
 	"routers.preview.order":       {EN: "order: tags that gain names, other updates, then removals", RU: "порядок: теги, получающие имена, другие обновления, затем удаления"},
 	"routers.preview.running":     {EN: "Reading the router…", RU: "Читаем роутер…"},
+	"routers.preview.waiting":     {EN: "Waiting for the router's running job to finish: a router runs one job at a time.", RU: "Ждём, пока закончится текущая задача роутера: роутер выполняет одну задачу за раз."},
+	"routers.preview.wait_job":    {EN: "Job #{job}", RU: "Задача #{job}"},
 	"routers.preview.download":    {EN: "Download", RU: "Скачать"},
 	"routers.preview.run":         {EN: "Run this sync", RU: "Запустить синхронизацию"},
 	"routers.run_preview":         {EN: "Run this sync", RU: "Запустить синхронизацию"},

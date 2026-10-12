@@ -484,7 +484,8 @@ templ planTable(rows []planRow) {
 	</div>
 }
 
-// previewArea is the Sync preview; while it runs it polls itself.
+// previewArea is the Sync preview; while it runs it polls itself, every
+// second while it reads, every 5 s while it waits behind another job.
 templ previewArea(v rtPreviewView) {
 	<section
 		class="area"
@@ -492,7 +493,11 @@ templ previewArea(v rtPreviewView) {
 		aria-label={ i18n.T(ctx, "routers.area.preview") }
 		if v.Running {
 			hx-get={ routerHref(v.RouterID) + "/preview" }
-			hx-trigger="every 1s"
+			if v.WaitJob != 0 {
+				hx-trigger="every 5s"
+			} else {
+				hx-trigger="every 1s"
+			}
 			hx-target="#preview"
 			hx-swap="outerHTML"
 		}
@@ -505,7 +510,12 @@ templ previewArea(v rtPreviewView) {
 			<span class="flex1"></span>
 			<a class="sm" href={ templ.SafeURL(routerHref(v.RouterID) + "?closed=" + i64(v.SyncID)) } data-action="routers.preview_close">{ i18n.T(ctx, "routers.preview.close") }</a>
 		</div>
-		if v.Running {
+		if v.Running && v.WaitJob != 0 {
+			<p class="subtle area-body">
+				{ i18n.T(ctx, "routers.preview.waiting") }
+				<a href={ templ.SafeURL("/jobs/" + i64(v.WaitJob)) }>{ i18n.T(ctx, "routers.preview.wait_job", i18n.Args{"job": i64(v.WaitJob)}) }</a>
+			</p>
+		} else if v.Running {
 			<p class="subtle area-body">{ i18n.T(ctx, "routers.preview.running") }</p>
 		} else if v.Failed {
 			<p class="love area-body">{ v.Error }</p>

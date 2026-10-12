@@ -32,6 +32,9 @@ type Session struct {
 	Stdin   io.Reader
 	Stdout  io.Writer
 	Stderr  io.Writer
+	// Freeze freezes this session's connection only, until the server
+	// closes: as Server.Freeze, while other connections go on.
+	Freeze func()
 }
 
 type matcher struct {
@@ -56,8 +59,10 @@ type Server struct {
 	handlers   map[string]Handler
 	matchers   []matcher
 	forwarding bool
-	refusing   bool // new connections are closed at once
-	noUploads  bool // SFTP writes fail
+	refusing   bool          // new connections are closed at once
+	noUploads  bool          // SFTP writes fail
+	thaw       chan struct{} // non-nil while frozen; closed by Freeze(false)
+	closed     chan struct{}
 	conns      map[net.Conn]struct{}
 	wg         sync.WaitGroup
 }
@@ -73,7 +78,7 @@ func NewServer(t testing.TB, authorized ssh.PublicKey) *Server {
 	s := &Server{
 		Addr: ln.Addr().String(), t: t, ln: ln, dir: t.TempDir(),
 		keys: map[string][]ssh.PublicKey{}, passwords: map[string]string{}, blocked: map[string]bool{},
-		handlers: map[string]Handler{}, conns: map[net.Conn]struct{}{},
+		handlers: map[string]Handler{}, conns: map[net.Conn]struct{}{}, closed: make(chan struct{}),
 	}
 	if authorized != nil {
 		s.AuthorizeKey("*", authorized)
@@ -253,10 +258,82 @@ func (s *Server) uploadsRefused() bool {
 	return s.noUploads
 }
 
+// Freeze makes the server stop reading and writing all its connections
+// without closing them, as a host does that forgot a session or went quiet
+// behind a link that stays up: a running command never sends its exit status
+// or closes its channel, the client's close and keepalives go unanswered.
+// Freeze(false) lets everything held back through.
+func (s *Server) Freeze(frozen bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	switch {
+	case frozen && s.thaw == nil:
+		s.thaw = make(chan struct{})
+	case !frozen && s.thaw != nil:
+		close(s.thaw)
+		s.thaw = nil
+	}
+}
+
+// gate blocks while the server is frozen, until it thaws or closes.
+func (s *Server) gate() {
+	s.mu.Lock()
+	thaw := s.thaw
+	s.mu.Unlock()
+	if thaw == nil {
+		return
+	}
+	select {
+	case <-thaw:
+	case <-s.closed:
+	}
+}
+
+// gatedConn holds back what was read and what is to be written while the
+// server or the connection is frozen.
+type gatedConn struct {
+	net.Conn
+	s      *Server
+	mu     sync.Mutex
+	frozen bool
+}
+
+func (c *gatedConn) freeze() {
+	c.mu.Lock()
+	c.frozen = true
+	c.mu.Unlock()
+}
+
+func (c *gatedConn) gate() {
+	c.s.gate()
+	c.mu.Lock()
+	frozen := c.frozen
+	c.mu.Unlock()
+	if frozen {
+		<-c.s.closed
+	}
+}
+
+func (c *gatedConn) Read(p []byte) (int, error) {
+	n, err := c.Conn.Read(p)
+	c.gate()
+	return n, err
+}
+
+func (c *gatedConn) Write(p []byte) (int, error) {
+	c.gate()
+	return c.Conn.Write(p)
+}
+
 // Close stops the server and ends its connections.
 func (s *Server) Close() {
 	_ = s.ln.Close()
 	s.mu.Lock()
+	select {
+	case <-s.closed:
+	default:
+		close(s.closed)
+	}
 	for c := range s.conns {
 		_ = c.Close()
 	}
@@ -282,7 +359,7 @@ func (s *Server) accept() {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			s.serve(conn)
+			s.serve(&gatedConn{Conn: conn, s: s})
 			s.mu.Lock()
 			delete(s.conns, conn)
 			s.mu.Unlock()
@@ -320,7 +397,7 @@ func (s *Server) config() *ssh.ServerConfig {
 	return cfg
 }
 
-func (s *Server) serve(conn net.Conn) {
+func (s *Server) serve(conn *gatedConn) {
 	defer func() { _ = conn.Close() }()
 	sc, chans, reqs, err := ssh.NewServerConn(conn, s.config())
 	if err != nil {
@@ -334,7 +411,7 @@ func (s *Server) serve(conn net.Conn) {
 		switch nc.ChannelType() {
 		case "session":
 			wg.Add(1)
-			go func() { defer wg.Done(); s.session(nc, sc.User()) }()
+			go func() { defer wg.Done(); s.session(nc, sc.User(), conn.freeze) }()
 		case "direct-tcpip":
 			s.mu.Lock()
 			ok := s.forwarding
@@ -351,7 +428,7 @@ func (s *Server) serve(conn net.Conn) {
 	}
 }
 
-func (s *Server) session(nc ssh.NewChannel, user string) {
+func (s *Server) session(nc ssh.NewChannel, user string, freeze func()) {
 	ch, reqs, err := nc.Accept()
 	if err != nil {
 		return
@@ -383,7 +460,7 @@ func (s *Server) session(nc ssh.NewChannel, user string) {
 			case fn != nil:
 				code = fn(ch, ch, ch.Stderr())
 			case scripted != nil:
-				code = scripted(&Session{User: user, Command: p.Command, Stdin: ch, Stdout: ch, Stderr: ch.Stderr()})
+				code = scripted(&Session{User: user, Command: p.Command, Stdin: ch, Stdout: ch, Stderr: ch.Stderr(), Freeze: freeze})
 			default:
 				_, _ = io.WriteString(ch.Stderr(), "sshxtest: no such command: "+p.Command+"\n")
 			}

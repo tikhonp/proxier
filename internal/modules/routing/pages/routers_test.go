@@ -1,6 +1,7 @@
 package pages_test
 
 import (
+	"context"
 	"html"
 	"net/http"
 	"net/url"
@@ -12,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -424,4 +426,43 @@ func TestAdoptAndRemovePages(t *testing.T) {
 	if rec := h.Login.Get(path); rec.Code != 404 {
 		t.Fatalf("gone: %d", rec.Code)
 	}
+}
+
+// A preview queued behind a running sync says it waits for that job and
+// polls every 5 s, not "Reading the router…" every second (job #3837 held
+// Telepat while its preview polled for an hour).
+func TestPreviewWaitingBehindASyncSaysSo(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Telepat", 0)
+	release := r.Hold(1)
+	h.StartJobs()
+	path := "/routing/routers/" + strconv.FormatInt(id, 10)
+	job, err := h.Mod.Routers.SyncNow(context.Background(), id, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.WaitFor("the import", func() bool { return len(r.Imports()) == 1 })
+	location(t, h.Login.Post(path+"/preview", url.Values{}))
+
+	area := func() string {
+		rec := h.Site.Do(sitetest.Req{Path: path + "/preview", Cookies: []*http.Cookie{h.Login.Cookie},
+			Header: http.Header{"Hx-Request": {"true"}}})
+		if rec.Code != http.StatusOK {
+			t.Fatalf("preview area: %d", rec.Code)
+		}
+		return rec.Body.String()
+	}
+	waiting := area()
+	has(t, "waiting", waiting, "Waiting for the router&#39;s running job to finish", `href="/jobs/`+strconv.FormatInt(job, 10)+`"`,
+		"Job #"+strconv.FormatInt(job, 10), `hx-trigger="every 5s"`)
+	if strings.Contains(waiting, "Reading the router") || strings.Contains(waiting, "every 1s") {
+		t.Fatalf("a waiting preview claims to read: %s", waiting)
+	}
+	has(t, "router page", h.Login.Get(path).Body.String(), "Waiting for the router&#39;s running job to finish")
+
+	release()
+	h.Settle()
+	has(t, "after the sync", area(), "read from the router at", "nothing applied")
 }
