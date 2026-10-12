@@ -13,7 +13,7 @@ Settled on 2026-10-09, while planning Phase 4:
 - `mtvpn:` naming → kept: the infra-pin prefix, `to_vpn_list` and `vpn-doh` stay ([ADR 0010](./adr/0010-router-contract-stays-mtvpn-compatible.md)); a router with other names already works through its per-router names.
 - Zero-touch router registration → built in Phase 4: a `@fill proxier-ssh-key` parameter is filled with Proxier's public key, so the imported script creates the `proxier` user and adds the key itself ([router scripts](./modules/router-scripts.md#parameters)).
 
-Settled on 2026-10-12 (both still to build):
+Settled on 2026-10-12 (both built the same day):
 - Per-link credentials → no: credentials stay shared ([ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md)). Instead a setting, **rotate servers when a link is cut off**, off by default: while off, Cut off only ends the link (disabled, token dead) and touches no server, and its plan page says so. A vless link someone saved is an accepted risk.
 - Notification bursts → grouped: health changes of the same kind within a window (~2 min) go out as one message listing the servers; a lone change goes out by itself after the window.
 
