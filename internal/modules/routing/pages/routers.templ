@@ -228,6 +228,7 @@ templ routerAddPage(s ui.Shell, v rtAddView) {
 					<div class="area-body">
 						@snippet("key-line", i18n.T(ctx, "routers.key.public"), v.Key)
 						@snippet("key-jump", i18n.T(ctx, "routers.key.jump"), "echo '"+v.Key+"' >> ~/.ssh/authorized_keys")
+						@snippet("key-jump-user", i18n.T(ctx, "routers.key.jump_user", i18n.Args{"user": routers.DefaultUser}), routers.JumpUserCommands(routers.DefaultUser, v.Key))
 						@snippet("key-router", i18n.T(ctx, "routers.key.router"), routeros.KeyCommands(routers.DefaultUser, v.Key))
 						<p class="sm subtle">{ i18n.T(ctx, "routers.key.verify") }</p>
 					</div>
