@@ -91,6 +91,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - Names that are infra pins on the router (e.g. `dns.google`, `core.telegram.org`) are never installed as service entries. Installing `dns.google` as a FWD entry through the DoH forwarder would make the forwarder depend on itself.
 - One job per router at a time. Changes coalesce into one sync, 30 s after the last trigger.
 - Push timeouts are long (30 min per file). A client timeout in the middle of `/import` would leave a tag half-installed, and the block is idempotent, so the retry heals it.
+- Every SSH command ends within its timeout (or the cancel) plus 5 s, even when the router never ends the session: Proxier then closes the whole connection. After such an import, Proxier connects again to delete the file and re-read the router, and the attempt fails at push ("the import did not end within 30m0s"), so the retries run.
 - A tag already matching the router is never pushed, so the first sync of a router mtvpn manages changes nothing that matches.
 - Routers in **awaiting setup** or **paused** are never synced.
 
@@ -112,6 +113,9 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - `/import` output contains "syntax error" → the sync fails at push, the file is deleted, the failed tag keeps its old applied state, and the earlier tags keep their new one.
 - The router is offline → the sync fails at connect, retries after 5 min, 15 min and 1 h, and only the fourth (final) failure notifies. When it is back, `routing.router_recovered` notifies. A sync that fails once and then succeeds recovers without a notification.
 - The container restarts during `/import` of a block → the job resumes and re-runs that block. The tag ends correct.
+- The router runs an `/import` in full and never ends its session (no exit status, no channel close, Proxier's close ignored; Telepat behind its jump host, [2026-10-12](../../router-sync-hang-2026-10-12.md)) → after the import timeout Proxier closes the connection, connects again, deletes the file and re-reads: the tags that landed are recorded, the attempt fails at push, and the retry has nothing left to push.
+- The admin cancels a sync whose `/import` never ends → the job is cancelled at once (no failure counted) and the next sync records what landed. A shutdown during it interrupts the job; the resume deletes the leftover file and records what landed.
+- **Preview sync** while another job holds the router → the preview says it waits for that job (with a link) and polls every 5 s; it reads the router once the job ends.
 - The router's host key changed → the sync fails with "host key changed", nothing is pushed, and the security notification is sent.
 - Switch the router from "Main" to "Parents" → the preview shows removals for tags missing from "Parents". Running it removes them.
 - A router awaiting setup comes online on day 2 → active, `routing.router_connected`, initial sync.

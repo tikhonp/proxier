@@ -28,6 +28,9 @@ type Now struct {
 	JobID   int64     // the running or queued sync
 	Testing bool      // a test runs or waits
 	Preview bool      // a preview runs or waits
+	// PreviewWaits is the running job a queued preview waits for: the
+	// router runs one job at a time.
+	PreviewWaits int64
 }
 
 // Busy reads what the router's jobs are doing.
@@ -37,12 +40,18 @@ func (s *Service) Busy(ctx context.Context, id int64) (Now, error) {
 		return Now{}, err
 	}
 	var n Now
+	var running int64
+	var previewQueued bool
 	for _, h := range held {
+		if h.State == jobs.Running {
+			running = h.ID
+		}
 		switch h.Type {
 		case JobTest:
 			n.Testing = true
 		case JobPreview:
 			n.Preview = true
+			previewQueued = previewQueued || h.State != jobs.Running
 		case JobSync:
 			if h.State == jobs.Running {
 				n.Syncing, n.JobID = true, h.ID
@@ -62,6 +71,9 @@ func (s *Service) Busy(ctx context.Context, id int64) (Now, error) {
 				n.Retry, n.Attempt = true, j.Attempt+1
 			}
 		}
+	}
+	if previewQueued {
+		n.PreviewWaits = running
 	}
 	return n, nil
 }

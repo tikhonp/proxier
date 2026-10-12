@@ -64,3 +64,29 @@ The job's last line comes right before `cl.Run(ctx, routeros.CmdImport(f.Name), 
 - `proxier-sync-3837-1.rsc` on the router.
 - Everything planned is already on the router; the next successful sync should plan 0 new and record the tags.
 - To unstick it once fixed: restarting the container marks the job `interrupted` and resumes it (the resume removes the job's files); Cancel may not work until hypothesis 1 is fixed.
+
+## Fix
+
+**Hypothesis 1 held, and the wait without a bound was wider than `<-done`.** x/crypto's `Session.Wait` returns only once the peer's channel close arrives, so after the timer or a cancel, `Run` waited at `<-done` (`client.go:354`) for as long as the host stayed silent. Two more steps waited on the host with no timer running yet: `NewSession` (the channel-open confirmation, `client.go:315`) and `Start` (the exec reply). Goroutine dumps of the new tests show them stuck at exactly those lines on the old code. The same wait hung Cancel (the job never ended) and shutdown (`StopJobs` never returned).
+
+**Hypothesis 2 is not confirmed.** It can only be answered on the real router: open question 11 in [open questions](./open-questions.md). The logs narrow it. The keepalive never closed the client in 30 minutes, so the connection kept answering, and only the import's channel went silent. A jump host can't drop one message of the inner SSH stream without breaking the whole stream, so the likely cause is RouterOS dropping the `ssh-cmd` channel (it listed no `proxier` session) without sending `exit-status` or `close`. Treating EOF as the end wouldn't help: nothing shows RouterOS sent one either.
+
+**Hypothesis 3 held.** `routing.preview` takes the same resource key, `router:<id>`, so the preview waited queued behind job #3837 while its area polled every second and said "Reading the router…".
+
+What changed:
+
+- `sshx.Client.Run` runs the open, the start and the wait in a goroutine, and its timer starts before the open. When the timer or `ctx` ends, it closes the session and waits up to `SSH.CloseGrace` (5 s) for the host to confirm. Then, or at once if the session never opened, it closes the whole client and waits for the goroutine. The output copiers end with the session, so nothing writes to the job log after `Run` returns. `Client.Closed` says the client is gone.
+- `push` (routing): after a failed import on a closed client, it connects again, deletes the file and runs `landed` over the new connection. A failed reconnect leaves both to the next attempt, which deletes the job's files before it reads. A timed-out import fails the attempt at push with "the import did not end within 30m0s", and the retries (5 min, 15 min, 1 h) run. `Service.ImportTimeout` replaces the constant at the call, so tests can shorten it.
+- The router page's preview: `Busy` reports the running job a queued preview waits for (`Now.PreviewWaits`). The area then says "Waiting for the router's running job to finish", links the job and polls every 5 s.
+- Test doubles: `sshxtest.Server.Freeze` and `Session.Freeze` (a host, or one connection, that stops reading and writing but stays up), and `routerostest.Router.ForgetImport(n)` (the import runs in full, then its connection goes silent; new connections work).
+
+Tests:
+
+- `internal/platform/sshx/run_bounds_test.go`: `TestRunTimesOutWhenTheHostNeverEndsTheSession` (case A), `TestRunReturnsOnCancelWhenTheHostNeverEndsTheSession` (B), `TestRunTimesOutWhenTheHostBehindAJumpHostNeverEndsTheSession` (C), `TestRunTimesOutWhenTheJumpHostStopsForwarding`, `TestRunTimesOutWhenTheHostStopsAnsweringBeforeTheSessionOpens`. Each checks that `Run` returns within timeout + grace and that the connection is closed afterwards. All five hung for the full 3 s limit on the old code. `TestCommandTimeout` still shows that a host which answers the close keeps the connection.
+- `internal/modules/routing/routers/hang_test.go` (a router behind a jump host, through `routerostest`): `TestImportThatNeverEndsFailsTheAttemptAndTheRetryRecordsIt`, `TestCancelDuringImportThatNeverEndsCancelsTheJob`, `TestRestartDuringImportThatNeverEndsResumesAndRemovesTheFile`. On the old `client.go` the cancel and the restart tests hung until the test binary's timeout.
+- `internal/modules/routing/pages/routers_test.go`: `TestPreviewWaitingBehindASyncSaysSo`.
+
+Still open:
+
+- A **cancelled** sync leaves its `proxier-sync-<job>-*.rsc` on the router. Only a retry or a resume of the same job deletes it, and a cancelled job has neither. This was true before the fix too.
+- Production: job #3837 is still `running`. Once the fix is deployed, restarting the container interrupts the job and resumes it. The resume deletes `proxier-sync-3837-1.rsc`, plans 0 new and records the tags. Cancel works too, but leaves that file (see above).

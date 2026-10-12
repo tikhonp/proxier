@@ -127,6 +127,9 @@ type SSH struct {
 	DialTimeout, HandshakeTimeout time.Duration
 	// KeepAlive is how often an idle connection is probed; three misses close it.
 	KeepAlive time.Duration
+	// CloseGrace is how long Run waits, once it has ended a command, for the
+	// host to close the command's session; then it closes the connection (5 s).
+	CloseGrace time.Duration
 	// Dial replaces the direct TCP dial. Tests use it to make several
 	// addresses reach one fake server; nothing in production sets it.
 	Dial Dialer
@@ -144,7 +147,7 @@ type SSH struct {
 func New(d *db.DB, v *vault.Vault, ev *events.Catalog, st *settings.Store, tailnet Dialer, log *slog.Logger) *SSH {
 	return &SSH{
 		Now: time.Now, DialTimeout: 15 * time.Second, HandshakeTimeout: 15 * time.Second, KeepAlive: 30 * time.Second,
-		d: d, v: v, ev: ev, st: st, tailnet: tailnet, log: log,
+		CloseGrace: 5 * time.Second, d: d, v: v, ev: ev, st: st, tailnet: tailnet, log: log,
 	}
 }
 

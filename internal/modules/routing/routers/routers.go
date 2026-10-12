@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -134,6 +135,9 @@ type Deps struct {
 // Service is router sync.
 type Service struct {
 	d Deps
+	// ImportTimeout bounds one /import (routeros.ImportTimeout); tests
+	// shorten it.
+	ImportTimeout time.Duration
 }
 
 // New builds the service.
@@ -141,7 +145,7 @@ func New(d Deps) *Service {
 	if d.Now == nil {
 		d.Now = time.Now
 	}
-	return &Service{d: d}
+	return &Service{d: d, ImportTimeout: routeros.ImportTimeout}
 }
 
 func (s *Service) now() db.Time { return db.At(s.d.Now()) }
