@@ -63,8 +63,7 @@ func TestParseCommands(t *testing.T) {
 		{CmdReadList(n), Call{Kind: "read-list", Names: Names{List: n.List}}},
 		{CmdImport("proxier-sync-12-1.rsc"), Call{Kind: "import", File: "proxier-sync-12-1.rsc"}},
 		{CmdRemoveFile("proxier-sync-12-1.rsc"), Call{Kind: "remove-file", File: "proxier-sync-12-1.rsc"}},
-		{CmdRemoveJobFiles("2207"), Call{Kind: "remove-job-files", File: "2207"}},
-		{CmdRemoveJobFiles("preview"), Call{Kind: "remove-job-files", File: "preview"}},
+		{CmdRemoveSyncFiles(), Call{Kind: "remove-sync-files"}},
 	} {
 		got, ok := Parse(c.cmd)
 		if !ok || got != c.want {

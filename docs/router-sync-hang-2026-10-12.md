@@ -76,7 +76,7 @@ The job's last line comes right before `cl.Run(ctx, routeros.CmdImport(f.Name), 
 What changed:
 
 - `sshx.Client.Run` runs the open, the start and the wait in a goroutine, and its timer starts before the open. When the timer or `ctx` ends, it closes the session and waits up to `SSH.CloseGrace` (5 s) for the host to confirm. Then, or at once if the session never opened, it closes the whole client and waits for the goroutine. The output copiers end with the session, so nothing writes to the job log after `Run` returns. `Client.Closed` says the client is gone.
-- `push` (routing): after a failed import on a closed client, it connects again, deletes the file and runs `landed` over the new connection. A failed reconnect leaves both to the next attempt, which deletes the job's files before it reads. A timed-out import fails the attempt at push with "the import did not end within 30m0s", and the retries (5 min, 15 min, 1 h) run. `Service.ImportTimeout` replaces the constant at the call, so tests can shorten it.
+- `push` (routing): after a failed import on a closed client, it connects again, deletes the file and runs `landed` over the new connection. A failed reconnect leaves both to the next attempt, which deletes every sync file before it reads. A timed-out import fails the attempt at push with "the import did not end within 30m0s", and the retries (5 min, 15 min, 1 h) run. `Service.ImportTimeout` replaces the constant at the call, so tests can shorten it.
 - The router page's preview: `Busy` reports the running job a queued preview waits for (`Now.PreviewWaits`). The area then says "Waiting for the router's running job to finish", links the job and polls every 5 s.
 - Test doubles: `sshxtest.Server.Freeze` and `Session.Freeze` (a host, or one connection, that stops reading and writing but stays up), and `routerostest.Router.ForgetImport(n)` (the import runs in full, then its connection goes silent; new connections work).
 
@@ -88,5 +88,5 @@ Tests:
 
 Still open:
 
-- A **cancelled** sync leaves its `proxier-sync-<job>-*.rsc` on the router. Only a retry or a resume of the same job deletes it, and a cancelled job has neither. This was true before the fix too.
-- Production: job #3837 is still `running`. Once the fix is deployed, restarting the container interrupts the job and resumes it. The resume deletes `proxier-sync-3837-1.rsc`, plans 0 new and records the tags. Cancel works too, but leaves that file (see above).
+- ~~A **cancelled** sync leaves its `proxier-sync-<job>-*.rsc` on the router.~~ Fixed the same day: every sync now deletes every `proxier-sync-*` file before it reads, so the router's next sync removes a cancelled job's file (`TestNextSyncRemovesTheFileOfACancelledSync`, and `TestCancelDuringImportThatNeverEndsCancelsTheJob` checks it too). Why there and not in the cancel: [router sync, Rules](processes/routing/router-sync.md#rules).
+- Production: job #3837 is still `running`. Once the fix is deployed, restarting the container interrupts the job and resumes it. The resume deletes `proxier-sync-3837-1.rsc`, plans 0 new and records the tags. Cancel works too; the router's next sync then deletes that file.

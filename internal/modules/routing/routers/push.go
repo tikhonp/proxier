@@ -45,7 +45,7 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			err = routeros.ScanImport(res.ExitCode, append(append([]byte{}, res.Stdout...), res.Stderr...))
 		}
 		if ctx.Err() != nil {
-			return ctx.Err() // a shutdown (the resume removes the file) or a cancel
+			return ctx.Err() // a shutdown or a cancel: the resume or the next sync removes the file
 		}
 		if err != nil && cl.Closed() {
 			// Run gave up on a session the router never ended and closed the

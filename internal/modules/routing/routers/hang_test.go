@@ -89,10 +89,18 @@ func TestCancelDuringImportThatNeverEndsCancelsTheJob(t *testing.T) {
 	if ev := h.Events("routing.router_sync_failed"); len(ev) != 0 {
 		t.Fatalf("a cancel is no failure: %+v", ev)
 	}
-	// The router is free: the next sync records what the import installed.
+	file := routeros.FileName(itoa(job), 1)
+	if !slices.Contains(r.Files(), file) {
+		t.Fatalf("the cancel leaves %s on the router: %v", file, r.Files())
+	}
+	// The router is free: the next sync removes the file and records what
+	// the import installed.
 	next := syncNow(t, h, id)
 	if st, e := h.Job(next); st != "succeeded" {
 		t.Fatalf("next sync: %s %s", st, e)
+	}
+	if f := r.Files(); len(f) != 0 {
+		t.Fatalf("the next sync removes the cancelled job's file: %v", f)
 	}
 	if len(r.Imports()) != 1 || applied(t, h, id)["openai"].Hash != openaiHash {
 		t.Fatalf("recorded, not pushed again: imports %v", r.Imports())
