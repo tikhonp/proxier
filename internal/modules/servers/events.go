@@ -26,6 +26,13 @@ func healthNotifies(p map[string]any) bool {
 	return false
 }
 
+// healthGroup groups health changes by the state they reached: servers of
+// one hosting network blocked together are one notification.
+func healthGroup(p map[string]any) string {
+	to, _ := p["to"].(string)
+	return to
+}
+
 // Events is the module's event catalog (docs/events.md#servers).
 var Events = []events.Type{
 	{Name: "template.created", Description: "A template was created."},
@@ -46,7 +53,8 @@ var Events = []events.Type{
 	{Name: "server.redeployed", Description: "A server was redeployed, upgraded, restored or restarted."},
 	{Name: "server.redeploy_failed", Notify: true, NotifyIf: notCancelled, Emoji: "🔴", Description: "A redeploy, upgrade or rotation failed."},
 	{Name: "server.credentials_rotated", Notify: true, Emoji: "🔑", Description: "A server's credentials were rotated."},
-	{Name: "server.health_changed", Notify: true, NotifyIf: healthNotifies, Emoji: "🔴", Description: "A server's health changed: blocked, down, or back to healthy."},
+	{Name: "server.health_changed", Notify: true, NotifyIf: healthNotifies, Emoji: "🔴", Description: "A server's health changed: blocked, down, or back to healthy.",
+		Group: healthGroup, GroupHref: "/servers"},
 	{Name: "server.still_unhealthy", Notify: true, Emoji: "🔴", Description: "Reminder every 24 h while a server is blocked or down."},
 	{Name: "server.cert_expiring", Notify: true, Emoji: "🟡", Description: "A server's certificate has fewer than 14 days left (once per crossing, not daily)."},
 	{Name: "server.disk_low", Notify: true, Emoji: "🟡", Description: "A server has less than 10 % disk free (once per crossing)."},

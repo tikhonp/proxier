@@ -68,16 +68,22 @@ var testTypes = []events.Type{
 	{Name: "test.server_down", Module: "test", Notify: true, Emoji: "🔴", Description: "A server is down."},
 	{Name: "test.server_degraded", Module: "test", Emoji: "🟡", Description: "A server is degraded."},
 	{Name: "test.custom", Module: "test", Notify: true, Emoji: "🧭", Description: "Rendered by its module."},
+	{Name: "test.health", Module: "test", Notify: true, Emoji: "🟣", Description: "Grouped by the state reached.",
+		Group: func(p map[string]any) string { s, _ := p["to"].(string); return s }, GroupHref: "/servers"},
 }
 
 var testMessages = i18n.Messages{
-	"notify.open":                  {EN: "Open in Proxier", RU: "Открыть в Proxier"},
-	"notify.test.server_down":      {EN: "{subject} is down", RU: "{subject} недоступен"},
-	"notify.test.server_down.body": {EN: "Unreachable over SSH ({reason}).", RU: "Недоступен по SSH ({reason})."},
-	"notify.test.server_degraded":  {EN: "{subject} is degraded", RU: "{subject} работает с перебоями"},
-	"notify.auth.signed_in":        {EN: "Signed in from a new IP {ip}", RU: "Вход с нового адреса {ip}"},
-	"notify.auth.locked":           {EN: "{failures} failed sign-ins from {ip}", RU: "Неудачных входов с {ip}: {failures}"},
-	"notify.auth.password_changed": {EN: "The admin password was changed", RU: "Пароль администратора изменён"},
+	"notify.open":                      {EN: "Open in Proxier", RU: "Открыть в Proxier"},
+	"notify.test.server_down":          {EN: "{subject} is down", RU: "{subject} недоступен"},
+	"notify.test.server_down.body":     {EN: "Unreachable over SSH ({reason}).", RU: "Недоступен по SSH ({reason})."},
+	"notify.test.server_degraded":      {EN: "{subject} is degraded", RU: "{subject} работает с перебоями"},
+	"notify.auth.signed_in":            {EN: "Signed in from a new IP {ip}", RU: "Вход с нового адреса {ip}"},
+	"notify.auth.locked":               {EN: "{failures} failed sign-ins from {ip}", RU: "Неудачных входов с {ip}: {failures}"},
+	"notify.auth.password_changed":     {EN: "The admin password was changed", RU: "Пароль администратора изменён"},
+	"notify.test.health":               {EN: "{subject} is {to}", RU: "{subject}: {to}"},
+	"notify.test.health.body":          {EN: "Because {why}.", RU: "Потому что {why}."},
+	"notify.test.health.group.blocked": {EN: "{n} server is blocked|{n} servers are blocked", RU: "{n} сервер заблокирован|{n} сервера заблокированы|{n} серверов заблокированы"},
+	"notify.group":                     {EN: "{n} notification|{n} notifications", RU: "{n} уведомление|{n} уведомления|{n} уведомлений"},
 }
 
 // Options of an env.
@@ -178,6 +184,10 @@ func (e *env) record(typ string, subject events.Subject, payload map[string]any)
 		return err
 	}))
 	return id
+}
+
+func (e *env) health(id, to string) int64 {
+	return e.record("test.health", events.Subject{Type: "server", ID: id}, map[string]any{"to": to, "why": "tcp"})
 }
 
 func (e *env) down(id string) int64 {

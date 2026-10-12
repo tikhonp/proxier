@@ -24,6 +24,7 @@ Notifications tell the admin about events that need attention: a server down or 
 
 - One event, at most one notification. Duplicate delivery of an event is recognised by the event ID and doesn't send twice.
 - Nothing is sent from inside a transaction. A state change commits first, then the notification is queued.
+- A type may group its notifications (`events.Type.Group`, decided 2026-10-12): those with the same key wait `notify.GroupWindow` (2 min) from the first and go out as one message, titled with their count (`notify.<type>.group.<key>`, else "{n} notifications") and listing each one's text on its own line; its button opens `GroupHref`. A lone one goes out unchanged after the window. `server.health_changed` groups by the state reached (blocked, down, healthy again), so a hosting network blocked at once is one "3 servers are blocked", not three messages; its button opens the server list. Retrying a failed group resends the whole group.
 - Messages go out one at a time, at most one per second, which keeps within Telegram's per-chat limits. A burst queues; it is never dropped.
 - Telegram being unreachable never blocks anything else. Notifications wait in their queue.
 - Messages never contain secrets: no tokens, no connection URIs, no IPs of link holders beyond what the event needs (the shared-link alert shows counts, not IPs).
@@ -39,6 +40,8 @@ Notifications tell the admin about events that need attention: a server down or 
 - `server.health_changed` to `down` with its rule on → one message with an **Open in Proxier** button to the server page.
 - The same event delivered twice to the notifier (restart between delivery and cursor update) → one message.
 - `server.health_changed` to `degraded` (rule off by default) → no message, but the event is in Activity.
+- Three servers blocked and one down within the window → one "3 servers are blocked" message and the down one by itself, both after the window (`TestBurstOfOneKindIsOneMessage`).
+- A grouped message that failed → Retry resends the whole group (`TestFailedGroupIsRetriedWhole`).
 - 30 events in one second → 30 messages over about 30 seconds, in order.
 - Telegram answers `429 retry_after=20` → the message waits 20 s, then is sent. The attempt isn't counted.
 - Telegram down for 10 minutes → the message fails after its last retry. It shows as failed on the dashboard, and later messages still try.

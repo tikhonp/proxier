@@ -359,6 +359,7 @@ var messages = i18n.Messages{
 	"notifications.module.platform": {EN: "Platform", RU: "Платформа"},
 
 	// Notification texts: notify.<event type> is the title, .body the sentence under it
+	"notify.group":                      {EN: "{n} notification|{n} notifications", RU: "{n} уведомление|{n} уведомления|{n} уведомлений"},
 	"notify.open":                       {EN: "Open in Proxier", RU: "Открыть в Proxier"},
 	"notify.job_name":                   {EN: "Job #{id} · {type}", RU: "Задача №{id} · {type}"},
 	"notify.auth.signed_in":             {EN: "Signed in from a new IP {ip}", RU: "Вход с нового адреса {ip}"},

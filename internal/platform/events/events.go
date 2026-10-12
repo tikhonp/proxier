@@ -80,6 +80,13 @@ type Type struct {
 	// event.<name>.<variant> when there is one ("Added youtube to routing
 	// list Main" rather than "Changed routing list Main"). nil: one wording.
 	Variant func(payload map[string]any) string
+	// Group puts this type's notifications that share a non-empty key into
+	// one message, sent notify.GroupWindow after the first of them: a burst
+	// (a hosting network blocked) is one message, not one per server. Its
+	// title is notify.<name>.group.<key> ({n}), else notify.group.
+	Group func(payload map[string]any) string
+	// GroupHref is the page a grouped message opens ("" = Activity).
+	GroupHref string
 }
 
 // ErrUnknownType is returned when recording a type nobody declared.
