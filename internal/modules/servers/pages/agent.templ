@@ -121,24 +121,28 @@ templ agentResultPage(s ui.Shell, v agentResultView) {
 				<a href={ templ.SafeURL(actionHref(v.T.ID, "/agent")) } class="pc-btn pc-sm" data-action="tpl.agent_again">{ i18n.T(ctx, "agent.repeated.again") }</a>
 			}
 		} else {
-			<section class="area" aria-label={ i18n.T(ctx, "agent.prompt") }>
+			<section class="area agent-out" aria-label={ i18n.T(ctx, "agent.prompt") }>
 				<div class="pc-title">
 					<h2>{ i18n.T(ctx, "agent.prompt") }</h2>
 					<span class="note">{ i18n.T(ctx, "agent.prompt.note", i18n.Args{"size": v.Size}) }</span>
-					<span class="flex1"></span>
 				</div>
 				<pre class="agent-prompt" tabindex="0">{ v.Masked }</pre>
+				@ui.Alert("gold", "status") {
+					<p>
+						<b>{ i18n.T(ctx, "agent.secret.warn") }</b>
+						{ i18n.T(ctx, "agent.secret.expires") + " " }
+						@ui.Time(v.ExpiresAt)
+						{ ". " + i18n.T(ctx, "agent.secret.revoke") }
+					</p>
+				}
+				<div class="form-actions">
+					<button type="button" class="pc-btn pc-pri" data-action="tpl.agent_copy" data-copy={ v.Prompt }>{ i18n.T(ctx, "agent.copy") }</button>
+					<span class="subtle sm">{ i18n.T(ctx, "agent.copy.then") }</span>
+					<span class="flex1"></span>
+					<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost" data-action="tpl.agent_to_editor">{ i18n.T(ctx, "agent.to_editor") }</a>
+					<a href={ templ.SafeURL(tplHref(v.T.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "agent.to_template") }</a>
+				</div>
 			</section>
-			@ui.Alert("gold", "status") {
-				{ i18n.T(ctx, "agent.secret.warn") }
-				@ui.Time(v.ExpiresAt)
-			}
-			<div class="form-actions">
-				<button type="button" class="pc-btn pc-pri" data-action="tpl.agent_copy" data-copy={ v.Prompt }>{ i18n.T(ctx, "agent.copy") }</button>
-				<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost" data-action="tpl.agent_to_editor">{ i18n.T(ctx, "agent.to_editor") }</a>
-				<a href={ templ.SafeURL(tplHref(v.T.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "agent.to_template") }</a>
-				<span class="subtle sm">{ i18n.T(ctx, "agent.copy.then") }</span>
-			</div>
 		}
 	}
 }

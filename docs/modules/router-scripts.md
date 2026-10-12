@@ -96,7 +96,7 @@ With the `@fill routing-*` annotations, a generation that registers a router alw
 
 - **Router scripts**: each script with its current version, last published, generations count.
 - **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters and **Hand off to an agent…** (with the band of an open session), **Generate for a new router**, and its generations (router name, version, date, the router's state now).
-- **Hand off** (`/router-scripts/:id/agent`): the problem, the diff option, the agent and how long; then the prompt, masked, with **Copy prompt**.
+- **Hand off** (`/router-scripts/:id/agent`): the problem, the diff option, the agent and how long; then the prompt, masked, a warning that it holds the token (when the access expires, where to revoke it) and **Copy prompt**.
 - **Generate** (`/router-scripts/:id/generate`): the form above with its live summary.
 - **Generation page** (`/router-scripts/generations/:id`): version, the router and link as now, values (secrets masked), **View changes**, **Download**, **Generate again**, the Fetch URL area (**Create fetch URL**, Reveal, Copy, the two commands), After the import and Fetch history. Fetch URL and After the import come first on the left (first on a phone), the generation and its values on the right.
 

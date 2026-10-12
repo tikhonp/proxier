@@ -134,3 +134,31 @@ func TestDates(t *testing.T) {
 		}
 	}
 }
+
+func TestAgoPastAndFuture(t *testing.T) {
+	now := time.Date(2026, 10, 12, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time { return now }
+	en := NewCatalog().Localizer(EN, nil).WithNow(clock)
+	ru := NewCatalog().Localizer(RU, nil).WithNow(clock)
+	for _, c := range []struct {
+		at     time.Time
+		en, ru string
+	}{
+		{now.Add(-4 * time.Minute), "4 min ago", "4 мин назад"},
+		{now.Add(-3 * time.Hour), "3 h ago", "3 ч назад"},
+		{now.Add(-5 * 24 * time.Hour), "5 d ago", "5 дн назад"},
+		{now.Add(20 * time.Second), "just now", "только что"},
+		// an expiry is a time to come, not "just now"
+		{now.Add(30*time.Minute - time.Second), "in 30 min", "через 30 мин"},
+		{now.Add(2*time.Hour - time.Second), "in 2 h", "через 2 ч"},
+		{now.Add(3 * 24 * time.Hour), "in 3 d", "через 3 дн"},
+		{now.Add(90 * 24 * time.Hour), "2027-01-10", "2027-01-10"},
+	} {
+		if got := en.Ago(c.at); got != c.en {
+			t.Errorf("EN Ago(%s) = %q, want %q", c.at, got, c.en)
+		}
+		if got := ru.Ago(c.at); got != c.ru {
+			t.Errorf("RU Ago(%s) = %q, want %q", c.at, got, c.ru)
+		}
+	}
+}
