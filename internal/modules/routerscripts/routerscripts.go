@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/agent"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/migrations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/pages"
@@ -43,6 +44,8 @@ type Module struct {
 	Scripts *scripts.Service
 	// Generations fills versions in for routers (4b).
 	Generations *generations.Service
+	// Agent hands script drafts to coding agents.
+	Agent *agent.Service
 
 	ports Ports
 	deps  module.Deps
@@ -65,6 +68,11 @@ func (m *Module) Init(d module.Deps) error {
 		DB: d.DB, Vault: d.Vault, Events: d.Events, SSH: d.SSH, Tailnet: d.Tailnet, Scripts: m.Scripts,
 		Links: m.ports.Links, Routers: m.ports.Routers, I18n: d.I18n, BaseURL: d.Cfg.BaseURL, Now: now, Log: d.Log,
 	})
+	m.Agent = agent.New(agent.Deps{
+		DB: d.DB, Events: d.Events, Vault: d.Vault, Scripts: m.Scripts, I18n: d.I18n, Log: d.Log, BaseURL: d.Cfg.BaseURL.String(), Now: now,
+	})
+	// An agent session ends in the transaction that publishes or discards its draft.
+	m.Scripts.DraftEnded = m.Agent.CloseForDraft
 	return nil
 }
 
@@ -75,19 +83,26 @@ func (*Module) Messages() i18n.Messages {
 	out := maps.Clone(messages)
 	maps.Copy(out, params.Messages())
 	maps.Copy(out, generationMessages)
+	maps.Copy(out, agentMessages)
 	return out
 }
 
 func (m *Module) Routes(r web.Routes) {
 	m.Generations.Register(r.Public)
-	pages.Register(r, pages.Deps{Scripts: m.Scripts, Generations: m.Generations, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
+	// The agent API answers to a bearer token only: a public route.
+	m.Agent.Routes(r.Public)
+	pages.Register(r, pages.Deps{Scripts: m.Scripts, Generations: m.Generations, Agent: m.Agent, DB: m.deps.DB, Now: func() time.Time { return m.Now() }})
 }
 
-// JobTypes is the fetch URLs' expiry scan.
-func (m *Module) JobTypes() []jobs.Type { return m.Generations.JobTypes() }
+// JobTypes are the expiry scans of fetch URLs and agent sessions.
+func (m *Module) JobTypes() []jobs.Type {
+	return append(m.Generations.JobTypes(), m.Agent.JobTypes()...)
+}
 
-// Schedules runs it every 5 minutes.
-func (m *Module) Schedules() []jobs.Schedule { return m.Generations.Schedules() }
+// Schedules runs them every 5 minutes.
+func (m *Module) Schedules() []jobs.Schedule {
+	return append(m.Generations.Schedules(), m.Agent.Schedule())
+}
 
 // Nav adds Scripts to the router scripts group (no go-to key: one / away).
 func (*Module) Nav() []ui.NavItem {

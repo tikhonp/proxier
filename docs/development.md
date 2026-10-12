@@ -18,11 +18,12 @@ internal/platform/           the platform, itself module "platform"
   config obs db (+dbtest) vault events settings migrations httpx
   auth web ui pages i18n sitetest
   jobs (+jobstest) notify (+telegram) sshx (+sshxtest) tailnet backup geoip
+  agentapi                   what both agent APIs share: the token, request limits, the one-time hand-off form
   module                     Module and the optional interfaces below
 internal/modules/servers/        templates, provisioning, deploys, health, stats, retirement, the agent API
 internal/modules/subscriptions/  subscriptions, links, the public /s/ fetch, alerts, cut-off
 internal/modules/routing/        services, lists, refresh, catalog, Shadowrocket, mtvpn import, router sync, discovery
-internal/modules/routerscripts/  script versions, generations, fetch URLs
+internal/modules/routerscripts/  script versions, generations, fetch URLs, the router script agent API
 web/editor/                  source of the CodeMirror bundle (make editor → ui/static/js/editor.bundle.js, committed)
 ```
 
@@ -43,7 +44,7 @@ Packages worth knowing by name:
 
 - **servers**: `remote` (every shell command sent to a server, and `remote.Parse`, its inverse), `sealed` (every AAD), `endpoint` (`vless-xhttp-tls`: checks, URI, masked URI), `proxy` (the only importer of xray: proxy test, `Dialer`, config validation), `dns` + `dns/cloudflare`, `checkhost`, `validate` (pure-Go validators), `agent` (`/agent/v1`).
 - **routing**: `change` (the sync seam), `sources` (the one outbound HTTP client), `routeros` (every RouterOS command and script, `Parse`/`ParseScript`), `routers` (plan, sync, drift, unmanaged tags, awaiting setup), `discovery` (+ `cdp`, `socks`).
-- **routerscripts**: `params` (the PARAMETERS block, literals, `Fill`, `Eval`; `params/paramstest` embeds the real `fresh-router.rsc` at `b1e34f2`, never edited: tests build variants from it in code).
+- **routerscripts**: `params` (the PARAMETERS block, literals, `Fill`, `Eval`; `params/paramstest` embeds the real `fresh-router.rsc` at `b1e34f2`, never edited: tests build variants from it in code), `agent` (`/agent/v1/router-script`; `mask.go` keeps secret defaults from the agent).
 
 ## Module interfaces
 
@@ -90,7 +91,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 **Secrets**
 
 - Only through the vault, sealed with an AAD naming where they live, found by `vault.Lookup` (HMAC). AADs: `setting:<key>`, `job:<id>:payload`, `server:<id>:gen:<key>`, `server:<id>:params`, `server:<id>:endpoint:<key>`, `deployment:<id>:…`, `link:<id>:token`, `shadowrocket:<id>:token`, `generation:<id>:secrets`, `fetch_url:<id>:token` (servers' are all in `servers/sealed`).
-- Tokens are `vault.NewToken()` (256 bits, 43 characters); agent tokens are `pxa_` + one. A token appears only on its own page (masked, Reveal, Copy, QR), never in an event, notification, log line, job payload, list, search or the dashboard. `httpx.MaskPath` masks `/s/`, `/r/`, `/f/` in logs. Pages that show one are `no-store`.
+- Tokens are `vault.NewToken()` (256 bits, 43 characters); agent tokens are `pxa_` + one (`agentapi.NewToken`), for both agent APIs; each module looks its own up. A token appears only on its own page (masked, Reveal, Copy, QR), never in an event, notification, log line, job payload, list, search or the dashboard. `httpx.MaskPath` masks `/s/`, `/r/`, `/f/` in logs. Pages that show one are `no-store`.
 - A job that renders registers every generated value and secret parameter with `Logger.Redact` before its first remote call.
 
 **Jobs**

@@ -126,6 +126,12 @@ templ scriptPage(s ui.Shell, v scriptView) {
 				{ v.Band }
 			}
 		}
+		if v.Agent != nil {
+			@agentBand(v.Agent)
+			if !v.Stale {
+				@draftPoller(v.S.ID)
+			}
+		}
 		<section class="area rs-area" id="draft" aria-label={ i18n.T(ctx, "scripts.area.draft") }>
 			<div class="pc-title">
 				<h2>{ i18n.T(ctx, "scripts.area.draft") }</h2>
@@ -135,6 +141,7 @@ templ scriptPage(s ui.Shell, v scriptView) {
 					<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "/diff") } class="sm">{ i18n.T(ctx, "scripts.draft.view_diff") }</a>
 				}
 				if v.Draft {
+					@ui.ActionButton(ui.Action{ID: "rs.handoff", Label: "agent.handoff", Method: "GET", Href: agentHref(v.S.ID), Small: true})
 					@ui.CodeTools()
 				}
 			</div>
@@ -142,7 +149,7 @@ templ scriptPage(s ui.Shell, v scriptView) {
 				<div class="rs-editor">
 					<form id="draft-form" method="post" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/draft") } enctype="multipart/form-data" class="rs-draft">
 						<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-						<input type="hidden" name="revision" value={ strconv.Itoa(v.Revision) }/>
+						<input type="hidden" id="ed-revision" name="revision" value={ strconv.Itoa(v.Revision) }/>
 						if v.BodyErr != "" {
 							<p class="code-err" role="alert">{ v.BodyErr }</p>
 						}
@@ -267,7 +274,7 @@ templ publishPage(s ui.Shell, v publishView, title string) {
 		} else {
 			<form method="post" action={ templ.SafeURL(ScriptHref(v.S.ID) + "/publish") } class="pub">
 				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-				<input type="hidden" name="revision" value={ strconv.Itoa(v.Revision) }/>
+				<input type="hidden" id="ed-revision" name="revision" value={ strconv.Itoa(v.Revision) }/>
 				if len(v.Errors) > 0 {
 					@ui.Alert("love", "alert") {
 						<span class="bold">{ i18n.N(ctx, "scripts.publish.errors", int64(len(v.Errors))) }</span>

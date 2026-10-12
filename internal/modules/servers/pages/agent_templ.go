@@ -1289,9 +1289,9 @@ func agentBand(b *agentBandView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var81 string
-			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "agent.band.expires"))
+			templ_7745c5c3_Var81, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "agent.band.expires") + " ")
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 153, Col: 38}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 153, Col: 44}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var81))
 			if templ_7745c5c3_Err != nil {
@@ -1306,9 +1306,9 @@ func agentBand(b *agentBandView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var82 templ.SafeURL
-			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/activity?actor=agent:" + i64(b.ID)))
+			templ_7745c5c3_Var82, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/activity?module=servers&actor=agent:" + i64(b.ID)))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 157, Col: 63}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 157, Col: 78}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var82))
 			if templ_7745c5c3_Err != nil {
@@ -1321,7 +1321,7 @@ func agentBand(b *agentBandView) templ.Component {
 			var templ_7745c5c3_Var83 string
 			templ_7745c5c3_Var83, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "agent.band.changes"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 157, Col: 154}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/servers/pages/agent.templ`, Line: 157, Col: 169}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var83))
 			if templ_7745c5c3_Err != nil {

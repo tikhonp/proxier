@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
@@ -36,7 +36,7 @@ const (
 	maxBody = templates.MaxFileBytes
 )
 
-var errSessionEnded = errors.New("session ended")
+var errSessionEnded = errors.New(agentapi.SessionEnded)
 
 // Routes adds the agent API to g, which must be the public group: the API never
 // reads or sets a cookie and answers to a bearer token only.
@@ -54,35 +54,18 @@ func (s *Service) Routes(g *echo.Group) {
 
 // ---- auth and limits --------------------------------------------------------
 
-func fail(c *echo.Context, code int, msg string) error {
-	return c.JSON(code, map[string]string{"error": msg})
-}
-
-func ended(c *echo.Context) error {
-	c.Response().Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
-	return fail(c, http.StatusUnauthorized, errSessionEnded.Error())
-}
-
-func bearer(r *http.Request) string {
-	h := r.Header.Get("Authorization")
-	if len(h) < 8 || !strings.EqualFold(h[:7], "Bearer ") {
-		return ""
-	}
-	return strings.TrimSpace(h[7:])
-}
-
 // auth finds the session of the bearer token and counts the request against its
 // limits in one short write. Every refusal to authenticate is the same 401: an
 // ended, expired and unknown token cannot be told apart.
 func (s *Service) auth(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		r := c.Request()
-		tok := bearer(r)
-		if !strings.HasPrefix(tok, TokenPrefix) || len(tok) > 128 {
-			return ended(c)
+		tok := agentapi.Bearer(r)
+		if tok == "" {
+			return agentapi.Ended(c)
 		}
 		if r.ContentLength > maxBody {
-			return fail(c, http.StatusRequestEntityTooLarge, "the request body is too large")
+			return agentapi.Fail(c, http.StatusRequestEntityTooLarge, "the request body is too large")
 		}
 		r.Body = http.MaxBytesReader(c.Response(), r.Body, maxBody)
 
@@ -104,31 +87,23 @@ func (s *Service) auth(next echo.HandlerFunc) echo.HandlerFunc {
 				status = http.StatusUnauthorized
 				return nil
 			}
-			if sess.Requests >= MaxRequests {
-				status, retry = http.StatusTooManyRequests, sess.ExpiresAt.Sub(now.Time)
+			rate, wait, ok := agentapi.Rate{Requests: sess.Requests, MinuteStart: sess.MinuteStart, MinuteCount: sess.MinuteCount}.Count(now, sess.ExpiresAt)
+			if !ok {
+				status, retry = http.StatusTooManyRequests, wait
 				return nil
 			}
-			start, count := sess.MinuteStart, sess.MinuteCount
-			if start.IsZero() || !now.Before(start.Add(time.Minute)) {
-				start, count = now, 0
-			}
-			if count >= MaxPerMinute {
-				status, retry = http.StatusTooManyRequests, start.Add(time.Minute).Sub(now.Time)
-				return nil
-			}
-			sess.Requests++
-			return store.SetAgentRate(r.Context(), tx, sess.ID, sess.Requests, start, count+1)
+			sess.Requests = rate.Requests
+			return store.SetAgentRate(r.Context(), tx, sess.ID, rate.Requests, rate.MinuteStart, rate.MinuteCount)
 		})
 		if err != nil {
 			s.Log.Error("agent: counting a request", "error", err)
-			return fail(c, http.StatusInternalServerError, "internal error")
+			return agentapi.Fail(c, http.StatusInternalServerError, "internal error")
 		}
 		switch status {
 		case http.StatusUnauthorized:
-			return ended(c)
+			return agentapi.Ended(c)
 		case http.StatusTooManyRequests:
-			c.Response().Header().Set("Retry-After", strconv.Itoa(int(retry.Seconds())+1))
-			return fail(c, status, "too many requests")
+			return agentapi.TooMany(c, retry)
 		}
 		c.Set(sessionKey, sess)
 		return next(c)
@@ -161,17 +136,6 @@ func fileETag(revision int, content []byte) string {
 }
 
 func draftETag(revision int) string { return fmt.Sprintf(`"%d"`, revision) }
-
-// matches reports whether a conditional header value names etag.
-func matches(header, etag string) bool {
-	for _, p := range strings.Split(header, ",") {
-		p = strings.TrimPrefix(strings.TrimSpace(p), "W/")
-		if p == etag {
-			return true
-		}
-	}
-	return false
-}
 
 // ---- reading ----------------------------------------------------------------
 
@@ -210,11 +174,11 @@ func (s *Service) getContext(c *echo.Context) error {
 	sess := session(c)
 	t, err := store.GetTemplate(ctx, s.DB.R, sess.TemplateID)
 	if err != nil {
-		return ended(c)
+		return agentapi.Ended(c)
 	}
 	d, err := s.Templates.Draft(ctx, sess.TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	cx := ContextOf(sess)
 	out := contextJSON{Problem: sess.Problem, Agent: sess.Agent, ExpiresAt: sess.ExpiresAt.Time, Report: cx.Report, Job: cx.Job,
@@ -251,7 +215,7 @@ type fileJSON struct {
 func (s *Service) getDraft(c *echo.Context) error {
 	d, err := s.Templates.Draft(c.Request().Context(), session(c).TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	files := make([]fileJSON, 0, len(d.Files))
 	for _, p := range sortedKeys(d.Files) {
@@ -268,11 +232,11 @@ func (s *Service) getFile(c *echo.Context) error {
 	p := c.Param("*")
 	d, err := s.Templates.Draft(c.Request().Context(), session(c).TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	content, ok := d.Files[p]
 	if !ok || !templates.ValidPath(p) {
-		return fail(c, http.StatusNotFound, "no such file")
+		return agentapi.Fail(c, http.StatusNotFound, "no such file")
 	}
 	h := c.Response().Header()
 	h.Set("ETag", fileETag(d.Revision, content))
@@ -294,7 +258,7 @@ func precondition(c *echo.Context, exists bool, etag string) (int, string) {
 		switch {
 		case ifMatch == "":
 			return http.StatusPreconditionRequired, "send If-Match with the file's ETag"
-		case !matches(ifMatch, etag):
+		case !agentapi.Matches(ifMatch, etag):
 			return http.StatusPreconditionFailed, "the draft changed"
 		}
 		return 0, ""
@@ -319,15 +283,15 @@ func total(files map[string][]byte) int {
 func (s *Service) putFile(c *echo.Context) error {
 	p := c.Param("*")
 	if !templates.ValidPath(p) {
-		return fail(c, http.StatusBadRequest, "bad path")
+		return agentapi.Fail(c, http.StatusBadRequest, "bad path")
 	}
 	body, err := io.ReadAll(c.Request().Body)
 	if err != nil {
 		var tooBig *http.MaxBytesError
 		if errors.As(err, &tooBig) {
-			return fail(c, http.StatusRequestEntityTooLarge, "the file is over 1 MiB")
+			return agentapi.Fail(c, http.StatusRequestEntityTooLarge, "the file is over 1 MiB")
 		}
-		return fail(c, http.StatusBadRequest, "could not read the body")
+		return agentapi.Fail(c, http.StatusBadRequest, "could not read the body")
 	}
 	return s.write(c, p, body, false)
 }
@@ -335,7 +299,7 @@ func (s *Service) putFile(c *echo.Context) error {
 func (s *Service) deleteFile(c *echo.Context) error {
 	p := c.Param("*")
 	if !templates.ValidPath(p) {
-		return fail(c, http.StatusBadRequest, "bad path")
+		return agentapi.Fail(c, http.StatusBadRequest, "bad path")
 	}
 	return s.write(c, p, nil, true)
 }
@@ -346,14 +310,14 @@ func (s *Service) write(c *echo.Context, p string, body []byte, remove bool) err
 	sess := session(c)
 	d, err := s.Templates.Draft(ctx, sess.TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	old, exists := d.Files[p]
 	if remove && !exists {
-		return fail(c, http.StatusNotFound, "no such file")
+		return agentapi.Fail(c, http.StatusNotFound, "no such file")
 	}
 	if code, msg := precondition(c, exists, fileETag(d.Revision, old)); code != 0 {
-		return fail(c, code, msg)
+		return agentapi.Fail(c, code, msg)
 	}
 	files := make(map[string][]byte, len(d.Files)+1)
 	for k, v := range d.Files {
@@ -363,11 +327,11 @@ func (s *Service) write(c *echo.Context, p string, body []byte, remove bool) err
 		delete(files, p)
 	} else {
 		if !exists && len(files) >= templates.MaxImportFiles {
-			return fail(c, http.StatusRequestEntityTooLarge, "the draft already has 500 files")
+			return agentapi.Fail(c, http.StatusRequestEntityTooLarge, "the draft already has 500 files")
 		}
 		files[p] = body
 		if total(files) > templates.MaxDraftBytes {
-			return fail(c, http.StatusRequestEntityTooLarge, "the draft would be over 10 MiB")
+			return agentapi.Fail(c, http.StatusRequestEntityTooLarge, "the draft would be over 10 MiB")
 		}
 	}
 	rev, err := s.Templates.SaveDraftIn(ctx, sess.TemplateID, d.Revision, files, "agent", s.actor(sess), func(tx *sqlx.Tx, changed bool) error {
@@ -381,14 +345,14 @@ func (s *Service) write(c *echo.Context, p string, body []byte, remove bool) err
 	})
 	switch {
 	case errors.Is(err, templates.ErrDraftChanged):
-		return fail(c, http.StatusPreconditionFailed, "the draft changed")
+		return agentapi.Fail(c, http.StatusPreconditionFailed, "the draft changed")
 	case errors.Is(err, errSessionEnded):
-		return ended(c)
+		return agentapi.Ended(c)
 	case errors.Is(err, templates.ErrNoDraft):
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	case err != nil:
 		s.Log.Error("agent: saving a file", "error", err)
-		return fail(c, http.StatusInternalServerError, "internal error")
+		return agentapi.Fail(c, http.StatusInternalServerError, "internal error")
 	}
 	h := c.Response().Header()
 	out := map[string]any{"revision": rev, "path": p}
@@ -427,16 +391,16 @@ func (s *Service) validateDraft(c *echo.Context) error {
 	})
 	switch {
 	case errors.Is(err, errSessionEnded):
-		return ended(c)
+		return agentapi.Ended(c)
 	case errors.Is(err, templates.ErrNoDraft):
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	case err != nil:
 		s.Log.Error("agent: validating", "error", err)
-		return fail(c, http.StatusInternalServerError, "internal error")
+		return agentapi.Fail(c, http.StatusInternalServerError, "internal error")
 	}
 	d, err := s.Templates.Draft(ctx, sess.TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	fs := report.Findings
 	if fs == nil {
@@ -465,25 +429,25 @@ func (s *Service) previewDraft(c *echo.Context) error {
 		}
 	}
 	if !allowed {
-		return fail(c, http.StatusForbidden, "this session may not preview that server")
+		return agentapi.Fail(c, http.StatusForbidden, "this session may not preview that server")
 	}
 	// Still an active server of the template? It may have been retired since.
 	if _, err := store.ServerOfTemplateByName(ctx, s.DB.R, sess.TemplateID, name); err != nil {
-		return fail(c, http.StatusConflict, "that server is no longer active")
+		return agentapi.Fail(c, http.StatusConflict, "that server is no longer active")
 	}
 	d, err := s.Templates.Draft(ctx, sess.TemplateID)
 	if err != nil {
-		return fail(c, http.StatusConflict, "the template has no draft")
+		return agentapi.Fail(c, http.StatusConflict, "the template has no draft")
 	}
 	build, err := s.Preview(ctx, id)
 	if err != nil {
 		s.Log.Error("agent: preview context", "error", err)
-		return fail(c, http.StatusInternalServerError, "internal error")
+		return agentapi.Fail(c, http.StatusInternalServerError, "internal error")
 	}
 	pv, err := s.Templates.PreviewFor(ctx, sess.TemplateID, d.Files, build)
 	if err != nil {
 		s.Log.Error("agent: preview", "error", err)
-		return fail(c, http.StatusInternalServerError, "internal error")
+		return agentapi.Fail(c, http.StatusInternalServerError, "internal error")
 	}
 	files := make([]previewFileJSON, 0, len(pv.Files))
 	for _, f := range pv.Files {

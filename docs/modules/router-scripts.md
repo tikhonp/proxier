@@ -10,6 +10,7 @@ The router scripts module hosts `fresh-router.rsc` (and any other RouterOS setup
 - The first script is created by uploading today's `fresh-router.rsc`.
 - A version stores its body byte for byte (and its SHA-256); nothing derived from it is stored except the warnings confirmed when it was published. Parameters are parsed from the body whenever they are needed.
 - The slug names the downloaded files, so it is fixed once the first version exists. A script can be deleted only while no generation was made from it; otherwise it is archived (hidden from the list and search).
+- **Hand off to an agent.** A draft can be handed to a coding agent (Claude Code, Codex) through a one-time prompt and a short-lived token that reaches that draft only, as a template draft can. The agent reads and replaces the script and checks it as Publish would; it never sees a `@secret` default or the subscription link's, and it never publishes. While its session is open the draft shows a band with **Revoke access**, and the editor learns when the agent saved.
 - **Line endings.** A pasted body gets LF (browsers send a text area with CRLF). An uploaded file is kept byte for byte. Saving from the editor gives the posted text the line endings of the body it replaces (CRLF when its first line ends with CRLF), so a save never changes every line of a script.
 
 Flows: [script versions](../processes/router-scripts/script-versions.md).
@@ -94,7 +95,8 @@ With the `@fill routing-*` annotations, a generation that registers a router alw
 ## Pages
 
 - **Router scripts**: each script with its current version, last published, generations count.
-- **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters, **Generate for a new router**, and its generations (router name, version, date, the router's state now).
+- **Script page**: versions (number, published, notes; **Make current**, **Download**, **Diff**), the draft editor with detected parameters and **Hand off to an agent…** (with the band of an open session), **Generate for a new router**, and its generations (router name, version, date, the router's state now).
+- **Hand off** (`/router-scripts/:id/agent`): the problem, the diff option, the agent and how long; then the prompt, masked, with **Copy prompt**.
 - **Generate** (`/router-scripts/:id/generate`): the form above with its live summary.
 - **Generation page** (`/router-scripts/generations/:id`): version, the router and link as now, values (secrets masked), **View changes**, **Download**, **Generate again**, the Fetch URL area (**Create fetch URL**, Reveal, Copy, the two commands), After the import and Fetch history. Fetch URL and After the import come first on the left (first on a phone), the generation and its values on the right.
 

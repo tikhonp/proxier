@@ -1,14 +1,11 @@
 package pages
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/a-h/templ"
@@ -16,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/agent"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -26,39 +24,6 @@ func (h *handler) registerAgent(r web.Routes) {
 	a.POST("/templates/:id/agent", h.agentOpen)
 	a.POST("/templates/:id/agent/:sid/revoke", h.agentRevoke)
 	a.GET("/templates/:id/draft/revision", h.draftRevision)
-}
-
-// usedForms remembers the hand-off forms that already opened a session. The
-// prompt is shown once, in the answer to the post; reloading that answer posts
-// the form again, which must not hand the draft over a second time.
-type usedForms struct {
-	mu   sync.Mutex
-	seen map[string]time.Time
-}
-
-// take reports whether id is new, and remembers it.
-func (u *usedForms) take(id string) bool {
-	u.mu.Lock()
-	defer u.mu.Unlock()
-	if u.seen == nil {
-		u.seen = map[string]time.Time{}
-	}
-	for k, at := range u.seen {
-		if time.Since(at) > time.Hour {
-			delete(u.seen, k)
-		}
-	}
-	if _, dup := u.seen[id]; dup {
-		return false
-	}
-	u.seen[id] = time.Now()
-	return true
-}
-
-func newFormID() string {
-	b := make([]byte, 12)
-	_, _ = rand.Read(b)
-	return hex.EncodeToString(b)
 }
 
 // ---- the band ---------------------------------------------------------------
@@ -117,9 +82,6 @@ type agentJob struct {
 	Label string
 }
 
-// agentDurations are the access lengths the form offers (minutes).
-var agentDurations = []string{"30", "120", "480"}
-
 func (h *handler) renderAgentForm(c *echo.Context, status int, id int64, v agentFormView) error {
 	ctx := c.Request().Context()
 	info, err := h.Templates.Get(ctx, id)
@@ -143,7 +105,7 @@ func (h *handler) renderAgentForm(c *echo.Context, status int, id int64, v agent
 		label := i18n.T(ctx, "agent.ctx.job.item", i18n.Args{"server": f.ServerName, "id": f.ID, "step": f.Step})
 		v.Failed = append(v.Failed, agentJob{ID: f.ID, Label: label})
 	}
-	v.FormID = newFormID()
+	v.FormID = agentapi.NewFormID()
 	return web.Render(c, status, agentFormPage(h.shell(c, i18n.T(ctx, "agent.title"), "/templates"), v))
 }
 
@@ -176,19 +138,14 @@ func (h *handler) agentOpen(c *echo.Context) error {
 	if err != nil {
 		return notFound(err)
 	}
-	if fid := c.FormValue("form_id"); fid != "" && !h.forms.take(fid) {
+	if fid := c.FormValue("form_id"); fid != "" && !h.forms.Take(fid) {
 		return web.Render(c, http.StatusOK, agentResultPage(h.shell(c, i18n.T(ctx, "agent.title"), "/templates"), agentResultView{T: info, Repeated: true}))
 	}
 	v := agentFormView{
 		Problem: c.FormValue("problem"), Agent: c.FormValue("agent"), For: c.FormValue("for"),
 		Report: c.FormValue("report") == "1", Diff: c.FormValue("diff") == "1", Picked: map[int64]bool{},
 	}
-	o := agent.Open{TemplateID: id, Problem: v.Problem, Agent: v.Agent, IncludeReport: v.Report, IncludeDiff: v.Diff}
-	mins, _ := strconv.Atoi(v.For)
-	if !containsStr(agentDurations, v.For) {
-		mins = 120
-	}
-	o.For = time.Duration(mins) * time.Minute
+	o := agent.Open{TemplateID: id, Problem: v.Problem, Agent: v.Agent, For: agentapi.FormDuration(v.For), IncludeReport: v.Report, IncludeDiff: v.Diff}
 	if raw := c.FormValue("job"); raw != "" {
 		o.JobID, _ = strconv.ParseInt(raw, 10, 64)
 		v.Job = o.JobID
@@ -223,18 +180,9 @@ func (h *handler) agentOpen(c *echo.Context) error {
 	// Whatever the browser does with this answer, the prompt is not cached.
 	c.Response().Header().Set("Cache-Control", "no-store")
 	return web.Render(c, http.StatusOK, agentResultPage(h.shell(c, i18n.T(ctx, "agent.title"), "/templates"), agentResultView{
-		T: info, Masked: agent.Mask(opened.Prompt, opened.Token), Prompt: opened.Prompt, ExpiresAt: opened.ExpiresAt,
+		T: info, Masked: agentapi.Mask(opened.Prompt, opened.Token), Prompt: opened.Prompt, ExpiresAt: opened.ExpiresAt,
 		Size: fmt.Sprintf("%.1f KB", float64(len(opened.Prompt))/1024),
 	}))
-}
-
-func containsStr(l []string, v string) bool {
-	for _, x := range l {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 // ---- revoke, polling --------------------------------------------------------

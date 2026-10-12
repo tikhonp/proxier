@@ -174,7 +174,7 @@ func TestSessionBand(t *testing.T) {
 
 	for _, p := range []string{"/templates/" + tid, "/templates/" + tid + "/edit"} {
 		body := page(t, h, p)
-		mustContain(t, body, "Handed to Claude Code", "nginx will not start", "1 saves · 1 validations", "expires", "What it changed", "/activity?actor="+actor, "Revoke access", "/templates/"+tid+"/agent/"+strconv.FormatInt(sid, 10)+"/revoke")
+		mustContain(t, body, "Handed to Claude Code", "nginx will not start", "1 saves · 1 validations", "expires", "What it changed", "/activity?module=servers&amp;actor="+actor, "Revoke access", "/templates/"+tid+"/agent/"+strconv.FormatInt(sid, 10)+"/revoke")
 	}
 
 	// What it changed: Activity filtered by the agent.

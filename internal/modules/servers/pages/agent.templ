@@ -150,11 +150,11 @@ templ agentBand(b *agentBandView) {
 		<span class="subtle">{ b.Problem }</span>
 		<span class="sm subtle">
 			{ i18n.T(ctx, "agent.band.counts", i18n.Args{"saves": b.Saves, "validations": b.Validations}) } ·
-			{ i18n.T(ctx, "agent.band.expires") }
+			{ i18n.T(ctx, "agent.band.expires") + " " }
 			@ui.Time(b.ExpiresAt)
 		</span>
 		<span class="flex1"></span>
-		<a href={ templ.SafeURL("/activity?actor=agent:" + i64(b.ID)) } class="pc-btn pc-sm" data-action="tpl.agent_changes">{ i18n.T(ctx, "agent.band.changes") }</a>
+		<a href={ templ.SafeURL("/activity?module=servers&actor=agent:" + i64(b.ID)) } class="pc-btn pc-sm" data-action="tpl.agent_changes">{ i18n.T(ctx, "agent.band.changes") }</a>
 		@ui.ActionButton(ui.Action{
 			ID: "tpl.agent_revoke", Label: "agent.band.revoke", Method: "POST", Href: actionHref(b.Template, "/agent/"+i64(b.ID)+"/revoke"), Small: true, Kind: ui.Danger,
 			Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "agent.revoke.title"), Body: i18n.T(ctx, "agent.revoke.body")},

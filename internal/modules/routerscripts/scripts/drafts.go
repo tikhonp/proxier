@@ -71,6 +71,13 @@ func (s *Service) EditDraft(ctx context.Context, id int64, actor string) (Draft,
 // (ErrDraftChanged otherwise). body already has the stored body's line
 // endings (Normalize). The same body records nothing and keeps the revision.
 func (s *Service) SaveDraft(ctx context.Context, id int64, revision int, body, actor string) (int, error) {
+	return s.SaveDraftIn(ctx, id, revision, body, actor, nil)
+}
+
+// SaveDraftIn is SaveDraft that also runs in, when not nil, in the saving
+// transaction: changed says whether the body changed. An error from in
+// writes nothing. The agent API checks its session there and counts the save.
+func (s *Service) SaveDraftIn(ctx context.Context, id int64, revision int, body, actor string, in func(tx *sqlx.Tx, changed bool) error) (int, error) {
 	rev := revision
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		if _, err := script(ctx, tx, id); err != nil {
@@ -90,7 +97,13 @@ func (s *Service) SaveDraft(ctx context.Context, id int64, revision int, body, a
 		if checkBody(body, fe); len(fe) > 0 {
 			return fe
 		}
-		if d.Body == body {
+		changed := d.Body != body
+		if in != nil {
+			if err := in(tx, changed); err != nil {
+				return err
+			}
+		}
+		if !changed {
 			return nil
 		}
 		d.Body, d.Revision, d.UpdatedAt, d.UpdatedBy = body, d.Revision+1, db.At(s.d.Now()), actor
@@ -122,6 +135,9 @@ func (s *Service) DiscardDraft(ctx context.Context, id int64, actor string) erro
 			return err
 		}
 		if err := store.DeleteDraft(ctx, tx, id); err != nil {
+			return err
+		}
+		if err := s.draftEnded(ctx, tx, id, "discarded", actor); err != nil {
 			return err
 		}
 		return s.record(ctx, tx, "routerscript.draft_discarded", id, actor, map[string]any{"based_on": d.BasedOn})

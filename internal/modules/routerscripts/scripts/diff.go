@@ -42,7 +42,13 @@ func (s *Service) Diff(ctx context.Context, id int64, from, to string) (string, 
 	if a == b {
 		return "", nil
 	}
-	return udiff.Unified(fileName(sc.Slug, from), fileName(sc.Slug, to), a, b), nil
+	return Unified(sc.Slug, from, to, a, b), nil
+}
+
+// Unified is the unified diff of bodies a and b of from and to (as Diff
+// takes them), named as the files they are.
+func Unified(slug, from, to, a, b string) string {
+	return udiff.Unified(fileName(slug, from), fileName(slug, to), a, b)
 }
 
 func fileName(slug, ref string) string {

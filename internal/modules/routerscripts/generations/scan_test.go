@@ -42,11 +42,11 @@ func TestFetchURLExpires(t *testing.T) {
 	}
 	// the job and its schedule
 	types, sch := h.Mod.JobTypes(), h.Mod.Schedules()
-	if len(types) != 1 || types[0].Name != generations.JobFetchURLs || types[0].Queue != "maintenance" || types[0].MaxAttempts != 1 || !types[0].Quiet ||
+	if len(types) != 2 || types[0].Name != generations.JobFetchURLs || types[0].Queue != "maintenance" || types[0].MaxAttempts != 1 || !types[0].Quiet ||
 		len(types[0].Steps) != 1 || types[0].Steps[0].Name != "expire" {
 		t.Errorf("job type: %+v", types)
 	}
-	if len(sch) != 1 || sch[0].Name != generations.JobFetchURLs || sch[0].Every != 5*time.Minute {
+	if len(sch) != 2 || sch[0].Name != generations.JobFetchURLs || sch[0].Every != 5*time.Minute {
 		t.Errorf("schedule: %+v", sch)
 	}
 }

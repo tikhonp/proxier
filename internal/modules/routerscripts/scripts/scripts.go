@@ -109,7 +109,20 @@ type Deps struct {
 }
 
 // Service manages router scripts.
-type Service struct{ d Deps }
+type Service struct {
+	// DraftEnded runs in the transaction that publishes or discards a draft
+	// (reason "published" or "discarded"): the agent session on it ends there.
+	DraftEnded func(ctx context.Context, tx *sqlx.Tx, scriptID int64, reason, actor string) error
+
+	d Deps
+}
+
+func (s *Service) draftEnded(ctx context.Context, tx *sqlx.Tx, id int64, reason, actor string) error {
+	if s.DraftEnded == nil {
+		return nil
+	}
+	return s.DraftEnded(ctx, tx, id, reason, actor)
+}
 
 // NewService returns the service.
 func NewService(d Deps) *Service {

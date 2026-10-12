@@ -33,15 +33,16 @@ func TestModuleIsWired(t *testing.T) {
 			t.Errorf("%s has no event.%s", e.Name, e.Name)
 		}
 		if e.Notify || e.NotifyIf != nil {
-			if e.Name != "routerscript.fetched" {
+			emoji, documented := map[string]string{"routerscript.fetched": "📥", "routerscript.agent_session_opened": "🤖"}[e.Name]
+			if !documented {
 				t.Errorf("%s notifies and isn't in docs/events.md", e.Name)
 			}
-			if !app.I18n.Has("notify."+e.Name) || !app.I18n.Has("notify."+e.Name+".body") || e.Emoji != "📥" {
+			if !app.I18n.Has("notify."+e.Name) || !app.I18n.Has("notify."+e.Name+".body") || e.Emoji != emoji {
 				t.Errorf("%s notifies without its texts or emoji", e.Name)
 			}
 		}
 	}
-	if n != len(routerscripts.Events) || n != 12 {
+	if n != len(routerscripts.Events) || n != 14 {
 		t.Errorf("%d events declared, module has %d", n, len(routerscripts.Events))
 	}
 

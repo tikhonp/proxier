@@ -3,7 +3,7 @@ package platform
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
 // messages are the platform's texts (prefixes ui. nav. auth. settings. dash.
-// keys. err.). Plural texts hold their forms separated by "|".
+// keys. err. agent.). Plural texts hold their forms separated by "|".
 var messages = i18n.Messages{
 	// Shell
 	"ui.close":              {EN: "Close", RU: "Закрыть"},
@@ -472,4 +472,47 @@ var messages = i18n.Messages{
 	"job.platform.backup":               {EN: "Database backup", RU: "Резервная копия базы"},
 	"job.platform.backup.step.snapshot": {EN: "Snapshot", RU: "Снимок"},
 	"job.platform.backup.step.prune":    {EN: "Remove old copies", RU: "Удаление старых копий"},
+
+	// Agent hand-off: what servers (template drafts) and routerscripts (script
+	// drafts) share. Each module adds its context, its scope and its band counts.
+	"agent.handoff":           {EN: "Hand off to an agent…", RU: "Передать агенту…"},
+	"agent.handoff.short":     {EN: "Hand off", RU: "Передача агенту"},
+	"agent.title":             {EN: "Hand off the draft to an agent", RU: "Передать черновик агенту"},
+	"agent.based_on":          {EN: "draft based on v{v}", RU: "черновик на основе v{v}"},
+	"agent.no_base":           {EN: "a draft that was never published", RU: "черновик, который не публиковался"},
+	"agent.for_whom":          {EN: "for Claude Code, Codex or any agent that can make HTTP requests", RU: "для Claude Code, Codex или любого агента, который умеет делать HTTP-запросы"},
+	"agent.problem":           {EN: "What's the problem, and what should it do?", RU: "В чём проблема и что агенту сделать?"},
+	"agent.problem.help":      {EN: "The agent gets this text as it is. Say what to keep as well as what to change.", RU: "Агент получит этот текст как есть. Напишите и что менять, и что оставить."},
+	"agent.context":           {EN: "Context it can read", RU: "Что он может прочитать"},
+	"agent.ctx.diff":          {EN: "Diff against the base version", RU: "Отличия от базовой версии"},
+	"agent.ctx.diff.note":     {EN: "what the draft already changed", RU: "что в черновике уже изменено"},
+	"agent.agent":             {EN: "Agent", RU: "Агент"},
+	"agent.agent.claude-code": {EN: "Claude Code", RU: "Claude Code"},
+	"agent.agent.codex":       {EN: "Codex", RU: "Codex"},
+	"agent.agent.other":       {EN: "Other", RU: "Другой"},
+	"agent.agent.note":        {EN: "Changes only the wording. The API is the same.", RU: "Меняет только формулировку. API одно и то же."},
+	"agent.for":               {EN: "Access expires after", RU: "Доступ закончится через"},
+	"agent.for.30":            {EN: "30 min", RU: "30 мин"},
+	"agent.for.120":           {EN: "2 h", RU: "2 ч"},
+	"agent.for.480":           {EN: "8 h", RU: "8 ч"},
+	"agent.can":               {EN: "It can", RU: "Он может"},
+	"agent.cant":              {EN: "It can't", RU: "Он не может"},
+	"agent.create":            {EN: "Create the hand-off", RU: "Создать передачу"},
+	"agent.err.problem":       {EN: "Say what the agent should do (up to 4000 characters).", RU: "Напишите, что агенту сделать (до 4000 символов)."},
+	"agent.err.agent":         {EN: "Choose an agent.", RU: "Выберите агента."},
+	"agent.prompt":            {EN: "Prompt", RU: "Подсказка"},
+	"agent.prompt.note":       {EN: "Markdown · {size} · the token is shown once", RU: "Markdown · {size} · токен показывается один раз"},
+	"agent.secret.warn":       {EN: "The prompt holds the token in plain text. Anyone who has it can edit this draft until the access ends — expires", RU: "В подсказке токен открытым текстом. Любой, у кого она есть, может править этот черновик, пока доступ не закончится — истекает"},
+	"agent.copy":              {EN: "Copy prompt", RU: "Скопировать подсказку"},
+	"agent.copy.then":         {EN: "then paste it into Claude Code or Codex", RU: "и вставьте её в Claude Code или Codex"},
+	"agent.to_editor":         {EN: "Open the editor", RU: "Открыть редактор"},
+	"agent.repeated.title":    {EN: "Already copied", RU: "Уже скопировано"},
+	"agent.repeated.body":     {EN: "The prompt was shown once and is not kept. Open a new hand-off to get another; it replaces the first.", RU: "Подсказка показывается один раз и нигде не хранится. Создайте новую передачу — она заменит первую."},
+	"agent.repeated.again":    {EN: "New hand-off", RU: "Новая передача"},
+	"agent.band.title":        {EN: "Handed to {agent}", RU: "Передано: {agent}"},
+	"agent.band.expires":      {EN: "expires", RU: "истекает"},
+	"agent.band.changes":      {EN: "What it changed", RU: "Что он изменил"},
+	"agent.band.revoke":       {EN: "Revoke access", RU: "Отозвать доступ"},
+	"agent.revoke.title":      {EN: "Revoke the agent's access?", RU: "Отозвать доступ агента?"},
+	"agent.revoke.body":       {EN: "The token stops working at once. What the agent saved stays in the draft.", RU: "Токен перестанет работать сразу. Сохранённое агентом останется в черновике."},
 }

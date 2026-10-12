@@ -122,6 +122,7 @@ type scriptView struct {
 	GenRows        []genRow
 	CanGenerate    bool
 	Activity       []eventLine
+	Agent          *agentBandView // the open agent session on the draft
 }
 
 // genRow is a generation in the script page's Generations area.
@@ -149,6 +150,8 @@ func (h *handler) page(c *echo.Context) error {
 		v.Band, v.BandKind = i18n.T(ctx, "scripts.band.current", i18n.Args{"version": q("current")}), "pine"
 	case q("discarded") == "1":
 		v.Band, v.BandKind = i18n.T(ctx, "scripts.band.discarded"), "pine"
+	case q("revoked") == "1":
+		v.Band, v.BandKind = i18n.T(ctx, "rscripts.agent.band.revoked"), "pine"
 	}
 	d, err := h.Scripts.Draft(ctx, s.ID)
 	switch {
@@ -198,6 +201,9 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 		}
 		v.Panel = makePanel(ctx, p, fs)
 		v.Panel.Live, v.Panel.ScriptID = true, s.ID
+		if v.Agent, err = h.agentBand(c, s.ID); err != nil {
+			return err
+		}
 	}
 	v.Line = statusLine(ctx, s, v)
 	if v.Activity, err = h.activity(ctx, s); err != nil {
