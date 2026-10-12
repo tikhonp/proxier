@@ -53,6 +53,7 @@ type linkView struct {
 	// CanCutOff: the servers module rotates; CutOffBand is the alert band's
 	// line about it, CutOff the latest cut-off (HasCutOff).
 	CanCutOff  bool
+	CutOffOff  bool // rotation on cut-off is off
 	CutOffBand string
 	CutOff     cutoffView
 	HasCutOff  bool
@@ -138,6 +139,13 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 		v.Who.Alert = false
 	}
 	v.CanCutOff = h.Links.CanCutOff() && !v.Deleted
+	if v.CanCutOff {
+		on, err := h.Links.Rotates(ctx)
+		if err != nil {
+			return v, err
+		}
+		v.CutOffOff = !on
+	}
 	if v.CanCutOff && v.Who.Alert {
 		if v.CutOffBand, err = h.cutoffBand(ctx, l); err != nil {
 			return v, err

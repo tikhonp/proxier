@@ -22,6 +22,8 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
 
 ## Steps — cut-off (rotating for a link)
 
+Rotation on cut-off is a setting, `subscriptions.cutoff_rotates`, **off by default** (decided 2026-10-12): while it is off, Cut off only disables the link and every server is skipped as "rotation on cut-off is off", so a URI someone copied keeps working. The plan page, the Actions line and the alert band say so. The setting is read for each server when its turn comes, so turning it off stops a cut-off under way before its next server. The steps below are with it on.
+
 1. Link page → **Cut off…** (in the Actions area, and in the shared-link alert band). The page lists every server of the link's subscription in order with its health, the ones that can't be rotated with why ("not in service", "its template has no rotatable values"), how many other active links in how many subscriptions get new URIs, and the warning above. A subscription with nothing to rotate says so: Cut off only disables the link.
 2. **Cut off** disables the link at once (it serves the "disabled" stub entry from now on; an already disabled link stays as it is), skips and names the servers that can't be rotated, and queues the first rotation, all in one transaction. → `link.disabled` (when it was active), `link.cut_off{servers, skipped}`
 3. The rotations run like the single case, one server at a time: an event subscriber (`subscriptions.cutoff`) starts the next one when the previous one records `server.credentials_rotated` or `server.redeploy_failed`. A failure doesn't stop the rest. A server that stops being rotatable while it waits is skipped when its turn comes. The link page's **Cut-off** area shows their progress (waiting, rotating with its job, rotated, failed or skipped with "still has the old credential") and polls every 2 s while one waits or runs.
@@ -45,5 +47,7 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
 - The proxy test with the new values fails → the old files are restored and redeployed. Afterwards the proxy test with the old values passes.
 - Rotating a server that is in no subscription → allowed. The dialog says no links are affected.
 - Cut off a link whose subscription has three servers → the link is disabled at once, three rotations run one after another, and three `server.credentials_rotated` events are recorded.
+- Cut off with `subscriptions.cutoff_rotates` off (the default) → the link is disabled, every server is skipped as "rotation on cut-off is off", nothing is queued (`TestCutOffWithRotationOffOnlyDisablesTheLink`).
+- The setting turned off while a cut-off runs → the running rotation finishes, the waiting servers are skipped (`TestTurningRotationOffStopsACutOffUnderWay`).
 - Cut-off where the second server is unreachable → the link stays disabled, server 1 is rotated, server 2 shows the failure with **Retry**, and server 3 still runs.
 - Rotation requested while a redeploy of the same server runs → it waits and then runs.

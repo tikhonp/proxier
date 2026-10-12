@@ -9,15 +9,17 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
-// Cut off disables a link and rotates every server of its subscription, one at
-// a time (docs/processes/servers/credential-rotation.md#cut-off): an event
-// subscriber starts the next rotation when the previous one ends.
+// Cut off disables a link and, when the setting subscriptions.cutoff_rotates is
+// on, rotates every server of its subscription, one at a time
+// (docs/processes/servers/credential-rotation.md#cut-off): an event subscriber
+// starts the next rotation when the previous one ends.
 
 var (
 	// ErrNoRotator: the servers module offers no rotation, so there is no cut-off.
@@ -30,6 +32,7 @@ var (
 const (
 	ReasonNotInService = "not in service"
 	ReasonNothing      = "no rotatable values"
+	ReasonRotationOff  = "rotation off"
 )
 
 // CutOffSubscriberName is the subscriber that moves cut-offs on.
@@ -44,6 +47,8 @@ type CutOffPlan struct {
 	// subscription holds a server that will rotate; OtherSubs their subscriptions.
 	OtherLinks int
 	OtherSubs  int
+	// RotationOff: the setting is off, so every server is skipped.
+	RotationOff bool
 }
 
 // PlanServer is a member of the link's subscription.
@@ -84,9 +89,20 @@ type CutOffItem struct {
 // CanCutOff: the servers module offers rotation.
 func (s *Service) CanCutOff() bool { return s.d.Rotator != nil }
 
+// Rotates reports whether a cut-off rotates servers (subscriptions.cutoff_rotates).
+func (s *Service) Rotates(ctx context.Context) (bool, error) {
+	return s.d.Settings.GetBool(ctx, conf.CutOffRotates)
+}
+
 // request asks the rotator for the server's rotation; reason is why it can't
-// be rotated instead.
+// be rotated instead. The setting is read for every server, so turning it off
+// stops a cut-off that is under way before its next server.
 func (s *Service) request(ctx context.Context, serverID int64, actor string) (req jobs.Request, reason string, err error) {
+	if on, err := s.Rotates(ctx); err != nil {
+		return req, "", err
+	} else if !on {
+		return req, ReasonRotationOff, nil
+	}
 	req, err = s.d.Rotator.RotationRequest(ctx, serverID, actor)
 	switch {
 	case errors.Is(err, servers.ErrNotActive):
@@ -114,6 +130,11 @@ func (s *Service) PlanCutOff(ctx context.Context, linkID int64) (CutOffPlan, err
 		return CutOffPlan{}, err
 	}
 	p := CutOffPlan{Link: l}
+	on, err := s.Rotates(ctx)
+	if err != nil {
+		return CutOffPlan{}, err
+	}
+	p.RotationOff = !on
 	var rotating []int64
 	for _, m := range members {
 		ps := PlanServer{ServerID: m.ServerID, Name: m.Name}
