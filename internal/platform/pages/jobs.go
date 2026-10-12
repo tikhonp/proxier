@@ -729,6 +729,10 @@ func render(ctx context.Context, c templ.Component) (string, error) {
 	return strings.TrimSpace(b.String()), nil
 }
 
+// sseBreaks are what end a line in an event stream: a bare "\r" too, so a
+// host printing one into a job's log can't start a field of its own.
+var sseBreaks = strings.NewReplacer("\r\n", "\n", "\r", "\n")
+
 // writeEvent writes one server-sent event; data may span lines.
 func writeEvent(w http.ResponseWriter, id, event, data string) error {
 	var b strings.Builder
@@ -736,7 +740,7 @@ func writeEvent(w http.ResponseWriter, id, event, data string) error {
 		b.WriteString("id: " + id + "\n")
 	}
 	b.WriteString("event: " + event + "\n")
-	for _, line := range strings.Split(data, "\n") {
+	for _, line := range strings.Split(sseBreaks.Replace(data), "\n") {
 		b.WriteString("data: " + line + "\n")
 	}
 	b.WriteString("\n")

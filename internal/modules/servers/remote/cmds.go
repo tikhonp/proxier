@@ -246,7 +246,8 @@ func CmdHTTP(url, resolve string) (string, error) {
 		}
 		words = append(words, "--resolve", host+":"+port+":"+resolve)
 	}
-	return plain(false, append(words, url)...), nil
+	// "--": otherwise a manifest URL starting with "-" would be an option to curl.
+	return plain(false, append(words, "--", url)...), nil
 }
 
 // hostPort is the host and port a URL connects to.
@@ -372,7 +373,7 @@ func Parse(cmd string) (Call, bool) {
 		return set(OpRemove, words[3:]...)
 	case c.Sudo && is("rm", "-rf", "--") && len(words) == 4:
 		return set(OpRemoveDir, words[3])
-	case is("curl", "-sk"):
+	case is("curl", "-sk") && words[len(words)-2] == "--":
 		url := words[len(words)-1]
 		resolve := ""
 		if i := indexOf(words, "--resolve"); i > 0 && i+1 < len(words) {

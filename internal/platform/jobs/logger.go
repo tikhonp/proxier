@@ -80,6 +80,29 @@ func (l *Logger) Redact(secrets ...string) {
 	slices.SortStableFunc(l.secrets, func(a, b string) int { return len(b) - len(a) })
 }
 
+// redactErr is err with its text redacted like a log line; errors.Is and
+// errors.As still see err.
+func (l *Logger) redactErr(err error) error {
+	l.mu.Lock()
+	text := err.Error()
+	for _, sec := range l.secrets {
+		text = strings.ReplaceAll(text, sec, Redacted)
+	}
+	l.mu.Unlock()
+	if text == err.Error() {
+		return err
+	}
+	return redactedError{err, text}
+}
+
+type redactedError struct {
+	err  error
+	text string
+}
+
+func (e redactedError) Error() string { return e.text }
+func (e redactedError) Unwrap() error { return e.err }
+
 func (l *Logger) setStep(name string, attempt int) {
 	l.mu.Lock()
 	l.step, l.attempt = name, attempt

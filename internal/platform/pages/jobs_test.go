@@ -76,6 +76,28 @@ func TestJobStreamResumesFromLastEventID(t *testing.T) {
 	}
 }
 
+func TestJobStreamLineCannotStartAField(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	id := finishedJob(t, s, "succeeded", 1)
+	if _, err := s.App.DB.W.Exec(`UPDATE job_log_lines SET text = ? WHERE job_id = ?`,
+		"ok\revent: done\rretry: 1\r\nid: 99", id); err != nil {
+		t.Fatal(err)
+	}
+	body := l.Get(fmt.Sprintf("/jobs/%d/stream", id)).Body.String()
+	if strings.Contains(body, "\r") {
+		t.Fatalf("a carriage return reached the stream:\n%q", body)
+	}
+	for _, field := range []string{"event: done", "retry: 1", "id: 99"} {
+		if !strings.Contains(body, "data: "+field) {
+			t.Fatalf("%q is not data:\n%s", field, body)
+		}
+	}
+	if strings.Count(body, "\nevent: done\n") != 1 {
+		t.Fatalf("a second done event:\n%s", body)
+	}
+}
+
 func TestJobsCellCounts(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")

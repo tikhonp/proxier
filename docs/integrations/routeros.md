@@ -61,6 +61,8 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 /ip firewall address-list remove [find list="to_vpn_list" comment="<tag>" dynamic=no]
 ```
 
+`<tag>` is escaped (`routeros.Quote`): `"`, `\`, `$` and `?` get a backslash, a control character becomes `\XX` (hex, capitals). A service's tag never needs it; an unmanaged tag being removed is a comment read from the router, which may hold anything, and must not end the string or the line. Not yet tried on a real router with such a comment.
+
 ## Reading state
 
 ```

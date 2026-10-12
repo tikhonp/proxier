@@ -335,6 +335,9 @@ func (s *System) endStep(ctx context.Context, run *Run, name, state, msg string)
 
 // stepFailed decides what a failed step means: cancel, defer, retry or fail.
 func (s *System) stepFailed(ctx context.Context, run *Run, t *Type, step string, err error) {
+	// The cause is stored in the job's and its step's error, in the failure
+	// event and by OnFailed: a command's output in it may hold a secret.
+	err = run.log.redactErr(err)
 	var def deferral
 	var perm permanent
 	switch {

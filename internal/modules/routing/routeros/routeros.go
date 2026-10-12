@@ -7,8 +7,10 @@ package routeros
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -104,4 +106,48 @@ func KeyCommands(user, key string) string {
 	return "/user group add name=" + Group + " policy=read,write,ftp,ssh\n" +
 		"/user add name=" + user + " group=" + Group + " password=" + RandomPassword + "\n" +
 		"/user ssh-keys add user=" + user + " key=\"" + key + "\""
+}
+
+// Quote escapes s for a RouterOS "…" string. Service tags pass unchanged; an
+// unmanaged tag is a comment read from the router, and its quote, backslash,
+// "$" (a variable) or a control character would otherwise end the string or
+// the line and run the rest as script.
+func Quote(s string) string {
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '"' || c == '\\' || c == '$' || c == '?':
+			b.WriteByte('\\')
+			b.WriteByte(c)
+		case c < 0x20 || c == 0x7f:
+			fmt.Fprintf(&b, `\%02X`, c)
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String()
+}
+
+// Unquote reverses Quote.
+func Unquote(s string) string {
+	if !strings.Contains(s, `\`) {
+		return s
+	}
+	var b strings.Builder
+	for i := 0; i < len(s); i++ {
+		if s[i] != '\\' || i+1 == len(s) {
+			b.WriteByte(s[i])
+			continue
+		}
+		if i+2 < len(s) {
+			if v, err := strconv.ParseUint(s[i+1:i+3], 16, 8); err == nil {
+				b.WriteByte(byte(v))
+				i += 2
+				continue
+			}
+		}
+		b.WriteByte(s[i+1])
+		i++
+	}
+	return b.String()
 }
