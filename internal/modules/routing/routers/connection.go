@@ -27,6 +27,19 @@ type Connection struct {
 // DefaultUser is the router user the add dialog's commands create.
 const DefaultUser = "proxier"
 
+// JumpUserCommands create a user on a Linux jump host whose key may only
+// forward: Proxier only opens its hop to the router there and never runs a
+// command. The password is "*" rather than useradd's locked "!", because
+// sshd without PAM refuses a locked account.
+func JumpUserCommands(user, key string) string {
+	key = strings.TrimSpace(key)
+	return "sudo useradd --create-home --shell /usr/sbin/nologin --password '*' " + user + "\n" +
+		"sudo mkdir -p -m 700 ~" + user + "/.ssh\n" +
+		"echo 'restrict,port-forwarding " + key + "' | sudo tee -a ~" + user + "/.ssh/authorized_keys >/dev/null\n" +
+		"sudo chmod 600 ~" + user + "/.ssh/authorized_keys\n" +
+		"sudo chown -R " + user + ": ~" + user + "/.ssh"
+}
+
 var (
 	userRe  = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 	labelRe = regexp.MustCompile(`^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?$`)

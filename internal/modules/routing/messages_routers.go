@@ -72,6 +72,7 @@ var routerMessages = i18n.Messages{
 	"routers.area.key":          {EN: "Proxier's key", RU: "Ключ Proxier"},
 	"routers.key.public":        {EN: "Public key", RU: "Публичный ключ"},
 	"routers.key.jump":          {EN: "On the jump host", RU: "На промежуточном хосте"},
+	"routers.key.jump_user":     {EN: "Or a new user {user} on a Linux jump host, which can only forward to the router", RU: "Или новый пользователь {user} на промежуточном хосте с Linux, который может только пробрасывать подключение к роутеру"},
 	"routers.key.router":        {EN: "On the router: a user in a restricted group", RU: "На роутере: пользователь в ограниченной группе"},
 	"routers.key.verify":        {EN: "The group's policies and these commands are still to verify on the first real router; the test's upload check catches a missing ftp policy.", RU: "Политики группы и эти команды ещё нужно проверить на первом настоящем роутере; проверка загрузки файла заметит отсутствие политики ftp."},
 	"routers.copy":              {EN: "Copy", RU: "Копировать"},

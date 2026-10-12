@@ -12,7 +12,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
    - optional **jump host** (tailnet host, port, user);
    - **first hop**: direct, or through Proxier's tailnet node (the default while the node runs);
    - **address list** (default `to_vpn_list`) and **DoH forwarder** (default `vpn-doh`).
-2. The dialog shows Proxier's public key, with what to run on the jump host (append it to the user's `authorized_keys`) and on the router (add it to the router user's SSH keys).
+2. The dialog shows Proxier's public key, with what to run on the jump host and on the router (add it to the router user's SSH keys). For the jump host there are two snippets: append the key to an existing user's `authorized_keys`, or create a user `proxier` on any Linux with `sudo` and `useradd` (shell `nologin`, password `*`, the key with `restrict,port-forwarding`), which can only forward to the router: Proxier never runs a command on a jump host.
 3. **Test connection** runs a read-only job:
    1. Connect to the jump host, if set. On first contact, its host key fingerprint is shown and must be confirmed.
    2. Connect to the router through it. Its fingerprint is confirmed the same way.
