@@ -502,6 +502,43 @@ func TestRestartDuringImport(t *testing.T) {
 	}
 }
 
+func TestNextSyncRemovesTheFileOfACancelledSync(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Home", 0)
+	release := r.Hold(1)
+	h.StartJobs()
+	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.WaitFor("the import", func() bool { return len(r.Imports()) == 1 })
+	if err := h.App.Jobs.Cancel(bg, job, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Settle()
+	release()
+	if st, _ := h.Job(job); st != "cancelled" {
+		t.Fatalf("job: %s", st)
+	}
+	file := routeros.FileName(itoa(job), 1)
+	if !slices.Contains(r.Files(), file) {
+		t.Fatalf("the cancelled job leaves %s: %v", file, r.Files())
+	}
+
+	next := syncNow(t, h, id)
+	if st, e := h.Job(next); st != "succeeded" {
+		t.Fatalf("next sync: %s %s", st, e)
+	}
+	if f := r.Files(); len(f) != 0 {
+		t.Fatalf("the next sync removes every leftover file: %v", f)
+	}
+	if !r.Holds("openai.com") || applied(t, h, id)["openai"].Hash != routeros.EntriesHash(entries("openai.com", "chatgpt.com")) {
+		t.Fatal("the next sync ends with the tag applied")
+	}
+}
+
 func TestChangedHostKeyStopsSync(t *testing.T) {
 	h := routingtest.New(t)
 	h.Up.V2fly("openai", "openai.com\n")

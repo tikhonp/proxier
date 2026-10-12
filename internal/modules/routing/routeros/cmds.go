@@ -18,9 +18,9 @@ const (
 		`[:tostr [/ip dns static get $i type]] . "|" . [:tostr [/ip dns static get $i forward-to]])}`
 	tmplReadList = `:foreach i in=[/ip firewall address-list find where list="%[1]s" dynamic=no] do={:put ([:tostr ` +
 		`[/ip firewall address-list get $i comment]] . "|" . [/ip firewall address-list get $i address])}`
-	tmplImport         = `/import file-name=%[3]s verbose=no`
-	tmplRemoveFile     = `:do {/file remove [find name="%[3]s"]} on-error={}`
-	tmplRemoveJobFiles = `:do {/file remove [find name~"^proxier-sync-%[3]s-"]} on-error={}`
+	tmplImport          = `/import file-name=%[3]s verbose=no`
+	tmplRemoveFile      = `:do {/file remove [find name="%[3]s"]} on-error={}`
+	tmplRemoveSyncFiles = `:do {/file remove [find name~"^proxier-sync-"]} on-error={}`
 )
 
 func cmd(tmpl string, n Names, file string) string {
@@ -44,14 +44,14 @@ func CmdImport(file string) string { return cmd(tmplImport, Names{}, file) }
 // CmdRemoveFile deletes a file; a missing one is no error.
 func CmdRemoveFile(file string) string { return cmd(tmplRemoveFile, Names{}, file) }
 
-// CmdRemoveJobFiles deletes every file a job's sync left ("2207" or "preview").
-func CmdRemoveJobFiles(job string) string { return cmd(tmplRemoveJobFiles, Names{}, job) }
+// CmdRemoveSyncFiles deletes every file a sync uploaded, whichever job left it.
+func CmdRemoveSyncFiles() string { return tmplRemoveSyncFiles }
 
 // Call is a command Parse recognised.
 type Call struct {
-	Kind  string // check, read-dns, read-list, import, remove-file, remove-job-files
+	Kind  string // check, read-dns, read-list, import, remove-file, remove-sync-files
 	Names Names
-	File  string // import, remove-file; the job for remove-job-files
+	File  string // import, remove-file
 }
 
 type pattern struct {
@@ -99,7 +99,7 @@ var patterns = func() []pattern {
 	}
 	return []pattern{
 		mk("check", tmplCheck), mk("read-dns", tmplReadDNS), mk("read-list", tmplReadList),
-		mk("import", tmplImport), mk("remove-file", tmplRemoveFile), mk("remove-job-files", tmplRemoveJobFiles),
+		mk("import", tmplImport), mk("remove-file", tmplRemoveFile), mk("remove-sync-files", tmplRemoveSyncFiles),
 	}
 }()
 
@@ -133,8 +133,8 @@ func Parse(c string) (Call, bool) {
 			again = CmdImport(call.File)
 		case "remove-file":
 			again = CmdRemoveFile(call.File)
-		case "remove-job-files":
-			again = CmdRemoveJobFiles(call.File)
+		case "remove-sync-files":
+			again = CmdRemoveSyncFiles()
 		}
 		if again != c {
 			return Call{}, false

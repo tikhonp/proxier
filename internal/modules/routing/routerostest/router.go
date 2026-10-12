@@ -144,9 +144,9 @@ func (r *Router) handle(s *sshxtest.Session) int {
 		}
 	case "remove-file":
 		_ = os.Remove(filepath.Join(r.Server.Dir(), call.File))
-	case "remove-job-files":
+	case "remove-sync-files":
 		for _, f := range r.Files() {
-			if strings.HasPrefix(f, "proxier-sync-"+call.File+"-") {
+			if strings.HasPrefix(f, "proxier-sync-") {
 				_ = os.Remove(filepath.Join(r.Server.Dir(), f))
 			}
 		}

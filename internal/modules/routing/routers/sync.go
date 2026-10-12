@@ -165,8 +165,10 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	}
 	defer func() { _ = cl.Close() }()
 	job := strconv.FormatInt(r.Info().ID, 10)
-	// files a run cut short left behind
-	if _, err := cl.Run(ctx, routeros.CmdRemoveJobFiles(job), sshx.RunOptions{Timeout: time.Minute}); err != nil {
+	// Files a run cut short left behind: this job's after a restart, and any
+	// other's after a cancel or a failure that couldn't reconnect. Every job
+	// on a router holds its resource key, so none of them is importing now.
+	if _, err := cl.Run(ctx, routeros.CmdRemoveSyncFiles(), sshx.RunOptions{Timeout: time.Minute}); err != nil {
 		return s.fail(ctx, r, rt, syncID, p, &failure{step: StepRead, text: "Removing leftover files failed: " + err.Error() + "." + Untouched, err: err})
 	}
 	names := connOf(rt).Names

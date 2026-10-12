@@ -71,7 +71,7 @@ func TestPreviewIsReadOnly(t *testing.T) {
 		t.Fatalf("preview: %+v", p)
 	}
 	for _, c := range r.Commands() {
-		if c == "import" || c == "remove-file" || c == "remove-job-files" {
+		if c == "import" || c == "remove-file" || c == "remove-sync-files" {
 			t.Fatalf("a preview runs %s", c)
 		}
 	}
