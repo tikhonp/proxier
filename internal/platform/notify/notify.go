@@ -331,7 +331,8 @@ func (s *Service) LatestFailed(ctx context.Context) (bool, error) {
 	return state == Failed, err
 }
 
-// Retry sends a failed notification again, as a new linked job.
+// Retry sends a failed notification again, as a new linked job; a grouped one
+// goes again with its whole group.
 func (s *Service) Retry(ctx context.Context, id int64) error {
 	n, err := s.Get(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -350,7 +351,7 @@ func (s *Service) Retry(ctx context.Context, id int64) error {
 	// The guard keeps a worker that already sent it from being undone.
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
 		_, err := tx.ExecContext(ctx, `
-			UPDATE notifications SET state = 'queued', job_id = ?, last_error = '' WHERE id = ? AND state = 'failed'`, newID, id)
+			UPDATE notifications SET state = 'queued', job_id = ?, last_error = '' WHERE job_id IN (?, ?) AND state = 'failed'`, newID, newID, n.JobID)
 		return err
 	})
 }

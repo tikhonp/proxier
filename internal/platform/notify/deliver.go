@@ -2,13 +2,18 @@ package notify
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
@@ -22,6 +27,7 @@ func (s *Service) JobType() jobs.Type {
 		Name: deliverType, Queue: jobs.Notify, MaxAttempts: 4,
 		Backoff:  []time.Duration{10 * time.Second, time.Minute, 5 * time.Minute},
 		Steps:    []jobs.Step{{Name: "send", Run: s.send}},
+		Merge:    mergeGroup,
 		OnFailed: func(ctx context.Context, tx *sqlx.Tx, j jobs.Info, err error) error { return s.giveUp(ctx, tx, j, err) },
 		OnCancelled: func(ctx context.Context, tx *sqlx.Tx, j jobs.Info, by string) error {
 			return s.giveUp(ctx, tx, j, errors.New("cancelled by "+by))
@@ -29,58 +35,163 @@ func (s *Service) JobType() jobs.Type {
 	}
 }
 
-func (s *Service) send(ctx context.Context, r *jobs.Run) error {
-	var p struct {
-		ID int64 `json:"notification_id"`
+// GroupWindow is how long the first notification of a group waits for the
+// rest of its burst.
+const GroupWindow = 2 * time.Minute
+
+// deliverPayload is the delivery job's payload: one notification, or a
+// group's (IDs, with the event type and group key its title is chosen by).
+type deliverPayload struct {
+	ID   int64   `json:"notification_id,omitempty"`
+	IDs  []int64 `json:"notification_ids,omitempty"`
+	Type string  `json:"type,omitempty"`
+	Key  string  `json:"key,omitempty"`
+}
+
+func (p deliverPayload) ids() []int64 {
+	if len(p.IDs) > 0 {
+		return p.IDs
 	}
+	return []int64{p.ID}
+}
+
+// mergeGroup adds a coalesced notification to the group waiting to be sent.
+func mergeGroup(queued, incoming json.RawMessage) (json.RawMessage, error) {
+	var q, in deliverPayload
+	if err := json.Unmarshal(queued, &q); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(incoming, &in); err != nil {
+		return nil, err
+	}
+	for _, id := range in.ids() {
+		if !slices.Contains(q.IDs, id) {
+			q.IDs = append(q.IDs, id)
+		}
+	}
+	return json.Marshal(q)
+}
+
+func (s *Service) send(ctx context.Context, r *jobs.Run) error {
+	var p deliverPayload
 	if err := r.Payload(&p); err != nil {
 		return jobs.Permanent(err)
 	}
-	// The retry of a job is a new job: this one owns the notification now.
+	ids := p.ids()
+	// The retry of a job is a new job: this one owns the notifications now.
 	if err := s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE notifications SET job_id = ? WHERE id = ?`, r.Info().ID, p.ID)
+		q, args, err := sqlx.In(`UPDATE notifications SET job_id = ? WHERE id IN (?)`, r.Info().ID, ids)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, q, args...)
 		return err
 	}); err != nil {
 		return err
 	}
-	n, err := s.Get(ctx, p.ID)
-	if err != nil {
-		return jobs.Permanent(fmt.Errorf("notification %d: %w", p.ID, err))
+	var todo []Notification
+	for _, id := range ids {
+		n, err := s.Get(ctx, id)
+		if errors.Is(err, sql.ErrNoRows) && len(ids) > 1 {
+			continue // pruned while its group waited
+		}
+		if err != nil {
+			return jobs.Permanent(fmt.Errorf("notification %d: %w", id, err))
+		}
+		if n.State != Sent {
+			todo = append(todo, n)
+		}
 	}
-	if n.State == Sent {
+	if len(todo) == 0 {
 		r.Log().Info("Already sent")
 		return nil
 	}
-	ch := s.channel(n.Channel)
+	first := todo[0]
+	ch := s.channel(first.Channel)
 	if ch == nil {
-		return jobs.Permanent(fmt.Errorf("no channel %q", n.Channel))
+		return jobs.Permanent(fmt.Errorf("no channel %q", first.Channel))
 	}
-	r.Log().Info("Sending to %s: %s", n.Channel, n.Message.Title)
-	err = ch.Send(ctx, n.Message)
+	msg := first.Message
+	if len(todo) > 1 {
+		var err error
+		if msg, err = s.groupMessage(ctx, p, todo); err != nil {
+			return err
+		}
+	}
+	sending := make([]int64, len(todo))
+	for i, n := range todo {
+		sending[i] = n.ID
+	}
+	r.Log().Info("Sending to %s: %s", first.Channel, msg.Title)
+	err := ch.Send(ctx, msg)
 	var rl *RateLimitedError
 	if errors.As(err, &rl) {
 		// Asked to wait: not a failed try.
 		return jobs.Defer(rl.RetryAfter, "the channel asked to wait")
 	}
 	if err != nil {
-		if werr := s.count(ctx, n.ID, err); werr != nil {
+		if werr := s.count(ctx, sending, err); werr != nil {
 			return werr
 		}
 		return err
 	}
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(ctx, `
-			UPDATE notifications SET state = 'sent', attempts = attempts + 1, last_error = '', sent_at = ? WHERE id = ?`,
-			db.At(s.Now()), n.ID)
+		q, args, err := sqlx.In(`
+			UPDATE notifications SET state = 'sent', attempts = attempts + 1, last_error = '', sent_at = ? WHERE id IN (?)`,
+			db.At(s.Now()), sending)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, q, args...)
 		return err
 	})
 }
 
+// groupMessage is one message for a group: a counted title in the first
+// notification's language and each notification's text on its own line.
+func (s *Service) groupMessage(ctx context.Context, p deliverPayload, ns []Notification) (Message, error) {
+	var lang string
+	if err := s.d.R.GetContext(ctx, &lang, `SELECT lang FROM notifications WHERE id = ?`, ns[0].ID); err != nil {
+		return Message{}, err
+	}
+	tz := time.UTC
+	if name, err := s.st.Get(ctx, "general.time_zone"); err == nil {
+		if l, err := time.LoadLocation(name); err == nil {
+			tz = l
+		}
+	}
+	loc := s.cat.Localizer(i18n.Lang(lang), tz)
+	key := "notify." + p.Type + ".group." + p.Key
+	if !loc.Has(key) {
+		key = "notify.group"
+	}
+	lines := make([]string, len(ns))
+	for i, n := range ns {
+		lines[i] = n.Message.Title
+		if n.Message.Body != "" {
+			lines[i] += ": " + n.Message.Body
+		}
+	}
+	href := ""
+	if t, ok := s.ev.Lookup(p.Type); ok {
+		href = t.GroupHref
+	}
+	m := Message{Emoji: ns[0].Message.Emoji, Title: loc.N(key, int64(len(ns))), Body: strings.Join(lines, "\n"), URL: s.link(href)}
+	if m.URL != "" {
+		m.Button = loc.T("notify.open")
+	}
+	return m, nil
+}
+
 // count notes a failed try.
-func (s *Service) count(ctx context.Context, id int64, cause error) error {
+func (s *Service) count(ctx context.Context, ids []int64, cause error) error {
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(ctx, `
-			UPDATE notifications SET attempts = attempts + 1, last_error = ? WHERE id = ?`, cut(cause.Error(), 500), id)
+		q, args, err := sqlx.In(`
+			UPDATE notifications SET attempts = attempts + 1, last_error = ? WHERE id IN (?)`, cut(cause.Error(), 500), ids)
+		if err != nil {
+			return err
+		}
+		_, err = tx.ExecContext(ctx, q, args...)
 		return err
 	})
 }

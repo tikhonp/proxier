@@ -83,10 +83,18 @@ func (s *Service) handle(ctx context.Context, tx *sqlx.Tx, e events.Event) error
 		if err != nil {
 			return err
 		}
-		q, err := s.j.Enqueue(ctx, tx, jobs.Request{
+		req := jobs.Request{
 			Type: deliverType, Payload: map[string]any{"notification_id": id},
 			CreatedBy: fmt.Sprintf("event:%d", e.ID),
-		})
+		}
+		if key := groupKey(t, e); key != "" {
+			// The first of a group waits out the window; the others merge
+			// into its job while it waits.
+			req.Payload = deliverPayload{IDs: []int64{id}, Type: e.Type, Key: key}
+			req.CoalescingKey = "group:" + c.Name() + ":" + e.Type + ":" + key
+			req.Delay = GroupWindow
+		}
+		q, err := s.j.Enqueue(ctx, tx, req)
 		if err != nil {
 			return err
 		}
@@ -236,4 +244,11 @@ func (s *Service) platformNames(ctx context.Context, sub events.Subject) (map[st
 		return nil, nil
 	}
 	return map[string]ui.SubjectRef{sub.ID: ref}, nil
+}
+
+func groupKey(t events.Type, e events.Event) string {
+	if t.Group == nil {
+		return ""
+	}
+	return t.Group(e.Payload)
 }

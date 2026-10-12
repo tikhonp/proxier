@@ -137,9 +137,12 @@ var healthMessages = i18n.Messages{
 	"health.dash.setup_server":      {EN: "Add the first server", RU: "Добавить первый сервер"},
 
 	// notifications
-	"notify.server.health_changed.down":    {EN: "{subject} is down", RU: "{subject} не работает"},
-	"notify.server.health_changed.blocked": {EN: "{subject} is blocked", RU: "{subject} заблокирован"},
-	"notify.server.health_changed.healthy": {EN: "{subject} is healthy again", RU: "{subject} снова работает"},
+	"notify.server.health_changed.down":          {EN: "{subject} is down", RU: "{subject} не работает"},
+	"notify.server.health_changed.blocked":       {EN: "{subject} is blocked", RU: "{subject} заблокирован"},
+	"notify.server.health_changed.healthy":       {EN: "{subject} is healthy again", RU: "{subject} снова работает"},
+	"notify.server.health_changed.group.down":    {EN: "{n} server is down|{n} servers are down", RU: "{n} сервер не работает|{n} сервера не работают|{n} серверов не работают"},
+	"notify.server.health_changed.group.blocked": {EN: "{n} server is blocked|{n} servers are blocked", RU: "{n} сервер заблокирован|{n} сервера заблокированы|{n} серверов заблокированы"},
+	"notify.server.health_changed.group.healthy": {EN: "{n} server is healthy again|{n} servers are healthy again", RU: "{n} сервер снова работает|{n} сервера снова работают|{n} серверов снова работают"},
 
 	// settings
 	"settings.field.servers.selfcheck_every":               {EN: "Check round every", RU: "Раунд проверок каждые"},
