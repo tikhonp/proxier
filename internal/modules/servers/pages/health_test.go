@@ -236,6 +236,10 @@ func TestServersDashboard(t *testing.T) {
 	body := page(t, h, "/")
 	mustContain(t, body, "Servers", "Healthy")
 	mustNotContain(t, body, "Home is offline")
+	// states no server is in are left out, not shown as 0
+	for _, st := range []string{"Provisioning", "Failed", "Degraded", "Blocked", "Down", "Unknown", "Paused"} {
+		mustNotContain(t, body, ">"+st+"<")
+	}
 
 	// a blocked server with its reason, and home offline
 	setHealth(t, h, id, "blocked", "health.reason.blocked_unconfirmed", map[string]any{"failure": "stalled"})
