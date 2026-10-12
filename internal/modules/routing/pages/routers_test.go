@@ -56,7 +56,7 @@ func TestAddRouterPage(t *testing.T) {
 	page := h.Login.Get("/routing/routers/new").Body.String()
 	has(t, "add page", page, "<h1>Add router</h1>", html.EscapeString(key),
 		html.EscapeString("echo '"+key+"' >> ~/.ssh/authorized_keys"),
-		"/user group add name=proxier policy=read,write,ftp,ssh", "/user add name=proxier group=proxier",
+		"/user group add name=proxier policy=read,write,ftp,ssh", html.EscapeString("/user add name=proxier group=proxier password="+routeros.RandomPassword),
 		html.EscapeString(`/user ssh-keys add user=proxier key="`+key+`"`), `data-copy-from="#key-router"`,
 		`formaction="/routing/routers/test"`, "Test connection", "Save and sync", `value="to_vpn_list"`, `value="vpn-doh"`, `value="proxier"`,
 		"to verify on the first real router")

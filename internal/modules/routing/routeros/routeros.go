@@ -91,12 +91,17 @@ func Counts(e []Entry) (suffix, exact int) {
 // "to verify" 5: the policies are still to confirm on a real router).
 const Group = "proxier"
 
+// RandomPassword is a RouterOS expression for a 32-character password.
+const RandomPassword = `[:rndstr length=32 from="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"]`
+
 // KeyCommands create Proxier's group and user on a router and add its key:
 // the add router page's commands and a generation's, one text so both change
-// together.
+// together. The user gets a random password nobody knows: without one,
+// /user add asks for it in the terminal, so the pasted lines stop, and
+// Winbox and the console would accept an empty one.
 func KeyCommands(user, key string) string {
 	key = strings.TrimSpace(key)
 	return "/user group add name=" + Group + " policy=read,write,ftp,ssh\n" +
-		"/user add name=" + user + " group=" + Group + "\n" +
+		"/user add name=" + user + " group=" + Group + " password=" + RandomPassword + "\n" +
 		"/user ssh-keys add user=" + user + " key=\"" + key + "\""
 }

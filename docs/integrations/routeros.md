@@ -90,9 +90,11 @@ Proxier logs in as its own user in a restricted group. The add page shows the co
 
 ```
 /user group add name=proxier policy=read,write,ftp,ssh
-/user add name=proxier group=proxier
+/user add name=proxier group=proxier password=[:rndstr length=32 from="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"]
 /user ssh-keys add user=proxier key="<Proxier's public key>"
 ```
+
+The user gets a random password nobody knows: without `password=`, `/user add` asks for one in the terminal, so the pasted lines stop there, and Winbox and the console would accept an empty one. Proxier only uses the key.
 
 The text lives in one place, `routeros.KeyCommands(user, key)`: the add page shows it, and routing's `RouterRegistrar` hands it to router scripts with every router.
 
