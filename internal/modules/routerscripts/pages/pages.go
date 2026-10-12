@@ -10,10 +10,12 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/modules/routerscripts/agent"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -25,6 +27,7 @@ import (
 type Deps struct {
 	Scripts     *scripts.Service
 	Generations *generations.Service
+	Agent       *agent.Service
 	DB          *db.DB
 	Now         func() time.Time
 }
@@ -32,6 +35,7 @@ type Deps struct {
 type handler struct {
 	Deps
 	shell func(c *echo.Context, title, path string) ui.Shell
+	forms agentapi.Forms // hand-off forms already posted (agent.go)
 }
 
 // ListPath is the scripts list.
@@ -53,6 +57,10 @@ func Register(r web.Routes, d Deps) {
 	r.Admin.POST(ListPath+"/:id/draft", h.saveDraft)
 	r.Admin.POST(ListPath+"/:id/draft/parameters", h.panel)
 	r.Admin.POST(ListPath+"/:id/draft/discard", h.discard)
+	r.Admin.GET(ListPath+"/:id/draft/revision", h.draftRevision)
+	r.Admin.GET(ListPath+"/:id/agent", h.agentForm)
+	r.Admin.POST(ListPath+"/:id/agent", h.agentOpen)
+	r.Admin.POST(ListPath+"/:id/agent/:sid/revoke", h.agentRevoke)
 	r.Admin.GET(ListPath+"/:id/publish", h.publishPage)
 	r.Admin.POST(ListPath+"/:id/publish", h.publish)
 	r.Admin.GET(ListPath+"/:id/versions/:n", h.version)

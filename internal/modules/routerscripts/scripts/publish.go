@@ -83,6 +83,9 @@ func (s *Service) Publish(ctx context.Context, id int64, revision int, notes str
 		if err := store.DeleteDraft(ctx, tx, id); err != nil {
 			return err
 		}
+		if err := s.draftEnded(ctx, tx, id, "published", actor); err != nil {
+			return err
+		}
 		return s.record(ctx, tx, "routerscript.version_published", id, actor, map[string]any{
 			"version": number, "parameters": len(p.Params), "warnings": len(warns),
 		})

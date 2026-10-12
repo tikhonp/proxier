@@ -1,0 +1,171 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+	"strconv"
+)
+
+templ agentFormPage(s ui.Shell, v agentFormView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, i18n.T(ctx, "agent.handoff.short"))
+				<h1>{ i18n.T(ctx, "agent.title") }</h1>
+				<p class="subtle">
+					{ v.S.Name } ·
+					if v.BasedOn > 0 {
+						{ i18n.T(ctx, "agent.based_on", i18n.Args{"v": v.BasedOn}) }
+					} else {
+						{ i18n.T(ctx, "agent.no_base") }
+					}
+					· { i18n.T(ctx, "agent.for_whom") }
+				</p>
+			</div>
+		</div>
+		if v.Error != "" {
+			@ui.Alert("love", "alert") {
+				{ v.Error }
+			}
+		}
+		<form method="post" action={ templ.SafeURL(agentHref(v.S.ID)) } class="form agent-form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<input type="hidden" name="form_id" value={ v.FormID }/>
+			<div class="field">
+				<label for="ag-problem">{ i18n.T(ctx, "agent.problem") }</label>
+				<textarea id="ag-problem" name="problem" class="pc-inp" rows="5" required maxlength={ strconv.Itoa(agentapi.MaxProblemRunes) } aria-invalid?={ v.Error != "" && v.Problem == "" }>{ v.Problem }</textarea>
+				<p class="help">{ i18n.T(ctx, "agent.problem.help") }</p>
+			</div>
+			<fieldset class="fs">
+				<legend>{ i18n.T(ctx, "agent.context") }</legend>
+				if v.BasedOn > 0 {
+					<label class="check"><input type="checkbox" name="diff" value="1" checked?={ v.Diff }/> { i18n.T(ctx, "agent.ctx.diff") } <span class="subtle sm">· { i18n.T(ctx, "agent.ctx.diff.note") }</span></label>
+				} else {
+					<p class="help">{ i18n.T(ctx, "rscripts.agent.ctx.no_base") }</p>
+				}
+				<p class="help">{ i18n.T(ctx, "rscripts.agent.ctx.check") }</p>
+				if v.Hidden != "" {
+					<p class="help">{ i18n.T(ctx, "rscripts.agent.hidden", i18n.Args{"names": v.Hidden}) }</p>
+				}
+			</fieldset>
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "agent.agent") }</legend>
+				for _, a := range agentapi.Agents {
+					<label class="pc-opt"><input type="radio" name="agent" value={ a } checked?={ v.Agent == a }/> { i18n.T(ctx, "agent.agent."+a) }</label>
+				}
+				<p class="help">{ i18n.T(ctx, "agent.agent.note") }</p>
+			</fieldset>
+			<fieldset class="pause-opts">
+				<legend class="sm subtle">{ i18n.T(ctx, "agent.for") }</legend>
+				for _, m := range agentapi.FormDurations {
+					<label class="pc-opt"><input type="radio" name="for" value={ m } checked?={ v.For == m }/> { i18n.T(ctx, "agent.for."+m) }</label>
+				}
+			</fieldset>
+			<div class="agent-scope">
+				<div>
+					<p class="pc-label">{ i18n.T(ctx, "agent.can") }</p>
+					<ul class="plain">
+						<li>{ i18n.T(ctx, "rscripts.agent.can.1") }</li>
+						<li>{ i18n.T(ctx, "rscripts.agent.can.2") }</li>
+						<li>{ i18n.T(ctx, "rscripts.agent.can.3") }</li>
+					</ul>
+				</div>
+				<div>
+					<p class="pc-label">{ i18n.T(ctx, "agent.cant") }</p>
+					<ul class="plain">
+						<li>{ i18n.T(ctx, "rscripts.agent.cant.1") }</li>
+						<li>{ i18n.T(ctx, "rscripts.agent.cant.2") }</li>
+						<li>{ i18n.T(ctx, "rscripts.agent.cant.3") }</li>
+						<li>{ i18n.T(ctx, "rscripts.agent.cant.4") }</li>
+					</ul>
+				</div>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" data-action="rs.agent_create">{ i18n.T(ctx, "agent.create") }</button>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+templ agentResultPage(s ui.Shell, v agentResultView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				@crumbs(v.S.ID, v.S.Name, i18n.T(ctx, "agent.handoff.short"))
+				<h1>{ i18n.T(ctx, "agent.title") }</h1>
+			</div>
+		</div>
+		if v.Repeated {
+			@ui.Band("gold") {
+				<span class="gold bold">{ i18n.T(ctx, "agent.repeated.title") }</span>
+				<span class="subtle">{ i18n.T(ctx, "agent.repeated.body") }</span>
+				<span class="flex1"></span>
+				<a href={ templ.SafeURL(agentHref(v.S.ID)) } class="pc-btn pc-sm" data-action="rs.agent_again">{ i18n.T(ctx, "agent.repeated.again") }</a>
+			}
+		} else {
+			<section class="area" aria-label={ i18n.T(ctx, "agent.prompt") }>
+				<div class="pc-title">
+					<h2>{ i18n.T(ctx, "agent.prompt") }</h2>
+					<span class="note">{ i18n.T(ctx, "agent.prompt.note", i18n.Args{"size": v.Size}) }</span>
+					<span class="flex1"></span>
+				</div>
+				<pre class="agent-prompt" tabindex="0">{ v.Masked }</pre>
+			</section>
+			@ui.Alert("gold", "status") {
+				{ i18n.T(ctx, "agent.secret.warn") }
+				@ui.Time(v.ExpiresAt)
+			}
+			<div class="form-actions">
+				<button type="button" class="pc-btn pc-pri" data-action="rs.agent_copy" data-copy={ v.Prompt }>{ i18n.T(ctx, "agent.copy") }</button>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost" data-action="rs.agent_to_draft">{ i18n.T(ctx, "rscripts.agent.to_editor") }</a>
+				<span class="subtle sm">{ i18n.T(ctx, "agent.copy.then") }</span>
+			</div>
+		}
+	}
+}
+
+// agentBand shows the open session over the draft.
+templ agentBand(b *agentBandView) {
+	@ui.Band("iris") {
+		<span class="iris bold">{ i18n.T(ctx, "agent.band.title", i18n.Args{"agent": i18n.T(ctx, "agent.agent."+b.Agent)}) }</span>
+		<span class="subtle">{ b.Problem }</span>
+		<span class="sm subtle">
+			{ i18n.T(ctx, "rscripts.agent.band.counts", i18n.Args{"saves": b.Saves}) } ·
+			{ i18n.T(ctx, "agent.band.expires") + " " }
+			@ui.Time(b.ExpiresAt)
+		</span>
+		<span class="flex1"></span>
+		<a href={ templ.SafeURL("/activity?module=routerscripts&actor=agent:" + i64(b.ID)) } class="pc-btn pc-sm" data-action="rs.agent_changes">{ i18n.T(ctx, "agent.band.changes") }</a>
+		@ui.ActionButton(ui.Action{
+			ID: "rs.agent_revoke", Label: "agent.band.revoke", Method: "POST", Href: agentHref(b.Script) + "/" + i64(b.ID) + "/revoke", Small: true, Kind: ui.Danger,
+			Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "agent.revoke.title"), Body: i18n.T(ctx, "agent.revoke.body")},
+		})
+	}
+}
+
+// draftPoller asks every ten seconds whether the draft is still as the editor
+// holds it; the draft form's revision field says what that is.
+templ draftPoller(id int64) {
+	<div
+		id="ed-poll"
+		hx-get={ ScriptHref(id) + "/draft/revision" }
+		hx-trigger="every 10s"
+		hx-include="#ed-revision"
+		hx-swap="outerHTML"
+	></div>
+}
+
+// draftChangedBand is the poller's answer when an agent (or another tab)
+// saved. Save and Publish are turned off by the shell's script.
+templ draftChangedBand(id int64) {
+	<div id="ed-poll" data-ed-stale>
+		@ui.Band("gold") {
+			<span class="gold bold">{ i18n.T(ctx, "rscripts.agent.stale.title") }</span>
+			<span class="subtle">{ i18n.T(ctx, "scripts.stale.body") }</span>
+			<span class="flex1"></span>
+			<a href={ templ.SafeURL(ScriptHref(id) + "#draft") } class="pc-btn pc-sm" data-action="rs.reload">{ i18n.T(ctx, "scripts.stale.reload") }</a>
+		}
+	</div>
+}

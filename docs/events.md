@@ -138,6 +138,8 @@ Lists in payloads are one comma-joined string.
 | `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `admin`. |
 | `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
 | `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
+| `routerscript.agent_session_opened` | router script | expires_at, agent, context (diff: bool), session | **on** 🤖 | "An agent can edit the draft of fresh-router". Anyone holding the copied prompt can do so. |
+| `routerscript.agent_session_closed` | router script | reason (expired / revoked / published / discarded / replaced), saves, session | off | A save by the agent is `routerscript.draft_saved` with actor `agent:<session id>`. Deleting the script deletes its sessions without this event. |
 
 ## Platform notification texts
 

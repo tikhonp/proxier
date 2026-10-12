@@ -13,7 +13,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/servers/finding"
@@ -21,33 +20,19 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/render"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/vault"
 )
 
-// TokenPrefix starts every agent token.
-const TokenPrefix = "pxa_"
-
-// Durations of access. Anything longer than MaxDuration is capped.
+// Limits of the context a session is given.
 const (
-	DefaultDuration = 2 * time.Hour
-	MaxDuration     = 8 * time.Hour
-)
-
-// Limits of one session.
-const (
-	MaxRequests      = 600
-	MaxPerMinute     = 60
-	MaxProblemRunes  = 4000
 	maxLogLines      = 300
 	maxLogBytes      = 64 << 10
 	maxFailedOffered = 10
 )
-
-// Agents the prompt is worded for.
-var Agents = []string{"claude-code", "codex", "other"}
 
 var (
 	ErrNoDraft   = templates.ErrNoDraft
@@ -188,19 +173,14 @@ func (s *Service) FailedJobs(ctx context.Context, templateID int64) ([]FailedJob
 // open session (reason replaced) in the same transaction, and returns the
 // token and the prompt that holds it; neither is stored in a readable form.
 func (s *Service) OpenSession(ctx context.Context, o Open, actor string) (Opened, error) {
-	o.Problem = strings.TrimSpace(o.Problem)
-	switch {
-	case o.Problem == "" || utf8.RuneCountInString(o.Problem) > MaxProblemRunes:
+	var ok bool
+	if o.Problem, ok = agentapi.Problem(o.Problem); !ok {
 		return Opened{}, ErrNoProblem
-	case !contains(Agents, o.Agent):
+	}
+	if !agentapi.KnownAgent(o.Agent) {
 		return Opened{}, ErrBadAgent
 	}
-	if o.For <= 0 {
-		o.For = DefaultDuration
-	}
-	if o.For > MaxDuration {
-		o.For = MaxDuration
-	}
+	o.For = agentapi.Clamp(o.For)
 	t, err := store.GetTemplate(ctx, s.DB.R, o.TemplateID)
 	if err != nil {
 		return Opened{}, err
@@ -215,7 +195,7 @@ func (s *Service) OpenSession(ctx context.Context, o Open, actor string) (Opened
 	}
 	raw, _ := json.Marshal(c)
 
-	token := TokenPrefix + vault.NewToken()
+	token := agentapi.NewToken()
 	opened := s.now()
 	expires := db.At(opened.Add(o.For))
 	var id int64
@@ -251,15 +231,6 @@ func (s *Service) OpenSession(ctx context.Context, o Open, actor string) (Opened
 		SessionID: id, Token: token, ExpiresAt: expires.Time,
 		Prompt: Prompt(PromptData{Agent: o.Agent, Template: t.Name, Problem: o.Problem, BaseURL: s.BaseURL, Token: token, Expires: expires.Time, Context: c, BasedOn: draft.BasedOn}),
 	}, nil
-}
-
-func contains(l []string, v string) bool {
-	for _, x := range l {
-		if x == v {
-			return true
-		}
-	}
-	return false
 }
 
 // summary is what the opened event says was included, without the content.

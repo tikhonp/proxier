@@ -69,8 +69,14 @@ func TestRouterScriptsMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatal(err)
 	}
-	if n := count(t, d, tables); n != 5 {
+	if n := count(t, d, tables); n != 6 {
 		t.Fatalf("%d tables after up", n)
+	}
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatalf("down 00002: %v", err)
+	}
+	if n := count(t, d, tables); n != 5 {
+		t.Fatalf("%d tables after down 00002", n)
 	}
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 		t.Fatalf("down: %v", err)
@@ -81,7 +87,7 @@ func TestRouterScriptsMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatalf("up again: %v", err)
 	}
-	if n := count(t, d, tables); n != 5 {
+	if n := count(t, d, tables); n != 6 {
 		t.Fatalf("%d tables after up again", n)
 	}
 }
@@ -157,4 +163,22 @@ func TestFetchURLChecks(t *testing.T) {
 	mustExec(t, d, insGen2, []byte("t"), []byte("l2"))
 	mustFail(t, d, "a fetch URL of no generation", `INSERT INTO rscripts_fetch_urls (generation_id, state, created_at, created_by, expires_at, ended_at)
 		VALUES (9, 'expired', ?, 'admin', ?, ?)`, now, now, now)
+}
+
+func TestOneOpenAgentSessionPerScript(t *testing.T) {
+	d := open(t)
+	ins := `INSERT INTO rscripts_agent_sessions (id, script_id, token_lookup, problem, agent, opened_at, expires_at) VALUES (?, 1, ?, 'fix it', ?, '` + now + `', '` + now + `')`
+	mustFail(t, d, "an unknown agent", ins, 1, []byte("l1"), "gpt")
+	mustExec(t, d, ins, 1, []byte("l1"), "claude-code")
+	mustFail(t, d, "a second open session", ins, 2, []byte("l2"), "codex")
+	mustFail(t, d, "closed without a reason", `UPDATE rscripts_agent_sessions SET closed_at = ? WHERE id = 1`, now)
+	mustFail(t, d, "an unknown reason", `UPDATE rscripts_agent_sessions SET closed_at = ?, close_reason = 'deleted' WHERE id = 1`, now)
+	mustExec(t, d, `UPDATE rscripts_agent_sessions SET closed_at = ?, close_reason = 'replaced' WHERE id = 1`, now)
+	mustFail(t, d, "a token used twice", ins, 2, []byte("l1"), "codex")
+	mustExec(t, d, ins, 2, []byte("l2"), "codex")
+	mustFail(t, d, "a session of no script", `INSERT INTO rscripts_agent_sessions (script_id, token_lookup, problem, agent, opened_at, expires_at) VALUES (9, 'l3', 'x', 'other', ?, ?)`, now, now)
+	mustExec(t, d, `DELETE FROM rscripts_scripts WHERE id = 1`)
+	if n := count(t, d, `SELECT count(*) FROM rscripts_agent_sessions`); n != 0 {
+		t.Errorf("sessions of a deleted script: %d", n)
+	}
 }

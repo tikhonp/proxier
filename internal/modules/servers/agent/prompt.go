@@ -26,7 +26,7 @@ var opening = map[string]string{
 }
 
 // Prompt is the Markdown the admin pastes into the agent. It holds the real
-// token: show it masked with Mask, copy it whole.
+// token: show it masked with agentapi.Mask, copy it whole.
 func Prompt(d PromptData) string {
 	api := strings.TrimRight(d.BaseURL, "/") + "/agent/v1"
 	var b strings.Builder
@@ -86,9 +86,4 @@ func Prompt(d PromptData) string {
 		w("\n`GET /context` also holds: %s.\n", strings.Join(offered, "; "))
 	}
 	return b.String()
-}
-
-// Mask hides the token in a prompt for display.
-func Mask(prompt, token string) string {
-	return strings.ReplaceAll(prompt, token, TokenPrefix+"••••••••••••")
 }

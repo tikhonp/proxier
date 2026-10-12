@@ -18,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/stats"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
@@ -57,7 +58,7 @@ type Deps struct {
 
 type handler struct {
 	Deps
-	forms         usedForms // hand-off forms already posted (agent.go)
+	forms         agentapi.Forms // hand-off forms already posted (agent.go)
 	shell         func(c *echo.Context, title, path string) ui.Shell
 	SettingsPages func() []ui.SettingsPage
 }
