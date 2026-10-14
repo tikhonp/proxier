@@ -20,7 +20,7 @@ import (
 const maxPasskeyBody = 64 << 10
 
 // passkeysOffered: the sign-in page loads the passkey script only once a
-// passkey exists, so nothing changes for an admin who never added one.
+// passkey exists, so nothing changes for members who never added one.
 func (h *handler) passkeysOffered(ctx context.Context) (bool, error) {
 	if !h.Auth.PasskeysOn() {
 		return false, nil
@@ -60,7 +60,7 @@ func (h *handler) login(c *echo.Context) error {
 	switch {
 	case errors.As(err, &locked):
 		return h.renderSignIn(c, http.StatusTooManyRequests, ui.SignInView{Next: next, Username: username, Error: "locked", LockedMin: lockedMinutes(locked)})
-	case errors.Is(err, auth.ErrWrongCredentials), errors.Is(err, auth.ErrNoAdmin):
+	case errors.Is(err, auth.ErrWrongCredentials):
 		return h.renderSignIn(c, http.StatusUnauthorized, ui.SignInView{Next: next, Username: username, Error: "wrong"})
 	case err != nil:
 		return err
@@ -145,7 +145,7 @@ func (h *handler) loginPasskey(c *echo.Context) error {
 
 func (h *handler) logout(c *echo.Context) error {
 	if s := web.FromContext(c.Request().Context()).Session; s != nil {
-		if err := h.Auth.SignOut(c.Request().Context(), s.ID, "self"); err != nil {
+		if err := h.Auth.SignOut(c.Request().Context(), s.MemberID, s.ID, "self"); err != nil {
 			return err
 		}
 	}

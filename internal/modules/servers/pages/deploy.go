@@ -287,7 +287,7 @@ func (h *handler) applyPost(c *echo.Context) error {
 	}
 	kind := c.FormValue("kind")
 	t := parseTarget(c, formKind(kind))
-	job, err := h.Deploy.Apply(c.Request().Context(), s.ID, t, c.FormValue("hash"), "admin")
+	job, err := h.Deploy.Apply(c.Request().Context(), s.ID, t, c.FormValue("hash"), web.Actor(c.Request().Context()))
 	var fe deploy.FieldErrors
 	switch {
 	case errors.As(err, &fe):
@@ -552,15 +552,17 @@ func (h *handler) op(c *echo.Context, run func(ctx context.Context, id int64) (i
 }
 
 func (h *handler) opRestart(c *echo.Context) error {
-	return h.op(c, func(ctx context.Context, id int64) (int64, error) { return h.Deploy.Restart(ctx, id, "admin") })
+	return h.op(c, func(ctx context.Context, id int64) (int64, error) { return h.Deploy.Restart(ctx, id, web.Actor(ctx)) })
 }
 
 func (h *handler) opImages(c *echo.Context) error {
-	return h.op(c, func(ctx context.Context, id int64) (int64, error) { return h.Deploy.UpdateImages(ctx, id, "admin") })
+	return h.op(c, func(ctx context.Context, id int64) (int64, error) {
+		return h.Deploy.UpdateImages(ctx, id, web.Actor(ctx))
+	})
 }
 
 func (h *handler) opReboot(c *echo.Context) error {
-	return h.op(c, func(ctx context.Context, id int64) (int64, error) { return h.Deploy.Reboot(ctx, id, "admin") })
+	return h.op(c, func(ctx context.Context, id int64) (int64, error) { return h.Deploy.Reboot(ctx, id, web.Actor(ctx)) })
 }
 
 // opLogs opens the job page: the logs are the job's log.
@@ -569,7 +571,7 @@ func (h *handler) opLogs(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	job, err := h.Deploy.ContainerLogs(c.Request().Context(), s.ID, "admin")
+	job, err := h.Deploy.ContainerLogs(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	switch {
 	case errors.Is(err, deploy.ErrNotAllowed):
 		return echo.NewHTTPError(http.StatusConflict, "the server has no stack")
@@ -624,7 +626,7 @@ func (h *handler) rotatePost(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	job, err := h.Deploy.Rotate(c.Request().Context(), s.ID, "admin")
+	job, err := h.Deploy.Rotate(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	switch {
 	case errors.Is(err, deploy.ErrNothingToRotate):
 		return echo.NewHTTPError(http.StatusConflict, "the template has no rotatable value")

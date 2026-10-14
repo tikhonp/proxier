@@ -66,7 +66,7 @@ func TestRolledBackChangeLeavesNoEvent(t *testing.T) {
 	c := catalog(t)
 	boom := errors.New("boom")
 	err := d.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := c.Record(ctx, tx, events.Event{Type: "server.created", Actor: events.ActorAdmin}); err != nil {
+		if _, err := c.Record(ctx, tx, events.Event{Type: "server.created", Actor: events.MemberActor(1)}); err != nil {
 			return err
 		}
 		return boom
@@ -83,7 +83,7 @@ func TestUnknownTypeAndMissingActor(t *testing.T) {
 	d := dbtest.Open(t)
 	c := catalog(t)
 	err := d.Write(ctx, func(tx *sqlx.Tx) error {
-		_, err := c.Record(ctx, tx, events.Event{Type: "server.creted", Actor: events.ActorAdmin})
+		_, err := c.Record(ctx, tx, events.Event{Type: "server.creted", Actor: events.MemberActor(1)})
 		return err
 	})
 	if !errors.Is(err, events.ErrUnknownType) {

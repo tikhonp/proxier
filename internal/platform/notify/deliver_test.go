@@ -122,7 +122,7 @@ func TestOutageFailsAfterRetriesAndLaterMessagesTry(t *testing.T) {
 	}
 
 	// Retry resends the failed one.
-	if err := e.svc.Retry(bg, failed[0].ID); err != nil {
+	if err := e.svc.Retry(bg, failed[0].ID, events.MemberActor(1)); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.sent(2); len(got) != 2 || !strings.Contains(got[1].Text, "nl-2 is down") {

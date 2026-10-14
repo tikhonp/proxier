@@ -115,7 +115,7 @@ func newEnv(t *testing.T, o Options) *env {
 
 	e.auth = auth.New(h.DB, h.Vault, h.Events, h.Settings)
 	e.auth.Params = auth.Params{Memory: 1024, Time: 1, Threads: 1}
-	must(t, e.auth.CreateAdmin(bg, "admin", "correct horse battery"))
+	must(t, e.auth.CreateFirstMember(bg, "admin", "correct horse battery"))
 
 	base, _ := url.Parse("https://proxier.test")
 	e.svc = notify.New(h.DB, h.Events, cat, h.Sys, e.auth, h.Settings, base, slog.New(slog.NewTextHandler(io.Discard, nil)))

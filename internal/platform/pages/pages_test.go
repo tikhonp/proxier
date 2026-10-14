@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/net/html"
 )
@@ -101,25 +102,26 @@ func TestSignInPageLanguage(t *testing.T) {
 	if !strings.Contains(get("en-US"), "Sign in") {
 		t.Error("en browser should see English")
 	}
-	// no match: the admin's language
-	if err := s.App.Auth.SetLanguage(t.Context(), "ru"); err != nil {
+	// no match: the default language, not a member's
+	if err := s.App.Auth.SetLanguage(t.Context(), 1, "ru"); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(get("de"), "Sign in") {
+		t.Error("an unmatched browser should get the default language (en), not the member's")
+	}
+	if err := s.App.Settings.Set(t.Context(), events.ActorCLI, "general", map[string]string{"general.language": "ru"}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(get("de"), "Вход") {
-		t.Error("an unmatched browser should get the admin's language (ru)")
+		t.Error("an unmatched browser should get the default language (ru)")
 	}
 	if !strings.Contains(get("en-US"), "Sign in") {
-		t.Error("the browser's language wins over the admin's while signed out")
+		t.Error("the browser's language wins over the default while signed out")
 	}
-	// signed in: the admin's language
+	// signed in: the member's language
 	l := s.SignIn("")
 	if !strings.Contains(l.Get("/", http.Header{"Accept-Language": {"en"}}).Body.String(), "Настройки") {
-		t.Error("signed in, the admin's language applies")
-	}
-	// no admin at all: English
-	n := sitetest.New(t, sitetest.Options{NoAdmin: true})
-	if !strings.Contains(n.Do(sitetest.Req{Path: "/login", Header: http.Header{"Accept-Language": {"de"}}}).Body.String(), "Sign in") {
-		t.Error("with no admin the page is English")
+		t.Error("signed in, the member's language applies")
 	}
 }
 
@@ -142,7 +144,7 @@ func TestLanguageChangesInSettings(t *testing.T) {
 			t.Errorf("after the change the page lacks %s", want)
 		}
 	}
-	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "ru" {
+	if a, _ := s.App.Auth.Member(t.Context(), 1); a.Language != "ru" {
 		t.Errorf("admin language = %q", a.Language)
 	}
 	if rec := l.Post("/settings/general/language", url.Values{"lang": {"fr"}}); rec.Code != 400 {
@@ -170,7 +172,7 @@ func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
 	if rec := l.Post("/me/language", url.Values{"lang": {"ru"}}); rec.Code == 303 {
 		t.Errorf("the old switch still answers: %d", rec.Code)
 	}
-	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "en" {
+	if a, _ := s.App.Auth.Member(t.Context(), 1); a.Language != "en" {
 		t.Error("the language changed outside Settings")
 	}
 }
@@ -292,7 +294,7 @@ func TestSearchFindsPages(t *testing.T) {
 	if all := l.Get("/search?q=").Body.String(); !strings.Contains(all, `href="/"`) || !strings.Contains(all, `href="/settings/general"`) {
 		t.Errorf("empty query lists every page:\n%s", all)
 	}
-	_ = s.App.Auth.SetLanguage(t.Context(), "ru")
+	_ = s.App.Auth.SetLanguage(t.Context(), 1, "ru")
 	if body := l.Get("/search?q=" + url.QueryEscape("безоп")).Body.String(); !strings.Contains(body, "Безопасность") {
 		t.Errorf("ru:\n%s", body)
 	}

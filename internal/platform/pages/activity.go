@@ -188,5 +188,5 @@ func actorLabel(ctx context.Context, actor string) string {
 	if id, ok := strings.CutPrefix(actor, "agent:"); ok {
 		return i18n.T(ctx, "activity.actor.agent", i18n.Args{"id": id})
 	}
-	return actor
+	return web.ActorName(ctx, actor)
 }

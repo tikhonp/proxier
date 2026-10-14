@@ -15,7 +15,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/platform/agentapi"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -116,7 +115,7 @@ func (h *handler) agentOpen(c *echo.Context) error {
 		return web.Render(c, http.StatusOK, agentResultPage(h.shell(c, title, ListPath), agentResultView{S: s, Repeated: true}))
 	}
 	v := agentFormView{Problem: c.FormValue("problem"), Agent: c.FormValue("agent"), For: c.FormValue("for"), Diff: c.FormValue("diff") == "1"}
-	opened, err := h.Agent.OpenSession(ctx, agent.Open{ScriptID: s.ID, Problem: v.Problem, Agent: v.Agent, For: agentapi.FormDuration(v.For), IncludeDiff: v.Diff}, events.ActorAdmin)
+	opened, err := h.Agent.OpenSession(ctx, agent.Open{ScriptID: s.ID, Problem: v.Problem, Agent: v.Agent, For: agentapi.FormDuration(v.For), IncludeDiff: v.Diff}, web.Actor(ctx))
 	switch {
 	case errors.Is(err, agent.ErrNoProblem):
 		v.Error = i18n.T(ctx, "agent.err.problem")
@@ -150,7 +149,7 @@ func (h *handler) agentRevoke(c *echo.Context) error {
 		return echo.ErrNotFound
 	}
 	// A session that already ended is as revoked as it can be.
-	err = h.Agent.Revoke(c.Request().Context(), s.ID, sid, events.ActorAdmin)
+	err = h.Agent.Revoke(c.Request().Context(), s.ID, sid, web.Actor(c.Request().Context()))
 	switch {
 	case errors.Is(err, agent.ErrNotFound):
 		return echo.ErrNotFound

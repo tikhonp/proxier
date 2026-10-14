@@ -416,7 +416,7 @@ func (h *handler) switchPost(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	raw := strings.TrimSpace(c.FormValue("selector"))
-	err = h.Services.Switch(ctx, it.ID, raw, events.ActorAdmin)
+	err = h.Services.Switch(ctx, it.ID, raw, web.Actor(ctx))
 	if errors.Is(err, services.ErrCustom) {
 		return echo.ErrNotFound
 	}
@@ -545,7 +545,7 @@ func (h *handler) removePost(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Services.Remove(ctx, it.ID, events.ActorAdmin)
+	err = h.Services.Remove(ctx, it.ID, web.Actor(ctx))
 	var in *services.InListsError
 	if errors.As(err, &in) {
 		links, lerr := h.listLinks(ctx, it.ID)

@@ -14,7 +14,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -272,9 +271,9 @@ func (h *handler) add(c *echo.Context) error {
 	var id int64
 	var err error
 	if len(listIDs) > 0 {
-		id, err = h.Lists.AddNew(ctx, raw, listIDs, events.ActorAdmin)
+		id, err = h.Lists.AddNew(ctx, raw, listIDs, web.Actor(ctx))
 	} else {
-		id, err = h.Services.Add(ctx, raw, events.ActorAdmin)
+		id, err = h.Services.Add(ctx, raw, web.Actor(ctx))
 	}
 	if err == nil {
 		if fromList && len(listIDs) == 1 {
@@ -361,7 +360,7 @@ func (h *handler) renderNew(c *echo.Context, status int, v newView) error {
 func (h *handler) create(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := newView{Name: c.FormValue("name"), Tag: c.FormValue("tag"), Description: c.FormValue("description")}
-	id, err := h.Services.CreateCustom(ctx, services.Custom{Name: v.Name, Tag: v.Tag, Description: v.Description}, events.ActorAdmin)
+	id, err := h.Services.CreateCustom(ctx, services.Custom{Name: v.Name, Tag: v.Tag, Description: v.Description}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)

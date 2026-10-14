@@ -22,14 +22,15 @@ type Prompter interface {
 // maxRounds is how many times a bad password is asked for again.
 const maxRounds = 3
 
-var errAdminExists = errors.New("an admin already exists; use reset-password")
+var errMembersExist = errors.New("a member already exists")
 
+// createAdmin makes the first member; after that, members are added in the UI.
 func createAdmin(ctx context.Context, a *auth.Service, p Prompter, out io.Writer) error {
-	if ok, err := a.AdminExists(ctx); err != nil {
+	if ok, err := a.HasMembers(ctx); err != nil {
 		return err
 	} else if ok {
-		sayln(out, "An admin already exists; use reset-password.")
-		return errAdminExists
+		sayln(out, "A member already exists; use reset-password <username> to get back in.")
+		return errMembersExist
 	}
 	username, err := p.Line("Username: ")
 	if err != nil {
@@ -43,25 +44,36 @@ func createAdmin(ctx context.Context, a *auth.Service, p Prompter, out io.Writer
 	if err != nil {
 		return err
 	}
-	if err := a.CreateAdmin(ctx, username, pw); err != nil {
+	if err := a.CreateFirstMember(ctx, username, pw); err != nil {
 		return err
 	}
-	sayln(out, "Admin created. Sign in at your base URL.")
+	sayln(out, "First member created. Sign in at your base URL.")
 	return nil
 }
 
-func resetPassword(ctx context.Context, a *auth.Service, p Prompter, out io.Writer) error {
-	if ok, err := a.AdminExists(ctx); err != nil {
+// member finds the member a command names, saying so when there is none.
+func member(ctx context.Context, a *auth.Service, username string, out io.Writer) (auth.Member, error) {
+	m, err := a.MemberByUsername(ctx, username)
+	if errors.Is(err, auth.ErrNoMember) {
+		if ok, herr := a.HasMembers(ctx); herr == nil && !ok {
+			sayln(out, "There are no members yet; use create-admin.")
+		} else {
+			sayf(out, "There is no member %q.\n", username)
+		}
+	}
+	return m, err
+}
+
+func resetPassword(ctx context.Context, a *auth.Service, username string, p Prompter, out io.Writer) error {
+	m, err := member(ctx, a, username, out)
+	if err != nil {
 		return err
-	} else if !ok {
-		sayln(out, "There is no admin yet; use create-admin.")
-		return auth.ErrNoAdmin
 	}
 	pw, err := askPassword(p, out)
 	if err != nil {
 		return err
 	}
-	ended, err := a.ResetPassword(ctx, pw)
+	ended, err := a.ResetPassword(ctx, m.ID, pw)
 	if err != nil {
 		return err
 	}
@@ -70,11 +82,12 @@ func resetPassword(ctx context.Context, a *auth.Service, p Prompter, out io.Writ
 }
 
 // resetSecondFactor needs no terminal: it asks nothing.
-func resetSecondFactor(ctx context.Context, a *auth.Service, out io.Writer) error {
-	r, err := a.ResetSecondFactor(ctx)
-	if errors.Is(err, auth.ErrNoAdmin) {
-		sayln(out, "There is no admin yet; use create-admin.")
+func resetSecondFactor(ctx context.Context, a *auth.Service, username string, out io.Writer) error {
+	m, err := member(ctx, a, username, out)
+	if err != nil {
+		return err
 	}
+	r, err := a.ResetSecondFactor(ctx, m.ID)
 	if err != nil {
 		return err
 	}

@@ -13,7 +13,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -269,7 +268,7 @@ func (h *handler) createLink(c *echo.Context) error {
 	expires, err := links.ParseExpiry(v.Expiry.Mode, v.Expiry.Date, v.Expiry.Clock, h.Links.Zone(ctx), h.Now())
 	var id int64
 	if err == nil {
-		id, err = h.Links.Create(ctx, links.New{Name: v.Name, Note: v.Note, SubscriptionID: v.SubID, Expires: expires, Lang: i18n.Lang(v.Lang)}, events.ActorAdmin)
+		id, err = h.Links.Create(ctx, links.New{Name: v.Name, Note: v.Note, SubscriptionID: v.SubID, Expires: expires, Lang: i18n.Lang(v.Lang)}, web.Actor(ctx))
 	}
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {

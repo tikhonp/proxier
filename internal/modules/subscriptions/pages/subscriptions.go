@@ -11,7 +11,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -54,7 +53,7 @@ func (h *handler) remove(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Subs.RemoveServer(c.Request().Context(), s.ID, sid, events.ActorAdmin)
+	err = h.Subs.RemoveServer(c.Request().Context(), s.ID, sid, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrNotFound) {
 		return echo.ErrNotFound
 	}
@@ -73,7 +72,7 @@ func (h *handler) move(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Subs.Move(c.Request().Context(), s.ID, sid, c.FormValue("dir") == "down", events.ActorAdmin)
+	err = h.Subs.Move(c.Request().Context(), s.ID, sid, c.FormValue("dir") == "down", web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrStaleOrder) {
 		return h.answerServers(c, s, 0, true)
 	}
@@ -99,7 +98,7 @@ func (h *handler) order(c *echo.Context) error {
 		}
 		ids = append(ids, n)
 	}
-	err = h.Subs.SetOrder(c.Request().Context(), s.ID, ids, events.ActorAdmin)
+	err = h.Subs.SetOrder(c.Request().Context(), s.ID, ids, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrStaleOrder) {
 		return h.answerServers(c, s, 0, true)
 	}
@@ -173,7 +172,7 @@ func (h *handler) add(c *echo.Context) error {
 		}
 		ids = append(ids, n)
 	}
-	err = h.Subs.AddServers(ctx, s.ID, ids, events.ActorAdmin)
+	err = h.Subs.AddServers(ctx, s.ID, ids, web.Actor(ctx))
 	if errors.Is(err, subs.ErrNotServed) {
 		v, verr := h.addView(ctx, s)
 		if verr != nil {
@@ -343,7 +342,7 @@ func (h *handler) deletePost(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Subs.Delete(ctx, s.ID, events.ActorAdmin)
+	err = h.Subs.Delete(ctx, s.ID, web.Actor(ctx))
 	if errors.Is(err, subs.ErrHasLinks) {
 		v, verr := h.deleteView(ctx, s)
 		if verr != nil {

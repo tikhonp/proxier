@@ -47,13 +47,13 @@ func modules() []module.Module {
 
 const usage = `Usage:
   proxier serve
-  proxier manage migrate up               apply pending migrations of every module
-  proxier manage migrate down <module>    roll back the last migration of one module
-  proxier manage migrate status           list every module's migrations
-  proxier manage create-admin             create the admin (asks for a username and a password)
-  proxier manage reset-password           set a new admin password and end every session
-  proxier manage reset-2fa                turn the authenticator app off, remove every passkey, end every session
-  proxier healthcheck                     exit 0 when the running server is healthy, 1 otherwise
+  proxier manage migrate up                 apply pending migrations of every module
+  proxier manage migrate down <module>      roll back the last migration of one module
+  proxier manage migrate status             list every module's migrations
+  proxier manage create-admin               create the first member (asks for a username and a password)
+  proxier manage reset-password <username>  set a new password for a member and end their sessions
+  proxier manage reset-2fa <username>       turn a member's authenticator app off, remove their passkeys, end their sessions
+  proxier healthcheck                       exit 0 when the running server is healthy, 1 otherwise
   proxier version
 `
 
@@ -187,11 +187,13 @@ func manage(args []string, stdout, stderr io.Writer) int {
 			break
 		}
 		err = db.MigrateDown(ctx, app.DB, log, m)
-	case len(args) == 1 && (args[0] == "create-admin" || args[0] == "reset-password"):
-		err = adminCommand(ctx, app, args[0], stdout)
-	case len(args) == 1 && args[0] == "reset-2fa":
+	case len(args) == 1 && args[0] == "create-admin":
+		err = memberCommand(ctx, app, stdout, func(p Prompter) error { return createAdmin(ctx, app.Auth, p, stdout) })
+	case len(args) == 2 && args[0] == "reset-password":
+		err = memberCommand(ctx, app, stdout, func(p Prompter) error { return resetPassword(ctx, app.Auth, args[1], p, stdout) })
+	case len(args) == 2 && args[0] == "reset-2fa":
 		if err = app.Migrate(ctx); err == nil {
-			err = resetSecondFactor(ctx, app.Auth, stdout)
+			err = resetSecondFactor(ctx, app.Auth, args[1], stdout)
 		}
 	case len(args) == 2 && args[0] == "migrate" && args[1] == "status":
 		var st []db.MigrationStatus
@@ -212,9 +214,9 @@ func manage(args []string, stdout, stderr io.Writer) int {
 	return 0
 }
 
-// adminCommand runs create-admin or reset-password on the terminal. It
+// memberCommand runs create-admin or reset-password on the terminal. It
 // migrates first, so it works on a database that never served.
-func adminCommand(ctx context.Context, app *platform.App, name string, out io.Writer) error {
+func memberCommand(ctx context.Context, app *platform.App, out io.Writer, run func(Prompter) error) error {
 	p, err := newTTYPrompter(os.Stdin, out)
 	if err != nil {
 		return err
@@ -222,10 +224,7 @@ func adminCommand(ctx context.Context, app *platform.App, name string, out io.Wr
 	if err := app.Migrate(ctx); err != nil {
 		return err
 	}
-	if name == "create-admin" {
-		return createAdmin(ctx, app.Auth, p, out)
-	}
-	return resetPassword(ctx, app.Auth, p, out)
+	return run(p)
 }
 
 var errUnknownManage = errors.New("unknown manage command")

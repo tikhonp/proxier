@@ -171,7 +171,7 @@ func (h *handler) importDo(c *echo.Context) error {
 		}
 		v.Name, v.Slug = target.Name, target.Slug
 	}
-	id, err := h.Templates.Import(ctx, target, files, src, "admin")
+	id, err := h.Templates.Import(ctx, target, files, src, web.Actor(ctx))
 	switch {
 	case errors.Is(err, templates.ErrSlugTaken):
 		v.Errs = map[string]string{"slug": i18n.T(ctx, "templates.err.slug_taken")}

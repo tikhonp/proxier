@@ -60,7 +60,7 @@ func TestRouterSetUpEndToEnd(t *testing.T) {
 	}
 
 	// the router fetches its file once
-	_, link, err := m.Mod.Generations.CreateFetchURL(bg, gid, events.ActorAdmin)
+	_, link, err := m.Mod.Generations.CreateFetchURL(bg, gid, events.MemberActor(1))
 	if err != nil {
 		t.Fatal(err)
 	}

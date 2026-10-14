@@ -322,7 +322,7 @@ func (h *handler) routerTest(c *echo.Context) error {
 		}
 		conn = r.Conn
 	}
-	id, err := h.Routers.StartTest(ctx, rid, conn, events.ActorAdmin)
+	id, err := h.Routers.StartTest(ctx, rid, conn, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.rtRenderAdd(c, http.StatusUnprocessableEntity, rtAddView{
@@ -427,7 +427,7 @@ func (h *handler) routerConfirm(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	next, err := h.Routers.Confirm(ctx, t.ID, c.FormValue("decision") == "trust", events.ActorAdmin)
+	next, err := h.Routers.Confirm(ctx, t.ID, c.FormValue("decision") == "trust", web.Actor(ctx))
 	if errors.Is(err, routers.ErrNotConfirming) {
 		next = 0
 	} else if err != nil {
@@ -448,7 +448,7 @@ func (h *handler) routerCreate(c *echo.Context) error {
 	ctx := c.Request().Context()
 	f := routerForm{Name: c.FormValue("name"), ListID: formID(c.FormValue("list")), Conn: formConn(c), FirstHop: c.FormValue("first_hop")}
 	testID := formID(c.FormValue("test"))
-	id, err := h.Routers.Create(ctx, f.Name, f.ListID, f.Conn, testID, events.ActorAdmin)
+	id, err := h.Routers.Create(ctx, f.Name, f.ListID, f.Conn, testID, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v := rtAddView{F: f, Errs: errText(ctx, fe), TestID: testID}
@@ -801,7 +801,7 @@ func (h *handler) routerSyncNow(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.SyncNow(c.Request().Context(), r.ID, events.ActorAdmin); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.SyncNow(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -814,7 +814,7 @@ func (h *handler) routerPreviewStart(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Preview(c.Request().Context(), r.ID, events.ActorAdmin); err != nil {
+	if _, err := h.Routers.Preview(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, routerHref(r.ID)+"#preview")
@@ -940,7 +940,7 @@ func (h *handler) routerEdit(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	f := routerForm{Name: c.FormValue("name"), ListID: r.ListID, Conn: formConn(c), FirstHop: c.FormValue("first_hop")}
-	_, err = h.Routers.Edit(ctx, r.ID, f.Name, f.Conn, events.ActorAdmin)
+	_, err = h.Routers.Edit(ctx, r.ID, f.Name, f.Conn, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderEdit(c, http.StatusUnprocessableEntity, editView{R: r, F: f, Errs: errText(ctx, fe)})
@@ -982,7 +982,7 @@ func (h *handler) routerSetList(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Routers.SetList(ctx, r.ID, formID(c.FormValue("list")), events.ActorAdmin)
+	err = h.Routers.SetList(ctx, r.ID, formID(c.FormValue("list")), web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderListPick(c, http.StatusUnprocessableEntity, listPickView{R: r, Err: i18n.T(ctx, fe["list"])})

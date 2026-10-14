@@ -48,7 +48,7 @@ func (h *handler) renderSSH(c *echo.Context, status int, v sshView) error {
 }
 
 func (h *handler) sshRegenerate(c *echo.Context) error {
-	if err := h.SSH.Regenerate(c.Request().Context(), "admin"); err != nil {
+	if err := h.SSH.Regenerate(c.Request().Context(), web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/settings/ssh?saved=regenerated")
@@ -57,7 +57,7 @@ func (h *handler) sshRegenerate(c *echo.Context) error {
 func (h *handler) sshPersonalKeys(c *echo.Context) error {
 	ctx := c.Request().Context()
 	text := strings.ReplaceAll(c.FormValue("keys"), "\r\n", "\n")
-	err := h.Settings.Set(ctx, "admin", "ssh", map[string]string{sshx.PersonalKeysField: text})
+	err := h.Settings.Set(ctx, web.Actor(ctx), "ssh", map[string]string{sshx.PersonalKeysField: text})
 	var fe settings.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderSSH(c, http.StatusUnprocessableEntity, sshView{Keys: text, KeysErr: fe[sshx.PersonalKeysField]})
@@ -82,7 +82,7 @@ func (h *handler) sshAccept(c *echo.Context) error {
 		return err
 	}
 	// Nothing waiting (someone else got there first) is as good as accepted.
-	switch err := h.SSH.Accept(c.Request().Context(), id, "admin"); {
+	switch err := h.SSH.Accept(c.Request().Context(), id, web.Actor(c.Request().Context())); {
 	case errors.Is(err, sshx.ErrNotFound):
 		return echo.ErrNotFound
 	case err != nil && !errors.Is(err, sshx.ErrNoPending):
@@ -96,7 +96,7 @@ func (h *handler) sshForget(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.SSH.Forget(c.Request().Context(), id, "admin"); errors.Is(err, sshx.ErrNotFound) {
+	if err := h.SSH.Forget(c.Request().Context(), id, web.Actor(c.Request().Context())); errors.Is(err, sshx.ErrNotFound) {
 		return echo.ErrNotFound
 	} else if err != nil {
 		return err

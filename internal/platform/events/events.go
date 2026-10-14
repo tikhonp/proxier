@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"maps"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -21,12 +22,33 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
-// Actors that are not a job. A job acts as JobActor(id).
+// Actors that are neither a member nor a job. A member acts as
+// MemberActor(id), a job as JobActor(id).
 const (
-	ActorAdmin  = "admin"
 	ActorSystem = "system"
 	ActorCLI    = "cli"
 )
+
+// legacyAdmin is the actor of everything the one admin did before members:
+// member 1. Rows across every module still hold it.
+const legacyAdmin = "admin"
+
+// MemberActor is the actor of an event a member caused from the UI.
+func MemberActor(id int64) string { return fmt.Sprintf("member:%d", id) }
+
+// ActorMember returns the member an actor names: member:<id>, or the old
+// admin as member 1.
+func ActorMember(actor string) (int64, bool) {
+	if actor == legacyAdmin {
+		return 1, true
+	}
+	rest, ok := strings.CutPrefix(actor, "member:")
+	if !ok {
+		return 0, false
+	}
+	id, err := strconv.ParseInt(rest, 10, 64)
+	return id, err == nil && id > 0
+}
 
 // JobActor is the actor of an event recorded by job id.
 func JobActor(id int64) string { return fmt.Sprintf("job:%d", id) }

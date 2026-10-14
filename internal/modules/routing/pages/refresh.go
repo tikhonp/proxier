@@ -15,7 +15,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -182,7 +181,7 @@ func (h *handler) refreshPost(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	id, err := h.Refresh.RefreshNow(c.Request().Context(), it.ID, events.ActorAdmin)
+	id, err := h.Refresh.RefreshNow(c.Request().Context(), it.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, services.ErrCustom) {
 		return echo.ErrNotFound
 	}
@@ -231,13 +230,13 @@ func (h *handler) snapParam(c *echo.Context) (int64, error) {
 
 func (h *handler) acceptPost(c *echo.Context) error {
 	return h.decide(c, func(ctx context.Context, id, snap int64) error {
-		return h.Refresh.Accept(ctx, id, snap, events.ActorAdmin)
+		return h.Refresh.Accept(ctx, id, snap, web.Actor(ctx))
 	}, "accepted")
 }
 
 func (h *handler) dismissPost(c *echo.Context) error {
 	return h.decide(c, func(ctx context.Context, id, snap int64) error {
-		return h.Refresh.Dismiss(ctx, id, snap, events.ActorAdmin)
+		return h.Refresh.Dismiss(ctx, id, snap, web.Actor(ctx))
 	}, "dismissed")
 }
 
@@ -265,7 +264,7 @@ func (h *handler) refreshListPost(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	n, err := h.Refresh.RefreshList(c.Request().Context(), l.ID, events.ActorAdmin)
+	n, err := h.Refresh.RefreshList(c.Request().Context(), l.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, lists.ErrNotFound) {
 		return echo.ErrNotFound
 	}

@@ -62,7 +62,7 @@ func (h *handler) generationPage(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
 	v := generationView{G: g, HasRouters: h.Generations.HasRouters(), HasLinks: h.Generations.HasLinks()}
-	v.Line = i18n.T(ctx, "generations.page.line", i18n.Args{"script": g.Script, "version": g.Version, "time": loc.Time(g.CreatedAt), "by": g.CreatedBy})
+	v.Line = i18n.T(ctx, "generations.page.line", i18n.Args{"script": g.Script, "version": g.Version, "time": loc.Time(g.CreatedAt), "by": web.ActorName(ctx, g.CreatedBy)})
 	v.Changes = changesText(ctx, g.Version, g.Changed)
 	if g.Current != g.Version {
 		v.Newer = i18n.T(ctx, "generations.page.newer", i18n.Args{"version": g.Current})
@@ -330,7 +330,7 @@ func history(ctx context.Context, list []generations.FetchURL) []historyRow {
 	out := make([]historyRow, 0, len(list))
 	for _, u := range list {
 		r := historyRow{
-			Created: i18n.T(ctx, "generations.history.created", i18n.Args{"time": loc.Time(u.CreatedAt), "by": u.CreatedBy}),
+			Created: i18n.T(ctx, "generations.history.created", i18n.Args{"time": loc.Time(u.CreatedAt), "by": web.ActorName(ctx, u.CreatedBy)}),
 			Expires: i18n.T(ctx, "generations.history.expires", i18n.Args{"time": loc.Time(u.ExpiresAt)}),
 		}
 		switch u.State {
@@ -357,7 +357,7 @@ func (h *handler) fetchURLCreate(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, _, err := h.Generations.CreateFetchURL(c.Request().Context(), g.ID, events.ActorAdmin); err != nil {
+	if _, _, err := h.Generations.CreateFetchURL(c.Request().Context(), g.ID, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, GenerationHref(g.ID)+"#fetch-url")

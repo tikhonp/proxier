@@ -74,13 +74,13 @@ func TestDefaults(t *testing.T) {
 
 func TestSetTypedValues(t *testing.T) {
 	e := setup(t)
-	err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{
+	err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{
 		"demo.name": "  Home  ", "demo.count": "07", "demo.on": "on", "demo.every": "90m", "demo.lang": "ru",
 	})
 	if err == nil || !errors.As(err, new(settings.FieldErrors)) {
 		t.Fatalf("90m is above the max: err = %v", err)
 	}
-	err = e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{
+	err = e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{
 		"demo.name": "  Home  ", "demo.count": "07", "demo.on": "on", "demo.every": "90s", "demo.lang": "ru",
 	})
 	if err != nil {
@@ -96,7 +96,7 @@ func TestSetTypedValues(t *testing.T) {
 
 func TestRefusalWritesNothing(t *testing.T) {
 	e := setup(t)
-	err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{
+	err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{
 		"demo.name": "ok", "demo.count": "11", "demo.lang": "de", "demo.on": "maybe",
 	})
 	var fe settings.FieldErrors
@@ -117,7 +117,7 @@ func TestRefusalWritesNothing(t *testing.T) {
 func TestSecretIsSealed(t *testing.T) {
 	e := setup(t)
 	const token = "123456:AAH-super-secret-bot-token"
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.token": token}); err != nil {
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.token": token}); err != nil {
 		t.Fatal(err)
 	}
 	if v, err := e.store.Get(ctx, "demo.token"); err != nil || v != token {
@@ -147,16 +147,16 @@ func TestSecretIsSealed(t *testing.T) {
 
 func TestChangedEventListsOnlyChangedKeys(t *testing.T) {
 	e := setup(t)
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.name": "Proxier", "demo.count": "5"}); err != nil {
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.name": "Proxier", "demo.count": "5"}); err != nil {
 		t.Fatal(err)
 	}
 	if len(e.changes(t)) != 0 {
 		t.Fatal("saving the defaults recorded an event")
 	}
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.name": "Home", "demo.count": "5", "demo.lang": "ru"}); err != nil {
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.name": "Home", "demo.count": "5", "demo.lang": "ru"}); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.name": "Home", "demo.lang": "ru"}); err != nil {
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.name": "Home", "demo.lang": "ru"}); err != nil {
 		t.Fatal(err)
 	}
 	ev := e.changes(t)
@@ -164,7 +164,7 @@ func TestChangedEventListsOnlyChangedKeys(t *testing.T) {
 		t.Fatalf("events = %+v", ev)
 	}
 	got := ev[0]
-	if got.Type != "settings.changed" || got.Module != "platform" || got.Subject.String() != "settings:demo" || got.Actor != "admin" {
+	if got.Type != "settings.changed" || got.Module != "platform" || got.Subject.String() != "settings:demo" || got.Actor != events.MemberActor(1) {
 		t.Errorf("event = %+v", got)
 	}
 	keys := got.Payload["keys"].([]any)
@@ -175,8 +175,8 @@ func TestChangedEventListsOnlyChangedKeys(t *testing.T) {
 
 func TestBackToDefaultRemovesRow(t *testing.T) {
 	e := setup(t)
-	_ = e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.lang": "ru"})
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"demo.lang": "en"}); err != nil {
+	_ = e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.lang": "ru"})
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"demo.lang": "en"}); err != nil {
 		t.Fatal(err)
 	}
 	v, _ := e.store.Lookup(ctx, "demo.lang")
@@ -195,10 +195,10 @@ func TestBackToDefaultRemovesRow(t *testing.T) {
 
 func TestKeyOutsideSection(t *testing.T) {
 	e := setup(t)
-	if err := e.store.Set(ctx, events.ActorAdmin, "demo", map[string]string{"other.x": "1"}); !errors.Is(err, settings.ErrUnknownKey) {
+	if err := e.store.Set(ctx, events.MemberActor(1), "demo", map[string]string{"other.x": "1"}); !errors.Is(err, settings.ErrUnknownKey) {
 		t.Errorf("err = %v", err)
 	}
-	if err := e.store.Set(ctx, events.ActorAdmin, "nope", nil); err == nil {
+	if err := e.store.Set(ctx, events.MemberActor(1), "nope", nil); err == nil {
 		t.Error("unknown section accepted")
 	}
 }

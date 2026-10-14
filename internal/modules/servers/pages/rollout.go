@@ -166,7 +166,7 @@ func (h *handler) renderRolloutPlan(c *echo.Context, status int, refused deploy.
 
 func (h *handler) rolloutStart(c *echo.Context) error {
 	ctx := c.Request().Context()
-	id, err := h.Deploy.StartRollout(ctx, serverIDsOf(c), rolloutParams(c), "admin")
+	id, err := h.Deploy.StartRollout(ctx, serverIDsOf(c), rolloutParams(c), web.Actor(ctx))
 	var fe deploy.FieldErrors
 	switch {
 	case errors.As(err, &fe):
@@ -299,7 +299,7 @@ func (h *handler) rolloutStop(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	switch err := h.Deploy.StopRollout(c.Request().Context(), id, "admin"); {
+	switch err := h.Deploy.StopRollout(c.Request().Context(), id, web.Actor(c.Request().Context())); {
 	case errors.Is(err, store.ErrNotFound):
 		return echo.ErrNotFound
 	case errors.Is(err, deploy.ErrNotAllowed):

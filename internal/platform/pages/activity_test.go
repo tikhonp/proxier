@@ -38,10 +38,37 @@ func TestActivitySentences(t *testing.T) {
 
 	// the sign-in's subject is in its sentence, which has a verb in Russian
 	// too, not "Вход с адреса ::1 администратор"
-	record(t, s, "auth.signed_in", events.Subject{Type: "admin", ID: "1"}, "admin", map[string]any{"ip": "::1"})
+	record(t, s, "auth.signed_in", events.Subject{Type: "member", ID: "1"}, events.MemberActor(1), map[string]any{"ip": "::1"})
 	body = strings.Join(strings.Fields(l.Get("/activity").Body.String()), " ")
-	if !strings.Contains(body, "Signed in as") || !strings.Contains(body, `class="text">the admin</a> from ::1`) {
+	if !strings.Contains(body, "Signed in as") || !strings.Contains(body, `class="text">admin</a> from ::1`) {
 		t.Errorf("sign-in:\n%s", body)
+	}
+}
+
+// Before members, the one admin acted as "admin" on the subject admin:1:
+// those rows name member 1 as member:1 rows do.
+func TestActivityNamesMembersAndTheOldAdmin(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	if _, err := s.App.DB.W.Exec(`UPDATE members SET username = 'tikhon' WHERE id = 1`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.App.DB.W.Exec(`DELETE FROM events`); err != nil {
+		t.Fatal(err)
+	}
+	record(t, s, "auth.password_changed", events.Subject{Type: "admin", ID: "1"}, "admin", map[string]any{"via": "ui"})
+	record(t, s, "auth.totp_enabled", events.Subject{Type: "member", ID: "1"}, events.MemberActor(1), nil)
+	body := strings.Join(strings.Fields(l.Get("/activity").Body.String()), " ")
+	for _, want := range []string{
+		`<span class="">tikhon</span> <span class="subtle">Changed the password of <a href="/settings/security" class="text">tikhon</a>`,
+		`<span class="">tikhon</span> <span class="subtle">Turned on the authenticator app of <a href="/settings/security" class="text">tikhon</a>`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Errorf("missing %s:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "member:1") || strings.Contains(body, `<span class="">admin</span>`) {
+		t.Errorf("an actor shown as stored:\n%s", body)
 	}
 }
 

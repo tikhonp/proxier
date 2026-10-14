@@ -123,7 +123,7 @@ func (h *handler) templateUpdate(c *echo.Context) error {
 	if info.Latest == 0 {
 		f.Slug = c.FormValue("slug")
 	}
-	err = h.Templates.Rename(ctx, id, f.Name, f.Slug, f.Description, "admin")
+	err = h.Templates.Rename(ctx, id, f.Name, f.Slug, f.Description, web.Actor(ctx))
 	switch {
 	case err == nil:
 		return web.Redirect(c, actionHref(id, "?saved=updated"))
@@ -146,7 +146,7 @@ func (h *handler) archive(c *echo.Context, archived bool) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Templates.Archive(c.Request().Context(), id, archived, "admin"); err != nil {
+	if err := h.Templates.Archive(c.Request().Context(), id, archived, web.Actor(c.Request().Context())); err != nil {
 		return notFound(err)
 	}
 	saved := "unarchived"
@@ -162,7 +162,7 @@ func (h *handler) templateDelete(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	switch err := h.Templates.Delete(ctx, id, "admin"); {
+	switch err := h.Templates.Delete(ctx, id, web.Actor(ctx)); {
 	case errors.Is(err, templates.ErrInUse):
 		return h.renderTemplate(c, http.StatusConflict, id, templateView{Error: i18n.T(ctx, "templates.err.in_use"), InUse: true})
 	case err != nil:
@@ -178,7 +178,7 @@ func (h *handler) versionDefault(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Templates.MakeDefault(c.Request().Context(), id, n, "admin"); err != nil {
+	if err := h.Templates.MakeDefault(c.Request().Context(), id, n, web.Actor(c.Request().Context())); err != nil {
 		return notFound(err)
 	}
 	return web.Redirect(c, actionHref(id, "?saved=default&v="+strconv.Itoa(n)))
@@ -189,7 +189,7 @@ func (h *handler) versionDraft(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Templates.DraftFromVersion(c.Request().Context(), id, n, "admin"); err != nil {
+	if _, err := h.Templates.DraftFromVersion(c.Request().Context(), id, n, web.Actor(c.Request().Context())); err != nil {
 		return notFound(err)
 	}
 	return web.Redirect(c, actionHref(id, "/edit"))

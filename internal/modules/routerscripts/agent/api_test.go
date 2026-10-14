@@ -43,7 +43,7 @@ func newEnv(t *testing.T) *env {
 	t.Helper()
 	h := rscriptstest.New(t)
 	e := &env{T: t, H: h, ID: h.Script("fresh-router", script())}
-	if _, err := h.Mod.Scripts.EditDraft(bg, e.ID, events.ActorAdmin); err != nil {
+	if _, err := h.Mod.Scripts.EditDraft(bg, e.ID, events.MemberActor(1)); err != nil {
 		t.Fatal(err)
 	}
 	return e
@@ -60,7 +60,7 @@ func (e *env) open(o agent.Open) agent.Opened {
 	if o.Agent == "" {
 		o.Agent = "claude-code"
 	}
-	op, err := e.H.Mod.Agent.OpenSession(bg, o, events.ActorAdmin)
+	op, err := e.H.Mod.Agent.OpenSession(bg, o, events.MemberActor(1))
 	if err != nil {
 		e.T.Fatalf("open session: %v", err)
 	}
@@ -204,7 +204,7 @@ func TestOpenSessionRefusesAndRecords(t *testing.T) {
 		t.Errorf("prompt:\n%s", op.Prompt)
 	}
 	ev := e.H.Events("routerscript.agent_session_opened")
-	if len(ev) != 1 || ev[0].Actor != "admin" || ev[0].Payload["agent"] != "claude-code" {
+	if len(ev) != 1 || ev[0].Actor != events.MemberActor(1) || ev[0].Payload["agent"] != "claude-code" {
 		t.Fatalf("opened: %+v", ev)
 	}
 	raw, _ := json.Marshal(ev[0].Payload)

@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -52,7 +51,7 @@ func (h *handler) version(c *echo.Context) error {
 	}
 	p := params.Parse([]byte(ver.Body))
 	v := versionView{S: s, V: ver, Lines: lines, Panel: makePanel(ctx, p, nil), DiffFrom: ver.Number - 1}
-	v.Info = i18n.T(ctx, "scripts.version.published", i18n.Args{"day": loc.Date(ver.PublishedAt), "by": ver.PublishedBy})
+	v.Info = i18n.T(ctx, "scripts.version.published", i18n.Args{"day": loc.Date(ver.PublishedAt), "by": web.ActorName(ctx, ver.PublishedBy)})
 	if ver.Current {
 		v.Info += " · " + i18n.T(ctx, "scripts.version.current")
 	}
@@ -103,7 +102,7 @@ func (h *handler) makeCurrent(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Scripts.MakeCurrent(c.Request().Context(), s.ID, ver.Number, events.ActorAdmin); err != nil {
+	if err := h.Scripts.MakeCurrent(c.Request().Context(), s.ID, ver.Number, web.Actor(c.Request().Context())); err != nil {
 		return notFoundOr(err)
 	}
 	return web.Redirect(c, ScriptHref(s.ID)+"?current="+strconv.Itoa(ver.Number))

@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
@@ -194,4 +195,28 @@ func TestRunDemoJob(t *testing.T) {
 		t.Fatalf("%d %s", rec.Code, rec.Header().Get("Location"))
 	}
 	var _ = httptest.NewRecorder
+}
+
+// A job started by a member, before members ("admin") or since
+// ("member:1"), names them by username on the Jobs page and the job page.
+func TestJobsNameTheMemberWhoStartedThem(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	if _, err := s.App.DB.W.Exec(`UPDATE members SET username = 'tikhon' WHERE id = 1`); err != nil {
+		t.Fatal(err)
+	}
+	old := finishedJob(t, s, "succeeded", 0)
+	e, err := s.App.Jobs.EnqueueNow(t.Context(), jobs.Request{Type: "platform.demo", CreatedBy: events.MemberActor(1), Delay: time.Hour})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, id := range []int64{old, e.ID} {
+		if page := l.Get(fmt.Sprintf("/jobs/%d", id)).Body.String(); !strings.Contains(page, "started by tikhon") {
+			t.Errorf("job %d doesn't name its member:\n%s", id, page)
+		}
+	}
+	list := l.Get("/jobs").Body.String()
+	if strings.Count(list, "tikhon") < 3 || strings.Contains(list, "member:1") || strings.Contains(list, "admin ·") {
+		t.Errorf("the list shows a stored actor:\n%s", list)
+	}
 }

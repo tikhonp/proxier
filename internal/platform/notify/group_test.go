@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/notify"
 )
 
@@ -83,7 +84,7 @@ func TestFailedGroupIsRetriedWhole(t *testing.T) {
 		t.Fatalf("%+v %v", failed, err)
 	}
 	e.tg.SetDown(false)
-	must(t, e.svc.Retry(bg, failed[1].ID))
+	must(t, e.svc.Retry(bg, failed[1].ID, events.MemberActor(1)))
 	got := e.sent(1)
 	if len(got) != 1 || !strings.HasPrefix(got[0].Text, "🟣 <b>2 servers are blocked</b>") {
 		t.Fatalf("%+v", got)

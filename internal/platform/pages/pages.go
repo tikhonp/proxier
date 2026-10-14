@@ -159,8 +159,8 @@ func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	} else if bad {
 		s.Warning = &ui.HeaderWarning{Text: i18n.T(c.Request().Context(), "ui.warn.telegram_failing"), Href: "/#failed-notifications"}
 	}
-	if q.Admin != nil {
-		s.Admin = q.Admin.Username
+	if q.Member != nil {
+		s.Member = q.Member.Username
 	}
 	return s
 }

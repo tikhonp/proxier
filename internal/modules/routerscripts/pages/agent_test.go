@@ -173,7 +173,7 @@ func TestBandRevokeAndPoll(t *testing.T) {
 		t.Errorf("poll after the session ended: %q", p)
 	}
 	ev := h.Events("routerscript.agent_session_closed")
-	if len(ev) != 1 || ev[0].Payload["reason"] != "revoked" || ev[0].Actor != "admin" {
+	if len(ev) != 1 || ev[0].Payload["reason"] != "revoked" || ev[0].Actor != events.MemberActor(1) {
 		t.Fatalf("closed: %+v", ev)
 	}
 }

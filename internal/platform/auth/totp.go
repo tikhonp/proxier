@@ -27,7 +27,6 @@ const (
 	totpPeriod    = 30 * time.Second
 	totpDigits    = 6
 	totpSecretLen = 20
-	totpAAD       = "admin:totp"
 	// How long the secret shown by Set up stays good for Turn on.
 	TOTPSetupTTL = 15 * time.Minute
 )
@@ -85,27 +84,37 @@ type TOTPSetup struct {
 	Token  string
 }
 
+// totpAAD names where a member's secret lives. Member 1's secret was sealed
+// as the one admin's before members existed and keeps that AAD: migrations
+// are SQL without the master key, so they can't re-seal it.
+func totpAAD(member int64) string {
+	if member == 1 {
+		return "admin:totp"
+	}
+	return "member:" + strconv.FormatInt(member, 10) + ":totp"
+}
+
 func setupAAD(sessionID int64) string { return "totp-setup:" + strconv.FormatInt(sessionID, 10) }
 
 // BeginTOTP checks the password and makes a new secret. Nothing is stored
 // until EnableTOTP: the secret travels sealed to this session.
-func (s *Service) BeginTOTP(ctx context.Context, sessionID int64, password string) (TOTPSetup, error) {
-	if on, err := s.TOTPEnabled(ctx); err != nil {
+func (s *Service) BeginTOTP(ctx context.Context, sess Session, password string) (TOTPSetup, error) {
+	if on, err := s.TOTPEnabled(ctx, sess.MemberID); err != nil {
 		return TOTPSetup{}, err
 	} else if on {
 		return TOTPSetup{}, ErrTOTPOn
 	}
-	if err := s.checkCurrentPassword(ctx, password); err != nil {
+	if err := s.checkCurrentPassword(ctx, sess.MemberID, password); err != nil {
 		return TOTPSetup{}, err
 	}
-	admin, err := s.Admin(ctx)
+	m, err := s.Member(ctx, sess.MemberID)
 	if err != nil {
 		return TOTPSetup{}, err
 	}
 	secret := make([]byte, totpSecretLen)
 	_, _ = rand.Read(secret)
 	plain := binary.BigEndian.AppendUint64(append([]byte(nil), secret...), uint64(s.Now().Unix()))
-	return totpSetup(secret, admin.Username, base64.RawURLEncoding.EncodeToString(s.vault.Seal(plain, setupAAD(sessionID)))), nil
+	return totpSetup(secret, m.Username, base64.RawURLEncoding.EncodeToString(s.vault.Seal(plain, setupAAD(sess.ID)))), nil
 }
 
 func totpSetup(secret []byte, username, token string) TOTPSetup {
@@ -135,22 +144,22 @@ func (s *Service) openSetup(sessionID int64, token string) ([]byte, error) {
 }
 
 // ResumeTOTP shows a setup again after a wrong code.
-func (s *Service) ResumeTOTP(ctx context.Context, sessionID int64, token string) (TOTPSetup, error) {
-	secret, err := s.openSetup(sessionID, token)
+func (s *Service) ResumeTOTP(ctx context.Context, sess Session, token string) (TOTPSetup, error) {
+	secret, err := s.openSetup(sess.ID, token)
 	if err != nil {
 		return TOTPSetup{}, err
 	}
-	admin, err := s.Admin(ctx)
+	m, err := s.Member(ctx, sess.MemberID)
 	if err != nil {
 		return TOTPSetup{}, err
 	}
-	return totpSetup(secret, admin.Username, token), nil
+	return totpSetup(secret, m.Username, token), nil
 }
 
-// EnableTOTP turns the authenticator app on once the admin types a code from
-// the secret BeginTOTP made for this session.
-func (s *Service) EnableTOTP(ctx context.Context, sessionID int64, token, code string) error {
-	secret, err := s.openSetup(sessionID, token)
+// EnableTOTP turns the member's authenticator app on once they type a code
+// from the secret BeginTOTP made for this session.
+func (s *Service) EnableTOTP(ctx context.Context, sess Session, token, code string) error {
+	secret, err := s.openSetup(sess.ID, token)
 	if err != nil {
 		return err
 	}
@@ -160,59 +169,59 @@ func (s *Service) EnableTOTP(ctx context.Context, sessionID int64, token, code s
 	}
 	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
 		var n int
-		if err := sqlx.GetContext(ctx, tx, &n, `SELECT COUNT(*) FROM totp`); err != nil {
+		if err := sqlx.GetContext(ctx, tx, &n, `SELECT COUNT(*) FROM totp WHERE member_id = ?`, sess.MemberID); err != nil {
 			return err
 		}
 		if n > 0 {
 			return ErrTOTPOn
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO totp (id, secret, created_at, last_step) VALUES (1, ?, ?, ?)`,
-			s.vault.Seal(secret, totpAAD), s.now(), step); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO totp (member_id, secret, created_at, last_step) VALUES (?, ?, ?, ?)`,
+			sess.MemberID, s.vault.Seal(secret, totpAAD(sess.MemberID)), s.now(), step); err != nil {
 			return err
 		}
-		return s.record(ctx, tx, "auth.totp_enabled", events.ActorAdmin, adminSubject, nil)
+		return s.record(ctx, tx, "auth.totp_enabled", events.MemberActor(sess.MemberID), MemberSubject(sess.MemberID), nil)
 	})
 }
 
-// DisableTOTP needs the current password.
-func (s *Service) DisableTOTP(ctx context.Context, password string) error {
-	if err := s.checkCurrentPassword(ctx, password); err != nil {
+// DisableTOTP needs the member's current password.
+func (s *Service) DisableTOTP(ctx context.Context, memberID int64, password string) error {
+	if err := s.checkCurrentPassword(ctx, memberID, password); err != nil {
 		return err
 	}
 	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
-		res, err := tx.ExecContext(ctx, `DELETE FROM totp`)
+		res, err := tx.ExecContext(ctx, `DELETE FROM totp WHERE member_id = ?`, memberID)
 		if err != nil {
 			return err
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
 			return ErrTOTPOff
 		}
-		return s.record(ctx, tx, "auth.totp_disabled", events.ActorAdmin, adminSubject, nil)
+		return s.record(ctx, tx, "auth.totp_disabled", events.MemberActor(memberID), MemberSubject(memberID), nil)
 	})
 }
 
-// TOTPEnabled reports whether password sign-in asks for a code.
-func (s *Service) TOTPEnabled(ctx context.Context) (bool, error) {
+// TOTPEnabled reports whether the member's password sign-in asks for a code.
+func (s *Service) TOTPEnabled(ctx context.Context, memberID int64) (bool, error) {
 	var n int
-	err := sqlx.GetContext(ctx, s.db.R, &n, `SELECT COUNT(*) FROM totp`)
+	err := sqlx.GetContext(ctx, s.db.R, &n, `SELECT COUNT(*) FROM totp WHERE member_id = ?`, memberID)
 	return n > 0, err
 }
 
-// totpSecret reads the secret and the last used step inside tx. ok is false
-// when the app is off.
-func (s *Service) totpSecret(ctx context.Context, tx sqlx.QueryerContext) (secret []byte, last int64, ok bool, err error) {
+// totpSecret reads the member's secret and last used step inside tx. ok is
+// false when the app is off.
+func (s *Service) totpSecret(ctx context.Context, tx sqlx.QueryerContext, member int64) (secret []byte, last int64, ok bool, err error) {
 	var r struct {
 		Secret []byte `db:"secret"`
 		Last   int64  `db:"last_step"`
 	}
-	err = sqlx.GetContext(ctx, tx, &r, `SELECT secret, last_step FROM totp WHERE id = 1`)
+	err = sqlx.GetContext(ctx, tx, &r, `SELECT secret, last_step FROM totp WHERE member_id = ?`, member)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, 0, false, nil
 	}
 	if err != nil {
 		return nil, 0, false, err
 	}
-	secret, err = s.vault.Open(r.Secret, totpAAD)
+	secret, err = s.vault.Open(r.Secret, totpAAD(member))
 	if err != nil {
 		return nil, 0, false, fmt.Errorf("auth: open the authenticator app secret: %w", err)
 	}
@@ -221,13 +230,10 @@ func (s *Service) totpSecret(ctx context.Context, tx sqlx.QueryerContext) (secre
 
 // checkCurrentPassword guards the changes a stolen session must not be able
 // to make: adding or removing a way to sign in.
-func (s *Service) checkCurrentPassword(ctx context.Context, password string) error {
-	phc, _, err := s.credentials(ctx)
+func (s *Service) checkCurrentPassword(ctx context.Context, member int64, password string) error {
+	phc, err := s.passwordHash(ctx, member)
 	if err != nil {
 		return err
-	}
-	if phc == "" {
-		return ErrNoAdmin
 	}
 	ok, err := s.verify(ctx, phc, password)
 	if err != nil {

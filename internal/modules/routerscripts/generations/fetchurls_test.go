@@ -29,7 +29,7 @@ func generated(t *testing.T, h *rscriptstest.Harness) int64 {
 // createURL creates a fetch URL as the admin; its token.
 func createURL(t *testing.T, h *rscriptstest.Harness, gid int64) (generations.FetchURL, string) {
 	t.Helper()
-	u, link, err := h.Mod.Generations.CreateFetchURL(bg, gid, events.ActorAdmin)
+	u, link, err := h.Mod.Generations.CreateFetchURL(bg, gid, events.MemberActor(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,11 +77,11 @@ func TestCreateFetchURL(t *testing.T) {
 	h := rscriptstest.New(t)
 	gid := generated(t, h)
 	u, token := createURL(t, h, gid)
-	if len(token) != 43 || u.State != generations.FetchWaiting || !u.ExpiresAt.Equal(h.Now.Add(time.Hour)) || u.CreatedBy != "admin" {
+	if len(token) != 43 || u.State != generations.FetchWaiting || !u.ExpiresAt.Equal(h.Now.Add(time.Hour)) || u.CreatedBy != events.MemberActor(1) {
 		t.Fatalf("fetch URL: %+v %q", u, token)
 	}
 	ev := h.Events("routerscript.fetch_url_created")
-	if len(ev) != 1 || ev[0].Subject != generations.Subject(gid) || ev[0].Actor != "admin" ||
+	if len(ev) != 1 || ev[0].Subject != generations.Subject(gid) || ev[0].Actor != events.MemberActor(1) ||
 		ev[0].Payload["expires"] != "2026-10-09T13:00:00.000Z" || ev[0].Payload["replaced"] != false {
 		t.Fatalf("event: %+v", ev)
 	}

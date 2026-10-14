@@ -6,20 +6,20 @@ The logical model: entities, their important fields and relations. The exact col
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Admin** | username, password hash, language, created, password changed, WebAuthn user handle (32 random bytes) | Exactly one row in practice. |
-| **Authenticator app** (`totp`) | secret 🔒, created, last used step | One row while it is on. The last used 30 s step makes every code single-use. |
-| **Passkey** | credential id, name, credential (public key, signature counter, flags, as go-webauthn's JSON), created, last used | Any number. |
-| **Session** | id (stored hashed), admin, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change or reset, "sign out everywhere", `reset-2fa`. |
-| **Sign-in attempt** | IP, time, success | Feeds the lockout and the "new IP" notification. Kept 30 days. |
+| **Member** | id, username (unique ignoring case), password hash, language, WebAuthn user handle (32 random bytes), jobs seen at, created, created by (an actor), password changed | Every account. IDs are never reused: actors in history name members as `member:<id>`. The admin from before members is member 1. |
+| **Authenticator app** (`totp`) | member, secret 🔒, created, last used step | One row per member while it is on. The last used 30 s step makes every code single-use. |
+| **Passkey** | member, credential id (unique across members), name, credential (public key, signature counter, flags, as go-webauthn's JSON), created, last used | Any number per member. |
+| **Session** | id (stored hashed), member, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change or reset, "sign out everywhere", `reset-2fa`. |
+| **Sign-in attempt** | IP, time, success, member (none for an unknown username) | Feeds the lockout (per IP) and the "new IP" notification (per member). Kept 30 days. |
 | **Setting** | key, value (🔒 when secret), updated | Typed, grouped by module. |
 | **Known host** | address (`host:port`), key type, public key, fingerprint, first seen, accepted, subject (`server:12`, `router:3`, `jump:…`) | Pinned SSH host keys. |
-| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (admin / schedule / event), retry of, quiet, merged (count of merged requests), boot id, subject, started, finished, error | Coalescing key is unique per type. A clean quiet job (check rounds) is deleted after 24 h. |
+| **Job** | id, queue, type, resource key, coalescing key, state, payload (secret parts 🔒), attempt / max attempts, run after, lease until, created by (`member:<id>` / schedule / event), retry of, quiet, merged (count of merged requests), boot id, subject, started, finished, error | Coalescing key is unique per type. A clean quiet job (check rounds) is deleted after 24 h. |
 | **Job step** | job, index, name, state, started, finished, error | Progress and resume. |
 | **Job log line** | job, sequence, time, level, step, text (already redacted) | |
 | **Event** | id, time, module, type, subject type + id, actor, payload | Append-only. |
 | **Subscriber cursor** | subscriber name, last delivered event id | At-least-once delivery. |
-| **Notification rule** | event type, enabled | Defaults come from [events.md](./events.md). A row exists only where the admin's choice differs from the default; setting it back deletes the row. |
-| **Notification** | event, channel, language, message (JSON: emoji, title, body, link, button), state (queued / sent / failed), attempts, last error, job, sent at | The message is rendered when queued, in the admin's language. The event id has no foreign key: events can be pruned, the notification keeps its own text. Kept 90 days. |
+| **Notification rule** | event type, enabled | Defaults come from [events.md](./events.md). A row exists only where the choice differs from the default; setting it back deletes the row. |
+| **Notification** | event, channel, language, message (JSON: emoji, title, body, link, button), state (queued / sent / failed), attempts, last error, job, sent at | The message is rendered when queued, in member 1's language. The event id has no foreign key: events can be pruned, the notification keeps its own text. Kept 90 days. |
 | **Schedule** | name, enabled, next run, last run, last job, skips | Run-time state only. The interval or time of day is declared in code (a setting may override it), so it isn't stored. |
 
 ## Servers

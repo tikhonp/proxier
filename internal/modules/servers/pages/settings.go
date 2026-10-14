@@ -80,7 +80,7 @@ func (h *handler) saveServersSettings(c *echo.Context) error {
 			values[f.Key] = vs[0]
 		}
 	}
-	if err := h.Settings.Set(ctx, "admin", "servers", values); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "servers", values); err != nil {
 		if fe, ok := err.(settings.FieldErrors); ok {
 			return h.renderServersSettings(c, http.StatusUnprocessableEntity, values, fe, false)
 		}

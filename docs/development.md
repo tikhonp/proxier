@@ -84,7 +84,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 **Events and actors**
 
 - Every state change records its event in the same transaction; a change that changes nothing records nothing. Not events: job lifecycle (the job tables are its history; only `job.failed` and modules' own failure events), notification delivery (only `notification.failed`), bookkeeping (last seen, cursors, schedule runs).
-- Actors: `admin`, `system` (reactions, public fetches), `cli`, `job:<id>`, `agent:<session>`. A job's `created_by` adds `schedule:<name>` and `event:<id>`.
+- Actors: `member:<id>` (`events.MemberActor`; a handler takes the signed-in member's from `web.Actor(ctx)`), `system` (reactions, public fetches), `cli`, `job:<id>`, `agent:<session>`. A job's `created_by` adds `schedule:<name>` and `event:<id>`. Rows from before members say `admin`, which is member 1 (`events.ActorMember` reads both); the UI names a member by username with `web.ActorName`.
 - Payloads carry names, not ids, for other things (`list: "Main"`), lists as one comma-joined string, times as `db.Time` strings (`""` for none), and never a secret.
 - Every event type needs `event.<type>` messages; a notifying one `notify.<type>` too; every job type `job.<type>` (tests enforce all three).
 

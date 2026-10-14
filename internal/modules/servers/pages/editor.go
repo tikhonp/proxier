@@ -196,7 +196,7 @@ func (h *handler) editor(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	d, err := h.Templates.EditDraft(c.Request().Context(), id, "admin")
+	d, err := h.Templates.EditDraft(c.Request().Context(), id, web.Actor(c.Request().Context()))
 	if err != nil {
 		return notFound(err)
 	}
@@ -237,7 +237,7 @@ func (h *handler) draftSave(c *echo.Context) error {
 	if bad != "" {
 		return h.badForm(c, id, bad)
 	}
-	_, err = h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", "admin")
+	_, err = h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", web.Actor(ctx))
 	switch {
 	case errors.Is(err, templates.ErrDraftChanged):
 		return h.staleEditor(c, id, p)
@@ -291,14 +291,14 @@ func (h *handler) draftValidate(c *echo.Context) error {
 	if bad != "" {
 		return web.Render(c, http.StatusOK, messageFragment(i18n.T(ctx, bad)))
 	}
-	rev, err := h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", "admin")
+	rev, err := h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", web.Actor(ctx))
 	switch {
 	case errors.Is(err, templates.ErrDraftChanged):
 		return web.Render(c, http.StatusOK, staleFragment())
 	case err != nil:
 		return notFound(err)
 	}
-	report, err := h.Templates.ValidateDraft(ctx, id, "admin", "admin")
+	report, err := h.Templates.ValidateDraft(ctx, id, "admin", web.Actor(ctx))
 	if err != nil {
 		return notFound(err)
 	}
@@ -448,7 +448,7 @@ func (h *handler) draftDiscard(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Templates.DiscardDraft(c.Request().Context(), id, "admin"); err != nil && !errors.Is(err, templates.ErrNoDraft) {
+	if err := h.Templates.DiscardDraft(c.Request().Context(), id, web.Actor(c.Request().Context())); err != nil && !errors.Is(err, templates.ErrNoDraft) {
 		return notFound(err)
 	}
 	return web.Redirect(c, actionHref(id, "?saved=discarded"))
@@ -504,7 +504,7 @@ func (h *handler) publishDo(c *echo.Context) error {
 	rev, _ := strconv.Atoi(c.FormValue("revision"))
 	notes := strings.TrimSpace(c.FormValue("notes"))
 	confirm := c.FormValue("confirm_warnings") == "1"
-	n, err := h.Templates.Publish(ctx, id, rev, notes, confirm, "admin")
+	n, err := h.Templates.Publish(ctx, id, rev, notes, confirm, web.Actor(ctx))
 	var ve *templates.ValidationError
 	var we *templates.WarningsError
 	switch {

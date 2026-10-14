@@ -42,13 +42,13 @@ func (h *handler) registerShadowrocket(r web.Routes) {
 	r.Admin.GET(srPath+"/:id/edit", h.srEditPage)
 	r.Admin.POST(srPath+"/:id/edit", h.srEdit)
 	r.Admin.POST(srPath+"/:id/token", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.RegenerateToken(ctx, id, events.ActorAdmin)
+		return h.Shadowrocket.RegenerateToken(ctx, id, web.Actor(ctx))
 	}, "?regenerated=1"))
 	r.Admin.POST(srPath+"/:id/disable", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.SetEnabled(ctx, id, false, events.ActorAdmin)
+		return h.Shadowrocket.SetEnabled(ctx, id, false, web.Actor(ctx))
 	}, ""))
 	r.Admin.POST(srPath+"/:id/enable", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.SetEnabled(ctx, id, true, events.ActorAdmin)
+		return h.Shadowrocket.SetEnabled(ctx, id, true, web.Actor(ctx))
 	}, ""))
 	r.Admin.GET(srPath+"/:id/delete", h.srDeletePage)
 	r.Admin.POST(srPath+"/:id/delete", h.srDelete)
@@ -186,7 +186,7 @@ func (h *handler) srCreate(c *echo.Context) error {
 		Name: c.FormValue("name"), ListID: formID(c.FormValue("list")), Policy: c.FormValue("policy"),
 		Base: base, Note: c.FormValue("note"), ImportURL: c.FormValue("import_url"),
 	}
-	id, err := h.Shadowrocket.Create(ctx, shadowrocket.New{Name: v.Name, ListID: v.ListID, Policy: v.Policy, Base: v.Base, Note: v.Note}, events.ActorAdmin)
+	id, err := h.Shadowrocket.Create(ctx, shadowrocket.New{Name: v.Name, ListID: v.ListID, Policy: v.Policy, Base: v.Base, Note: v.Note}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -266,7 +266,7 @@ func (h *handler) srSaveBase(c *echo.Context) error {
 		return err
 	}
 	v := srFormView{C: cfg, Base: base, Note: c.FormValue("note"), ImportURL: c.FormValue("import_url")}
-	n, changed, err := h.Shadowrocket.SaveBase(ctx, cfg.ID, v.Base, v.Note, events.ActorAdmin)
+	n, changed, err := h.Shadowrocket.SaveBase(ctx, cfg.ID, v.Base, v.Note, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -545,7 +545,7 @@ func (h *handler) srRestore(c *echo.Context) error {
 		return err
 	}
 	before := cfg.Version
-	n, err := h.Shadowrocket.Restore(c.Request().Context(), cfg.ID, ver.Number, events.ActorAdmin)
+	n, err := h.Shadowrocket.Restore(c.Request().Context(), cfg.ID, ver.Number, web.Actor(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -591,7 +591,7 @@ func (h *handler) srEdit(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	v := srEditView{C: cfg, ListID: formID(c.FormValue("list")), Policy: c.FormValue("policy")}
-	_, err = h.Shadowrocket.Edit(ctx, cfg.ID, v.ListID, v.Policy, events.ActorAdmin)
+	_, err = h.Shadowrocket.Edit(ctx, cfg.ID, v.ListID, v.Policy, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -632,7 +632,7 @@ func (h *handler) srDelete(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Shadowrocket.Delete(c.Request().Context(), cfg.ID, events.ActorAdmin); err != nil {
+	if err := h.Shadowrocket.Delete(c.Request().Context(), cfg.ID, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, srPath)

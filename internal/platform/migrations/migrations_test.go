@@ -31,77 +31,177 @@ func mustFail(t *testing.T, d *db.DB, what, q string, args ...any) {
 	}
 }
 
-func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
-	ctx := context.Background()
-	d := dbtest.Open(t)
-	for i := 0; i < 6; i++ {
-		if err := db.MigrateDown(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
+// down rolls the platform back n migrations.
+func down(t *testing.T, d *db.DB, n int) {
+	t.Helper()
+	for i := 0; i < n; i++ {
+		if err := db.MigrateDown(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
 			t.Fatalf("down %d: %v", i, err)
 		}
 	}
-	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
-		t.Fatalf("up again: %v", err)
+}
+
+func up(t *testing.T, d *db.DB) {
+	t.Helper()
+	if err := db.MigrateUp(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
+		t.Fatalf("up: %v", err)
 	}
 }
+
+func count(t *testing.T, d *db.DB, q string, args ...any) int {
+	t.Helper()
+	var n int
+	if err := d.R.GetContext(context.Background(), &n, q, args...); err != nil {
+		t.Fatalf("%s: %v", q, err)
+	}
+	return n
+}
+
+func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
+	d := dbtest.Open(t)
+	down(t, d, 7)
+	up(t, d)
+}
+
+const member = `INSERT INTO members (username, password_hash, language, webauthn_user_id, created_at, created_by, password_changed_at) VALUES (?, 'h', ?, randomblob(32), ?, 'cli', ?)`
 
 func TestAuthTablesRefuseWhatTheContractForbids(t *testing.T) {
 	d := dbtest.Open(t)
-	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
-	mustFail(t, d, "second admin", `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (2, 'b', 'h', 'en', ?, ?)`, now, now)
-	mustFail(t, d, "unknown language", `UPDATE admin SET language = 'de'`)
+	mustExec(t, d, member, "tikhon", "en", now, now)
+	mustExec(t, d, member, "anna", "ru", now, now)
+	mustFail(t, d, "a username taken in another case", member, "Tikhon", "en", now, now)
+	mustFail(t, d, "unknown language", `UPDATE members SET language = 'de'`)
+	mustFail(t, d, "empty username", member, "", "en", now, now)
 
-	ins := `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (?, 1, ?, ?, ?, 'ip', 'ip', ?, ?)`
-	mustExec(t, d, ins, []byte("t1"), now, now, now, nil, nil)
-	mustFail(t, d, "duplicate token hash", ins, []byte("t1"), now, now, now, nil, nil)
-	mustFail(t, d, "ended without a reason", ins, []byte("t2"), now, now, now, now, nil)
-	mustFail(t, d, "a reason without ending", ins, []byte("t3"), now, now, now, nil, "signed_out")
-	mustFail(t, d, "unknown reason", ins, []byte("t4"), now, now, now, now, "expired")
+	ins := `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (?, ?, ?, ?, ?, 'ip', 'ip', ?, ?)`
+	mustExec(t, d, ins, []byte("t1"), 1, now, now, now, nil, nil)
+	mustFail(t, d, "duplicate token hash", ins, []byte("t1"), 1, now, now, now, nil, nil)
+	mustFail(t, d, "a session of no member", ins, []byte("t0"), 9, now, now, now, nil, nil)
+	mustFail(t, d, "ended without a reason", ins, []byte("t2"), 1, now, now, now, now, nil)
+	mustFail(t, d, "a reason without ending", ins, []byte("t3"), 1, now, now, now, nil, "signed_out")
+	mustFail(t, d, "unknown reason", ins, []byte("t4"), 1, now, now, now, now, "expired")
+	mustExec(t, d, ins, []byte("t5"), 2, now, now, now, now, "second_factor_reset")
 
-	mustExec(t, d, `DELETE FROM admin`)
-	var n int
-	if err := d.R.GetContext(context.Background(), &n, `SELECT count(*) FROM sessions`); err != nil || n != 0 {
-		t.Fatalf("sessions after deleting the admin: %d, %v", n, err)
+	mustExec(t, d, `DELETE FROM members WHERE id = 1`)
+	if n := count(t, d, `SELECT count(*) FROM sessions`); n != 1 {
+		t.Fatalf("sessions after deleting member 1: %d, want only member 2's", n)
 	}
 	mustFail(t, d, "attempt without success flag value", `INSERT INTO sign_in_attempts (ip, time, success) VALUES ('ip', ?, 2)`, now)
+	mustExec(t, d, `INSERT INTO sign_in_attempts (ip, time, success, member_id) VALUES ('ip', ?, 0, NULL)`, now)
 }
 
-func TestSecondFactorTablesKeepOneAppAndUniquePasskeys(t *testing.T) {
+// IDs are never reused: an actor member:<id> in history names one member.
+func TestMemberIDsAreNotReused(t *testing.T) {
 	d := dbtest.Open(t)
-	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
-	mustExec(t, d, `INSERT INTO totp (id, secret, created_at) VALUES (1, x'01', ?)`, now)
-	mustFail(t, d, "second authenticator app", `INSERT INTO totp (id, secret, created_at) VALUES (2, x'01', ?)`, now)
-	pk := `INSERT INTO passkeys (credential_id, name, credential, created_at) VALUES (?, ?, '{}', ?)`
-	mustExec(t, d, pk, []byte("c1"), "MacBook", now)
-	mustFail(t, d, "duplicate credential", pk, []byte("c1"), "Phone", now)
-	mustFail(t, d, "empty name", pk, []byte("c2"), "", now)
-	ins := `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (?, 1, ?, ?, ?, 'ip', 'ip', ?, ?)`
-	mustExec(t, d, ins, []byte("t1"), now, now, now, now, "second_factor_reset")
+	mustExec(t, d, member, "a", "en", now, now)
+	mustExec(t, d, member, "b", "en", now, now)
+	mustExec(t, d, `DELETE FROM members WHERE id = 2`)
+	mustExec(t, d, member, "c", "en", now, now)
+	if n := count(t, d, `SELECT id FROM members WHERE username = 'c'`); n != 3 {
+		t.Fatalf("the next member got ID %d, want 3", n)
+	}
 }
 
-// The sessions table is copied to widen its CHECK: the rows, the user handle
-// of an existing admin and the cascade from admin all survive.
+func TestSecondFactorTablesKeepOneAppPerMemberAndUniquePasskeys(t *testing.T) {
+	d := dbtest.Open(t)
+	mustExec(t, d, member, "a", "en", now, now)
+	mustExec(t, d, member, "b", "en", now, now)
+	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (1, x'01', ?)`, now)
+	mustFail(t, d, "second authenticator app of a member", `INSERT INTO totp (member_id, secret, created_at) VALUES (1, x'02', ?)`, now)
+	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (2, x'02', ?)`, now)
+	mustFail(t, d, "an app of no member", `INSERT INTO totp (member_id, secret, created_at) VALUES (9, x'02', ?)`, now)
+	pk := `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (?, ?, ?, '{}', ?)`
+	mustExec(t, d, pk, 1, []byte("c1"), "MacBook", now)
+	mustFail(t, d, "a credential another member has", pk, 2, []byte("c1"), "Phone", now)
+	mustFail(t, d, "empty name", pk, 1, []byte("c2"), "", now)
+	mustFail(t, d, "a passkey of no member", pk, 9, []byte("c3"), "Key", now)
+}
+
+// 00006 copies the sessions table to widen its CHECK: the rows, the user
+// handle of an existing admin and the cascade from admin all survive.
 func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.Open(t)
-	if err := db.MigrateDown(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
-		t.Fatal(err)
-	}
+	down(t, d, 2)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
 		t.Fatal(err)
 	}
-	var n, handle int
-	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sessions WHERE token_hash = x'aa'`); err != nil || n != 1 {
-		t.Fatalf("sessions after the copy: %d, %v", n, err)
+	if n := count(t, d, `SELECT count(*) FROM sessions WHERE token_hash = x'aa'`); n != 1 {
+		t.Fatalf("sessions after the copy: %d", n)
 	}
-	if err := d.R.GetContext(ctx, &handle, `SELECT length(webauthn_user_id) FROM admin`); err != nil || handle != 32 {
-		t.Fatalf("user handle of the existing admin: %d bytes, %v", handle, err)
+	if n := count(t, d, `SELECT length(webauthn_user_id) FROM members`); n != 32 {
+		t.Fatalf("user handle of the existing admin: %d bytes", n)
 	}
-	mustExec(t, d, `DELETE FROM admin`)
-	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sessions`); err != nil || n != 0 {
-		t.Fatalf("sessions after deleting the admin: %d, %v", n, err)
+	mustExec(t, d, `DELETE FROM members`)
+	if n := count(t, d, `SELECT count(*) FROM sessions`); n != 0 {
+		t.Fatalf("sessions after deleting the member: %d", n)
 	}
+}
+
+// 00007 makes the one admin member 1 with everything that was theirs, and
+// going back keeps member 1 as the admin and drops the other members.
+func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
+	d := dbtest.Open(t)
+	down(t, d, 1)
+	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, jobs_seen_at, webauthn_user_id) VALUES (1, 'Tikhon', 'h', 'ru', ?, ?, ?, x'0102')`, now, now, now)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip', ?, 'second_factor_reset')`, now, now, now, now)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'bb', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
+	mustExec(t, d, `INSERT INTO totp (id, secret, created_at, last_step) VALUES (1, x'5ec2e7', ?, 42)`, now)
+	mustExec(t, d, `INSERT INTO passkeys (credential_id, name, credential, created_at, last_used_at) VALUES (x'c1', 'MacBook', '{}', ?, ?)`, now, now)
+	mustExec(t, d, `INSERT INTO sign_in_attempts (ip, time, success) VALUES ('1.1.1.1', ?, 1), ('2.2.2.2', ?, 0)`, now, now)
+	up(t, d)
+
+	var m struct {
+		ID       int64  `db:"id"`
+		Username string `db:"username"`
+		Language string `db:"language"`
+		Handle   []byte `db:"webauthn_user_id"`
+		Seen     string `db:"jobs_seen_at"`
+		By       string `db:"created_by"`
+	}
+	if err := d.R.Get(&m, `SELECT id, username, language, webauthn_user_id, jobs_seen_at, created_by FROM members`); err != nil {
+		t.Fatal(err)
+	}
+	if m.ID != 1 || m.Username != "Tikhon" || m.Language != "ru" || string(m.Handle) != "\x01\x02" || m.Seen != now || m.By != "cli" {
+		t.Fatalf("member 1: %+v", m)
+	}
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM sessions WHERE member_id = 1`:                                       2,
+		`SELECT count(*) FROM sessions WHERE end_reason = 'second_factor_reset'`:                  1,
+		`SELECT count(*) FROM totp WHERE member_id = 1 AND secret = x'5ec2e7' AND last_step = 42`: 1,
+		`SELECT count(*) FROM passkeys WHERE member_id = 1 AND credential_id = x'c1'`:             1,
+		`SELECT count(*) FROM sign_in_attempts WHERE success = 1 AND member_id = 1`:               1,
+		`SELECT count(*) FROM sign_in_attempts WHERE success = 0 AND member_id IS NULL`:           1,
+		`SELECT count(*) FROM sqlite_master WHERE name = 'admin'`:                                 0,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("%s = %d, want %d", q, n, want)
+		}
+	}
+
+	mustExec(t, d, member, "anna", "en", now, now)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'cc', 2, ?, ?, ?, 'ip', 'ip')`, now, now, now)
+	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (2, x'02', ?)`, now)
+	mustExec(t, d, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (2, x'c2', 'Phone', '{}', ?)`, now)
+	down(t, d, 1)
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM admin WHERE id = 1 AND username = 'Tikhon' AND jobs_seen_at = '` + now + `'`: 1,
+		`SELECT count(*) FROM admin`:                                                          1,
+		`SELECT count(*) FROM sessions WHERE admin_id = 1`:                                    2,
+		`SELECT count(*) FROM sessions`:                                                       2,
+		`SELECT count(*) FROM totp WHERE id = 1 AND secret = x'5ec2e7'`:                       1,
+		`SELECT count(*) FROM totp`:                                                           1,
+		`SELECT count(*) FROM passkeys`:                                                       1,
+		`SELECT count(*) FROM pragma_table_info('sign_in_attempts') WHERE name = 'member_id'`: 0,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("after down: %s = %d, want %d", q, n, want)
+		}
+	}
+	mustFail(t, d, "a second admin after going back", `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (2, 'b', 'h', 'en', ?, ?)`, now, now)
+	up(t, d)
 }
 
 func TestJobsTablesCoalesceAndCascade(t *testing.T) {

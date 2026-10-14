@@ -370,7 +370,7 @@ func (h *handler) saveNotes(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Store.SetServerNotes(ctx, s.ID, strings.ReplaceAll(c.FormValue("notes"), "\r\n", "\n"), "admin")
+	err = h.Store.SetServerNotes(ctx, s.ID, strings.ReplaceAll(c.FormValue("notes"), "\r\n", "\n"), web.Actor(ctx))
 	if errs, ok := fieldErrors(c, err); ok {
 		v, berr := h.buildServer(ctx, s, 0)
 		if berr != nil {
@@ -391,7 +391,7 @@ func (h *handler) activate(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Provision.ActivateAnyway(c.Request().Context(), s.ID, "admin")
+	err = h.Provision.ActivateAnyway(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, provision.ErrNotAllowed) {
 		return echo.NewHTTPError(http.StatusConflict, "activate anyway is for a server that failed only at the smoke test")
 	}
@@ -409,7 +409,7 @@ func (h *handler) cancelProvisioning(c *echo.Context) error {
 	if s.State != "provisioning" || !s.ProvisionJobID.Valid {
 		return echo.NewHTTPError(http.StatusConflict, "nothing is being provisioned")
 	}
-	if err := h.Jobs.Cancel(c.Request().Context(), s.ProvisionJobID.Int64, "admin"); err != nil && !errors.Is(err, jobs.ErrNotActive) {
+	if err := h.Jobs.Cancel(c.Request().Context(), s.ProvisionJobID.Int64, web.Actor(c.Request().Context())); err != nil && !errors.Is(err, jobs.ErrNotActive) {
 		return err
 	}
 	return web.Redirect(c, serverHref(s.ID))
@@ -447,7 +447,7 @@ func (h *handler) retry(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = h.Provision.Retry(c.Request().Context(), s.ID, c.FormValue("root_password"), c.FormValue("overwrite_dns") == "1", "admin")
+	_, err = h.Provision.Retry(c.Request().Context(), s.ID, c.FormValue("root_password"), c.FormValue("overwrite_dns") == "1", web.Actor(c.Request().Context()))
 	var fe provision.FieldErrors
 	switch {
 	case errors.As(err, &fe):

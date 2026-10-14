@@ -56,7 +56,7 @@ func TestDuplicateDeliveryNotifiesOnce(t *testing.T) {
 
 func TestRuleOffSendsNothing(t *testing.T) {
 	e := newEnv(t, Options{})
-	must(t, e.svc.SetRule(bg, "test.server_down", false))
+	must(t, e.svc.SetRule(bg, "test.server_down", false, events.MemberActor(1)))
 	id := e.down("12")
 	e.settle()
 	e.h.Drain()
@@ -79,7 +79,7 @@ func TestRuleOffSendsNothing(t *testing.T) {
 
 func TestMessageInAdminLanguage(t *testing.T) {
 	e := newEnv(t, Options{})
-	must(t, e.auth.SetLanguage(bg, i18n.RU))
+	must(t, e.auth.SetLanguage(bg, 1, i18n.RU))
 	e.down("12")
 	e.settle()
 	got := e.sent(1)

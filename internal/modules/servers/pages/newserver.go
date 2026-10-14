@@ -281,7 +281,7 @@ func (h *handler) newSummary(c *echo.Context) error {
 func (h *handler) createServer(c *echo.Context) error {
 	ctx := c.Request().Context()
 	f := formOf(c)
-	id, err := h.Provision.Create(ctx, f, "admin")
+	id, err := h.Provision.Create(ctx, f, web.Actor(ctx))
 	var fe provision.FieldErrors
 	if asFieldErrors(err, &fe) {
 		v, verr := h.newViewOf(ctx, f, country.Parse(c.FormValue("country_auto")))

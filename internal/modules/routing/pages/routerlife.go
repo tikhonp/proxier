@@ -13,7 +13,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -271,7 +270,7 @@ func (h *handler) routerRepair(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Repair(c.Request().Context(), r.ID, events.ActorAdmin); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.Repair(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -284,7 +283,7 @@ func (h *handler) routerPause(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Routers.Pause(c.Request().Context(), r.ID, events.ActorAdmin); errors.Is(err, routers.ErrState) {
+	if err := h.Routers.Pause(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "only an active router can be paused")
 	} else if err != nil {
 		return err
@@ -297,7 +296,7 @@ func (h *handler) routerResume(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Routers.Resume(c.Request().Context(), r.ID, events.ActorAdmin); errors.Is(err, routers.ErrState) {
+	if err := h.Routers.Resume(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "only a paused router can be resumed")
 	} else if err != nil {
 		return err
@@ -322,7 +321,7 @@ func (h *handler) unmanagedRemove(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.RemoveUnmanaged(c.Request().Context(), r.ID, u.Tag, events.ActorAdmin); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.RemoveUnmanaged(c.Request().Context(), r.ID, u.Tag, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -336,7 +335,7 @@ func (h *handler) unmanagedIgnore(ignore bool) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		if err := h.Routers.Ignore(c.Request().Context(), r.ID, u.Tag, ignore, events.ActorAdmin); err != nil {
+		if err := h.Routers.Ignore(c.Request().Context(), r.ID, u.Tag, ignore, web.Actor(c.Request().Context())); err != nil {
 			return err
 		}
 		return web.Redirect(c, routerHref(r.ID)+"#unmanaged")
@@ -397,7 +396,7 @@ func (h *handler) adoptPost(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	how := c.FormValue("how")
-	_, err = h.Routers.Adopt(ctx, r.ID, u.Tag, how, events.ActorAdmin)
+	_, err = h.Routers.Adopt(ctx, r.ID, u.Tag, how, web.Actor(ctx))
 	var ge *lists.GuardError
 	var taken *services.TagTakenError
 	switch {
@@ -440,7 +439,7 @@ func (h *handler) routerRemovePost(c *echo.Context) error {
 		return err
 	}
 	clean := c.FormValue("clean") == "1"
-	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, clean, events.ActorAdmin); errors.Is(err, routers.ErrState) {
+	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, clean, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is being removed")
 	} else if err != nil {
 		return err
@@ -457,7 +456,7 @@ func (h *handler) routerRemoveKeep(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, false, events.ActorAdmin); err != nil {
+	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, false, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, routersPath+"?removed="+url.QueryEscape(r.Name))
@@ -479,7 +478,7 @@ func (h *handler) routerRemoveRetry(c *echo.Context) error {
 	if id == 0 {
 		return echo.NewHTTPError(http.StatusConflict, "no removal to retry")
 	}
-	if _, err := h.Jobs.Retry(ctx, id, events.ActorAdmin); err != nil {
+	if _, err := h.Jobs.Retry(ctx, id, web.Actor(ctx)); err != nil {
 		return err
 	}
 	return web.Redirect(c, routerHref(r.ID))

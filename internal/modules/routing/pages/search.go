@@ -15,7 +15,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/domain"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -309,7 +308,7 @@ func (h *handler) previewOf(ctx context.Context, sel, closeHref string) previewV
 }
 
 func (h *handler) catalogRefresh(c *echo.Context) error {
-	id, err := h.Catalog.RefreshNow(c.Request().Context(), events.ActorAdmin)
+	id, err := h.Catalog.RefreshNow(c.Request().Context(), web.Actor(c.Request().Context()))
 	if err != nil {
 		return err
 	}

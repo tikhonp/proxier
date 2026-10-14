@@ -31,11 +31,20 @@ func (e *env) advance(d time.Duration) { e.now = e.now.Add(d) }
 
 func newEnv(t *testing.T) *env {
 	t.Helper()
-	d := dbtest.Open(t)
 	v, err := vault.New(make([]byte, 32))
 	if err != nil {
 		t.Fatal(err)
 	}
+	e := newEnvOn(t, dbtest.Open(t), v)
+	if err := e.s.CreateFirstMember(e.ctx, "admin", goodPassword); err != nil {
+		t.Fatal(err)
+	}
+	return e
+}
+
+// newEnvOn is an env on d with no member created.
+func newEnvOn(t *testing.T, d *db.DB, v *vault.Vault) *env {
+	t.Helper()
 	ev := events.NewCatalog()
 	if err := ev.Declare(append(auth.Events, settings.ChangedEvent)...); err != nil {
 		t.Fatal(err)
@@ -51,10 +60,24 @@ func newEnv(t *testing.T) *env {
 	e.s.Params = auth.Params{Memory: 1024, Time: 1, Threads: 1}
 	e.s.Now = func() time.Time { return e.now }
 	e.s.Sleep = func(_ context.Context, d time.Duration) { e.slept = append(e.slept, d) }
-	if err := e.s.CreateAdmin(e.ctx, "admin", goodPassword); err != nil {
-		t.Fatal(err)
-	}
 	return e
+}
+
+// addMember adds a member the way only the database can until members are
+// added in the UI.
+func (e *env) addMember(username string) int64 {
+	e.t.Helper()
+	phc, err := auth.Hash(e.s.Params, goodPassword)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	r, err := e.db.W.ExecContext(e.ctx, `INSERT INTO members (username, password_hash, language, webauthn_user_id, created_at, created_by, password_changed_at)
+		VALUES (?, ?, 'en', randomblob(32), '2026-10-01T00:00:00.000Z', 'cli', '2026-10-01T00:00:00.000Z')`, username, phc)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	id, _ := r.LastInsertId()
+	return id
 }
 
 func (e *env) count(q string, args ...any) int {
@@ -266,7 +289,7 @@ func TestLastSeenIsThrottled(t *testing.T) {
 func TestSignOutOneSession(t *testing.T) {
 	e := newEnv(t)
 	a, b := e.signIn("1.1.1.1"), e.signIn("2.2.2.2")
-	if err := e.s.SignOut(e.ctx, a.Session.ID, "settings"); err != nil {
+	if err := e.s.SignOut(e.ctx, 1, a.Session.ID, "settings"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.s.Authenticate(e.ctx, a.Session.Token, "1.1.1.1"); !errors.Is(err, auth.ErrNoSession) {
@@ -275,7 +298,7 @@ func TestSignOutOneSession(t *testing.T) {
 	if _, err := e.s.Authenticate(e.ctx, b.Session.Token, "2.2.2.2"); err != nil {
 		t.Errorf("other session: %v", err)
 	}
-	_ = e.s.SignOut(e.ctx, a.Session.ID, "settings") // again: changes nothing
+	_ = e.s.SignOut(e.ctx, 1, a.Session.ID, "settings") // again: changes nothing
 	if e.events("auth.signed_out") != 1 {
 		t.Error("want exactly one auth.signed_out")
 	}
@@ -285,11 +308,11 @@ func TestSignOutEverywhere(t *testing.T) {
 	e := newEnv(t)
 	e.signIn("1.1.1.1")
 	e.signIn("2.2.2.2")
-	n, err := e.s.SignOutEverywhere(e.ctx)
+	n, err := e.s.SignOutEverywhere(e.ctx, 1)
 	if err != nil || n != 2 {
 		t.Fatalf("n = %d, err = %v", n, err)
 	}
-	if got, _ := e.s.Sessions(e.ctx); len(got) != 0 {
+	if got, _ := e.s.Sessions(e.ctx, 1); len(got) != 0 {
 		t.Error("sessions remain")
 	}
 	if e.events("auth.signed_out_everywhere") != 1 {
@@ -300,10 +323,10 @@ func TestSignOutEverywhere(t *testing.T) {
 func TestPasswordChangeEndsOtherSessions(t *testing.T) {
 	e := newEnv(t)
 	laptop, phone := e.signIn("1.1.1.1"), e.signIn("2.2.2.2")
-	if err := e.s.ChangePassword(e.ctx, laptop.Session.ID, "wrong wrong wrong", "a brand new password"); !errors.Is(err, auth.ErrWrongCredentials) {
+	if err := e.s.ChangePassword(e.ctx, laptop.Session, "wrong wrong wrong", "a brand new password"); !errors.Is(err, auth.ErrWrongCredentials) {
 		t.Fatalf("wrong old password: %v", err)
 	}
-	if err := e.s.ChangePassword(e.ctx, laptop.Session.ID, goodPassword, "a brand new password"); err != nil {
+	if err := e.s.ChangePassword(e.ctx, laptop.Session, goodPassword, "a brand new password"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.s.Authenticate(e.ctx, phone.Session.Token, "2.2.2.2"); !errors.Is(err, auth.ErrNoSession) {
@@ -323,7 +346,7 @@ func TestResetPasswordEndsSessionsAndKeepsLockout(t *testing.T) {
 	for range 5 {
 		_ = e.fail("1.1.1.1")
 	}
-	n, err := e.s.ResetPassword(e.ctx, "another long password")
+	n, err := e.s.ResetPassword(e.ctx, 1, "another long password")
 	if err != nil || n != 1 {
 		t.Fatalf("n = %d, err = %v", n, err)
 	}
@@ -341,21 +364,76 @@ func TestResetPasswordEndsSessionsAndKeepsLockout(t *testing.T) {
 
 func TestSetSameLanguageRecordsNothing(t *testing.T) {
 	e := newEnv(t)
-	if err := e.s.SetLanguage(e.ctx, "en"); err != nil {
+	if err := e.s.SetLanguage(e.ctx, 1, "en"); err != nil {
 		t.Fatal(err)
 	}
 	if e.events("admin.language_changed") != 0 {
 		t.Error("same language recorded an event")
 	}
-	_ = e.s.SetLanguage(e.ctx, "ru")
-	if a, _ := e.s.Admin(e.ctx); a.Language != "ru" || e.events("admin.language_changed") != 1 {
+	_ = e.s.SetLanguage(e.ctx, 1, "ru")
+	if a, _ := e.s.Member(e.ctx, 1); a.Language != "ru" || e.events("admin.language_changed") != 1 {
 		t.Error("language not changed")
+	}
+}
+
+func TestUsernamesIgnoreCase(t *testing.T) {
+	e := newEnv(t)
+	r, err := e.s.SignIn(e.ctx, "ADMIN", goodPassword, "1.1.1.1", "")
+	if err != nil || r.Session.MemberID != 1 {
+		t.Fatalf("sign-in as ADMIN: %+v, %v", r.Session, err)
+	}
+	if m, err := e.s.MemberByUsername(e.ctx, "Admin"); err != nil || m.ID != 1 {
+		t.Fatalf("lookup as Admin: %+v, %v", m, err)
+	}
+}
+
+// Each member signs in on their own: sessions, the new-IP notice and the
+// actor of every event are theirs.
+func TestMembersSignInOnTheirOwn(t *testing.T) {
+	e := newEnv(t)
+	anna := e.addMember("anna")
+	mine := e.signIn("1.1.1.1")
+	theirs, err := e.s.SignIn(e.ctx, "anna", goodPassword, "1.1.1.1", "")
+	if err != nil || theirs.Session.MemberID != anna {
+		t.Fatalf("anna: %+v, %v", theirs.Session, err)
+	}
+	if !theirs.NewIP {
+		t.Error("anna's first sign-in from an IP member 1 used is new to her")
+	}
+	var actor, subject string
+	if err := e.db.R.QueryRowContext(e.ctx, `SELECT actor, subject_type || ':' || subject_id FROM events WHERE type = 'auth.signed_in' ORDER BY id DESC LIMIT 1`).Scan(&actor, &subject); err != nil {
+		t.Fatal(err)
+	}
+	if want := events.MemberActor(anna); actor != want || subject != "member:2" {
+		t.Errorf("actor %q, subject %q; want %q, member:2", actor, subject, want)
+	}
+	if got, _ := e.s.Sessions(e.ctx, 1); len(got) != 1 || got[0].ID != mine.Session.ID {
+		t.Errorf("member 1's sessions: %+v", got)
+	}
+	// ending anna's session as member 1 changes nothing
+	if err := e.s.SignOut(e.ctx, 1, theirs.Session.ID, "settings"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.Authenticate(e.ctx, theirs.Session.Token, "1.1.1.1"); err != nil {
+		t.Errorf("anna's session ended by member 1: %v", err)
+	}
+	if n, _ := e.s.SignOutEverywhere(e.ctx, 1); n != 1 {
+		t.Errorf("member 1 ended %d sessions, want only their own", n)
+	}
+	if _, err := e.s.Authenticate(e.ctx, theirs.Session.Token, "1.1.1.1"); err != nil {
+		t.Errorf("anna's session ended by member 1's sign out everywhere: %v", err)
+	}
+	if _, err := e.s.ResetPassword(e.ctx, anna, "another long password"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.s.SignIn(e.ctx, "admin", goodPassword, "1.1.1.1", ""); err != nil {
+		t.Errorf("anna's reset changed member 1's password: %v", err)
 	}
 }
 
 func TestCreateAdminOnlyOnce(t *testing.T) {
 	e := newEnv(t)
-	if err := e.s.CreateAdmin(e.ctx, "other", goodPassword); !errors.Is(err, auth.ErrAdminExists) {
+	if err := e.s.CreateFirstMember(e.ctx, "other", goodPassword); !errors.Is(err, auth.ErrMembersExist) {
 		t.Fatalf("err = %v", err)
 	}
 }
@@ -373,7 +451,7 @@ func TestPasswordLength(t *testing.T) {
 		{strings.Repeat("a", 1025), auth.ErrPasswordTooLong},
 	}
 	for _, c := range cases {
-		_, err := e.s.ResetPassword(e.ctx, c.pw)
+		_, err := e.s.ResetPassword(e.ctx, 1, c.pw)
 		if (c.want == nil && err != nil) || (c.want != nil && !errors.Is(err, c.want)) {
 			t.Errorf("%d bytes: err = %v, want %v", len(c.pw), err, c.want)
 		}

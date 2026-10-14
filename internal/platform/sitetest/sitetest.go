@@ -36,7 +36,7 @@ type Options struct {
 	HTTPS          bool
 	TrustedProxies []netip.Prefix
 	Modules        []module.Module
-	NoAdmin        bool
+	NoMember       bool
 	// BaseURL replaces http(s)://proxier.test, for a site a real browser opens.
 	BaseURL *url.URL
 	// Log receives the app's log as text (the request log included); nil
@@ -52,7 +52,7 @@ type Site struct {
 	Now     time.Time // the clock of auth; move it with Advance
 }
 
-// New opens, migrates and (unless NoAdmin) creates the admin.
+// New opens, migrates and (unless NoMember) creates the first member.
 func New(t *testing.T, o Options) *Site {
 	t.Helper()
 	tz, _ := time.LoadLocation("Europe/Moscow")
@@ -88,9 +88,9 @@ func New(t *testing.T, o Options) *Site {
 	app.Auth.Now = func() time.Time { return s.Now }
 	app.Auth.Sleep = func(context.Context, time.Duration) {}
 	s.Handler = app.HTTP()
-	if !o.NoAdmin {
-		if err := app.Auth.CreateAdmin(context.Background(), Username, Password); err != nil {
-			t.Fatalf("create admin: %v", err)
+	if !o.NoMember {
+		if err := app.Auth.CreateFirstMember(context.Background(), Username, Password); err != nil {
+			t.Fatalf("create the first member: %v", err)
 		}
 	}
 	return s

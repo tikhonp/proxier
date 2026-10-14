@@ -1,23 +1,24 @@
 # Sign-in
 
-**Actors**: Admin; Proxier; `proxier manage` (the container shell).
+**Actors**: Member; Proxier; `proxier manage` (the container shell).
 
-There is one admin. Sign-in is a password on a public host, so the rules focus on lockout, short sessions and telling the admin about every sign-in from a new IP. Two ways in are opt-in: an **authenticator app** whose code a password sign-in then also needs, and **passkeys**, each of which signs in alone ([ADR 0017](../../adr/0017-passkeys-sign-in-alone.md)). With neither, sign-in is the password alone.
+Every account is a member, and each member signs in on their own: their own password, sessions, authenticator app and passkeys. The command line makes the first member. Sign-in is a password on a public host, so the rules focus on lockout, short sessions and telling about every sign-in from a new IP. Two ways in are opt-in: an **authenticator app** whose code a password sign-in then also needs, and **passkeys**, each of which signs in alone ([ADR 0017](../../adr/0017-passkeys-sign-in-alone.md)). With neither, sign-in is the password alone.
 
-## Steps: creating the admin
+## Steps: the first member and the command line
 
-1. `docker exec -it proxier /bin/proxier manage create-admin` asks for a username and a password, twice. The password must be at least 12 characters. → `admin.created`
-2. Running it again when an admin exists refuses: "An admin already exists; use reset-password."
-3. `proxier manage reset-password` sets a new password and ends every session. → `auth.password_changed{via: cli}`
-4. `proxier manage reset-2fa` turns the authenticator app off, removes every passkey and ends every session; the password stays. It asks nothing and needs no terminal. It records its event only when it removed or ended something. → `auth.second_factor_reset{via: cli, totp, passkeys, sessions}` (notifies)
+1. `docker exec -it proxier /bin/proxier manage create-admin` makes the first member (member 1). It asks for a username and a password, twice. The password must be at least 12 characters. → `admin.created` (actor `cli`)
+2. Running it again when any member exists refuses: "A member already exists; use reset-password <username> to get back in."
+3. `proxier manage reset-password <username>` sets a new password for that member and ends their sessions. → `auth.password_changed{via: cli}`
+4. `proxier manage reset-2fa <username>` turns that member's authenticator app off, removes their passkeys and ends their sessions; the password stays. It asks nothing and needs no terminal. It records its event only when it removed or ended something. → `auth.second_factor_reset{via: cli, totp, passkeys, sessions}` (notifies)
+5. A username nobody has: "There is no member "<username>"." (or, with no members at all, "use create-admin"). Nothing is asked and nothing changes.
 
 ## Steps: signing in
 
-1. Every admin URL without a valid session redirects to `/login?next=<path>`.
-2. The admin enters username and password. If the IP is locked, the form says "Too many attempts. Try again in N min" and checks nothing.
+1. Every URL that needs a session redirects to `/login?next=<path>` without one.
+2. The member enters username and password. The username is matched ignoring case. If the IP is locked, the form says "Too many attempts. Try again in N min" and checks nothing.
 3. Wrong username or password: the same message, "Wrong username or password", after the same delay. → `auth.sign_in_failed{ip, username_tried}`
 4. The 5th failure from one IP within 15 minutes locks that IP for 15 minutes. → `auth.locked{ip, failures}` (notifies)
-5. Correct: a new session is created with a fresh cookie, and the browser goes to `next` (a local path only, otherwise the dashboard). → `auth.signed_in{ip, user_agent, new_ip, method: password}`. A sign-in from an IP that has no successful sign-in in the last 30 days has `new_ip: true` and notifies.
+5. Correct: a new session is created with a fresh cookie, and the browser goes to `next` (a local path only, otherwise the dashboard). → `auth.signed_in{ip, user_agent, new_ip, method: password}`. A sign-in from an IP that has no successful sign-in of that member in the last 30 days has `new_ip: true` and notifies.
 
 ## Steps: the code step
 
@@ -32,44 +33,52 @@ With the authenticator app on, step 5 changes:
 
 1. **Adding** (Settings → Security → Passkeys): a name (1 to 64 characters) and the current password, then **Add passkey**. The browser asks the device, the password manager or the security key to make one; it must check who holds it (user verification). The passkey is stored with its name. → `auth.passkey_added{name}` (notifies)
 2. Once a passkey exists, the sign-in page offers **Sign in with a passkey**, and the browser offers passkeys in the username field's autofill. Before that it has no passkey part at all.
-3. **Signing in**: the browser shows the passkeys it holds for this site; the admin picks one and confirms with Face ID, Touch ID, a PIN or the key. No username, no password, no code. → `auth.signed_in{…, method: passkey}`
+3. **Signing in**: the browser shows the passkeys it holds for this site; the member picks one and confirms with Face ID, Touch ID, a PIN or the key. No username, no password, no code: the passkey's user handle names the member. → `auth.signed_in{…, method: passkey}`
 4. A refused passkey (unknown, removed, from another site, without user verification, a signature counter that went back) is a failed attempt: "That passkey wasn't accepted." → `auth.sign_in_failed{ip, stage: passkey}`
 5. **Removing**: **Remove…** on its row asks for the current password. → `auth.passkey_removed{name}` (notifies)
 
 ## Steps: the authenticator app
 
 1. **Set up…** (Settings → Security → Authenticator app) asks for the current password, then shows a QR code and the key as text. Nothing is stored yet.
-2. The admin scans it and types the code the app shows. A right code turns the app on (the secret is stored in the vault). → `auth.totp_enabled` (notifies). A wrong code shows the same QR code again with "Wrong code"; after 15 minutes the setup has run out and starts again.
+2. The member scans it and types the code the app shows. A right code turns the app on (the secret is stored in the vault). → `auth.totp_enabled` (notifies). A wrong code shows the same QR code again with "Wrong code"; after 15 minutes the setup has run out and starts again.
 3. **Turn off** asks for the current password. → `auth.totp_disabled` (notifies)
 
 ## Steps: sessions
 
 1. Each request with a session updates its last-seen time (at most once a minute). A session ends after 7 days without requests or 30 days after creation, whichever comes first.
 2. **Sign out**, the last cell of the header on every page, ends the current session with one click, with no confirmation, and goes to the sign-in page.
-3. Settings → Security lists the sessions (created, last seen, IP, browser, "this one"). **Sign out** on a row ends that one. **Sign out everywhere** ends all, including the current one. → `auth.signed_out_everywhere{sessions}`
-4. **Change password** asks for the current password and the new one twice. It ends every other session. → `auth.password_changed{via: ui}` (notifies)
+3. Settings → Security lists the member's own sessions (created, last seen, IP, browser, "this one"). **Sign out** on a row ends that one. **Sign out everywhere** ends all of the member's sessions, including the current one. → `auth.signed_out_everywhere{sessions}`
+4. **Change password** asks for the current password and the new one twice. It ends the member's other sessions. → `auth.password_changed{via: ui}` (notifies)
 
 ## Rules
 
 - An expired session redirects to `/login?ended=idle` (or `absolute`) and the page says "Signed out after 7 days idle. You'll go back to <page>."
 - A successful sign-in resets the failure count of that IP.
 
-- The admin can't be created, deleted or renamed from the UI.
-- Cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and scoped to the admin host. Public routes (`/s/`, `/r/`, `/f/`) never read or set them.
+- A member can't be created, removed or renamed from the UI.
+- Usernames are unique ignoring case, 1 to 64 characters.
+- Everything a member does in the UI records the actor `member:<id>`. Rows from before members say `admin`, which is member 1; Activity and the Jobs page name both by username.
+- Cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and scoped to the Proxier host. Public routes (`/s/`, `/r/`, `/f/`) never read or set them.
 - Every request that changes something carries a CSRF token tied to the session.
 - The client IP comes from `X-Real-IP` only when the request arrives from a trusted proxy. Otherwise it is the socket address. Lockout and "new IP" use that IP.
 - Lockouts and the attempt history survive restarts.
-- The sign-in page and its messages follow the browser's language until signed in, then the admin's setting.
-- The lockout counts failed passwords, codes and passkeys together, per IP, and refuses a locked IP before checking any of them. Only a created session counts as a success.
+- The sign-in page and its messages follow the browser's language until signed in, then the member's setting. A browser that asks for neither English nor Russian gets the default language (Settings → General).
+- The lockout counts failed passwords, codes and passkeys together, per IP whatever the username, and refuses a locked IP before checking any of them. Only a created session counts as a success. An attempt keeps the member it named, if any.
 - Adding or removing a passkey and turning the app on or off need the current password, so a stolen session can't add a way in or remove one.
 - A code works once: the step of the last used code is stored, and only a newer one is accepted (the previous, current and next 30 s step, for clock drift).
 - The relying party of passkeys is `PROXIER_BASE_URL`: a passkey made on another host or origin isn't accepted.
-- The code step and a passkey prompt live in memory: a restart only makes the admin start that sign-in again.
+- Each member's authenticator app secret is sealed in the vault with the AAD `member:<id>:totp`. Member 1's keeps `admin:totp`, the AAD it had before members: migrations are SQL without the master key, so they can't re-seal it.
+- The code step and a passkey prompt live in memory: a restart only makes the member start that sign-in again.
 
 ## Edge cases (each is a test)
 
 - `create-admin` with an 11-character password → refused, asked again.
-- `create-admin` when an admin exists → refused, nothing changes.
+- `create-admin` when a member exists → refused, nothing changes.
+- `reset-password` or `reset-2fa` with a username nobody has → refused, nothing asked, nothing changes.
+- A username typed in another case (`ADMIN`) → signs in as that member.
+- Two members: sessions, **Sign out**, **Sign out everywhere** and `reset-password` of one leave the other's alone, and an IP one member used is still new to the other.
+- A passkey signs in as the member who added it; another member neither lists nor removes it.
+- An authenticator app turned on before members → member 1's codes still work after the upgrade.
 - Wrong password → generic message, `auth.sign_in_failed`, no session.
 - Unknown username → the same message and the same timing as a wrong password.
 - 4 failures, then success → signed in. The failure count doesn't lock.
@@ -84,7 +93,7 @@ With the authenticator app on, step 5 changes:
 - Password change on the laptop → the phone's session ends at once. The laptop's stays.
 - `reset-password` from the shell during a lockout → works, and all sessions end. The lockout still applies to that IP until it expires.
 - A POST without a CSRF token → `403`, nothing changes.
-- **Sign out** from the header → the session ends; the next admin page redirects to `/login`. Without the CSRF token → `403`, and the session goes on.
+- **Sign out** from the header → the session ends; the next page redirects to `/login`. Without the CSRF token → `403`, and the session goes on.
 - Without passkeys or the app → the password alone signs in (`method: password`); the sign-in page loads no passkey script.
 - App on, right password → no session and no successful attempt; the code step.
 - App on, right code → signed in (`method: password+code`). The same code again on a new sign-in → "Wrong code".

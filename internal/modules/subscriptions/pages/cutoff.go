@@ -9,7 +9,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -89,7 +88,7 @@ func (h *handler) cutoffStart(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Links.CutOff(c.Request().Context(), l.ID, events.ActorAdmin); err != nil {
+	if _, err := h.Links.CutOff(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
 		return cutoffErr(err)
 	}
 	return web.Redirect(c, linkHref(l.ID))
@@ -121,7 +120,7 @@ func (h *handler) cutoffRetry(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrNotFound
 	}
-	if err := h.Links.RetryCutOff(c.Request().Context(), l.ID, pos, events.ActorAdmin); err != nil {
+	if err := h.Links.RetryCutOff(c.Request().Context(), l.ID, pos, web.Actor(c.Request().Context())); err != nil {
 		return cutoffErr(err)
 	}
 	return web.Redirect(c, linkHref(l.ID))
@@ -135,7 +134,7 @@ func (h *handler) cutoffView(ctx context.Context, linkID int64) (cutoffView, boo
 	}
 	loc := h.loc(ctx)
 	v := cutoffView{LinkID: linkID, Poll: co.Busy(), Started: loc.T("cutoff.area.started", i18n.Args{
-		"time": loc.Time(co.CreatedAt), "ago": loc.Ago(co.CreatedAt), "actor": co.CreatedBy,
+		"time": loc.Time(co.CreatedAt), "ago": loc.Ago(co.CreatedAt), "actor": web.ActorName(ctx, co.CreatedBy),
 	})}
 	for _, it := range co.Items {
 		iv := cutoffItemView{Position: it.Position, Name: it.ServerName, Word: loc.T("cutoff.state." + it.State)}

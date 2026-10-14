@@ -110,15 +110,16 @@ type rendered struct {
 	lang i18n.Lang
 }
 
-// render writes the message in the admin's language with the names of this
-// moment. A text that cannot be built falls back to the event's type, so a
-// missing translation never stalls the notifier's cursor.
+// render writes the message in the first member's language, with the names
+// of this moment: the one chat is theirs. A text that cannot be built falls
+// back to the event's type, so a missing translation never stalls the
+// notifier's cursor.
 func (s *Service) render(ctx context.Context, e events.Event, t events.Type) rendered {
 	lang := i18n.EN
-	if a, err := s.a.Admin(ctx); err == nil && a.Language.Valid() {
-		lang = a.Language
-	} else if err != nil && !errors.Is(err, auth.ErrNoAdmin) {
-		s.log.Error("notify: admin language", "error", err)
+	if m, err := s.a.Member(ctx, 1); err == nil && m.Language.Valid() {
+		lang = m.Language
+	} else if err != nil && !errors.Is(err, auth.ErrNoMember) {
+		s.log.Error("notify: member language", "error", err)
 	}
 	tz := time.UTC
 	if name, err := s.st.Get(ctx, "general.time_zone"); err == nil {
@@ -217,8 +218,11 @@ func (s *Service) name(ctx context.Context, sub events.Subject) ui.SubjectRef {
 func (s *Service) platformNames(ctx context.Context, sub events.Subject) (map[string]ui.SubjectRef, error) {
 	ref := ui.SubjectRef{}
 	switch sub.Type {
-	case "admin":
-		ref = ui.SubjectRef{Label: i18n.T(ctx, "subject.admin"), Href: "/settings/security"}
+	case "member", "admin": // admin:1 is the subject of events recorded before members
+		ref = ui.SubjectRef{Label: sub.String(), Href: "/settings/security"}
+		if m, err := s.a.Member(ctx, auth.SubjectMember(sub)); err == nil {
+			ref.Label = m.Username
+		}
 	case "job":
 		label := "#" + sub.ID
 		var typ string

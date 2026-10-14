@@ -10,7 +10,6 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -168,7 +167,7 @@ func (h *handler) renderListForm(c *echo.Context, status int, v listFormView) er
 func (h *handler) createList(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := listFormView{Name: c.FormValue("name"), Description: c.FormValue("description")}
-	id, err := h.Lists.Create(ctx, v.Name, v.Description, events.ActorAdmin)
+	id, err := h.Lists.Create(ctx, v.Name, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -195,7 +194,7 @@ func (h *handler) editList(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	v := listFormView{L: l, Name: c.FormValue("name"), Description: c.FormValue("description")}
-	_, err = h.Lists.Edit(ctx, l.ID, v.Name, v.Description, events.ActorAdmin)
+	_, err = h.Lists.Edit(ctx, l.ID, v.Name, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -212,7 +211,7 @@ func (h *handler) makeDefault(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Lists.MakeDefault(c.Request().Context(), l.ID, events.ActorAdmin); err != nil {
+	if err := h.Lists.MakeDefault(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, listHref(l.ID))
@@ -304,7 +303,7 @@ func (h *handler) addToList(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	ids := formIDs(c, "service")
-	err = h.Lists.Add(ctx, l.ID, ids, events.ActorAdmin)
+	err = h.Lists.Add(ctx, l.ID, ids, web.Actor(ctx))
 	var ge *lists.GuardError
 	if errors.As(err, &ge) {
 		checked := map[int64]bool{}
@@ -384,7 +383,7 @@ func (h *handler) deleteList(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	moveTo, _ := strconv.ParseInt(c.FormValue("move_to"), 10, 64)
-	err = h.Lists.Delete(ctx, l.ID, moveTo, events.ActorAdmin)
+	err = h.Lists.Delete(ctx, l.ID, moveTo, web.Actor(ctx))
 	var he *lists.HasTargetsError
 	switch {
 	case err == nil:
@@ -466,7 +465,7 @@ func (h *handler) serviceLists(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	for _, l := range formIDs(c, "list") {
-		err := h.Lists.Add(ctx, l, []int64{it.ID}, events.ActorAdmin)
+		err := h.Lists.Add(ctx, l, []int64{it.ID}, web.Actor(ctx))
 		var ge *lists.GuardError
 		if errors.As(err, &ge) {
 			v, verr := h.serviceListsView(ctx, it.ID, it.Tag)

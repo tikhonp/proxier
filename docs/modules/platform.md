@@ -1,18 +1,18 @@
 # Platform
 
-The platform is what every module builds on. It knows nothing about proxies. It owns how Proxier signs the admin in, stores secrets, runs work, keeps history, notifies the admin and reaches remote machines. Modules use it through the registrations described in [architecture](../architecture.md#platform-and-modules).
+The platform is what every module builds on. It knows nothing about proxies. It owns how Proxier signs members in, stores secrets, runs work, keeps history, notifies and reaches remote machines. Modules use it through the registrations described in [architecture](../architecture.md#platform-and-modules).
 
-## Admin and sign-in
+## Members and sign-in
 
-- There is exactly **one admin**. It is created with `proxier manage create-admin` (username + password, asked interactively), and no other way. `proxier manage reset-password` sets a new password from the container's shell, and ends every session.
+- Every account is a **member**, with its own username (unique ignoring case), password, language, sessions, authenticator app and passkeys. The first member (member 1) is created with `proxier manage create-admin` (username + password, asked interactively), which refuses once any member exists. `proxier manage reset-password <username>` sets a member's password from the container's shell and ends their sessions.
 - Passwords are at least 12 characters and stored as an argon2id hash.
 - Sign-in is username + password on `/login`, or a **passkey** alone. Both extras are opt-in on Settings → Security, and with neither the flow is the password alone ([ADR 0017](../adr/0017-passkeys-sign-in-alone.md)):
-  - **Authenticator app** (TOTP, RFC 6238: SHA-1, 6 digits, 30 s): with it on, a right password leads to the code step, and only the code creates the session. Its secret is in the vault (AAD `admin:totp`).
+  - **Authenticator app** (TOTP, RFC 6238: SHA-1, 6 digits, 30 s): with it on, a right password leads to the code step, and only the code creates the session. Its secret is in the vault (AAD `member:<id>:totp`; member 1 keeps `admin:totp`, sealed before members existed, since a SQL migration can't re-seal it).
   - **Passkeys** (WebAuthn, discoverable, user verification required): any number, each named. The relying party is `PROXIER_BASE_URL`: its host is the RP ID, its origin the only one accepted. A passkey skips the password and the code.
-  - `proxier manage reset-2fa` turns the app off, removes every passkey and ends every session; the password stays.
-- **Sessions**: an HttpOnly, Secure, SameSite=Lax cookie. They expire after 7 days idle and 30 days total. Every session lasts the same; there is no "remember me". Settings → Security lists the sessions (created, last seen, IP, browser) with **Sign out** for each and **Sign out everywhere**.
+  - `proxier manage reset-2fa <username>` turns that member's app off, removes their passkeys and ends their sessions; the password stays.
+- **Sessions**: an HttpOnly, Secure, SameSite=Lax cookie. They expire after 7 days idle and 30 days total. Every session lasts the same; there is no "remember me". Settings → Security lists the member's own sessions (created, last seen, IP, browser) with **Sign out** for each and **Sign out everywhere**.
 - **Lockout**: 5 failed sign-ins from one IP within 15 minutes lock that IP out for 15 minutes. The response is the same for a wrong username and a wrong password.
-- A sign-in from an IP not seen in the last 30 days sends a notification. With password-only sign-in on a public host, this is the main alarm for a stolen password.
+- A sign-in from an IP that member hasn't signed in from in the last 30 days sends a notification. With password-only sign-in on a public host, this is the main alarm for a stolen password.
 - Every form that changes something carries a CSRF token. `next=` redirects accept only local paths.
 
 Flow and edge cases: [sign-in](../processes/platform/sign-in.md).
@@ -23,7 +23,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 
 | Section | Contents |
 |---|---|
-| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (the admin's language when the account is created), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the admin's own language. |
+| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (a new member's language, and the sign-in page's when the browser asks for neither English nor Russian), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the member's own language. |
 | Security | Passkeys, the authenticator app, change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). Each is a row to its page; an unconfigured Telegram or Cloudflare row says **Set up**, as the dashboard's band does. |
@@ -84,7 +84,7 @@ Flow and edge cases: [jobs](../processes/platform/jobs.md).
 
 ## Events and Activity
 
-Events are described in [architecture](../architecture.md#events-and-history) and catalogued in [events.md](../events.md). The **Activity page** shows them newest first. Filters: module, event type, subject, actor, time range. Each row reads as a sentence ("Admin rotated credentials of nl-1") with a link to the subject. Each object page has an **Activity** tab with the same list filtered to it.
+Events are described in [architecture](../architecture.md#events-and-history) and catalogued in [events.md](../events.md). The **Activity page** shows them newest first. Filters: module, event type, subject, actor, time range. Each row reads as a sentence ("tikhon rotated credentials of nl-1") with a link to the subject. A member is named by username, whether the row says `member:<id>` or, from before members, `admin` (member 1). Each object page has an **Activity** tab with the same list filtered to it.
 
 ## Notifications
 
@@ -93,9 +93,9 @@ Telegram is the only channel; channels are an extension point. Setup: a bot toke
 ## Languages and time
 
 - The UI is in **English and Russian**. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
-- The admin's language is changed only in Settings → General → **Language** (`admin.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`.
+- A member's language is changed only in Settings → General → **Language** (`admin.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`, then the default language.
 - Each **link has a language** (default from Settings), used for its stub entry text.
-- Telegram messages use the admin's language.
+- Telegram messages use member 1's language: the one chat is theirs.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.
 - Russian strings run about 30 % longer than English, so no label or button has a fixed width.
 

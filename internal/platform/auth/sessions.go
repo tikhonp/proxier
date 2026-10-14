@@ -8,10 +8,12 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
 type sessionRow struct {
 	ID         int64    `db:"id"`
+	MemberID   int64    `db:"member_id"`
 	CreatedAt  db.Time  `db:"created_at"`
 	LastSeenAt db.Time  `db:"last_seen_at"`
 	ExpiresAt  db.Time  `db:"expires_at"`
@@ -22,10 +24,10 @@ type sessionRow struct {
 	EndReason  *string  `db:"end_reason"`
 }
 
-const sessionCols = `id, created_at, last_seen_at, expires_at, created_ip, last_ip, user_agent, ended_at, end_reason`
+const sessionCols = `id, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, user_agent, ended_at, end_reason`
 
 func (r sessionRow) session() Session {
-	s := Session{ID: r.ID, CreatedAt: r.CreatedAt, LastSeenAt: r.LastSeenAt, ExpiresAt: r.ExpiresAt,
+	s := Session{ID: r.ID, MemberID: r.MemberID, CreatedAt: r.CreatedAt, LastSeenAt: r.LastSeenAt, ExpiresAt: r.ExpiresAt,
 		CreatedIP: r.CreatedIP, LastIP: r.LastIP, UserAgent: r.UserAgent}
 	if r.EndedAt != nil {
 		s.EndedAt = *r.EndedAt
@@ -82,10 +84,10 @@ func (s *Service) Authenticate(ctx context.Context, token, ip string) (Session, 
 	return out, nil
 }
 
-// Sessions lists the open, unexpired sessions, newest first.
-func (s *Service) Sessions(ctx context.Context) ([]Session, error) {
+// Sessions lists a member's open, unexpired sessions, newest first.
+func (s *Service) Sessions(ctx context.Context, memberID int64) ([]Session, error) {
 	var rows []sessionRow
-	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT `+sessionCols+` FROM sessions WHERE ended_at IS NULL ORDER BY created_at DESC, id DESC`); err != nil {
+	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT `+sessionCols+` FROM sessions WHERE member_id = ? AND ended_at IS NULL ORDER BY created_at DESC, id DESC`, memberID); err != nil {
 		return nil, err
 	}
 	now := s.Now()
@@ -98,10 +100,11 @@ func (s *Service) Sessions(ctx context.Context) ([]Session, error) {
 	return out, nil
 }
 
-// RecentEnded lists sessions that were ended on purpose, newest end first.
-func (s *Service) RecentEnded(ctx context.Context, limit int) ([]Session, error) {
+// RecentEnded lists a member's sessions that were ended on purpose, newest
+// end first.
+func (s *Service) RecentEnded(ctx context.Context, memberID int64, limit int) ([]Session, error) {
 	var rows []sessionRow
-	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT `+sessionCols+` FROM sessions WHERE ended_at IS NOT NULL ORDER BY ended_at DESC, id DESC LIMIT ?`, limit); err != nil {
+	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT `+sessionCols+` FROM sessions WHERE member_id = ? AND ended_at IS NOT NULL ORDER BY ended_at DESC, id DESC LIMIT ?`, memberID, limit); err != nil {
 		return nil, err
 	}
 	out := make([]Session, len(rows))
@@ -111,29 +114,30 @@ func (s *Service) RecentEnded(ctx context.Context, limit int) ([]Session, error)
 	return out, nil
 }
 
-// SignOut ends one session; by is "self" or "settings". Ending a session that
-// is already over records nothing.
-func (s *Service) SignOut(ctx context.Context, sessionID int64, by string) error {
+// SignOut ends one session of the member; by is "self" or "settings". Ending
+// a session that is already over, or another member's, records nothing.
+func (s *Service) SignOut(ctx context.Context, memberID, sessionID int64, by string) error {
 	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
 		now := s.now()
-		res, err := tx.ExecContext(ctx, `UPDATE sessions SET ended_at = ?, end_reason = ? WHERE id = ? AND ended_at IS NULL`, now, EndSignedOut, sessionID)
+		res, err := tx.ExecContext(ctx, `UPDATE sessions SET ended_at = ?, end_reason = ? WHERE id = ? AND member_id = ? AND ended_at IS NULL`, now, EndSignedOut, sessionID, memberID)
 		if err != nil {
 			return err
 		}
 		if n, _ := res.RowsAffected(); n == 0 {
 			return nil
 		}
-		return s.record(ctx, tx, "auth.signed_out", "admin", adminSubject, map[string]any{"session": sessionID, "by": by})
+		return s.record(ctx, tx, "auth.signed_out", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"session": sessionID, "by": by})
 	})
 }
 
-// endLive ends every open session but keep (0 keeps none) and returns how many.
-func (s *Service) endLive(ctx context.Context, tx *sqlx.Tx, reason string, keep int64) (int, error) {
+// endLive ends every open session of the member but keep (0 keeps none) and
+// returns how many.
+func (s *Service) endLive(ctx context.Context, tx *sqlx.Tx, memberID int64, reason string, keep int64) (int, error) {
 	now := s.Now()
 	res, err := tx.ExecContext(ctx, `
 		UPDATE sessions SET ended_at = ?, end_reason = ?
-		WHERE ended_at IS NULL AND id != ? AND expires_at > ? AND last_seen_at > ?`,
-		db.At(now), reason, keep, db.At(now), db.At(now.Add(-IdleTimeout)))
+		WHERE member_id = ? AND ended_at IS NULL AND id != ? AND expires_at > ? AND last_seen_at > ?`,
+		db.At(now), reason, memberID, keep, db.At(now), db.At(now.Add(-IdleTimeout)))
 	if err != nil {
 		return 0, err
 	}
@@ -141,14 +145,14 @@ func (s *Service) endLive(ctx context.Context, tx *sqlx.Tx, reason string, keep 
 	return int(n), nil
 }
 
-// SignOutEverywhere ends every session, this one too.
-func (s *Service) SignOutEverywhere(ctx context.Context) (int, error) {
+// SignOutEverywhere ends every session of the member, this one too.
+func (s *Service) SignOutEverywhere(ctx context.Context, memberID int64) (int, error) {
 	var n int
 	err := s.db.Write(ctx, func(tx *sqlx.Tx) (err error) {
-		if n, err = s.endLive(ctx, tx, EndSignedOutEverywhere, 0); err != nil || n == 0 {
+		if n, err = s.endLive(ctx, tx, memberID, EndSignedOutEverywhere, 0); err != nil || n == 0 {
 			return err
 		}
-		return s.record(ctx, tx, "auth.signed_out_everywhere", "admin", adminSubject, map[string]any{"sessions": n})
+		return s.record(ctx, tx, "auth.signed_out_everywhere", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"sessions": n})
 	})
 	return n, err
 }

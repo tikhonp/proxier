@@ -13,3 +13,4 @@ data/
 CONTEXT.md
 CLAUDE.md
 !internal/modules/servers/seed/files/.env
+/proxier

@@ -269,7 +269,7 @@ func (h *handler) act(fn func(ctx context.Context, id int64, actor string) error
 		if err != nil {
 			return err
 		}
-		if err := fn(c.Request().Context(), l.ID, events.ActorAdmin); err != nil {
+		if err := fn(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
 			return actionErr(err)
 		}
 		return web.Redirect(c, linkHref(l.ID)+query)
@@ -281,7 +281,7 @@ func (h *handler) deleteLink(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Links.Delete(c.Request().Context(), l.ID, events.ActorAdmin); err != nil {
+	if err := h.Links.Delete(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
 		return actionErr(err)
 	}
 	return web.Redirect(c, "/links")
@@ -362,7 +362,7 @@ func (h *handler) changeSubscription(c *echo.Context) error {
 		return err
 	}
 	to, _ := strconv.ParseInt(c.FormValue("subscription"), 10, 64)
-	err = h.Links.ChangeSubscription(c.Request().Context(), v.L.ID, to, events.ActorAdmin)
+	err = h.Links.ChangeSubscription(c.Request().Context(), v.L.ID, to, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrNotFound) {
 		v.Errs = map[string]string{"subscription": i18n.T(c.Request().Context(), "links.err.subscription")}
 		return h.renderLinkForm(c, http.StatusUnprocessableEntity, v)
@@ -382,7 +382,7 @@ func (h *handler) setExpiry(c *echo.Context) error {
 	v.Expiry = expiryForm{Mode: c.FormValue("expiry"), Date: c.FormValue("expiry_date"), Clock: c.FormValue("expiry_time"), Zone: v.Expiry.Zone}
 	expires, err := links.ParseExpiry(v.Expiry.Mode, v.Expiry.Date, v.Expiry.Clock, h.Links.Zone(ctx), h.Now())
 	if err == nil {
-		err = h.Links.SetExpiry(ctx, v.L.ID, expires, events.ActorAdmin)
+		err = h.Links.SetExpiry(ctx, v.L.ID, expires, web.Actor(ctx))
 	}
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
@@ -402,7 +402,7 @@ func (h *handler) editLink(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	v.Name, v.Note, v.Lang, v.Format = c.FormValue("name"), c.FormValue("note"), c.FormValue("language"), c.FormValue("format")
-	err = h.Links.Edit(ctx, v.L.ID, links.Edit{Name: v.Name, Note: v.Note, Lang: i18n.Lang(v.Lang), Format: v.Format}, events.ActorAdmin)
+	err = h.Links.Edit(ctx, v.L.ID, links.Edit{Name: v.Name, Note: v.Note, Lang: i18n.Lang(v.Lang), Format: v.Format}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -423,7 +423,7 @@ func (h *handler) moveLinks(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	to, _ := strconv.ParseInt(c.FormValue("to"), 10, 64)
-	if _, err := h.Links.MoveAll(ctx, s.ID, to, events.ActorAdmin); errors.Is(err, subs.ErrNotFound) {
+	if _, err := h.Links.MoveAll(ctx, s.ID, to, web.Actor(ctx)); errors.Is(err, subs.ErrNotFound) {
 		v, verr := h.deleteView(ctx, s)
 		if verr != nil {
 			return verr
