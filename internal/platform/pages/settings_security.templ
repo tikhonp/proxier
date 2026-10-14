@@ -11,6 +11,14 @@ import (
 
 type securityPageView struct {
 	Current      int64
+	TOTPOn       bool
+	TOTPSetup    *auth.TOTPSetup // Set up was pressed: show the QR code
+	TOTPErr      string          // i18n key
+	TOTPDone     string          // "" | "on" | "off"
+	PasskeysOn   bool            // the server can take passkeys (a base URL)
+	Passkeys     []auth.Passkey
+	PasskeyErr   string // i18n key
+	PasskeyDone  string // "" | "added" | "removed"
 	Sessions     []auth.Session
 	Ended        []auth.Session
 	PasswordErr  string
@@ -27,6 +35,10 @@ templ securityPage(s ui.Shell, pages []ui.SettingsPage, v securityPageView) {
 			<h2>{ i18n.T(ctx, "settings.security") }</h2>
 			<p>{ i18n.T(ctx, "settings.security.note") }</p>
 		</div>
+		if v.PasskeysOn {
+			@passkeysSection(v)
+		}
+		@totpSection(v)
 		<section class="set-section" aria-labelledby="pw-h">
 			<div class="pc-title"><h2 id="pw-h">{ i18n.T(ctx, "settings.password") }</h2></div>
 			<form method="post" action="/settings/security/password" class="form">
@@ -85,11 +97,11 @@ templ securityPage(s ui.Shell, pages []ui.SettingsPage, v securityPageView) {
 							}
 						</span>
 						<span class="subtle">
-							{ ss.LastIP } · { i18n.T(ctx, "settings.sessions.last_seen") }
+							{ ss.LastIP } · { i18n.T(ctx, "settings.sessions.last_seen") + " " }
 							@ui.Time(ss.LastSeenAt.Time)
 						</span>
 						<span class="subtle">
-							{ i18n.T(ctx, "settings.sessions.created") }
+							{ i18n.T(ctx, "settings.sessions.created") + " " }
 							@ui.Time(ss.CreatedAt.Time)
 						</span>
 						@ui.ActionButton(ui.Action{
@@ -125,4 +137,168 @@ templ securityPage(s ui.Shell, pages []ui.SettingsPage, v securityPageView) {
 			@ui.SettingsForm(v.Section, v.Values, v.LockoutErrs, "/settings/security/lockout")
 		</section>
 	}
+}
+
+// passkeysSection lists the passkeys and adds one. A passkey signs in alone,
+// so adding or removing one asks for the password.
+templ passkeysSection(v securityPageView) {
+	<section class="set-section" aria-labelledby="pk-h">
+		<div class="pc-title">
+			<h2 id="pk-h">{ i18n.T(ctx, "settings.passkeys") }</h2>
+			<span class="note">{ i18n.N(ctx, "settings.passkeys.count", int64(len(v.Passkeys))) }</span>
+		</div>
+		<div class="form">
+			<p class="help">{ i18n.T(ctx, "settings.passkeys.note") }</p>
+			switch v.PasskeyDone {
+				case "added":
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "settings.passkeys.added") }
+					}
+				case "removed":
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "settings.passkeys.removed") }
+					}
+			}
+			if v.PasskeyErr != "" {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, v.PasskeyErr) }
+				}
+			}
+		</div>
+		if len(v.Passkeys) > 0 {
+			<div class="sess-list" id="passkeys">
+				for _, pk := range v.Passkeys {
+					<div class="row pk" data-row={ "pk-" + strconv.FormatInt(pk.ID, 10) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<span>
+							<span class="bold">{ pk.Name }</span>
+							if pk.Synced {
+								<span class="subtle"> · { i18n.T(ctx, "settings.passkeys.synced") }</span>
+							}
+						</span>
+						<span class="subtle">
+							{ i18n.T(ctx, "settings.passkeys.added_at") + " " }
+							@ui.Time(pk.CreatedAt.Time)
+						</span>
+						<span class="subtle">
+							if pk.LastUsedAt.IsZero() {
+								{ i18n.T(ctx, "settings.passkeys.never_used") }
+							} else {
+								{ i18n.T(ctx, "settings.passkeys.last_used") + " " }
+								@ui.Time(pk.LastUsedAt.Time)
+							}
+						</span>
+						<details class="pw-confirm">
+							<summary class="pc-btn pc-sm"><span class="if-closed">{ i18n.T(ctx, "settings.passkeys.remove") }</span><span class="if-open">{ i18n.T(ctx, "ui.cancel") }</span></summary>
+							<form method="post" action={ templ.SafeURL("/settings/security/passkeys/" + strconv.FormatInt(pk.ID, 10) + "/remove") }>
+								<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+								<label class="lbl" for={ "pk-pw-" + strconv.FormatInt(pk.ID, 10) }>{ i18n.T(ctx, "settings.password.current") }</label>
+								<input id={ "pk-pw-" + strconv.FormatInt(pk.ID, 10) } name="password" type="password" class="pc-inp" autocomplete="current-password" required/>
+								<button type="submit" class="pc-btn pc-dng pc-sm">{ i18n.T(ctx, "settings.passkeys.remove_confirm") }</button>
+							</form>
+						</details>
+					</div>
+				}
+			</div>
+		}
+		<form method="post" action="/settings/security/passkeys/options" class="form" data-passkey-add data-failed={ i18n.T(ctx, "auth.passkey.failed") } data-exists={ i18n.T(ctx, "settings.passkeys.exists") }>
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<div class="field">
+				<label for="pk-name" class="lbl">{ i18n.T(ctx, "settings.passkeys.name") }</label>
+				<input id="pk-name" name="name" class="pc-inp" maxlength="64" placeholder={ i18n.T(ctx, "settings.passkeys.name_hint") } required/>
+			</div>
+			<div class="field">
+				<label for="pk-pw" class="lbl">{ i18n.T(ctx, "settings.password.current") }</label>
+				<input id="pk-pw" name="password" type="password" class="pc-inp" autocomplete="current-password" required/>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri" disabled>{ i18n.T(ctx, "settings.passkeys.add") }</button>
+				<span class="help" data-passkey-unsupported>{ i18n.T(ctx, "settings.passkeys.unsupported") }</span>
+			</div>
+		</form>
+		<script src={ ui.Asset("js/passkey.js") } defer></script>
+	</section>
+}
+
+// totpSection turns the authenticator app on and off.
+templ totpSection(v securityPageView) {
+	<section class="set-section" aria-labelledby="totp-h">
+		<div class="pc-title">
+			<h2 id="totp-h">{ i18n.T(ctx, "settings.totp") }</h2>
+			<span class="note">
+				if v.TOTPOn {
+					<span class="st st-ok" aria-hidden="true"></span> { i18n.T(ctx, "settings.totp.on") }
+				} else {
+					<span class="st st-off" aria-hidden="true"></span> { i18n.T(ctx, "settings.totp.off") }
+				}
+			</span>
+		</div>
+		if v.TOTPDone != "" || v.TOTPErr != "" {
+			@totpAlerts(v)
+		}
+		switch {
+			case v.TOTPOn:
+				<form method="post" action="/settings/security/totp/disable" class="form">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<p class="help">{ i18n.T(ctx, "settings.totp.on_note") }</p>
+					<div class="field">
+						<label for="totp-off-pw" class="lbl">{ i18n.T(ctx, "settings.password.current") }</label>
+						<input id="totp-off-pw" name="password" type="password" class="pc-inp" autocomplete="current-password" required/>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-dng">{ i18n.T(ctx, "settings.totp.turn_off") }</button>
+					</div>
+				</form>
+			case v.TOTPSetup != nil:
+				<form method="post" action="/settings/security/totp/enable" class="form totp-setup">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<input type="hidden" name="token" value={ v.TOTPSetup.Token }/>
+					<p class="help">{ i18n.T(ctx, "settings.totp.scan") }</p>
+					<div class="qrslot">
+						@ui.QR(v.TOTPSetup.URI, i18n.T(ctx, "settings.totp.qr"))
+						<div class="help">{ i18n.T(ctx, "settings.totp.manual") } <code class="totp-secret">{ v.TOTPSetup.Secret }</code></div>
+					</div>
+					<div class="field">
+						<label for="totp-code" class="lbl">{ i18n.T(ctx, "auth.code") }</label>
+						<input id="totp-code" name="code" class="pc-inp code-inp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9 ]*" maxlength="7" required autofocus/>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "settings.totp.turn_on") }</button>
+						<a href="/settings/security" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					</div>
+				</form>
+			default:
+				<form method="post" action="/settings/security/totp/setup" class="form">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<p class="help">{ i18n.T(ctx, "settings.totp.off_note") }</p>
+					<div class="field">
+						<label for="totp-pw" class="lbl">{ i18n.T(ctx, "settings.password.current") }</label>
+						<input id="totp-pw" name="password" type="password" class="pc-inp" autocomplete="current-password" required/>
+					</div>
+					<div class="form-actions">
+						<button type="submit" class="pc-btn">{ i18n.T(ctx, "settings.totp.set_up") }</button>
+					</div>
+				</form>
+		}
+	</section>
+}
+
+templ totpAlerts(v securityPageView) {
+	<div class="form">
+		switch v.TOTPDone {
+			case "on":
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "settings.totp.done_on") }
+				}
+			case "off":
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "settings.totp.done_off") }
+				}
+		}
+		if v.TOTPErr != "" {
+			@ui.Alert("love", "alert") {
+				{ i18n.T(ctx, v.TOTPErr) }
+			}
+		}
+	</div>
 }

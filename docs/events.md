@@ -9,10 +9,15 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
 | `admin.created` | admin | — | off | from `proxier manage create-admin` |
-| `auth.signed_in` | admin | ip, user agent, new_ip | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
-| `auth.sign_in_failed` | — | ip, username tried | off | |
+| `auth.signed_in` | admin | ip, user agent, new_ip, method (`password` / `password+code` / `passkey`) | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
+| `auth.sign_in_failed` | — | ip, and username tried (password) or stage (`code` / `passkey`) | off | Never the code. |
 | `auth.locked` | — | ip, failures, minutes | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
 | `auth.password_changed` | admin | — | **on** | |
+| `auth.totp_enabled` | admin | — | **on** | |
+| `auth.totp_disabled` | admin | — | **on** | |
+| `auth.passkey_added` | admin | name | **on** | |
+| `auth.passkey_removed` | admin | name | **on** | |
+| `auth.second_factor_reset` | admin | via (`cli`), totp, passkeys, sessions | **on** | `proxier manage reset-2fa`; recorded only when it removed or ended something. |
 | `auth.signed_out` | admin | session (id), by (`self` / `settings`) | off | |
 | `auth.signed_out_everywhere` | admin | sessions ended | off | |
 | `admin.language_changed` | admin | from, to | off | |
@@ -150,6 +155,11 @@ Titles and sentences of the events the platform notifies about; each has a Russi
 | `auth.signed_in` (`new_ip`) | 🔐 | Signed in from a new IP {ip} | {browser} |
 | `auth.locked` | 🔐 | {failures} failed sign-ins from {ip} | Locked for {minutes} min. |
 | `auth.password_changed` | 🔐 | The admin password was changed | Via {via}. |
+| `auth.totp_enabled` | 🔐 | The authenticator app was turned on | Signing in with the password now asks for a code. |
+| `auth.totp_disabled` | 🔐 | The authenticator app was turned off | The password alone signs in again. |
+| `auth.passkey_added` | 🔐 | Passkey {name} was added | It signs in without the password. |
+| `auth.passkey_removed` | 🔐 | Passkey {name} was removed | It no longer signs in. |
+| `auth.second_factor_reset` | 🔐 | The authenticator app and passkeys were removed | From the command line; every session was ended. |
 | `ssh.key_generated` (`regenerated`) | 🔐 | Proxier's SSH key was regenerated | Install the new key on every server, jump host and router. |
 | `ssh.host_key_changed` | 🔐 | Host key of {subject} changed | Work with it is stopped until you accept the new key. |
 | `job.failed` | 🔴 | {subject} failed | {error} |

@@ -34,6 +34,10 @@ A name under another service's suffix (`console.anthropic.com` in `mine`, `anthr
 
 One router (hEX S, 7.24.5, behind a jump host) ran a 370 KiB import in full and never sent the exit status or closed the channel. Proxier now ends such a command at its timeout ([router sync](./processes/routing/router-sync.md#rules)). Not known: whether RouterOS ever ends the session after a long `/import`, and whether its `inactivity-timeout` or the jump host plays a part. Another router's first sync through a jump host ended its `/import` promptly, so not every long import hangs. `ssh -v proxier@<router> '/import file-name=<big file> verbose=no'` through the jump host would answer it. If RouterOS never ends the session, each file takes the full 30-minute timeout, and an import timeout sized to the file would be the fix.
 
+## Passkeys and the authenticator app on real devices
+
+Checked with a software passkey in tests and Chrome's virtual authenticator, not with a real one. Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in a password manager (1Password, Bitwarden), on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted, and the phone's clock drift staying within one 30 s step.
+
 ## Not yet seen on real devices
 
 - Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.

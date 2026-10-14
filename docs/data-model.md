@@ -6,8 +6,10 @@ The logical model: entities, their important fields and relations. The exact col
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Admin** | username, password hash, language, created, password changed | Exactly one row in practice. |
-| **Session** | id (stored hashed), admin, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change, "sign out everywhere". |
+| **Admin** | username, password hash, language, created, password changed, WebAuthn user handle (32 random bytes) | Exactly one row in practice. |
+| **Authenticator app** (`totp`) | secret 🔒, created, last used step | One row while it is on. The last used 30 s step makes every code single-use. |
+| **Passkey** | credential id, name, credential (public key, signature counter, flags, as go-webauthn's JSON), created, last used | Any number. |
+| **Session** | id (stored hashed), admin, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change or reset, "sign out everywhere", `reset-2fa`. |
 | **Sign-in attempt** | IP, time, success | Feeds the lockout and the "new IP" notification. Kept 30 days. |
 | **Setting** | key, value (🔒 when secret), updated | Typed, grouped by module. |
 | **Known host** | address (`host:port`), key type, public key, fingerprint, first seen, accepted, subject (`server:12`, `router:3`, `jump:…`) | Pinned SSH host keys. |

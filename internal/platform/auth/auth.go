@@ -1,5 +1,6 @@
-// Package auth is the domain of the one admin: the password, sessions, the
-// sign-in lockout and the events they record (docs/processes/platform/sign-in.md).
+// Package auth is the domain of the one admin: the password, the
+// authenticator app, passkeys, sessions, the sign-in lockout and the events
+// they record (docs/processes/platform/sign-in.md).
 // It knows nothing of HTTP.
 package auth
 
@@ -13,6 +14,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -39,6 +41,7 @@ var (
 	ErrPasswordTooShort = errors.New("auth: password shorter than 12 characters")
 	ErrPasswordTooLong  = errors.New("auth: password too long")
 	ErrNoSession        = errors.New("auth: no session")
+	ErrSignInExpired    = errors.New("auth: the sign-in ran out; start again")
 )
 
 // LockedError: the IP is locked out; nothing was checked.
@@ -60,6 +63,7 @@ const (
 	EndSignedOutEverywhere = "signed_out_everywhere"
 	EndPasswordChanged     = "password_changed"
 	EndPasswordReset       = "password_reset"
+	EndSecondFactorReset   = "second_factor_reset"
 )
 
 // SignedInEvent is the type of a successful sign-in.
@@ -74,6 +78,11 @@ var Events = []events.Type{
 	{Name: "auth.sign_in_failed", Module: "platform", Description: "A sign-in failed."},
 	{Name: "auth.locked", Module: "platform", Notify: true, Emoji: "🔐", Description: "An IP was locked out after failed sign-ins."},
 	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "The admin password was changed."},
+	{Name: "auth.totp_enabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned on."},
+	{Name: "auth.totp_disabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned off."},
+	{Name: "auth.passkey_added", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was added."},
+	{Name: "auth.passkey_removed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was removed."},
+	{Name: "auth.second_factor_reset", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app and passkeys were removed from the command line."},
 	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended."},
 	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended."},
 	{Name: "admin.language_changed", Module: "platform", Description: "The admin changed the interface language."},
@@ -125,6 +134,10 @@ type Service struct {
 	hashes    chan struct{} // at most two hashes at once: caps memory under a flood
 	dummyOnce sync.Once
 	dummy     string
+
+	pending    *ephemeral[pendingSignIn]
+	ceremonies *ephemeral[ceremony]
+	rp         *webauthn.WebAuthn // nil until EnablePasskeys
 }
 
 func New(d *db.DB, v *vault.Vault, ev *events.Catalog, st *settings.Store) *Service {
@@ -132,7 +145,8 @@ func New(d *db.DB, v *vault.Vault, ev *events.Catalog, st *settings.Store) *Serv
 		Params: DefaultParams, Now: time.Now, Sleep: sleep,
 		Log: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		db:  d, vault: v, events: ev, settings: st,
-		hashes: make(chan struct{}, 2),
+		hashes:  make(chan struct{}, 2),
+		pending: newEphemeral[pendingSignIn](PendingTTL, maxPending), ceremonies: newEphemeral[ceremony](CeremonyTTL, maxCeremonies),
 	}
 }
 

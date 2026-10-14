@@ -6,7 +6,10 @@ The platform is what every module builds on. It knows nothing about proxies. It 
 
 - There is exactly **one admin**. It is created with `proxier manage create-admin` (username + password, asked interactively), and no other way. `proxier manage reset-password` sets a new password from the container's shell, and ends every session.
 - Passwords are at least 12 characters and stored as an argon2id hash.
-- Sign-in is username + password on `/login`. There is no second factor; one would go between "password correct" and "session created", and nothing else in the flow would change.
+- Sign-in is username + password on `/login`, or a **passkey** alone. Both extras are opt-in on Settings → Security, and with neither the flow is the password alone ([ADR 0017](../adr/0017-passkeys-sign-in-alone.md)):
+  - **Authenticator app** (TOTP, RFC 6238: SHA-1, 6 digits, 30 s): with it on, a right password leads to the code step, and only the code creates the session. Its secret is in the vault (AAD `admin:totp`).
+  - **Passkeys** (WebAuthn, discoverable, user verification required): any number, each named. The relying party is `PROXIER_BASE_URL`: its host is the RP ID, its origin the only one accepted. A passkey skips the password and the code.
+  - `proxier manage reset-2fa` turns the app off, removes every passkey and ends every session; the password stays.
 - **Sessions**: an HttpOnly, Secure, SameSite=Lax cookie. They expire after 7 days idle and 30 days total. Every session lasts the same; there is no "remember me". Settings → Security lists the sessions (created, last seen, IP, browser) with **Sign out** for each and **Sign out everywhere**.
 - **Lockout**: 5 failed sign-ins from one IP within 15 minutes lock that IP out for 15 minutes. The response is the same for a wrong username and a wrong password.
 - A sign-in from an IP not seen in the last 30 days sends a notification. With password-only sign-in on a public host, this is the main alarm for a stolen password.
@@ -21,7 +24,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 | Section | Contents |
 |---|---|
 | General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (the admin's language when the account is created), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the admin's own language. |
-| Security | Change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
+| Security | Passkeys, the authenticator app, change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). Each is a row to its page; an unconfigured Telegram or Cloudflare row says **Set up**, as the dashboard's band does. |
 | Notifications | One toggle per event type, grouped by module ([events](../events.md)). |

@@ -70,7 +70,20 @@
 .row { position: relative; display: grid; gap: 16px; align-items: center; padding: 6px 16px; }
 .row .caret { position: absolute; left: 4px; top: 6px; color: var(--text); visibility: hidden; }
 .pc-cur .caret { visibility: visible; }
-.row.sess { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+.row.sess, .row.pk { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
+/* Removing a passkey asks for the password in place: the row's button opens a small form beside it and closes it again */
+.pw-confirm { justify-self: end; }
+.pw-confirm > summary { list-style: none; }
+.pw-confirm > summary::-webkit-details-marker { display: none; }
+.pw-confirm[open] { grid-column: 1 / -1; justify-self: stretch; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pw-confirm[open] > summary { order: 1; }
+.pw-confirm .if-open, .pw-confirm[open] .if-closed { display: none; }
+.pw-confirm[open] .if-open { display: inline; }
+.pw-confirm form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pw-confirm form .lbl { margin: 0; }
+.pw-confirm form .pc-inp { width: 220px; }
+.code-inp { font-variant-numeric: tabular-nums; letter-spacing: 0.2em; }
+.totp-secret { word-break: break-all; color: var(--text); }
 .row.int { grid-template-columns: 160px minmax(0, 1fr); text-decoration: none; color: inherit; }
 .int-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
 .row.chat { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; margin-top: 8px; }
@@ -295,7 +308,9 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; height: 44px; }
   .form { max-width: none; }
-  .row.sess, .row.host, .row.bk { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .row.sess, .row.pk, .row.host, .row.bk { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .pw-confirm { justify-self: start; }
+  .pw-confirm form .pc-inp { width: 100%; }
   .row .actions { justify-content: flex-start; }
   .titleblock .actions { width: 100%; flex-direction: row; flex-wrap: wrap; }
   .titleblock .actions > * { flex: 1 1 auto; }

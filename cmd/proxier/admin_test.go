@@ -116,3 +116,28 @@ func TestResetPasswordEndsSessions(t *testing.T) {
 		t.Errorf("output %q", out.String())
 	}
 }
+
+func TestResetSecondFactorTurnsTheAppOffAndEndsSessions(t *testing.T) {
+	a := newAuth(t)
+	var out bytes.Buffer
+	if err := resetSecondFactor(t.Context(), a, &out); !errors.Is(err, auth.ErrNoAdmin) || !strings.Contains(out.String(), "use create-admin") {
+		t.Fatalf("without an admin: %v %q", err, out.String())
+	}
+	if err := a.CreateAdmin(t.Context(), "admin", "long enough password"); err != nil {
+		t.Fatal(err)
+	}
+	res, err := a.SignIn(t.Context(), "admin", "long enough password", "1.1.1.1", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := resetSecondFactor(t.Context(), a, &out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := a.Authenticate(t.Context(), res.Session.Token, "1.1.1.1"); !errors.Is(err, auth.ErrNoSession) {
+		t.Errorf("session survived: %v", err)
+	}
+	if !strings.Contains(out.String(), "Authenticator app was off, 0 passkey(s) removed, 1 session(s) ended.") {
+		t.Errorf("output %q", out.String())
+	}
+}

@@ -179,9 +179,11 @@ var CodeKeys = KeyGroup{Where: "keys.code", Keys: []Key{
 type SignInView struct {
 	Username  string
 	Next      string // already safe
-	Error     string // "" | "wrong" | "locked"
+	Error     string // "" | "wrong" | "locked" | "code_expired"; the code step: "" | "code"
 	LockedMin int
 	Ended     string // "" | "idle" | "absolute"
+	Passkeys  bool   // a passkey exists: offer it
+	Pending   string // the code step: the sign-in waiting for its code
 }
 
 type csrfKey struct{}

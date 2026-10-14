@@ -69,6 +69,23 @@ func resetPassword(ctx context.Context, a *auth.Service, p Prompter, out io.Writ
 	return nil
 }
 
+// resetSecondFactor needs no terminal: it asks nothing.
+func resetSecondFactor(ctx context.Context, a *auth.Service, out io.Writer) error {
+	r, err := a.ResetSecondFactor(ctx)
+	if errors.Is(err, auth.ErrNoAdmin) {
+		sayln(out, "There is no admin yet; use create-admin.")
+	}
+	if err != nil {
+		return err
+	}
+	app := "was off"
+	if r.TOTP {
+		app = "turned off"
+	}
+	sayf(out, "Authenticator app %s, %d passkey(s) removed, %d session(s) ended. Sign in with the password.\n", app, r.Passkeys, r.Sessions)
+	return nil
+}
+
 // askPassword asks twice and again after a refusal, up to maxRounds.
 func askPassword(p Prompter, out io.Writer) (string, error) {
 	for range maxRounds {

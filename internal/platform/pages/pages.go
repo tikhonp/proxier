@@ -85,6 +85,9 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	// /login: the page itself must answer HEAD, or that is a redirect loop
 	r.Open.HEAD("/login", h.loginPage)
 	r.Open.POST("/login", h.login)
+	r.Open.POST("/login/code", h.loginCode)
+	r.Open.POST("/login/passkey/options", h.loginPasskeyOptions)
+	r.Open.POST("/login/passkey", h.loginPasskey)
 	r.Admin.POST("/logout", h.logout)
 
 	r.Admin.GET("/", h.dashboard)
@@ -127,6 +130,12 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	r.Admin.POST("/settings/general/language", h.setLanguage)
 	r.Admin.GET("/settings/security", h.securityPage)
 	r.Admin.POST("/settings/security/password", h.changePassword)
+	r.Admin.POST("/settings/security/totp/setup", h.totpSetup)
+	r.Admin.POST("/settings/security/totp/enable", h.totpEnable)
+	r.Admin.POST("/settings/security/totp/disable", h.totpDisable)
+	r.Admin.POST("/settings/security/passkeys/options", h.passkeyOptions)
+	r.Admin.POST("/settings/security/passkeys", h.passkeyAdd)
+	r.Admin.POST("/settings/security/passkeys/:id/remove", h.passkeyRemove)
 	r.Admin.POST("/settings/security/lockout", h.saveLockout)
 	r.Admin.POST("/settings/security/sessions/:id/sign-out", h.signOutSession)
 	r.Admin.POST("/settings/security/sessions/sign-out-everywhere", h.signOutEverywhere)

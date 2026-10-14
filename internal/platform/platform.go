@@ -98,6 +98,12 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.I18n = i18n.NewCatalog()
 	a.Auth = auth.New(d, v, a.Events, a.Settings)
 	a.Auth.Log = log
+	if cfg.BaseURL != nil {
+		if err := a.Auth.EnablePasskeys(cfg.BaseURL); err != nil {
+			_ = d.Close()
+			return nil, err
+		}
+	}
 	a.Jobs = jobs.New(d, v, a.Events, a.Settings, log)
 	a.Dispatcher = events.NewDispatcher(d, log)
 	a.Notify = notify.New(d, a.Events, a.I18n, a.Jobs, a.Auth, a.Settings, cfg.BaseURL, log)

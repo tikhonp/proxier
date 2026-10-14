@@ -80,7 +80,7 @@ Time is shown relative ("4 min ago") with the absolute time on hover or tap.
 ## Screens
 
 ### Sign-in
-Username, password, error area (generic message; lockout countdown), language follows the browser. Nothing else. → [sign-in](../processes/platform/sign-in.md)
+Username, password, error area (generic message; lockout countdown), language follows the browser. Once a passkey exists, **Sign in with a passkey** under the password button, and the browser offers passkeys in the username field's autofill; before that the page has no passkey part and loads no passkey script. With the authenticator app on, a right password shows the code step: one numeric field, **Sign in**, **Start over** and the `reset-2fa` hint. → [sign-in](../processes/platform/sign-in.md)
 
 ### Dashboard
 - Banners: home offline or foreign unreachable; notifications not configured or failing; first-run checklist until done (Cloudflare, Telegram, SSH keys, first server, first subscription and link, first router).
@@ -136,7 +136,7 @@ Username, password, error area (generic message; lockout countdown), language fo
 ### System
 - **Jobs**: filterable table. **Job page**: step progress, live log, payload summary, attempts, **Cancel** / **Retry**, link to the subject. → [jobs](../processes/platform/jobs.md)
 - **Activity**: an event stream with filters (module, type, subject, actor, time). Each row reads as a sentence and links to its subject: where the sentence names it ("Created router script Fresh MikroTik"), that name is the link, never a second copy after the sentence. A change is worded by what changed ("Added youtube to routing list Main", not "Changed routing list Main").
-- **Settings**: a section navigation as in [platform](../modules/platform.md#settings). **General** starts with the base URL and the running **Version**, both read-only, and ends with **Language**, the admin's own language (a select and Save), the only place it changes. On a phone the sections are a strip of tabs that scrolls sideways, with the current one brought into view and a fade at an end with more. The notification toggles are a grouped list with each event's description and default; each group (a module, with its counts of events and changed ones) folds, and on a phone they start folded, but the one holding the rule just switched.
+- **Settings**: a section navigation as in [platform](../modules/platform.md#settings). **General** starts with the base URL and the running **Version**, both read-only, and ends with **Language**, the admin's own language (a select and Save), the only place it changes. **Security** starts with the ways in: **Passkeys** (each row a name, "synced" when a password manager or keychain holds it, added, last used, and **Remove…**, which opens the current-password field and **Remove passkey** in place; under the list a name and the current password with **Add passkey**, disabled with a note in a browser without passkeys) and **Authenticator app** (On or Off; **Set up…** asks for the password, then shows the QR code, the key as text and the code field with **Turn on** and **Cancel**; when on, the password and **Turn off**). Then Password, Sessions and Lockout. On a phone the sections are a strip of tabs that scrolls sideways, with the current one brought into view and a fade at an end with more. The notification toggles are a grouped list with each event's description and default; each group (a module, with its counts of events and changed ones) folds, and on a phone they start folded, but the one holding the rule just switched.
 
 ## Content rules
 

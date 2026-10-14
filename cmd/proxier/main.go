@@ -52,6 +52,7 @@ const usage = `Usage:
   proxier manage migrate status           list every module's migrations
   proxier manage create-admin             create the admin (asks for a username and a password)
   proxier manage reset-password           set a new admin password and end every session
+  proxier manage reset-2fa                turn the authenticator app off, remove every passkey, end every session
   proxier healthcheck                     exit 0 when the running server is healthy, 1 otherwise
   proxier version
 `
@@ -188,6 +189,10 @@ func manage(args []string, stdout, stderr io.Writer) int {
 		err = db.MigrateDown(ctx, app.DB, log, m)
 	case len(args) == 1 && (args[0] == "create-admin" || args[0] == "reset-password"):
 		err = adminCommand(ctx, app, args[0], stdout)
+	case len(args) == 1 && args[0] == "reset-2fa":
+		if err = app.Migrate(ctx); err == nil {
+			err = resetSecondFactor(ctx, app.Auth, stdout)
+		}
 	case len(args) == 2 && args[0] == "migrate" && args[1] == "status":
 		var st []db.MigrationStatus
 		if st, err = app.MigrationStatus(ctx); err == nil {

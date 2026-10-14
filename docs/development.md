@@ -16,7 +16,7 @@ How the code is organised and the rules it follows. What Proxier does is in the 
 cmd/proxier/                 serve | manage <command> | version | healthcheck; modules() lists the enabled modules in order
 internal/platform/           the platform, itself module "platform"
   config obs db (+dbtest) vault events settings migrations httpx
-  auth web ui pages i18n sitetest
+  auth (+authtest) web ui pages i18n sitetest
   jobs (+jobstest) notify (+telegram) sshx (+sshxtest) tailnet backup geoip
   agentapi                   what both agent APIs share: the token, request limits, the one-time hand-off form
   module                     Module and the optional interfaces below
@@ -132,13 +132,14 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 ## Tests
 
 - Test names are CamelCase sentences (`TestRolledBackChangeLeavesNoEvent`). No test touches the network or sleeps longer than 100 ms; clocks are fake. SQLite in temp files (`dbtest.Open`).
-- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake`, `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
+- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock), `authtest.Authenticator` (a software passkey: `Create` and `Get` answer the server's options; its fields misbehave on purpose), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake`, `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
 - Test files that use a module harness are external test packages (`package links_test`): the harness imports the module root, which imports every service.
 - xray's XHTTP client has a data race (`splithttp.WaitReadCloser.Set`), so packages that push XHTTP traffic (`servers/proxy`, `provision`, `deploy`) run without `-race` (`XRAY_TESTS` in the Makefile). Everything else uses `StubProxy()` and runs under `-race`. This xray has no `allowInsecure`: tests pin the self-signed certificate.
 - Never assert the absence of a bare word in a page (CSRF tokens are random): use `>Name<`.
 - A wait on real time (a harness's `Drain`, `Settle`, `WaitFor`, a test's own polling loop) takes its limit from `testwait.Deadline(d)`, never `time.Now().Add(d)`: `d` is sized for a laptop, and CI sets `PROXIER_TEST_PATIENCE=10` (and `-timeout=60m` through `GOTESTFLAGS`) because its runner, every package at once under `-race`, is ten times slower or more.
 - Move a harness clock only with `Advance`. The display zone in tests is Moscow.
 - `TestRealChromium` runs only with `PROXIER_TEST_CHROMIUM_URL` (and `PROXIER_TEST_PAGE_HOST=host.docker.internal` when Chromium is a container).
+- `TestPasskeyInRealChromium` (pages) runs only with `PROXIER_TEST_CHROMIUM_URL` too. WebAuthn needs a secure context, so it serves the app on `localhost:18123` (`PROXIER_TEST_PAGE_PORT`); with Chromium in a container, forward that port inside it: `docker exec -d <container> socat TCP4-LISTEN:18123,fork,reuseaddr TCP4:host.docker.internal:18123`. Chromium's `--unsafely-treat-insecure-origin-as-secure` has no effect in `chromedp/headless-shell`.
 
 ## Looking in a real browser
 

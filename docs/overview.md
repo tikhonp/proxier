@@ -67,7 +67,6 @@ flowchart LR
 
 Not built, roughly in order of value. Each needs an extension point or a new flow; nothing built so far stands in the way.
 
-- Two-factor sign-in (TOTP). The sign-in flow has the place for it.
 - More formats: mihomo/Clash YAML (also for the router's mihomo container), sing-box JSON, a browser page with QR codes and app buttons.
 - Replacing a blocked server while keeping its name and credentials, with DNS repointed.
 - Adopting servers built without Proxier.

@@ -2,6 +2,8 @@ package pages
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strconv"
@@ -107,13 +109,25 @@ type securityView struct {
 	LockoutErrs  settings.FieldErrors
 	LockoutVals  map[string]string
 	LockoutSaved bool
+	TOTPSetup    *auth.TOTPSetup
+	TOTPErr      string // i18n key
+	TOTPDone     string
+	PasskeyErr   string // i18n key
+	PasskeyDone  string
 }
 
 func (h *handler) securityPage(c *echo.Context) error {
-	return h.renderSecurity(c, http.StatusOK, securityView{
+	v := securityView{
 		PasswordDone: c.QueryParam("password") == "changed",
 		LockoutSaved: c.QueryParam("saved") == "1",
-	})
+	}
+	if t := c.QueryParam("totp"); t == "on" || t == "off" {
+		v.TOTPDone = t
+	}
+	if p := c.QueryParam("passkey"); p == "added" || p == "removed" {
+		v.PasskeyDone = p
+	}
+	return h.renderSecurity(c, http.StatusOK, v)
 }
 
 func (h *handler) renderSecurity(c *echo.Context, status int, v securityView) error {
@@ -131,11 +145,21 @@ func (h *handler) renderSecurity(c *echo.Context, status int, v securityView) er
 	if err != nil {
 		return err
 	}
+	totpOn, err := h.Auth.TOTPEnabled(ctx)
+	if err != nil {
+		return err
+	}
+	passkeys, err := h.Auth.Passkeys(ctx)
+	if err != nil {
+		return err
+	}
 	s := h.shell(c, i18n.T(ctx, "settings.security"), "/settings")
 	view := securityPageView{
 		Current: q.Session.ID, Sessions: sessions, Ended: ended,
 		PasswordErr: v.PasswordErr, PasswordDone: v.PasswordDone,
 		Section: sec, Values: vals, LockoutErrs: v.LockoutErrs, LockoutSaved: v.LockoutSaved,
+		TOTPOn: totpOn, TOTPSetup: v.TOTPSetup, TOTPErr: v.TOTPErr, TOTPDone: v.TOTPDone,
+		PasskeysOn: h.Auth.PasskeysOn(), Passkeys: passkeys, PasskeyErr: v.PasskeyErr, PasskeyDone: v.PasskeyDone,
 	}
 	return web.Render(c, status, securityPage(s, h.sortedPages(), view))
 }
@@ -206,4 +230,107 @@ func (h *handler) signOutEverywhere(c *echo.Context) error {
 	}
 	web.ClearSessionCookie(c, h.cookieSecure())
 	return web.Redirect(c, "/login")
+}
+
+func (h *handler) totpSetup(c *echo.Context) error {
+	ctx := c.Request().Context()
+	setup, err := h.Auth.BeginTOTP(ctx, web.FromContext(ctx).Session.ID, c.FormValue("password"))
+	switch {
+	case errors.Is(err, auth.ErrWrongCredentials):
+		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPErr: "settings.password.wrong"})
+	case errors.Is(err, auth.ErrTOTPOn):
+		return web.Redirect(c, "/settings/security")
+	case err != nil:
+		return err
+	}
+	return h.renderSecurity(c, http.StatusOK, securityView{TOTPSetup: &setup})
+}
+
+func (h *handler) totpEnable(c *echo.Context) error {
+	ctx := c.Request().Context()
+	session, token := web.FromContext(ctx).Session.ID, c.FormValue("token")
+	err := h.Auth.EnableTOTP(ctx, session, token, c.FormValue("code"))
+	switch {
+	case err == nil:
+		return web.Redirect(c, "/settings/security?totp=on")
+	case errors.Is(err, auth.ErrWrongCode):
+		setup, rerr := h.Auth.ResumeTOTP(ctx, session, token)
+		if rerr != nil {
+			return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPErr: "settings.totp.expired"})
+		}
+		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPSetup: &setup, TOTPErr: "settings.totp.wrong"})
+	case errors.Is(err, auth.ErrSetupExpired), errors.Is(err, auth.ErrSetupInvalid):
+		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPErr: "settings.totp.expired"})
+	case errors.Is(err, auth.ErrTOTPOn):
+		return web.Redirect(c, "/settings/security")
+	}
+	return err
+}
+
+func (h *handler) totpDisable(c *echo.Context) error {
+	err := h.Auth.DisableTOTP(c.Request().Context(), c.FormValue("password"))
+	switch {
+	case err == nil:
+		return web.Redirect(c, "/settings/security?totp=off")
+	case errors.Is(err, auth.ErrWrongCredentials):
+		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPErr: "settings.password.wrong"})
+	case errors.Is(err, auth.ErrTOTPOff):
+		return web.Redirect(c, "/settings/security")
+	}
+	return err
+}
+
+// passkeyOptions starts adding a passkey: the script posts the form here and
+// hands the options to navigator.credentials.create.
+func (h *handler) passkeyOptions(c *echo.Context) error {
+	ctx := c.Request().Context()
+	opts, token, err := h.Auth.BeginPasskey(ctx, web.FromContext(ctx).Session.ID, c.FormValue("name"), c.FormValue("password"))
+	switch {
+	case errors.Is(err, auth.ErrWrongCredentials):
+		return passkeyError(c, http.StatusUnprocessableEntity, "settings.password.wrong")
+	case errors.Is(err, auth.ErrPasskeyName):
+		return passkeyError(c, http.StatusUnprocessableEntity, "settings.passkeys.bad_name")
+	case errors.Is(err, auth.ErrPasskeysOff):
+		return echo.ErrNotFound
+	case err != nil:
+		return err
+	}
+	return c.JSON(http.StatusOK, map[string]any{"token": token, "options": json.RawMessage(opts)})
+}
+
+func (h *handler) passkeyAdd(c *echo.Context) error {
+	ctx := c.Request().Context()
+	a, err := readPasskeyAnswer(c)
+	if err != nil {
+		return passkeyError(c, http.StatusBadRequest, "auth.passkey.rejected")
+	}
+	err = h.Auth.FinishPasskey(ctx, web.FromContext(ctx).Session.ID, a.Token, a.Credential)
+	switch {
+	case errors.Is(err, auth.ErrCeremonyExpired):
+		return passkeyError(c, http.StatusConflict, "auth.passkey.expired")
+	case errors.Is(err, auth.ErrPasskeyRejected):
+		return passkeyError(c, http.StatusUnprocessableEntity, "auth.passkey.rejected")
+	case errors.Is(err, auth.ErrPasskeysOff):
+		return echo.ErrNotFound
+	case err != nil:
+		return err
+	}
+	return c.JSON(http.StatusOK, map[string]string{"redirect": "/settings/security?passkey=added"})
+}
+
+func (h *handler) passkeyRemove(c *echo.Context) error {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		return echo.ErrNotFound
+	}
+	err = h.Auth.RemovePasskey(c.Request().Context(), id, c.FormValue("password"))
+	switch {
+	case err == nil:
+		return web.Redirect(c, "/settings/security?passkey=removed")
+	case errors.Is(err, auth.ErrWrongCredentials):
+		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{PasskeyErr: "settings.password.wrong"})
+	case errors.Is(err, auth.ErrNoPasskey):
+		return h.renderSecurity(c, http.StatusNotFound, securityView{PasskeyErr: "settings.passkeys.gone"})
+	}
+	return err
 }

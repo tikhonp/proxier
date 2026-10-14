@@ -48,7 +48,7 @@ func (s *Service) CreateAdmin(ctx context.Context, username, password string) er
 			return ErrAdminExists
 		}
 		now := s.now()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, ?, ?, ?, ?, ?)`,
+		if _, err := tx.ExecContext(ctx, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, webauthn_user_id) VALUES (1, ?, ?, ?, ?, ?, randomblob(32))`,
 			username, phc, lang, now, now); err != nil {
 			return err
 		}
@@ -83,6 +83,47 @@ func (s *Service) ResetPassword(ctx context.Context, password string) (ended int
 	return ended, err
 }
 
+// SecondFactorReset is what ResetSecondFactor removed and ended.
+type SecondFactorReset struct {
+	TOTP     bool
+	Passkeys int
+	Sessions int
+}
+
+// ResetSecondFactor is the way back in without the phone or the passkeys:
+// from the container shell it turns the authenticator app off, removes every
+// passkey and ends every session. The password stays.
+func (s *Service) ResetSecondFactor(ctx context.Context) (SecondFactorReset, error) {
+	if ok, err := s.AdminExists(ctx); err != nil {
+		return SecondFactorReset{}, err
+	} else if !ok {
+		return SecondFactorReset{}, ErrNoAdmin
+	}
+	var r SecondFactorReset
+	err := s.db.Write(ctx, func(tx *sqlx.Tx) error {
+		res, err := tx.ExecContext(ctx, `DELETE FROM totp`)
+		if err != nil {
+			return err
+		}
+		n, _ := res.RowsAffected()
+		r.TOTP = n > 0
+		if res, err = tx.ExecContext(ctx, `DELETE FROM passkeys`); err != nil {
+			return err
+		}
+		n, _ = res.RowsAffected()
+		r.Passkeys = int(n)
+		if r.Sessions, err = s.endLive(ctx, tx, EndSecondFactorReset, 0); err != nil {
+			return err
+		}
+		if r == (SecondFactorReset{}) {
+			return nil
+		}
+		return s.record(ctx, tx, "auth.second_factor_reset", events.ActorCLI, adminSubject,
+			map[string]any{"via": "cli", "totp": r.TOTP, "passkeys": r.Passkeys, "sessions": r.Sessions})
+	})
+	return r, err
+}
+
 func (s *Service) setPassword(ctx context.Context, tx *sqlx.Tx, phc string) error {
 	_, err := tx.ExecContext(ctx, `UPDATE admin SET password_hash = ?, password_changed_at = ? WHERE id = 1`, phc, s.now())
 	return err
@@ -91,19 +132,8 @@ func (s *Service) setPassword(ctx context.Context, tx *sqlx.Tx, phc string) erro
 // ChangePassword needs the current password and ends every session except
 // the one making the change.
 func (s *Service) ChangePassword(ctx context.Context, current int64, old, new string) error {
-	phc, _, err := s.credentials(ctx)
-	if err != nil {
+	if err := s.checkCurrentPassword(ctx, old); err != nil {
 		return err
-	}
-	if phc == "" {
-		return ErrNoAdmin
-	}
-	ok, err := s.verify(ctx, phc, old)
-	if err != nil {
-		return err
-	}
-	if !ok {
-		return ErrWrongCredentials
 	}
 	if err := checkPassword(new); err != nil {
 		return err
