@@ -12,7 +12,8 @@ Read a flow's document before changing it. When the behaviour changes, the docum
 
 ## Platform
 
-- [Sign-in](./platform/sign-in.md): creating the admin, signing in and out, lockout, sessions, password change.
+- [Sign-in](./platform/sign-in.md): the first member, signing in and out, lockout, sessions, password change, passkeys, the authenticator app.
+- [Members](./platform/members.md): areas and levels, adding a member with a setup link, changing levels, removing.
 - [Jobs](./platform/jobs.md): queueing, running, steps, retries, cancellation, resume after restart.
 - [Notifications](./platform/notifications.md): Telegram setup, rules, delivery.
 

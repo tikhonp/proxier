@@ -1,5 +1,5 @@
-// Package web is the HTTP plumbing of the admin UI: the route groups, the
-// session, CSRF and header middleware, rendering. It depends on auth and
+// Package web is the HTTP plumbing of the UI: the route groups, the session,
+// access, CSRF and header middleware, rendering. It depends on auth and
 // i18n; the views live in ui and the handlers in pages.
 package web
 
@@ -13,6 +13,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -38,11 +39,17 @@ func isPublicPath(p string) bool {
 	return false
 }
 
-// Routes are the groups modules add routes to.
+// Routes are the groups modules add routes to. A module's pages go on the
+// groups of their area (Area), which check the member's grant.
 type Routes struct {
-	Admin  *echo.Group // session required, CSRF on unsafe methods, admin headers
+	// Member is every signed-in member's, whatever their grant: the
+	// dashboard, search, a member's own settings, signing out. Session
+	// required, CSRF on unsafe methods.
+	Member *echo.Group
 	Public *echo.Group // never reads or sets cookies; no-store, noindex; /s/, /r/, /f/ rate-limited per IP
-	Open   *echo.Group // no session needed, admin headers: /login
+	Open   *echo.Group // no session needed: /login, /setup/
+	// group makes a group of signed-in routes with more middleware.
+	group func(m ...echo.MiddlewareFunc) *echo.Group
 	// Shell builds the layout's data (title already translated, current
 	// path) for a page of a module; the platform fills it in before the
 	// modules' routes are declared.
@@ -56,6 +63,7 @@ type Routes struct {
 type Request struct {
 	Member  *auth.Member  // nil when signed out
 	Session *auth.Session // nil when signed out
+	Grant   access.Grant  // none everywhere when signed out
 	Loc     *i18n.Localizer
 	HTMX    bool
 	// usernames names members for MemberName; nil when signed out.

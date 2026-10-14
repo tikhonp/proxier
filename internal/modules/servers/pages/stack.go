@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -27,9 +28,10 @@ func countryName(ctx context.Context, cc string) string {
 }
 
 func (h *handler) registerStack(r web.Routes) {
-	r.Admin.GET("/servers/:id/stack", h.stackTab)
-	r.Admin.GET("/servers/:id/stack/files/:deployment/*", h.stackFile, h.notRetired)
-	r.Admin.GET("/servers/:id/stack/diff/:deployment", h.stackDiff, h.notRetired)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/servers/:id/stack", h.stackTab)
+	srv.Manage.GET("/servers/:id/stack/files/:deployment/*", h.stackFile, h.notRetired)
+	srv.Manage.GET("/servers/:id/stack/diff/:deployment", h.stackDiff, h.notRetired)
 }
 
 type stackFileRow struct {

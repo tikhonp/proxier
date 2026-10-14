@@ -2,6 +2,7 @@ package web
 
 import (
 	"io/fs"
+	"slices"
 
 	"github.com/labstack/echo/v5"
 )
@@ -10,16 +11,19 @@ import (
 // the error handler. Modules add their routes to the returned groups.
 //
 // Echo's automatic per-group 404 routes are off (see httpx.New): one explicit
-// catch-all sends an unknown path through the admin chain, so a signed-out
+// catch-all sends an unknown path through the member chain, so a signed-out
 // visitor learns nothing about which paths exist, except under /s/, /r/, /f/,
 // which never touch cookies.
+//
+// The member chain runs before every area's grant check: a signed-out
+// visitor is sent to sign in, never told a page is forbidden.
 func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 	https := d.BaseURL != nil && d.BaseURL.Scheme == "https"
 	e.HTTPErrorHandler = ErrorHandler(d.Log)
 
 	e.GET("/static/:hash/*", Static(static, staticHash), SecureHeaders(https))
 
-	adminChain := []echo.MiddlewareFunc{
+	memberChain := []echo.MiddlewareFunc{
 		SecureHeaders(https), LimitBody(MaxBody), CrossOrigin(d.BaseURL), Session(d.Auth, https), CSRF(d.Auth), Localize(d.I18n, d.Settings),
 	}
 	openChain := []echo.MiddlewareFunc{
@@ -33,7 +37,7 @@ func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 
 	notFound := func(*echo.Context) error { return echo.ErrNotFound }
 	e.RouteNotFound("/*", func(c *echo.Context) error {
-		chain := adminChain
+		chain := memberChain
 		if isPublicPath(c.Request().URL.Path) {
 			chain = publicChain
 		}
@@ -45,8 +49,11 @@ func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 	})
 
 	return Routes{
-		Admin:  e.Group("", adminChain...),
+		Member: e.Group("", memberChain...),
 		Public: e.Group("", publicChain...),
 		Open:   e.Group("", openChain...),
+		group: func(m ...echo.MiddlewareFunc) *echo.Group {
+			return e.Group("", append(slices.Clip(memberChain), m...)...)
+		},
 	}
 }

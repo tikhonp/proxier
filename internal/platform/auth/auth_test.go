@@ -63,8 +63,8 @@ func newEnvOn(t *testing.T, d *db.DB, v *vault.Vault) *env {
 	return e
 }
 
-// addMember adds a member the way only the database can until members are
-// added in the UI.
+// addMember puts a member who has finished setup, with no access, straight
+// into the database.
 func (e *env) addMember(username string) int64 {
 	e.t.Helper()
 	phc, err := auth.Hash(e.s.Params, goodPassword)
@@ -367,11 +367,11 @@ func TestSetSameLanguageRecordsNothing(t *testing.T) {
 	if err := e.s.SetLanguage(e.ctx, 1, "en"); err != nil {
 		t.Fatal(err)
 	}
-	if e.events("admin.language_changed") != 0 {
+	if e.events("member.language_changed") != 0 {
 		t.Error("same language recorded an event")
 	}
 	_ = e.s.SetLanguage(e.ctx, 1, "ru")
-	if a, _ := e.s.Member(e.ctx, 1); a.Language != "ru" || e.events("admin.language_changed") != 1 {
+	if a, _ := e.s.Member(e.ctx, 1); a.Language != "ru" || e.events("member.language_changed") != 1 {
 		t.Error("language not changed")
 	}
 }

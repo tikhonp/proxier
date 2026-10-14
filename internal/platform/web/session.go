@@ -53,8 +53,12 @@ func resolve(a *auth.Service, secure bool, c *echo.Context) (expired string, err
 		if err != nil {
 			return "", err
 		}
+		g, err := a.Grant(c.Request().Context(), sess.MemberID)
+		if err != nil {
+			return "", err
+		}
 		q := current(c)
-		q.Session, q.Member = &sess, &m
+		q.Session, q.Member, q.Grant = &sess, &m, g
 		ctx := c.Request().Context()
 		q.usernames = sync.OnceValue(func() map[int64]string {
 			names, _ := a.Usernames(ctx) // without names, actors show as stored

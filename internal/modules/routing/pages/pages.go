@@ -20,6 +20,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -55,31 +56,34 @@ type handler struct {
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
+	rt := r.Area(access.Routing)
+	rtAll := rt.At(access.LevelManageAll)
+	settings := r.Area(access.Settings).Manage
 	h := &handler{Deps: d, shell: r.Shell, settingsPages: r.SettingsPages}
-	r.Admin.GET("/routing/services", h.list)
-	r.Admin.GET("/routing/services/add", h.addPage)
-	r.Admin.POST("/routing/services", h.add)
-	r.Admin.GET("/routing/services/new", h.newPage)
-	r.Admin.POST("/routing/services/custom", h.create)
-	r.Admin.GET("/routing/services/:id", h.page)
-	r.Admin.GET("/routing/services/:id/domains", h.domains)
-	r.Admin.GET("/routing/services/:id/edit", h.editPage)
-	r.Admin.POST("/routing/services/:id/edit", h.edit)
-	r.Admin.GET("/routing/services/:id/switch", h.switchPage)
-	r.Admin.POST("/routing/services/:id/switch", h.switchPost)
-	r.Admin.GET("/routing/services/:id/snapshots/:snap", h.diff)
-	r.Admin.GET("/routing/services/:id/remove", h.removePage)
-	r.Admin.POST("/routing/services/:id/remove", h.removePost)
-	r.Admin.POST("/routing/services/:id/refresh", h.refreshPost)
-	r.Admin.GET("/routing/services/:id/source", h.sourceArea)
-	r.Admin.POST("/routing/services/:id/snapshots/:snap/accept", h.acceptPost)
-	r.Admin.POST("/routing/services/:id/snapshots/:snap/dismiss", h.dismissPost)
-	r.Admin.POST("/routing/lists/:id/refresh", h.refreshListPost)
-	r.Admin.GET("/routing/search", h.search)
-	r.Admin.GET("/routing/search/preview", h.preview)
-	r.Admin.POST("/routing/catalog/refresh", h.catalogRefresh)
-	r.Admin.GET("/settings/routing", h.settingsPage)
-	r.Admin.POST("/settings/routing", h.saveSettings)
+	rt.View.GET("/routing/services", h.list)
+	rtAll.GET("/routing/services/add", h.addPage)
+	rtAll.POST("/routing/services", h.add)
+	rt.Manage.GET("/routing/services/new", h.newPage)
+	rt.Manage.POST("/routing/services/custom", h.create)
+	rt.View.GET("/routing/services/:id", h.page)
+	rt.View.GET("/routing/services/:id/domains", h.domains)
+	rt.Manage.GET("/routing/services/:id/edit", h.editPage)
+	rt.Manage.POST("/routing/services/:id/edit", h.edit)
+	rt.Manage.GET("/routing/services/:id/switch", h.switchPage)
+	rt.Manage.POST("/routing/services/:id/switch", h.switchPost)
+	rt.View.GET("/routing/services/:id/snapshots/:snap", h.diff)
+	rt.Manage.GET("/routing/services/:id/remove", h.removePage)
+	rt.Manage.POST("/routing/services/:id/remove", h.removePost)
+	rt.Manage.POST("/routing/services/:id/refresh", h.refreshPost)
+	rt.View.GET("/routing/services/:id/source", h.sourceArea)
+	rt.Manage.POST("/routing/services/:id/snapshots/:snap/accept", h.acceptPost)
+	rt.Manage.POST("/routing/services/:id/snapshots/:snap/dismiss", h.dismissPost)
+	rt.Manage.POST("/routing/lists/:id/refresh", h.refreshListPost)
+	rt.View.GET("/routing/search", h.search)
+	rt.View.GET("/routing/search/preview", h.preview)
+	rtAll.POST("/routing/catalog/refresh", h.catalogRefresh)
+	settings.GET("/settings/routing", h.settingsPage)
+	settings.POST("/settings/routing", h.saveSettings)
 	h.registerLists(r)
 	h.registerShadowrocket(r)
 	h.registerImport(r)

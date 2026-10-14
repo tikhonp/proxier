@@ -21,6 +21,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -106,13 +107,13 @@ func (m *Module) Schedules() []jobs.Schedule {
 
 // Nav adds Scripts to the router scripts group (no go-to key: one / away).
 func (*Module) Nav() []ui.NavItem {
-	return []ui.NavItem{{Group: "routerscripts", Label: "rscripts.nav", Href: pages.ListPath, Order: 10}}
+	return []ui.NavItem{{Group: "routerscripts", Area: access.RouterScripts, Label: "rscripts.nav", Href: pages.ListPath, Order: 10}}
 }
 
 // Search finds scripts that aren't archived by name or slug (with the
 // action Generate for a new router when they have a version), and
 // generations by router name.
-func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	rows, err := m.Scripts.List(ctx, false)
 	if err != nil {
@@ -127,9 +128,9 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if r.Current == 0 {
 			meta = i18n.N(ctx, "rscripts.search.none", int64(r.Generations))
 		}
-		out = append(out, ui.SearchHit{Label: r.Name, Href: pages.ScriptHref(r.ID), Meta: meta})
+		out = append(out, ui.SearchHit{Area: access.RouterScripts, Label: r.Name, Href: pages.ScriptHref(r.ID), Meta: meta})
 		if r.Current > 0 {
-			out = append(out, ui.SearchHit{Label: i18n.T(ctx, "rscripts.search.generate", i18n.Args{"name": r.Name}),
+			out = append(out, ui.SearchHit{Area: access.RouterScripts, Label: i18n.T(ctx, "rscripts.search.generate", i18n.Args{"name": r.Name}),
 				Href: pages.GenerateHref(r.ID), Meta: i18n.T(ctx, "rscripts.search.action")})
 		}
 		if len(out) >= limit {
@@ -141,7 +142,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		return nil, err
 	}
 	for _, g := range gens {
-		out = append(out, ui.SearchHit{Label: g.RouterName, Href: pages.GenerationHref(g.ID),
+		out = append(out, ui.SearchHit{Area: access.RouterScripts, Label: g.RouterName, Href: pages.GenerationHref(g.ID),
 			Meta: i18n.T(ctx, "rscripts.search.generation", i18n.Args{"script": g.Script, "version": g.Version})})
 	}
 	return out, nil

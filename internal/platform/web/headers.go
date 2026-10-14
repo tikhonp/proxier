@@ -20,7 +20,7 @@ func baseHeaders(c *echo.Context, httpsBase bool) {
 	}
 }
 
-// SecureHeaders sets the CSP and the other security headers; admin pages are
+// SecureHeaders sets the CSP and the other security headers; the UI's pages are
 // never cached.
 func SecureHeaders(httpsBase bool) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {

@@ -13,6 +13,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 )
@@ -127,14 +128,14 @@ func TestLinksAreNamedAndSearched(t *testing.T) {
 		t.Fatalf("names: %+v %v", got, err)
 	}
 	ctx = i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(ctx, "mom", 10)
+	hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), "mom", 10)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Mom — iPhone" || hits[0].Meta != "link · Family · disabled" || hits[0].Href != "/links/"+ids[0] {
 		t.Errorf("search: %+v %v", hits, err)
 	}
-	if hits, _ := h.Mod.Search(ctx, "old phone", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "old phone", 10); len(hits) != 0 {
 		t.Errorf("a deleted link was found: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, "fam", 10); len(hits) != 1 || hits[0].Label != "Family" {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "fam", 10); len(hits) != 1 || hits[0].Label != "Family" {
 		t.Errorf("a subscription: %+v", hits)
 	}
 	// Activity names the link; the token is nowhere in it
@@ -160,14 +161,14 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 		t.Errorf("another type: %+v", got)
 	}
 	ctx = i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(ctx, "fam", 5)
+	hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), "fam", 5)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Family" || hits[0].Href != "/subscriptions/1" || hits[0].Meta != "subscription · 2 servers" {
 		t.Errorf("by name: %+v %v", hits, err)
 	}
-	if hits, _ := h.Mod.Search(ctx, "друз", 5); len(hits) != 1 || hits[0].Label != "Friends" {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "друз", 5); len(hits) != 1 || hits[0].Label != "Friends" {
 		t.Errorf("by title: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, "zzz", 5); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 5); len(hits) != 0 {
 		t.Errorf("nothing: %+v", hits)
 	}
 	// Activity names the subject

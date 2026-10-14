@@ -18,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -27,14 +28,15 @@ const discoverPath = "/routing/discover"
 func runHref(id int64) string { return discoverPath + "/" + i64(id) }
 
 func (h *handler) registerDiscover(r web.Routes) {
-	r.Admin.GET(discoverPath, h.discoverForm)
-	r.Admin.POST(discoverPath, h.discoverStart)
-	r.Admin.GET(discoverPath+"/:id", h.runPage)
-	r.Admin.GET(discoverPath+"/:id/status", h.runStatus)
-	r.Admin.GET(discoverPath+"/:id/screenshots/:file", h.runScreenshot)
-	r.Admin.POST(discoverPath+"/:id/create", h.runCreate)
-	r.Admin.POST(discoverPath+"/:id/add", h.runAdd)
-	r.Admin.POST(discoverPath+"/:id/again", h.runAgain)
+	rt := r.Area(access.Routing)
+	rt.Manage.GET(discoverPath, h.discoverForm)
+	rt.Manage.POST(discoverPath, h.discoverStart)
+	rt.View.GET(discoverPath+"/:id", h.runPage)
+	rt.View.GET(discoverPath+"/:id/status", h.runStatus)
+	rt.View.GET(discoverPath+"/:id/screenshots/:file", h.runScreenshot)
+	rt.Manage.POST(discoverPath+"/:id/create", h.runCreate)
+	rt.Manage.POST(discoverPath+"/:id/add", h.runAdd)
+	rt.Manage.POST(discoverPath+"/:id/again", h.runAgain)
 }
 
 // viaOption is a way to visit on the form and in Visit again through….

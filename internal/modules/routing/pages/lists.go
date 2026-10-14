@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -20,22 +21,23 @@ func listHref(id int64) string { return listsPath + "/" + i64(id) }
 
 // registerLists adds the routing lists' routes.
 func (h *handler) registerLists(r web.Routes) {
-	r.Admin.GET(listsPath, h.lists)
-	r.Admin.GET(listsPath+"/new", h.newListPage)
-	r.Admin.POST(listsPath, h.createList)
-	r.Admin.GET(listsPath+"/:id", h.listPage)
-	r.Admin.GET(listsPath+"/:id/edit", h.editListPage)
-	r.Admin.POST(listsPath+"/:id/edit", h.editList)
-	r.Admin.POST(listsPath+"/:id/default", h.makeDefault)
-	r.Admin.GET(listsPath+"/:id/add", h.addToListPage)
-	r.Admin.POST(listsPath+"/:id/services", h.addToList)
-	r.Admin.POST(listsPath+"/:id/services/order", h.orderList)
-	r.Admin.POST(listsPath+"/:id/services/:service/remove", h.removeFromList)
-	r.Admin.POST(listsPath+"/:id/services/:service/move", h.moveInList)
-	r.Admin.GET(listsPath+"/:id/delete", h.deleteListPage)
-	r.Admin.POST(listsPath+"/:id/delete", h.deleteList)
-	r.Admin.GET(listPath+"/:id/lists", h.serviceListsPage)
-	r.Admin.POST(listPath+"/:id/lists", h.serviceLists)
+	rt := r.Area(access.Routing)
+	rt.View.GET(listsPath, h.lists)
+	rt.Manage.GET(listsPath+"/new", h.newListPage)
+	rt.Manage.POST(listsPath, h.createList)
+	rt.View.GET(listsPath+"/:id", h.listPage)
+	rt.Manage.GET(listsPath+"/:id/edit", h.editListPage)
+	rt.Manage.POST(listsPath+"/:id/edit", h.editList)
+	rt.Manage.POST(listsPath+"/:id/default", h.makeDefault)
+	rt.Manage.GET(listsPath+"/:id/add", h.addToListPage)
+	rt.Manage.POST(listsPath+"/:id/services", h.addToList)
+	rt.Manage.POST(listsPath+"/:id/services/order", h.orderList)
+	rt.Manage.POST(listsPath+"/:id/services/:service/remove", h.removeFromList)
+	rt.Manage.POST(listsPath+"/:id/services/:service/move", h.moveInList)
+	rt.Manage.GET(listsPath+"/:id/delete", h.deleteListPage)
+	rt.Manage.POST(listsPath+"/:id/delete", h.deleteList)
+	rt.Manage.GET(listPath+"/:id/lists", h.serviceListsPage)
+	rt.Manage.POST(listPath+"/:id/lists", h.serviceLists)
 }
 
 // loadList reads the list of the :id parameter; 404 when there is none.

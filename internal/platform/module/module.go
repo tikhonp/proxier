@@ -18,6 +18,7 @@ import (
 	"log/slog"
 	"regexp"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
@@ -124,8 +125,10 @@ type IntegrationDeclarer interface {
 }
 
 // Searcher is a module whose things appear in the search pop-up's "Go to".
+// g is the searching member's grant; a hit names its area, and only those
+// of areas g sees are shown.
 type Searcher interface {
-	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)
+	Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error)
 }
 
 // JobDeclarer is a module with job types and schedules (docs/processes/platform/jobs.md).

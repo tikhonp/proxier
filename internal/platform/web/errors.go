@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"log/slog"
 	"net/http"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-// ErrorHandler answers errors with a page (403, 404, 500) in the admin
+// ErrorHandler answers errors with a page (403, 404, 500) in the signed-in
 // space and with plain text on public routes, where nothing may be revealed.
 func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 	return func(c *echo.Context, err error) {
@@ -31,7 +32,15 @@ func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 			_ = c.String(code, http.StatusText(code)+"\n")
 			return
 		}
-		if rerr := Render(c, code, ui.ErrorPage(code)); rerr != nil {
+		page := ui.ErrorPage(code)
+		var fe *ForbiddenError
+		if errors.As(err, &fe) {
+			page = ui.ForbiddenPage(fe.Area)
+			if c.Request().Header.Get("HX-Request") == "true" {
+				page = ui.ForbiddenNotice(fe.Area)
+			}
+		}
+		if rerr := Render(c, code, page); rerr != nil {
 			_ = c.String(code, http.StatusText(code)+"\n")
 		}
 	}

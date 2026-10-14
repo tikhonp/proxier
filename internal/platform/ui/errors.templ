@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
@@ -27,4 +28,25 @@ func errKey(code int) string {
 		return fmt.Sprintf("err.%d", code)
 	}
 	return "err.500"
+}
+
+// ForbiddenPage is the 403 of a member whose access doesn't reach a page:
+// it names the area, so they know whom to ask and what for.
+templ ForbiddenPage(area access.Area) {
+	@page(i18n.T(ctx, "err.403"), i18n.From(ctx).Lang) {
+		<div class="signin-bar">
+			<a href="/" class="hdr-logo pc-seg"><span class="logo-mark" aria-hidden="true"></span>proxier</a>
+		</div>
+		<main class="errpage" data-area={ string(area) }>
+			<h1>{ i18n.T(ctx, "err.403") }</h1>
+			<p class="subtle">{ i18n.T(ctx, "err.403.area", i18n.Args{"area": i18n.T(ctx, "access.area."+string(area))}) }</p>
+			<p><a href="/">{ i18n.T(ctx, "err.back") }</a></p>
+		</main>
+	}
+}
+
+// ForbiddenNotice is the same refusal for htmx, which swaps no 4xx: the key
+// line shows its text.
+templ ForbiddenNotice(area access.Area) {
+	<p class="forbidden" role="alert" data-area={ string(area) }>{ i18n.T(ctx, "err.403.area_short", i18n.Args{"area": i18n.T(ctx, "access.area."+string(area))}) }</p>
 }

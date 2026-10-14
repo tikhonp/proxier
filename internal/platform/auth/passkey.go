@@ -87,14 +87,14 @@ func (u webauthnUser) WebAuthnDisplayName() string                { return u.nam
 func (u webauthnUser) WebAuthnCredentials() []webauthn.Credential { return u.creds }
 
 // webauthnUser loads the member whose column col equals key, with their
-// passkeys, or ErrNoMember.
+// passkeys, or ErrNoMember (for a removed member too).
 func (s *Service) webauthnUser(ctx context.Context, col string, key any) (webauthnUser, error) {
 	var a struct {
 		Member   int64  `db:"id"`
 		Username string `db:"username"`
 		ID       []byte `db:"webauthn_user_id"`
 	}
-	err := sqlx.GetContext(ctx, s.db.R, &a, `SELECT id, username, webauthn_user_id FROM members WHERE `+col+` = ?`, key)
+	err := sqlx.GetContext(ctx, s.db.R, &a, `SELECT id, username, webauthn_user_id FROM members WHERE `+col+` = ? AND removed_at IS NULL`, key)
 	if errors.Is(err, sql.ErrNoRows) {
 		return webauthnUser{}, ErrNoMember
 	}

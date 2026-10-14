@@ -31,6 +31,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
 	"github.com/tikhonp/proxier/internal/modules/servers/validate"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -186,7 +187,7 @@ func (*Module) SettingsSections() []settings.Section {
 
 // SettingsPages: Settings → Servers (Cloudflare lives under Integrations).
 func (*Module) SettingsPages() []ui.SettingsPage {
-	return []ui.SettingsPage{{Slug: "servers", Title: "settings.servers", Order: 35}}
+	return []ui.SettingsPage{{Slug: "servers", Area: access.Settings, Title: "settings.servers", Order: 35}}
 }
 
 // Integrations adds the Cloudflare row to Settings → Integrations.
@@ -230,15 +231,20 @@ func (m *Module) Routes(r web.Routes) {
 // Nav adds the module's entries.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
-		{Group: "servers", Label: "servers.nav", Href: "/servers", GoKey: "s", Order: 10},
-		{Group: "servers", Label: "templates.nav", Href: "/templates", GoKey: "t", Order: 20},
+		{Group: "servers", Area: access.Servers, Label: "servers.nav", Href: "/servers", GoKey: "s", Order: 10},
+		{Group: "servers", Area: access.Servers, Level: access.LevelManage, Label: "templates.nav", Href: "/templates", GoKey: "t", Order: 20},
 	}
 }
 
 // Search finds templates by name or slug, and servers by name, IP, hostname or
-// their country's name in English or Russian.
-func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+// their country's name in English or Russian. A member at servers: view
+// finds active servers by name or country only, leading to the list: the
+// rest is for who manages servers.
+func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
+	if !g.Can(access.Servers, access.LevelManage) {
+		return m.searchBrief(ctx, q, limit)
+	}
 	var out []ui.SearchHit
 	tpls, err := m.Templates.List(ctx, true)
 	if err != nil {
@@ -252,7 +258,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if t.Archived {
 			meta += " · " + i18n.T(ctx, "templates.archived")
 		}
-		out = append(out, ui.SearchHit{Label: t.Name + " · " + t.Slug, Meta: meta, Href: "/templates/" + strconv.FormatInt(t.ID, 10)})
+		out = append(out, ui.SearchHit{Area: access.Servers, Label: t.Name + " · " + t.Slug, Meta: meta, Href: "/templates/" + strconv.FormatInt(t.ID, 10)})
 		if len(out) == limit {
 			return out, nil
 		}
@@ -271,9 +277,31 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if sv.State != "active" {
 			meta += " · " + i18n.T(ctx, "servers.state."+sv.State)
 		}
-		out = append(out, ui.SearchHit{Label: country.Flag(sv.Country) + " " + sv.Name + " · " + sv.IP, Meta: meta, Href: "/servers/" + strconv.FormatInt(sv.ID, 10)})
+		out = append(out, ui.SearchHit{Area: access.Servers, Label: country.Flag(sv.Country) + " " + sv.Name + " · " + sv.IP, Meta: meta, Href: "/servers/" + strconv.FormatInt(sv.ID, 10)})
 		if len(out) == limit {
 			return out, nil
+		}
+	}
+	return out, nil
+}
+
+func (m *Module) searchBrief(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+	all, err := store.ListServers(ctx, m.deps.DB.R)
+	if err != nil {
+		return nil, err
+	}
+	var out []ui.SearchHit
+	for _, sv := range all {
+		if sv.State != "active" || sv.Retiring() {
+			continue
+		}
+		if q != "" && !strings.Contains(strings.ToLower(sv.Name), q) &&
+			!strings.Contains(strings.ToLower(country.Name(sv.Country, "en")), q) && !strings.Contains(strings.ToLower(country.Name(sv.Country, "ru")), q) {
+			continue
+		}
+		out = append(out, ui.SearchHit{Area: access.Servers, Label: country.Flag(sv.Country) + " " + sv.Name, Meta: i18n.T(ctx, "servers.search"), Href: "/servers"})
+		if len(out) == limit {
+			break
 		}
 	}
 	return out, nil

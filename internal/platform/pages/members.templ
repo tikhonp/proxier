@@ -1,0 +1,299 @@
+package pages
+
+import (
+	"context"
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/access"
+	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// accessLabel names a grant by its preset, or Custom.
+func accessLabel(ctx context.Context, g access.Grant) string {
+	if p := access.PresetOf(g); p != "" {
+		return i18n.T(ctx, "access.preset."+string(p))
+	}
+	return i18n.T(ctx, "access.preset.custom")
+}
+
+// presetData is a preset's levels for the access form's buttons, as
+// data-preset reads them: "servers=manage,…".
+func presetData(p access.Preset) string { return p.Grant().String() }
+
+// membersPage lists the members in, then the removed ones, whom history
+// still names.
+templ membersPage(s ui.Shell, pages []ui.SettingsPage, in, removed []memberRow, justRemoved string) {
+	@ui.SettingsLayout(s, pages, "members") {
+		<div class="set-head">
+			<h2>{ i18n.T(ctx, "settings.members") }</h2>
+			<p>{ i18n.T(ctx, "members.note") }</p>
+		</div>
+		<div class="form">
+			if justRemoved != "" {
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "members.removed_done", i18n.Args{"name": justRemoved}) }
+				}
+			}
+			<div>
+				@ui.ActionButton(ui.Action{ID: "members.new", Label: "members.new", Method: "GET", Href: "/settings/members/new", Kind: ui.Primary, Key: "n"})
+			</div>
+		</div>
+		<div class="tbl">
+			<div class="colhead mem" aria-hidden="true">
+				<span>{ i18n.T(ctx, "members.col.username") }</span>
+				<span>{ i18n.T(ctx, "members.col.access") }</span>
+				<span>{ i18n.T(ctx, "members.col.state") }</span>
+				<span>{ i18n.T(ctx, "members.col.added") }</span>
+			</div>
+			for _, m := range in {
+				<div class="row mem pc-row" data-row={ "m-" + strconv.FormatInt(m.ID, 10) } data-href={ memberHref(m.ID) }>
+					<span class="caret" aria-hidden="true">›</span>
+					<span>
+						<a href={ templ.SafeURL(memberHref(m.ID)) } class="bold" title={ m.Username }>{ m.Username }</a>
+						if m.Me {
+							<span class="subtle"> · { i18n.T(ctx, "members.you") }</span>
+						}
+					</span>
+					<span title={ m.Grant.String() }>{ accessLabel(ctx, m.Grant) }</span>
+					@memberState(m.RosterEntry)
+					<span class="subtle">
+						@ui.Time(m.CreatedAt.Time)
+					</span>
+				</div>
+			}
+		</div>
+		if len(removed) > 0 {
+			<div class="pc-title"><h2>{ i18n.T(ctx, "members.removed") }</h2></div>
+			<div class="tbl">
+				for _, m := range removed {
+					<div class="row mem pc-row subtle" data-row={ "m-" + strconv.FormatInt(m.ID, 10) } data-href={ memberHref(m.ID) }>
+						<span class="caret" aria-hidden="true">›</span>
+						<a href={ templ.SafeURL(memberHref(m.ID)) } title={ m.Username }>{ m.Username }</a>
+						<span>—</span>
+						@memberState(m.RosterEntry)
+						<span>
+							@ui.Time(m.CreatedAt.Time)
+						</span>
+					</div>
+				}
+			</div>
+		}
+	}
+}
+
+// memberState is In, Waiting for setup (until when), or Removed.
+templ memberState(m auth.RosterEntry) {
+	<span class="col">
+		switch {
+			case m.Removed():
+				@ui.Status("gone", i18n.T(ctx, "members.state.removed"))
+				<span class="sm subtle">
+					@ui.Time(m.RemovedAt.Time)
+				</span>
+			case !m.SetUp():
+				@ui.Status("running", i18n.T(ctx, "members.state.waiting"))
+				if !m.SetupExpires.IsZero() {
+					<span class="sm subtle">
+						{ i18n.T(ctx, "members.link_until") + " " }
+						@ui.Time(m.SetupExpires.Time)
+					</span>
+				}
+			default:
+				@ui.Status("ok", i18n.T(ctx, "members.state.in"))
+		}
+	</span>
+}
+
+templ memberNewPage(s ui.Shell, pages []ui.SettingsPage, v memberNewView) {
+	@ui.SettingsLayout(s, pages, "members") {
+		<div class="set-head">
+			<nav class="crumbs" aria-label="Breadcrumb"><a href="/settings/members">{ i18n.T(ctx, "settings.members") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "members.new") }</span></nav>
+			<h2>{ i18n.T(ctx, "members.new") }</h2>
+			<p>{ i18n.T(ctx, "members.new.note") }</p>
+		</div>
+		<form method="post" action="/settings/members" class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			if v.Err != "" {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, v.Err) }
+				}
+			}
+			<div class="field">
+				<label for="m-username">{ i18n.T(ctx, "auth.username") }</label>
+				<input id="m-username" name="username" class="pc-inp" value={ v.Username } maxlength="64" autocomplete="off" autocapitalize="none" spellcheck="false" required autofocus aria-invalid?={ v.Err == "members.err.taken" || v.Err == "members.err.username" }/>
+				<div class="help">{ i18n.T(ctx, "members.username.help") }</div>
+			</div>
+			@accessFields(v.Access)
+			<div class="field">
+				<label for="m-pw">{ i18n.T(ctx, "settings.password.current") }</label>
+				<input id="m-pw" name="password" type="password" class="pc-inp" autocomplete="current-password" required aria-invalid?={ v.Err == "members.err.password" }/>
+				<div class="help">{ i18n.T(ctx, "members.password.help") }</div>
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "members.add") }</button>
+				<a href="/settings/members" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			</div>
+		</form>
+	}
+}
+
+// accessFields is the grid of levels: a select per area, the presets that
+// fill it, and no option above the editor's own level unless the member
+// already has it.
+templ accessFields(f accessForm) {
+	<fieldset class="access" disabled?={ f.Disabled }>
+		<legend class="lbl">{ i18n.T(ctx, "members.access") }</legend>
+		if !f.Disabled {
+			<div class="presets">
+				for _, p := range access.Presets() {
+					<button type="button" class="pc-btn pc-sm" data-preset={ presetData(p) } disabled?={ len(access.Overreach(f.Mine, f.From, p.Grant())) > 0 }>{ i18n.T(ctx, "access.preset."+string(p)) }</button>
+				}
+			</div>
+		}
+		for _, a := range access.Areas() {
+			<div class="field access-row">
+				<label for={ "lv-" + string(a) }>{ i18n.T(ctx, "access.area."+string(a)) }</label>
+				<select id={ "lv-" + string(a) } name={ "level." + string(a) } class="pc-inp" aria-invalid?={ f.Errs[a] }>
+					for _, l := range a.Levels() {
+						<option
+							value={ string(l) }
+							selected?={ f.Grant.Level(a) == l }
+							disabled?={ len(access.Overreach(f.Mine, f.From, f.From.With(a, l))) > 0 }
+						>{ i18n.T(ctx, "access.level."+string(l)) }</option>
+					}
+				</select>
+				<div class="help">{ i18n.T(ctx, "members.area."+string(a)) }</div>
+			</div>
+		}
+	</fieldset>
+}
+
+templ memberPage(s ui.Shell, pages []ui.SettingsPage, v memberView) {
+	@ui.SettingsLayout(s, pages, "members") {
+		<div class="set-head">
+			<nav class="crumbs" aria-label="Breadcrumb"><a href="/settings/members">{ i18n.T(ctx, "settings.members") }</a><span aria-hidden="true">/</span><span>{ v.M.Username }</span></nav>
+			<div class="jobtitle">
+				<h2>{ v.M.Username }</h2>
+				@memberState(v.M)
+			</div>
+			<p>
+				{ i18n.T(ctx, "members.added_by", i18n.Args{"by": v.CreatedBy}) + " " }
+				@ui.Time(v.M.CreatedAt.Time)
+			</p>
+		</div>
+		if v.Err != "" {
+			<div class="form">
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, v.Err) }
+				}
+			</div>
+		}
+		if !v.M.Removed() && !v.M.SetUp() {
+			@setupSection(v)
+		}
+		<section class="set-section" aria-labelledby="acc-h">
+			<div class="pc-title"><h2 id="acc-h">{ i18n.T(ctx, "members.access") }</h2></div>
+			<form method="post" action={ templ.SafeURL(memberHref(v.M.ID) + "/access") } class="form">
+				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+				if v.Done == "access" {
+					@ui.Alert("pine", "status") {
+						{ i18n.T(ctx, "ui.saved") }
+					}
+				}
+				switch {
+					case v.M.Removed():
+						<p class="help">{ i18n.T(ctx, "members.access.removed") }</p>
+					case v.Me:
+						<p class="help">{ i18n.T(ctx, "members.access.own") }</p>
+				}
+				@accessFields(v.Access)
+				if !v.Access.Disabled {
+					<div class="form-actions">
+						<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
+					</div>
+				}
+			</form>
+		</section>
+		if !v.M.Removed() {
+			<section class="set-section" aria-labelledby="rm-h">
+				<div class="pc-title"><h2 id="rm-h">{ i18n.T(ctx, "members.remove") }</h2></div>
+				<div class="form">
+					<p class="help">{ i18n.T(ctx, "members.remove.note") }</p>
+					<div>
+						@ui.ActionButton(ui.Action{
+							ID: "members.remove", Label: "members.remove", Method: "POST", Href: memberHref(v.M.ID) + "/remove", Kind: ui.Danger,
+							Confirm: &ui.Confirm{
+								Strength: 2,
+								Title:    i18n.T(ctx, "members.remove.title", i18n.Args{"name": v.M.Username}),
+								Body:     i18n.T(ctx, "members.remove.body"),
+								Consequences: []string{
+									i18n.T(ctx, "members.remove.sessions"),
+									i18n.T(ctx, "members.remove.ways"),
+									i18n.T(ctx, "members.remove.history"),
+								},
+							},
+						})
+					</div>
+				</div>
+			</section>
+		}
+	}
+}
+
+// setupSection is the link a member who hasn't set up yet chooses their
+// password at: to copy while it works, and a new one when it ran out.
+templ setupSection(v memberView) {
+	<section class="set-section" aria-labelledby="link-h">
+		<div class="pc-title"><h2 id="link-h">{ i18n.T(ctx, "members.link") }</h2></div>
+		<div class="form">
+			if v.Added {
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "members.added", i18n.Args{"name": v.M.Username}) }
+				}
+			}
+			if v.Done == "link" {
+				@ui.Alert("pine", "status") {
+					{ i18n.T(ctx, "members.link.new_done") }
+				}
+			}
+			if v.SetupURL != "" {
+				<div class="area-body stacked">
+					<div class="urlfield">
+						if v.Added || v.Done == "link" {
+							<code>@ui.URLText(v.SetupURL)</code>
+						} else {
+							<code class="masked">@ui.URLText(maskSetupURL(v.SetupURL))</code>
+						}
+						<span class="url-btns">
+							<button type="button" class="pc-btn pc-sm pc-pri" data-copy={ v.SetupURL } data-action="members.link.copy" data-key="y">{ i18n.T(ctx, "members.link.copy") }</button>
+						</span>
+					</div>
+					<p class="sm subtle">
+						{ i18n.T(ctx, "members.link.note") + " " }
+						@ui.Time(v.Expires.Time)
+					</p>
+				</div>
+			} else {
+				@ui.Alert("gold", "status") {
+					{ i18n.T(ctx, "members.link.ran_out") }
+				}
+			}
+			if v.LinkErr != "" {
+				@ui.Alert("love", "alert") {
+					{ i18n.T(ctx, v.LinkErr) }
+				}
+			}
+			<details class="pw-confirm" open?={ v.LinkErr != "" || v.SetupURL == "" }>
+				<summary class="pc-btn pc-sm"><span class="if-closed">{ i18n.T(ctx, "members.link.new") }</span><span class="if-open">{ i18n.T(ctx, "ui.cancel") }</span></summary>
+				<form method="post" action={ templ.SafeURL(memberHref(v.M.ID) + "/setup-link") }>
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<label class="lbl" for="link-pw">{ i18n.T(ctx, "settings.password.current") }</label>
+					<input id="link-pw" name="password" type="password" class="pc-inp" autocomplete="current-password" required/>
+					<button type="submit" class="pc-btn pc-sm">{ i18n.T(ctx, "members.link.new_confirm") }</button>
+				</form>
+			</details>
+		</div>
+	</section>
+}

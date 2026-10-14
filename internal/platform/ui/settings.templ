@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 )
@@ -16,7 +17,7 @@ templ SettingsLayout(s Shell, pages []SettingsPage, current string) {
 		@TitleBlock(i18n.T(ctx, "nav.settings"))
 		<div class="settings">
 			<nav class="settings-nav" aria-label={ i18n.T(ctx, "ui.settings_sections") }>
-				for _, p := range sortedPages(pages) {
+				for _, p := range visiblePages(s.Grant, pages) {
 					<a
 						href={ templ.SafeURL("/settings/" + p.Slug) }
 						if p.Slug == current {
@@ -38,8 +39,14 @@ templ SettingsLayout(s Shell, pages []SettingsPage, current string) {
 	}
 }
 
-func sortedPages(pages []SettingsPage) []SettingsPage {
-	out := append([]SettingsPage(nil), pages...)
+// visiblePages are the pages the member sees, in order.
+func visiblePages(g access.Grant, pages []SettingsPage) []SettingsPage {
+	var out []SettingsPage
+	for _, p := range pages {
+		if g.Sees(p.Area) {
+			out = append(out, p)
+		}
+	}
 	sort.SliceStable(out, func(i, j int) bool { return out[i].Order < out[j].Order })
 	return out
 }

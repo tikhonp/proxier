@@ -16,6 +16,7 @@ How the code is organised and the rules it follows. What Proxier does is in the 
 cmd/proxier/                 serve | manage <command> | version | healthcheck; modules() lists the enabled modules in order
 internal/platform/           the platform, itself module "platform"
   config obs db (+dbtest) vault events settings migrations httpx
+  access                     areas, levels, grants, presets, scopes: what a member may do (a leaf)
   auth (+authtest) web ui pages i18n sitetest
   jobs (+jobstest) notify (+telegram) sshx (+sshxtest) tailnet backup geoip
   agentapi                   what both agent APIs share: the token, request limits, the one-time hand-off form
@@ -58,14 +59,14 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 | `Initializer` | `Init(d Deps) error` (`Deps`: Cfg, Log, DB, Vault, Events, Settings, I18n, Auth, Jobs, Dispatcher, Notify, SSH, Tailnet) |
 | `Migrated` | `AfterMigrate(ctx) error`, after every migration, on every start |
 | `MessagesDeclarer` | `Messages() i18n.Messages` |
-| `RouteDeclarer` | `Routes(r web.Routes)`: `r.Admin` (session + CSRF), `r.Public` (no cookies), `r.Shell`, `r.SettingsPages` |
-| `NavDeclarer`, `SettingsPageDeclarer`, `IntegrationDeclarer` | sidebar entries, Settings pages, rows on Settings → Integrations |
-| `Searcher` | hits for the `/` and `:` pop-up |
+| `RouteDeclarer` | `Routes(r web.Routes)`: `r.Area(access.X)` gives `.View`, `.Manage` and `.At(level)` (session + CSRF + the grant's level in X), `r.Public` (no cookies), `r.Shell`, `r.SettingsPages`. `r.Member` (any grant) is the platform's, for every member's own pages |
+| `NavDeclarer`, `SettingsPageDeclarer`, `IntegrationDeclarer` | sidebar entries and Settings pages, each with its `Area` (`access.EveryMember` for every member's; a nav entry or dashboard area may add the `Level` its page needs), rows on Settings → Integrations (a Settings page, so `settings: manage`) |
+| `Searcher` | `Search(ctx, grant, q, limit)`: hits for the `/` and `:` pop-up, each with its `Area`; a hit naming none is left out |
 | `JobDeclarer` | `JobTypes()`, `Schedules()` |
 | `SubscriberDeclarer` | `Subscribers() []events.Subscriber` |
 | `SubjectNamer` | names and links for `type:id` subjects in Activity and Jobs |
 | `NotificationRenderer` | the module's own notification texts |
-| `DashboardDeclarer` | dashboard areas, sorted by `Order` |
+| `DashboardDeclarer` | dashboard areas, sorted by `Order`, each with its `Area` (and `Level`) |
 
 ## Rules
 
@@ -88,9 +89,16 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 - Payloads carry names, not ids, for other things (`list: "Main"`), lists as one comma-joined string, times as `db.Time` strings (`""` for none), and never a secret.
 - Every event type needs `event.<type>` messages; a notifying one `notify.<type>` too; every job type `job.<type>` (tests enforce all three).
 
+**Access** ([members](./processes/platform/members.md))
+
+- Every signed-in route is on its area's group: what reads on `View`, what changes on `Manage`, what needs more on `At(level)`. `r.Member` holds only every member's own pages; `TestEverySignedInRouteChecksAnArea` (cmd/proxier) walks every route of the app as a member with no access and fails on any other that answers without 403.
+- A level is parsed at the boundary (`access.ParseArea`, `access.ParseLevel`): forms and rows become an `access.Area` or `access.Level` there and nowhere else.
+- A handler that checks more than its route (Cancel and Retry check the job's area) returns `web.Forbidden(area)`, an error, so it stops there; pages that show more to a higher level ask `web.Can(ctx, area, level)` or `Shell.Grant`.
+- Things have no owners yet: `own` and `view_all` gate routes as levels only.
+
 **Secrets**
 
-- Only through the vault, sealed with an AAD naming where they live, found by `vault.Lookup` (HMAC). AADs: `setting:<key>`, `job:<id>:payload`, `server:<id>:gen:<key>`, `server:<id>:params`, `server:<id>:endpoint:<key>`, `deployment:<id>:…`, `link:<id>:token`, `shadowrocket:<id>:token`, `generation:<id>:secrets`, `fetch_url:<id>:token` (servers' are all in `servers/sealed`).
+- Only through the vault, sealed with an AAD naming where they live, found by `vault.Lookup` (HMAC). AADs: `setting:<key>`, `job:<id>:payload`, `member:<id>:totp` (member 1's is `admin:totp`), `setup_link:<id>:token`, `server:<id>:gen:<key>`, `server:<id>:params`, `server:<id>:endpoint:<key>`, `deployment:<id>:…`, `link:<id>:token`, `shadowrocket:<id>:token`, `generation:<id>:secrets`, `fetch_url:<id>:token` (servers' are all in `servers/sealed`).
 - Tokens are `vault.NewToken()` (256 bits, 43 characters); agent tokens are `pxa_` + one (`agentapi.NewToken`), for both agent APIs; each module looks its own up. A token appears only on its own page (masked, Reveal, Copy, QR), never in an event, notification, log line, job payload, list, search or the dashboard. `httpx.MaskPath` masks `/s/`, `/r/`, `/f/` in logs. Pages that show one are `no-store`.
 - A job that renders registers every generated value and secret parameter with `Logger.Redact` before its first remote call.
 
@@ -113,7 +121,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 
 - `r.Shell` + `ui.Layout`, rendered with `web.Render`. Every button is a `ui.Action` (it shows up in the `:` pop-up; one drawn elsewhere, like Settings in the sidebar, stays there as a `Hidden` action in the header); confirmations through `ui.Confirm`; an action that needs fields is a **page styled as a dialog**; secondary actions in an **Actions** area (no "More ▾" menu).
 - A strict CSP: no inline `style` or `script` (`TestPagesHaveNoInlineScriptOrStyle`); shared classes go into the platform's `app.css`. Never name a row class `app` (the shell's `.app` is 100 vh).
-- htmx 2 doesn't swap 4xx with the platform's config: htmx answers that must re-render are 200 with a notice; plain posts get 409.
+- htmx 2 doesn't swap 4xx with the platform's config: htmx answers that must re-render are 200 with a notice; plain posts get 409. A refusal for the member's grant is the exception: 403 with a `.forbidden` fragment, which `proxier.js` says in the key line.
 - A table is a `.colhead` and its `.row`s inside a `<div class="tbl">` (`TestEveryTableIsInATableBox`). Every column in its `grid-template-columns` has a real minimum (`minmax(120px, 1fr)`, never `minmax(0, …)`, whose columns collide when zoomed in). Cells are one line ending in "…", so give a long value a `title`; a message cell that must wrap gets `.wrap` (`.wrap.clamp` stops it after three lines, its `title` holding the rest). Two-column page layouts stack in the `max-width: 1100px` block at the end of `app.css`; one whose table needs more room beside its panel gets its own earlier block after its rules (`.tgrid` at 1270 px). A layout that changes again on a phone puts its narrower rules before its 760 px block, since the 1100 px block at the end would override them (`TestTemplatePagesHoldUpWhenZoomed`).
 - A row's `›` caret is placed absolutely in the gutter and takes no grid cell, so a row's `grid-template-columns` has one column per cell, never one for the caret (`.row.srv` alone places its caret in a column, `position: static`). A column for the caret shifts every cell into the wrong column (`TestRowGridsHaveACellPerColumn` checks every row with a caret).
 - The page column (`.main`) has no padding: tables, areas, forms and the title block bring their own. Text placed straight in it carries a class that pads it like the rows: `.foot` for a note under a table or area, `.pager`, `.area-body`, or it goes inside a `.form` (`TestPageTextSitsInsideThePadding` checks every direct child of `ui.Layout` and `ui.SettingsLayout`, and of a component of the same package called there). A list in an `.area-body` carries a class that keeps its markers inside the padding too (`padding-left: 36px`, or `list-style: none`; `TestListMarkersSitInsideThePadding`). A block of output under padded controls sits inside their padding and wraps (`pre-wrap`) rather than scrolling sideways when text follows it, since a sideways scrollbar covers the note under it (`TestPreviewSitsInsideThePadding`).
@@ -132,7 +140,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 ## Tests
 
 - Test names are CamelCase sentences (`TestRolledBackChangeLeavesNoEvent`). No test touches the network or sleeps longer than 100 ms; clocks are fake. SQLite in temp files (`dbtest.Open`).
-- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock), `authtest.Authenticator` (a software passkey: `Create` and `Get` answer the server's options; its fields misbehave on purpose), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake`, `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
+- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock; `Join` adds a member with a grant through a setup link and signs them in), `authtest.Authenticator` (a software passkey: `Create` and `Get` answer the server's options; its fields misbehave on purpose), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake`, `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
 - Test files that use a module harness are external test packages (`package links_test`): the harness imports the module root, which imports every service.
 - xray's XHTTP client has a data race (`splithttp.WaitReadCloser.Set`), so packages that push XHTTP traffic (`servers/proxy`, `provision`, `deploy`) run without `-race` (`XRAY_TESTS` in the Makefile). Everything else uses `StubProxy()` and runs under `-race`. This xray has no `allowInsecure`: tests pin the self-signed certificate.
 - Never assert the absence of a bare word in a page (CSRF tokens are random): use `>Name<`.

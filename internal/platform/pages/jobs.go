@@ -14,6 +14,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -440,6 +441,10 @@ func (h *handler) buildJob(ctx context.Context, j jobs.Job) (jobView, error) {
 		v.Note = i18n.T(ctx, "job.cancelling", i18n.Args{"by": byLabel(ctx, j.CancelRequestedBy)})
 		v.CanStop = false
 	}
+	// a member who sees the job but can't change its area gets no buttons
+	if a := jobArea(j.Type); !web.Can(ctx, a, a.ManageLevel()) {
+		v.CanStop, v.CanRetry, v.Retried = false, false, false
+	}
 	v.Live = !isTerminal(j.State)
 	v.LogInfo = i18n.N(ctx, "job.log_info", int64(j.LogLines))
 	return v, nil
@@ -574,9 +579,34 @@ func (h *handler) jobLogText(c *echo.Context) error {
 	return c.Blob(http.StatusOK, "text/plain; charset=utf-8", b.Bytes())
 }
 
+// jobArea is the area a job belongs to, by its type's module.
+func jobArea(typ string) access.Area {
+	module, _, _ := strings.Cut(typ, ".")
+	return access.AreaOfModule(module)
+}
+
+// mayChangeJob refuses Cancel and Retry to a member who sees the job on the
+// Jobs page but can't change its area.
+func (h *handler) mayChangeJob(c *echo.Context, id int64) error {
+	j, err := h.Jobs.Job(c.Request().Context(), id)
+	if errors.Is(err, jobs.ErrNotFound) {
+		return echo.ErrNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if a := jobArea(j.Type); !web.Can(c.Request().Context(), a, a.ManageLevel()) {
+		return web.Forbidden(a)
+	}
+	return nil
+}
+
 func (h *handler) jobCancel(c *echo.Context) error {
 	id, err := jobID(c)
 	if err != nil {
+		return err
+	}
+	if err := h.mayChangeJob(c, id); err != nil {
 		return err
 	}
 	if err := h.Jobs.Cancel(c.Request().Context(), id, web.Actor(c.Request().Context())); err != nil {
@@ -598,10 +628,10 @@ func (h *handler) jobRetry(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	j, err := h.Jobs.Job(ctx, id)
-	if errors.Is(err, jobs.ErrNotFound) {
-		return echo.ErrNotFound
+	if err := h.mayChangeJob(c, id); err != nil {
+		return err
 	}
+	j, err := h.Jobs.Job(ctx, id)
 	if err != nil {
 		return err
 	}

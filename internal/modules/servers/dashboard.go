@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/pages"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/notify"
@@ -98,8 +99,9 @@ func (m *Module) Dashboard(ctx context.Context) ([]ui.DashboardArea, error) {
 	if v.Total == 0 && len(v.Checklist) == 0 {
 		return nil, nil
 	}
+	// its stats and checklist are for who manages servers
 	return []ui.DashboardArea{{
-		Order: 20, Title: i18n.T(ctx, "servers.dash.title"),
+		Area: access.Servers, Level: access.LevelManage, Order: 20, Title: i18n.T(ctx, "servers.dash.title"),
 		Body: pages.DashboardServers(v),
 	}}, nil
 }

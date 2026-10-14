@@ -146,3 +146,34 @@ templ bulkPausePage(s ui.Shell, v bulkPauseView) {
 		</form>
 	}
 }
+
+// serversBriefPage is the list a member at servers: view sees: the active
+// servers, each with its country and health state, and nothing to open.
+templ serversBriefPage(s ui.Shell, rows []briefRow) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "servers.title") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.brief.note") }</p>
+			</div>
+		</div>
+		if len(rows) == 0 {
+			@ui.EmptyState(i18n.T(ctx, "servers.brief.empty"), "")
+		} else {
+			<div class="tbl">
+				<div class="colhead srv-brief" aria-hidden="true">
+					<span>{ i18n.T(ctx, "servers.col.name") }</span>
+					<span>{ i18n.T(ctx, "servers.col.country") }</span>
+					<span>{ i18n.T(ctx, "servers.col.status") }</span>
+				</div>
+				for _, r := range rows {
+					<div class="row srv-brief">
+						<span class="bold" title={ r.Name }>{ r.Flag } { r.Name }</span>
+						<span class="subtle" title={ r.Country }>{ r.Country }</span>
+						@ui.Status(r.Kind, r.Word)
+					</div>
+				}
+			</div>
+		}
+	}
+}

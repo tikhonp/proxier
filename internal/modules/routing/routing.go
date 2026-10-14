@@ -29,6 +29,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -170,7 +171,7 @@ func (m *Module) Schedules() []jobs.Schedule {
 
 // SettingsPages: Settings → Routing.
 func (*Module) SettingsPages() []ui.SettingsPage {
-	return []ui.SettingsPage{{Slug: "routing", Title: "settings.routing", Order: 38}}
+	return []ui.SettingsPage{{Slug: "routing", Area: access.Settings, Title: "settings.routing", Order: 38}}
 }
 
 // Mark forwards to m.Marker as it is at call time.
@@ -200,18 +201,18 @@ func (m *Module) pageDeps() pages.Deps {
 // Nav adds Lists, Services, Search, Discover, Routers (g r) and Shadowrocket.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
-		{Group: "routing", Label: "lists.nav", Href: "/routing/lists", Order: 10},
-		{Group: "routing", Label: "services.nav", Href: "/routing/services", Order: 20},
-		{Group: "routing", Label: "catalog.nav", Href: "/routing/search", Order: 30},
-		{Group: "routing", Label: "discovery.nav", Href: "/routing/discover", Order: 40},
-		{Group: "routing", Label: "routers.nav", Href: "/routing/routers", Order: 50, GoKey: "r"},
-		{Group: "routing", Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60},
+		{Group: "routing", Area: access.Routing, Label: "lists.nav", Href: "/routing/lists", Order: 10},
+		{Group: "routing", Area: access.Routing, Label: "services.nav", Href: "/routing/services", Order: 20},
+		{Group: "routing", Area: access.Routing, Label: "catalog.nav", Href: "/routing/search", Order: 30},
+		{Group: "routing", Area: access.Routing, Label: "discovery.nav", Href: "/routing/discover", Order: 40},
+		{Group: "routing", Area: access.Routing, Label: "routers.nav", Href: "/routing/routers", Order: 50, GoKey: "r"},
+		{Group: "routing", Area: access.Routing, Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60},
 	}
 }
 
 // Search finds routing lists by name, services by tag, selector or name,
 // routers by name or host, and Shadowrocket configs by name.
-func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	var out []ui.SearchHit
 	all, err := m.Lists.All(ctx)
@@ -226,7 +227,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, ui.SearchHit{Label: l.Name, Href: "/routing/lists/" + strconv.FormatInt(l.ID, 10), Meta: i18n.N(ctx, "lists.search", int64(n))})
+		out = append(out, ui.SearchHit{Area: access.Routing, Label: l.Name, Href: "/routing/lists/" + strconv.FormatInt(l.ID, 10), Meta: i18n.N(ctx, "lists.search", int64(n))})
 		if len(out) == limit {
 			return out, nil
 		}
@@ -240,7 +241,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 			!strings.Contains(strings.ToLower(r.Name), q) {
 			continue
 		}
-		out = append(out, ui.SearchHit{
+		out = append(out, ui.SearchHit{Area: access.Routing,
 			Label: r.Tag, Href: "/routing/services/" + strconv.FormatInt(r.ID, 10),
 			Meta: i18n.N(ctx, "services.search", int64(r.Count), i18n.Args{"source": string(r.Source)}),
 		})
@@ -256,7 +257,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if q != "" && !strings.Contains(strings.ToLower(r.Name), q) && !strings.Contains(strings.ToLower(r.Conn.Host), q) {
 			continue
 		}
-		out = append(out, ui.SearchHit{
+		out = append(out, ui.SearchHit{Area: access.Routing,
 			Label: r.Name, Href: "/routing/routers/" + strconv.FormatInt(r.ID, 10),
 			Meta: i18n.T(ctx, "routers.search", i18n.Args{"list": r.List, "status": i18n.T(ctx, "routers.status."+routers.StatusOf(r, false))}),
 		})
@@ -272,7 +273,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if q != "" && !strings.Contains(c.Name, q) {
 			continue
 		}
-		out = append(out, ui.SearchHit{
+		out = append(out, ui.SearchHit{Area: access.Routing,
 			Label: c.Name, Href: "/routing/shadowrocket/" + strconv.FormatInt(c.ID, 10),
 			Meta: i18n.T(ctx, "shadowrocket.search", i18n.Args{"list": c.List}),
 		})

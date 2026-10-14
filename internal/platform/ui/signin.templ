@@ -103,3 +103,59 @@ templ signInBar() {
 		<span class="hdr-logo"><span class="logo-mark" aria-hidden="true"></span>proxier</span>
 	</div>
 }
+
+// Setup is a new member's setup link: they choose their password and are
+// signed in. A browser signed in as someone else is told to sign out first.
+templ Setup(v SetupView) {
+	@page(i18n.T(ctx, "setup.title"), i18n.From(ctx).Lang) {
+		@signInBar()
+		<main class="signin">
+			if v.SignedIn != "" {
+				<form method="post" action="/logout" aria-labelledby="su-h">
+					<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+					<h1 id="su-h">{ i18n.T(ctx, "setup.title") }</h1>
+					<div role="alert" class="alert gold"><span class="st st-look" aria-hidden="true"></span>{ i18n.T(ctx, "setup.signed_in", i18n.Args{"me": v.SignedIn, "name": v.Username}) }</div>
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "auth.sign_out") }</button>
+				</form>
+			} else {
+				<form method="post" action={ templ.SafeURL("/setup/" + v.Token) } aria-labelledby="su-h">
+					<h1 id="su-h">{ i18n.T(ctx, "setup.title") }</h1>
+					<p class="help">{ i18n.T(ctx, "setup.note") }</p>
+					if v.Err != "" {
+						<div role="alert" class="alert love"><span class="st st-broken" aria-hidden="true"></span>{ i18n.T(ctx, v.Err) }</div>
+					}
+					<div>
+						<label for="u" class="lbl">{ i18n.T(ctx, "auth.username") }</label>
+						<input id="u" name="username" class="pc-inp" value={ v.Username } autocomplete="username" readonly/>
+					</div>
+					<div>
+						<label for="p" class="lbl">{ i18n.T(ctx, "settings.password.new") }</label>
+						<input id="p" name="password" class="pc-inp" type="password" autocomplete="new-password" minlength="12" required autofocus/>
+						<p class="help">{ i18n.T(ctx, "settings.password.help") }</p>
+					</div>
+					<div>
+						<label for="a" class="lbl">{ i18n.T(ctx, "settings.password.again") }</label>
+						<input id="a" name="again" class="pc-inp" type="password" autocomplete="new-password" required/>
+					</div>
+					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "setup.submit") }</button>
+				</form>
+			}
+		</main>
+	}
+}
+
+// SetupGone is a setup link that doesn't work: unknown, used, replaced,
+// expired, or of a removed member. One page for all, so a link tells
+// nothing about the others.
+templ SetupGone() {
+	@page(i18n.T(ctx, "setup.title"), i18n.From(ctx).Lang) {
+		@signInBar()
+		<main class="signin">
+			<div class="errpage">
+				<h1>{ i18n.T(ctx, "setup.gone") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "setup.gone.text") }</p>
+				<p><a href="/login">{ i18n.T(ctx, "auth.sign_in") }</a></p>
+			</div>
+		</main>
+	}
+}

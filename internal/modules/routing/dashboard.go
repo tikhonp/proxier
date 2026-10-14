@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/pages"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -16,5 +17,5 @@ func (m *Module) Dashboard(ctx context.Context) ([]ui.DashboardArea, error) {
 	if err != nil || v == nil {
 		return nil, err
 	}
-	return []ui.DashboardArea{{Order: 40, Title: i18n.T(ctx, "routers.dash.title"), Body: pages.DashboardRouting(*v)}}, nil
+	return []ui.DashboardArea{{Area: access.Routing, Order: 40, Title: i18n.T(ctx, "routers.dash.title"), Body: pages.DashboardRouting(*v)}}, nil
 }

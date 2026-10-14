@@ -8,35 +8,36 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 func (h *handler) registerTemplates(r web.Routes) {
-	a := r.Admin
-	a.GET("/templates", h.templatesList)
-	a.GET("/templates/new", h.templateNew)
-	a.POST("/templates", h.templateCreate)
-	a.GET("/templates/import", h.importForm)
-	a.POST("/templates/import", h.importDo)
-	a.GET("/templates/:id", h.templatePage)
-	a.POST("/templates/:id", h.templateUpdate)
-	a.POST("/templates/:id/archive", h.templateArchive)
-	a.POST("/templates/:id/unarchive", h.templateUnarchive)
-	a.POST("/templates/:id/delete", h.templateDelete)
-	a.GET("/templates/:id/versions/:n", h.versionView)
-	a.POST("/templates/:id/versions/:n/default", h.versionDefault)
-	a.POST("/templates/:id/versions/:n/draft", h.versionDraft)
-	a.GET("/templates/:id/versions/:n/export", h.versionExport)
-	a.GET("/templates/:id/diff", h.diffPage)
-	a.GET("/templates/:id/edit", h.editor)
-	a.POST("/templates/:id/draft", h.draftSave)
-	a.POST("/templates/:id/draft/upload", h.draftUpload)
-	a.POST("/templates/:id/draft/validate", h.draftValidate)
-	a.POST("/templates/:id/draft/preview", h.draftPreview)
-	a.POST("/templates/:id/draft/discard", h.draftDiscard)
-	a.GET("/templates/:id/publish", h.publishPage)
-	a.POST("/templates/:id/publish", h.publishDo)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/templates", h.templatesList)
+	srv.Manage.GET("/templates/new", h.templateNew)
+	srv.Manage.POST("/templates", h.templateCreate)
+	srv.Manage.GET("/templates/import", h.importForm)
+	srv.Manage.POST("/templates/import", h.importDo)
+	srv.Manage.GET("/templates/:id", h.templatePage)
+	srv.Manage.POST("/templates/:id", h.templateUpdate)
+	srv.Manage.POST("/templates/:id/archive", h.templateArchive)
+	srv.Manage.POST("/templates/:id/unarchive", h.templateUnarchive)
+	srv.Manage.POST("/templates/:id/delete", h.templateDelete)
+	srv.Manage.GET("/templates/:id/versions/:n", h.versionView)
+	srv.Manage.POST("/templates/:id/versions/:n/default", h.versionDefault)
+	srv.Manage.POST("/templates/:id/versions/:n/draft", h.versionDraft)
+	srv.Manage.GET("/templates/:id/versions/:n/export", h.versionExport)
+	srv.Manage.GET("/templates/:id/diff", h.diffPage)
+	srv.Manage.GET("/templates/:id/edit", h.editor)
+	srv.Manage.POST("/templates/:id/draft", h.draftSave)
+	srv.Manage.POST("/templates/:id/draft/upload", h.draftUpload)
+	srv.Manage.POST("/templates/:id/draft/validate", h.draftValidate)
+	srv.Manage.POST("/templates/:id/draft/preview", h.draftPreview)
+	srv.Manage.POST("/templates/:id/draft/discard", h.draftDiscard)
+	srv.Manage.GET("/templates/:id/publish", h.publishPage)
+	srv.Manage.POST("/templates/:id/publish", h.publishDo)
 }
 
 // tplID reads :id.

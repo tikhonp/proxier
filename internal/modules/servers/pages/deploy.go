@@ -15,6 +15,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -25,18 +26,19 @@ import (
 const jobPrefix = "servers" + "."
 
 func (h *handler) registerDeploy(r web.Routes) {
-	r.Admin.GET("/servers/:id/redeploy", h.redeployPlan, h.operable)
-	r.Admin.GET("/servers/:id/upgrade", h.upgradePlan, h.operable)
-	r.Admin.GET("/servers/:id/params", h.paramsPlan, h.operable)
-	r.Admin.POST("/servers/:id/plan", h.planPost, h.operable)
-	r.Admin.POST("/servers/:id/apply", h.applyPost, h.operable)
-	r.Admin.GET("/servers/:id/rollback", h.rollbackPlan, h.operable)
-	r.Admin.POST("/servers/:id/restart", h.opRestart, h.operable)
-	r.Admin.POST("/servers/:id/images", h.opImages, h.operable)
-	r.Admin.POST("/servers/:id/reboot", h.opReboot, h.operable)
-	r.Admin.POST("/servers/:id/logs", h.opLogs, h.operable)
-	r.Admin.GET("/servers/:id/rotate", h.rotatePage, h.operable)
-	r.Admin.POST("/servers/:id/rotate", h.rotatePost, h.operable)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/servers/:id/redeploy", h.redeployPlan, h.operable)
+	srv.Manage.GET("/servers/:id/upgrade", h.upgradePlan, h.operable)
+	srv.Manage.GET("/servers/:id/params", h.paramsPlan, h.operable)
+	srv.Manage.POST("/servers/:id/plan", h.planPost, h.operable)
+	srv.Manage.POST("/servers/:id/apply", h.applyPost, h.operable)
+	srv.Manage.GET("/servers/:id/rollback", h.rollbackPlan, h.operable)
+	srv.Manage.POST("/servers/:id/restart", h.opRestart, h.operable)
+	srv.Manage.POST("/servers/:id/images", h.opImages, h.operable)
+	srv.Manage.POST("/servers/:id/reboot", h.opReboot, h.operable)
+	srv.Manage.POST("/servers/:id/logs", h.opLogs, h.operable)
+	srv.Manage.GET("/servers/:id/rotate", h.rotatePage, h.operable)
+	srv.Manage.POST("/servers/:id/rotate", h.rotatePost, h.operable)
 	h.registerStack(r)
 	h.registerRollout(r)
 }

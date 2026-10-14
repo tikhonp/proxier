@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/conf"
 	"github.com/tikhonp/proxier/internal/modules/servers/health"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -22,12 +23,13 @@ import (
 )
 
 func (h *handler) registerHealth(r web.Routes) {
-	r.Admin.GET("/servers/:id/health", h.healthTab)
-	r.Admin.POST("/servers/:id/checks/run", h.runChecks, h.operable)
-	r.Admin.GET("/servers/:id/pause", h.pauseForm, h.operable)
-	r.Admin.POST("/servers/:id/pause", h.pause, h.operable)
-	r.Admin.POST("/servers/:id/resume", h.resume, h.operable)
-	r.Admin.GET("/servers/:id/stats", h.statsTab)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/servers/:id/health", h.healthTab)
+	srv.Manage.POST("/servers/:id/checks/run", h.runChecks, h.operable)
+	srv.Manage.GET("/servers/:id/pause", h.pauseForm, h.operable)
+	srv.Manage.POST("/servers/:id/pause", h.pause, h.operable)
+	srv.Manage.POST("/servers/:id/resume", h.resume, h.operable)
+	srv.Manage.GET("/servers/:id/stats", h.statsTab)
 }
 
 // reasonText renders a stored reason ({"key","args"}) in the page's language.

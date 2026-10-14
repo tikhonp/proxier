@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -20,18 +21,19 @@ import (
 
 // registerRouterLife adds drift, unmanaged tags, pause and removal.
 func (h *handler) registerRouterLife(r web.Routes) {
-	r.Admin.POST(routersPath+"/:id/repair", h.routerRepair)
-	r.Admin.GET(routersPath+"/:id/unmanaged/:tag/adopt", h.adoptPage)
-	r.Admin.POST(routersPath+"/:id/unmanaged/:tag/adopt", h.adoptPost)
-	r.Admin.POST(routersPath+"/:id/unmanaged/:tag/remove", h.unmanagedRemove)
-	r.Admin.POST(routersPath+"/:id/unmanaged/:tag/ignore", h.unmanagedIgnore(true))
-	r.Admin.POST(routersPath+"/:id/unmanaged/:tag/unignore", h.unmanagedIgnore(false))
-	r.Admin.POST(routersPath+"/:id/pause", h.routerPause)
-	r.Admin.POST(routersPath+"/:id/resume", h.routerResume)
-	r.Admin.GET(routersPath+"/:id/remove", h.routerRemovePage)
-	r.Admin.POST(routersPath+"/:id/remove", h.routerRemovePost)
-	r.Admin.POST(routersPath+"/:id/remove/keep", h.routerRemoveKeep)
-	r.Admin.POST(routersPath+"/:id/remove/retry", h.routerRemoveRetry)
+	rt := r.Area(access.Routing)
+	rt.Manage.POST(routersPath+"/:id/repair", h.routerRepair)
+	rt.Manage.GET(routersPath+"/:id/unmanaged/:tag/adopt", h.adoptPage)
+	rt.Manage.POST(routersPath+"/:id/unmanaged/:tag/adopt", h.adoptPost)
+	rt.Manage.POST(routersPath+"/:id/unmanaged/:tag/remove", h.unmanagedRemove)
+	rt.Manage.POST(routersPath+"/:id/unmanaged/:tag/ignore", h.unmanagedIgnore(true))
+	rt.Manage.POST(routersPath+"/:id/unmanaged/:tag/unignore", h.unmanagedIgnore(false))
+	rt.Manage.POST(routersPath+"/:id/pause", h.routerPause)
+	rt.Manage.POST(routersPath+"/:id/resume", h.routerResume)
+	rt.Manage.GET(routersPath+"/:id/remove", h.routerRemovePage)
+	rt.Manage.POST(routersPath+"/:id/remove", h.routerRemovePost)
+	rt.Manage.POST(routersPath+"/:id/remove/keep", h.routerRemoveKeep)
+	rt.Manage.POST(routersPath+"/:id/remove/retry", h.routerRemoveRetry)
 }
 
 // unmanagedHref is an unmanaged tag's base path; tags may hold spaces.

@@ -50,7 +50,7 @@ Each module registers, at startup:
 | Registration | Example (servers) |
 |---|---|
 | Migrations for its own tables, with its own version table | `servers_*` tables |
-| Admin routes and public routes | `/servers/...`; subscriptions owns `/s/{token}` |
+| Routes of its area (checked against the member's grant) and public routes | `/servers/...` on `servers`; subscriptions owns `/s/{token}` |
 | Navigation entries and dashboard widgets | "Servers", fleet health widget |
 | Job types: the queue, the resource key, retry policy, steps | `servers.provision` on queue `provisioning` |
 | Schedules (periodic jobs) with defaults that Settings can change | self-check every 5 min |
@@ -154,8 +154,9 @@ One listener, two kinds of routes. The prefixes are fixed, so the gateway could 
 
 | Prefix | Who | Auth | Purpose |
 |---|---|---|---|
-| `/login`, `/logout` | admin | — | Sign-in |
-| `/` (everything else) | admin | session cookie + CSRF | The admin UI |
+| `/login`, `/logout` | members | — | Sign-in |
+| `/setup/{token}` | a new member | single-use token | Choosing a password ([members](./processes/platform/members.md)) |
+| `/` (everything else) | members | session cookie + CSRF + the grant of the route's area | The UI |
 | `/s/{token}` | client apps | token | Link output ([fetch](./processes/subscriptions/subscription-fetch.md)) |
 | `/r/{token}/{name}.conf` | Shadowrocket | token | Hosted Shadowrocket config |
 | `/f/{token}` | a router | single-use token | Router script fetch URL |
@@ -181,7 +182,7 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 
 ## Security model (summary)
 
-- Members sign in on a public host, each on their own. Password sign-in, with an optional authenticator app code; optional passkeys sign in alone ([ADR 0017](./adr/0017-passkeys-sign-in-alone.md)). Mitigations: login lockout per IP across passwords, codes and passkeys, a notification on sign-in from a new IP and on every change to the ways in, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
+- Members sign in on a public host, each on their own, with a level in each area; every signed-in route checks its area's level ([members](./processes/platform/members.md)). A new member chooses their password at a single-use setup link, so nobody else handles it. Password sign-in, with an optional authenticator app code; optional passkeys sign in alone ([ADR 0017](./adr/0017-passkeys-sign-in-alone.md)). Mitigations: login lockout per IP across passwords, codes and passkeys, a notification on sign-in from a new IP and on every change to the ways in, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
 - Secrets encrypted at rest. The root password of a new VPS is kept, encrypted, only until Proxier's key is installed, then erased ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
 - SSH host keys are pinned on first contact. A changed key stops all work with that host until the admin accepts the new key ([ADR 0007](./adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 - Proxier never gets the Docker socket of the machine it runs on ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)).

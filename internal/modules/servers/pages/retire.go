@@ -8,14 +8,16 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/retire"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 func (h *handler) registerRetire(r web.Routes) {
-	r.Admin.GET("/servers/:id/retire", h.retirePage)
-	r.Admin.POST("/servers/:id/retire", h.retirePost)
-	r.Admin.POST("/servers/:id/retire/retry", h.retireRetry)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/servers/:id/retire", h.retirePage)
+	srv.Manage.POST("/servers/:id/retire", h.retirePost)
+	srv.Manage.POST("/servers/:id/retire/retry", h.retireRetry)
 }
 
 type retireView struct {

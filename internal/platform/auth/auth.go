@@ -65,6 +65,7 @@ const (
 	EndPasswordChanged     = "password_changed"
 	EndPasswordReset       = "password_reset"
 	EndSecondFactorReset   = "second_factor_reset"
+	EndMemberRemoved       = "member_removed"
 )
 
 // SignedInEvent is the type of a successful sign-in.
@@ -72,7 +73,11 @@ const SignedInEvent = "auth.signed_in"
 
 // Events are the event types auth records.
 var Events = []events.Type{
-	{Name: "admin.created", Module: "platform", Description: "The first member was created from the command line."},
+	{Name: "member.added", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was added (the first one from the command line)."},
+	{Name: "member.access_changed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member's access levels changed."},
+	{Name: "member.removed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was removed."},
+	{Name: "member.setup_link_created", Module: "platform", Description: "A setup link was made for a new member."},
+	{Name: "member.setup_completed", Module: "platform", Description: "A new member chose their password at their setup link."},
 	// Notifies only when the payload has new_ip: true (NotifyIf).
 	{Name: SignedInEvent, Module: "platform", Notify: true, Emoji: "🔐", Description: "Signed in from a new IP.",
 		NotifyIf: func(p map[string]any) bool { b, _ := p["new_ip"].(bool); return b }},
@@ -86,7 +91,7 @@ var Events = []events.Type{
 	{Name: "auth.second_factor_reset", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app and passkeys were removed from the command line."},
 	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended."},
 	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended."},
-	{Name: "admin.language_changed", Module: "platform", Description: "A member changed the interface language."},
+	{Name: "member.language_changed", Module: "platform", Description: "A member changed the interface language."},
 }
 
 // SecuritySection is Settings → Security's lockout fields.
@@ -104,8 +109,18 @@ type Member struct {
 	Username          string
 	Language          i18n.Lang
 	CreatedAt         db.Time
-	PasswordChangedAt db.Time
+	CreatedBy         string  // an actor
+	PasswordChangedAt db.Time // zero until the member finishes setup
+	RemovedAt         db.Time // zero while the member is in
 }
+
+// SetUp reports whether the member has chosen a password: one added in
+// Settings has none until they open their setup link.
+func (m Member) SetUp() bool { return !m.PasswordChangedAt.IsZero() }
+
+// Removed reports whether the member was removed. The row stays, so history
+// still names them; nothing signs them in.
+func (m Member) Removed() bool { return !m.RemovedAt.IsZero() }
 
 type Session struct {
 	ID                    int64

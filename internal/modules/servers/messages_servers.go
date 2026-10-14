@@ -21,8 +21,14 @@ var serverMessages = i18n.Messages{
 	"servers.col.ip":       {EN: "IP", RU: "IP"},
 	"servers.col.host":     {EN: "Proxy host", RU: "Хост прокси"},
 	"servers.col.template": {EN: "Template", RU: "Шаблон"},
-	"servers.usage":        {EN: "{subs} · links: {links}", RU: "{subs} · ссылок: {links}"},
-	"servers.usage.none":   {EN: "In no subscription", RU: "Ни в одной подписке"},
+	"servers.col.country":  {EN: "Country", RU: "Страна"},
+	"servers.brief.note": {
+		EN: "The servers in service, to put into your subscriptions. Members who manage servers see the rest.",
+		RU: "Работающие серверы, которые можно добавить в свои подписки. Остальное видят участники, управляющие серверами.",
+	},
+	"servers.brief.empty": {EN: "No servers in service.", RU: "Работающих серверов нет."},
+	"servers.usage":       {EN: "{subs} · links: {links}", RU: "{subs} · ссылок: {links}"},
+	"servers.usage.none":  {EN: "In no subscription", RU: "Ни в одной подписке"},
 
 	"servers.state.provisioning": {EN: "Provisioning", RU: "Настраивается"},
 	"servers.state.active":       {EN: "Active", RU: "Работает"},

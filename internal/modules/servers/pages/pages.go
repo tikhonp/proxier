@@ -18,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/stats"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -65,13 +66,14 @@ type handler struct {
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
+	settings := r.Area(access.Settings).Manage
 	h := &handler{Deps: d, shell: r.Shell, SettingsPages: r.SettingsPages}
-	r.Admin.GET("/settings/servers", h.serversSettings)
-	r.Admin.POST("/settings/servers", h.saveServersSettings)
-	r.Admin.GET("/settings/integrations/cloudflare", h.cloudflarePage)
-	r.Admin.POST("/settings/integrations/cloudflare/token", h.cloudflareToken)
-	r.Admin.POST("/settings/integrations/cloudflare/zones", h.cloudflareZones)
-	r.Admin.POST("/settings/integrations/cloudflare/test", h.cloudflareTest)
+	settings.GET("/settings/servers", h.serversSettings)
+	settings.POST("/settings/servers", h.saveServersSettings)
+	settings.GET("/settings/integrations/cloudflare", h.cloudflarePage)
+	settings.POST("/settings/integrations/cloudflare/token", h.cloudflareToken)
+	settings.POST("/settings/integrations/cloudflare/zones", h.cloudflareZones)
+	settings.POST("/settings/integrations/cloudflare/test", h.cloudflareTest)
 	h.registerTemplates(r)
 	h.registerServers(r)
 	h.registerDeploy(r)

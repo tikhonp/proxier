@@ -59,7 +59,7 @@ func count(t *testing.T, d *db.DB, q string, args ...any) int {
 
 func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 7)
+	down(t, d, 8)
 	up(t, d)
 }
 
@@ -122,7 +122,7 @@ func TestSecondFactorTablesKeepOneAppPerMemberAndUniquePasskeys(t *testing.T) {
 func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.Open(t)
-	down(t, d, 2)
+	down(t, d, 3)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
@@ -144,7 +144,7 @@ func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 // going back keeps member 1 as the admin and drops the other members.
 func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 1)
+	down(t, d, 2)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, jobs_seen_at, webauthn_user_id) VALUES (1, 'Tikhon', 'h', 'ru', ?, ?, ?, x'0102')`, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip', ?, 'second_factor_reset')`, now, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'bb', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
@@ -185,7 +185,7 @@ func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'cc', 2, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (2, x'02', ?)`, now)
 	mustExec(t, d, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (2, x'c2', 'Phone', '{}', ?)`, now)
-	down(t, d, 1)
+	down(t, d, 2)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM admin WHERE id = 1 AND username = 'Tikhon' AND jobs_seen_at = '` + now + `'`: 1,
 		`SELECT count(*) FROM admin`:                                                          1,
@@ -272,4 +272,99 @@ func TestSSHTablesKeepOneIdentityAndOneRowPerAddress(t *testing.T) {
 	mustFail(t, d, "duplicate address", host, "1.2.3.4:22", now, now, nil, nil)
 	mustFail(t, d, "pending key without its fingerprint", host, "5.6.7.8:22", now, now, []byte{2}, nil)
 	mustExec(t, d, host, "5.6.7.8:22", now, now, []byte{2}, "SHA256:b")
+}
+
+func TestAccessTablesRefuseWhatTheContractForbids(t *testing.T) {
+	d := dbtest.Open(t)
+	mustExec(t, d, member, "anna", "en", now, now)
+	acc := `INSERT INTO member_access (member_id, area, level) VALUES (?, ?, ?)`
+	mustExec(t, d, acc, 1, "servers", "view")
+	mustExec(t, d, acc, 1, "activity", "all")
+	mustExec(t, d, acc, 1, "routerscripts", "own")
+	mustFail(t, d, "a second level in one area", acc, 1, "servers", "manage")
+	mustFail(t, d, "view in subscriptions", acc, 1, "subscriptions", "view")
+	mustFail(t, d, "view in settings", acc, 1, "settings", "view")
+	mustFail(t, d, "none stored", acc, 1, "routing", "none")
+	mustFail(t, d, "an unknown area", acc, 1, "members", "manage")
+	mustFail(t, d, "access of no member", acc, 9, "settings", "manage")
+
+	mustFail(t, d, "a second anna", member, "ANNA", "en", now, now)
+	mustExec(t, d, `UPDATE members SET removed_at = ?, removed_by = 'member:2' WHERE id = 1`, now)
+	mustExec(t, d, member, "Anna", "en", now, now) // a removed member's username is free again
+	mustFail(t, d, "removed without who removed", `UPDATE members SET removed_by = NULL WHERE id = 1`)
+	pending := `INSERT INTO members (username, language, webauthn_user_id, created_at, created_by) VALUES (?, 'en', randomblob(32), ?, 'member:2')`
+	mustExec(t, d, pending, "boris", now)
+	mustFail(t, d, "a password without its time", `UPDATE members SET password_hash = 'h' WHERE username = 'boris'`)
+
+	link := `INSERT INTO member_setup_links (member_id, token_lookup, token, created_at, created_by, expires_at, ended_at, end_reason) VALUES (?, ?, ?, ?, 'member:2', ?, ?, ?)`
+	mustExec(t, d, link, 3, []byte("l1"), []byte("sealed"), now, now, nil, nil)
+	mustFail(t, d, "a second open link of a member", link, 3, []byte("l2"), []byte("sealed"), now, now, nil, nil)
+	mustFail(t, d, "a token lookup twice", link, 2, []byte("l1"), nil, now, now, now, "used")
+	mustFail(t, d, "an ended link keeping its token", link, 3, []byte("l3"), []byte("sealed"), now, now, now, "used")
+	mustFail(t, d, "ended without a reason", link, 3, []byte("l4"), nil, now, now, now, nil)
+	mustFail(t, d, "an unknown end", link, 3, []byte("l5"), nil, now, now, now, "expired")
+	mustExec(t, d, link, 3, []byte("l6"), nil, now, now, now, "replaced")
+
+	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'aa', 2, ?, ?, ?, 'ip', 'ip', ?, 'member_removed')`, now, now, now, now)
+}
+
+// 00008 copies members and the tables that point at it: everything survives,
+// every member becomes Owner and the admin.* event types take member.*
+// names. Going back drops removed members and those still to be set up.
+func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
+	d := dbtest.Open(t)
+	down(t, d, 1)
+	mustExec(t, d, member, "tikhon", "ru", now, now)
+	mustExec(t, d, member, "gone", "en", now, now)
+	mustExec(t, d, `DELETE FROM members WHERE username = 'gone'`)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
+	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at, last_step) VALUES (1, x'5ec2e7', ?, 42)`, now)
+	mustExec(t, d, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (1, x'c1', 'MacBook', '{}', ?)`, now)
+	ev := `INSERT INTO events (time, module, type, subject_type, subject_id, actor) VALUES (?, 'platform', ?, 'member', '1', ?)`
+	mustExec(t, d, ev, now, "admin.created", "cli")
+	mustExec(t, d, ev, now, "admin.language_changed", "admin")
+	mustExec(t, d, `INSERT INTO notification_rules (event_type, enabled, updated_at) VALUES ('admin.language_changed', 1, ?)`, now)
+	up(t, d)
+
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM member_access WHERE member_id = 1`:                                            6,
+		`SELECT count(*) FROM member_access WHERE member_id = 1 AND area = 'settings' AND level = 'manage'`: 1,
+		`SELECT count(*) FROM sessions WHERE member_id = 1 AND token_hash = x'aa'`:                          1,
+		`SELECT count(*) FROM totp WHERE member_id = 1 AND last_step = 42`:                                  1,
+		`SELECT count(*) FROM passkeys WHERE member_id = 1`:                                                 1,
+		`SELECT count(*) FROM events WHERE type IN ('member.added', 'member.language_changed')`:             2,
+		`SELECT count(*) FROM notification_rules WHERE event_type = 'member.language_changed'`:              1,
+		`SELECT count(*) FROM sqlite_master WHERE sql LIKE '%members_new%' OR sql LIKE '%members_old%'`:     0,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("%s = %d, want %d", q, n, want)
+		}
+	}
+	mustExec(t, d, member, "anna", "en", now, now)
+	if n := count(t, d, `SELECT id FROM members WHERE username = 'anna'`); n != 3 {
+		t.Fatalf("the next member after the copy got ID %d, want 3", n)
+	}
+	mustExec(t, d, `DELETE FROM members WHERE id = 1`)
+	if n := count(t, d, `SELECT count(*) FROM sessions`) + count(t, d, `SELECT count(*) FROM member_access`); n != 0 {
+		t.Fatalf("rows of a deleted member left: %d", n)
+	}
+
+	mustExec(t, d, member, "keep", "en", now, now)
+	mustExec(t, d, `UPDATE members SET removed_at = ?, removed_by = 'member:4' WHERE username = 'anna'`, now)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'bb', 3, ?, ?, ?, 'ip', 'ip', ?, 'member_removed')`, now, now, now, now)
+	mustExec(t, d, `INSERT INTO members (username, language, webauthn_user_id, created_at, created_by) VALUES ('pending', 'en', randomblob(32), ?, 'member:4')`, now)
+	mustExec(t, d, ev, now, "member.added", "member:4")
+	down(t, d, 1)
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM members`:                                      1,
+		`SELECT count(*) FROM members WHERE username = 'keep'`:              1,
+		`SELECT count(*) FROM sessions`:                                     0,
+		`SELECT count(*) FROM events WHERE type = 'admin.created'`:          1,
+		`SELECT count(*) FROM events WHERE type = 'admin.language_changed'`: 1,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("after down: %s = %d, want %d", q, n, want)
+		}
+	}
+	up(t, d)
 }
