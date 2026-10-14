@@ -15,7 +15,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -220,7 +219,7 @@ func (h *handler) edit(c *echo.Context) error {
 			rows = append(rows[:n-1], rows[n:]...)
 		}
 	default: // save, also ⌘↵ (no button)
-		res, err := h.Services.SaveCustom(ctx, it.ID, services.Edit{Name: v.Name, Tag: v.Tag, Description: v.Description, Rows: rows}, events.ActorAdmin)
+		res, err := h.Services.SaveCustom(ctx, it.ID, services.Edit{Name: v.Name, Tag: v.Tag, Description: v.Description, Rows: rows}, web.Actor(ctx))
 		var ge *lists.GuardError
 		if errors.As(err, &ge) {
 			v.Rows = editorRows(rows, saved)

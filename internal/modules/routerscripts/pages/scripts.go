@@ -8,7 +8,6 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -91,7 +90,7 @@ func (h *handler) create(c *echo.Context) error {
 		return err
 	}
 	v := newView{Name: c.FormValue("name"), Slug: c.FormValue("slug"), Description: c.FormValue("description"), Body: body}
-	id, err := h.Scripts.Create(ctx, scripts.New{Name: v.Name, Slug: v.Slug, Description: v.Description, Body: body}, events.ActorAdmin)
+	id, err := h.Scripts.Create(ctx, scripts.New{Name: v.Name, Slug: v.Slug, Description: v.Description, Body: body}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -132,7 +131,7 @@ func (h *handler) details(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	v := detailsView{S: s, Name: c.FormValue("name"), Slug: c.FormValue("slug"), Description: c.FormValue("description")}
-	_, err = h.Scripts.Edit(ctx, s.ID, scripts.Details{Name: v.Name, Slug: v.Slug, Description: v.Description}, events.ActorAdmin)
+	_, err = h.Scripts.Edit(ctx, s.ID, scripts.Details{Name: v.Name, Slug: v.Slug, Description: v.Description}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -152,7 +151,7 @@ func (h *handler) archive(archived bool) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		if err := h.Scripts.Archive(c.Request().Context(), s.ID, archived, events.ActorAdmin); err != nil {
+		if err := h.Scripts.Archive(c.Request().Context(), s.ID, archived, web.Actor(c.Request().Context())); err != nil {
 			return err
 		}
 		return web.Redirect(c, ScriptHref(s.ID))
@@ -196,7 +195,7 @@ func (h *handler) deletePost(c *echo.Context) error {
 		v.Err = i18n.T(ctx, "scripts.delete.mismatch", i18n.Args{"slug": s.Slug})
 		return h.renderDelete(c, http.StatusUnprocessableEntity, v)
 	}
-	err = h.Scripts.Delete(ctx, s.ID, events.ActorAdmin)
+	err = h.Scripts.Delete(ctx, s.ID, web.Actor(ctx))
 	if errors.Is(err, scripts.ErrHasGenerations) {
 		return h.renderDelete(c, http.StatusConflict, v)
 	}

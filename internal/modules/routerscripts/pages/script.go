@@ -10,7 +10,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -177,7 +176,7 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 	}
 	loc := i18n.From(ctx)
 	for _, ver := range vs {
-		row := versionRow{Number: ver.Number, Published: i18n.T(ctx, "scripts.version.published", i18n.Args{"day": loc.Date(ver.PublishedAt), "by": ver.PublishedBy}),
+		row := versionRow{Number: ver.Number, Published: i18n.T(ctx, "scripts.version.published", i18n.Args{"day": loc.Date(ver.PublishedAt), "by": web.ActorName(ctx, ver.PublishedBy)}),
 			Notes: ver.Notes, Gens: loc.N("scripts.version.gens", int64(ver.Generations)), Current: ver.Current, HasPrev: ver.Number > 1}
 		v.Versions = append(v.Versions, row)
 	}
@@ -277,7 +276,7 @@ func (h *handler) edit(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Scripts.EditDraft(c.Request().Context(), s.ID, events.ActorAdmin); err != nil {
+	if _, err := h.Scripts.EditDraft(c.Request().Context(), s.ID, web.Actor(c.Request().Context())); err != nil {
 		return notFoundOr(err)
 	}
 	return web.Redirect(c, ScriptHref(s.ID)+"#draft")
@@ -301,7 +300,7 @@ func (h *handler) saveDraft(c *echo.Context) error {
 		return err
 	}
 	rev, _ := strconv.Atoi(c.FormValue("revision"))
-	_, err = h.Scripts.SaveDraft(ctx, s.ID, rev, body, events.ActorAdmin)
+	_, err = h.Scripts.SaveDraft(ctx, s.ID, rev, body, web.Actor(ctx))
 	v := scriptView{S: s, Draft: true, BasedOn: d.BasedOn, Body: body, Revision: rev}
 	var fe store.FieldErrors
 	switch {
@@ -326,7 +325,7 @@ func (h *handler) discard(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Scripts.DiscardDraft(c.Request().Context(), s.ID, events.ActorAdmin)
+	err = h.Scripts.DiscardDraft(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, scripts.ErrNoVersion) {
 		return echo.NewHTTPError(http.StatusConflict, "the script has no version")
 	}
@@ -408,7 +407,7 @@ func (h *handler) publish(c *echo.Context) error {
 	ctx := c.Request().Context()
 	rev, _ := strconv.Atoi(c.FormValue("revision"))
 	v := publishView{S: s, Revision: rev, Notes: c.FormValue("notes"), Confirm: c.FormValue("confirm") == "1"}
-	n, err := h.Scripts.Publish(ctx, s.ID, rev, v.Notes, v.Confirm, events.ActorAdmin)
+	n, err := h.Scripts.Publish(ctx, s.ID, rev, v.Notes, v.Confirm, web.Actor(ctx))
 	var (
 		pe *scripts.PublishError
 		fe store.FieldErrors

@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -41,8 +40,9 @@ type SignInResult struct {
 
 // pendingSignIn is a right password waiting for its code.
 type pendingSignIn struct {
-	ip    string
-	tries int
+	member int64
+	ip     string
+	tries  int
 }
 
 type lockoutRules struct {
@@ -92,9 +92,9 @@ func (r lockoutRules) lockedUntil(ctx context.Context, q sqlx.QueryerContext, ip
 	return time.Time{}, nil
 }
 
-// SignIn checks the lockout, then the credentials. It returns *LockedError,
-// ErrWrongCredentials or ErrNoAdmin (shown as wrong credentials). Failures
-// are padded to FailureFloor. With the authenticator app on, a right password
+// SignIn checks the lockout, then the credentials. It returns *LockedError
+// or ErrWrongCredentials, for an unknown username too. Failures are padded to
+// FailureFloor. With the authenticator app on, a right password
 // returns Pending and records no success: the code may still be wrong, and a
 // success would reset the IP's failure count.
 func (s *Service) SignIn(ctx context.Context, username, password, ip, userAgent string) (SignInResult, error) {
@@ -104,11 +104,11 @@ func (s *Service) SignIn(ctx context.Context, username, password, ip, userAgent 
 		return SignInResult{}, err
 	}
 
-	phc, name, err := s.credentials(ctx)
+	member, phc, err := s.credentials(ctx, username)
 	if err != nil {
 		return SignInResult{}, err
 	}
-	known := phc != ""
+	known := member != 0
 	if !known {
 		if phc, err = s.dummyHash(ctx); err != nil {
 			return SignInResult{}, err
@@ -119,26 +119,21 @@ func (s *Service) SignIn(ctx context.Context, username, password, ip, userAgent 
 	if err != nil {
 		return SignInResult{}, err
 	}
-	ok = ok && known && subtle.ConstantTimeCompare([]byte(username), []byte(name)) == 1
-
-	if !ok {
+	if !ok || !known {
 		if len(username) > 64 {
 			username = username[:64]
 		}
-		if err := s.fail(ctx, rules, start, ip, map[string]any{"username_tried": username}); err != nil {
+		if err := s.fail(ctx, rules, start, ip, member, map[string]any{"username_tried": username}); err != nil {
 			return SignInResult{}, err
-		}
-		if !known {
-			return SignInResult{}, ErrNoAdmin
 		}
 		return SignInResult{}, ErrWrongCredentials
 	}
-	if on, err := s.TOTPEnabled(ctx); err != nil {
+	if on, err := s.TOTPEnabled(ctx, member); err != nil {
 		return SignInResult{}, err
 	} else if on {
-		return SignInResult{Pending: s.pending.put(s.Now(), pendingSignIn{ip: ip})}, nil
+		return SignInResult{Pending: s.pending.put(s.Now(), pendingSignIn{member: member, ip: ip})}, nil
 	}
-	return s.createSession(ctx, ip, userAgent, MethodPassword)
+	return s.createSession(ctx, member, ip, userAgent, MethodPassword)
 }
 
 // SignInCode finishes a pending sign-in with a code from the authenticator
@@ -157,7 +152,7 @@ func (s *Service) SignInCode(ctx context.Context, pending, code, ip, userAgent s
 	}
 	var res SignInResult
 	err = s.db.Write(ctx, func(tx *sqlx.Tx) error {
-		secret, last, on, err := s.totpSecret(ctx, tx)
+		secret, last, on, err := s.totpSecret(ctx, tx, p.member)
 		if err != nil {
 			return err
 		}
@@ -168,28 +163,29 @@ func (s *Service) SignInCode(ctx context.Context, pending, code, ip, userAgent s
 		if !ok {
 			return ErrWrongCode
 		}
-		if _, err := tx.ExecContext(ctx, `UPDATE totp SET last_step = ? WHERE id = 1`, step); err != nil {
+		if _, err := tx.ExecContext(ctx, `UPDATE totp SET last_step = ? WHERE member_id = ?`, step, p.member); err != nil {
 			return err
 		}
-		res, err = s.createSessionTx(ctx, tx, ip, userAgent, MethodPasswordCode)
+		res, err = s.createSessionTx(ctx, tx, p.member, ip, userAgent, MethodPasswordCode)
 		return err
 	})
 	if !errors.Is(err, ErrWrongCode) {
 		return res, err
 	}
 	if p.tries+1 < MaxCodeTries {
-		s.pending.putAt(pending, pendingSignIn{ip: ip, tries: p.tries + 1}, expires, start)
+		s.pending.putAt(pending, pendingSignIn{member: p.member, ip: ip, tries: p.tries + 1}, expires, start)
 	}
-	if err := s.fail(ctx, rules, start, ip, map[string]any{"stage": "code"}); err != nil {
+	if err := s.fail(ctx, rules, start, ip, p.member, map[string]any{"stage": "code"}); err != nil {
 		return SignInResult{}, err
 	}
 	return SignInResult{}, ErrWrongCode
 }
 
-// fail records a failed attempt from ip and pads the request to FailureFloor.
-func (s *Service) fail(ctx context.Context, rules lockoutRules, start time.Time, ip string, payload map[string]any) error {
+// fail records a failed attempt from ip, naming member (0: none), and pads
+// the request to FailureFloor.
+func (s *Service) fail(ctx context.Context, rules lockoutRules, start time.Time, ip string, member int64, payload map[string]any) error {
 	payload["ip"] = ip
-	if err := s.recordFailure(ctx, rules, ip, payload); err != nil {
+	if err := s.recordFailure(ctx, rules, ip, member, payload); err != nil {
 		return err
 	}
 	if rest := FailureFloor - s.Now().Sub(start); rest > 0 {
@@ -213,22 +209,34 @@ func (s *Service) gate(ctx context.Context, ip string, start time.Time) (lockout
 	return rules, nil
 }
 
-func (s *Service) credentials(ctx context.Context) (phc, username string, err error) {
+// credentials finds a member by username, ignoring case. member is 0 for an
+// unknown username.
+func (s *Service) credentials(ctx context.Context, username string) (member int64, phc string, err error) {
 	var r struct {
-		Username string `db:"username"`
-		Hash     string `db:"password_hash"`
+		ID   int64  `db:"id"`
+		Hash string `db:"password_hash"`
 	}
-	err = sqlx.GetContext(ctx, s.db.R, &r, `SELECT username, password_hash FROM admin WHERE id = 1`)
+	err = sqlx.GetContext(ctx, s.db.R, &r, `SELECT id, password_hash FROM members WHERE username = ?`, username)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", "", nil
+		return 0, "", nil
 	}
-	return r.Hash, r.Username, err
+	return r.ID, r.Hash, err
 }
 
-func (s *Service) recordFailure(ctx context.Context, rules lockoutRules, ip string, payload map[string]any) error {
+// passwordHash is a member's password hash, or ErrNoMember.
+func (s *Service) passwordHash(ctx context.Context, member int64) (string, error) {
+	var phc string
+	err := sqlx.GetContext(ctx, s.db.R, &phc, `SELECT password_hash FROM members WHERE id = ?`, member)
+	if errors.Is(err, sql.ErrNoRows) {
+		return "", ErrNoMember
+	}
+	return phc, err
+}
+
+func (s *Service) recordFailure(ctx context.Context, rules lockoutRules, ip string, member int64, payload map[string]any) error {
 	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
 		now := s.now()
-		if _, err := tx.ExecContext(ctx, `INSERT INTO sign_in_attempts (ip, time, success) VALUES (?, ?, 0)`, ip, now); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO sign_in_attempts (ip, time, success, member_id) VALUES (?, ?, 0, ?)`, ip, now, nullID(member)); err != nil {
 			return err
 		}
 		if err := s.record(ctx, tx, "auth.sign_in_failed", "system", events.Subject{}, payload); err != nil {
@@ -247,15 +255,22 @@ func (s *Service) recordFailure(ctx context.Context, rules lockoutRules, ip stri
 	})
 }
 
-func (s *Service) createSession(ctx context.Context, ip, userAgent string, m Method) (res SignInResult, err error) {
+func nullID(id int64) *int64 {
+	if id == 0 {
+		return nil
+	}
+	return &id
+}
+
+func (s *Service) createSession(ctx context.Context, member int64, ip, userAgent string, m Method) (res SignInResult, err error) {
 	err = s.db.Write(ctx, func(tx *sqlx.Tx) error {
-		res, err = s.createSessionTx(ctx, tx, ip, userAgent, m)
+		res, err = s.createSessionTx(ctx, tx, member, ip, userAgent, m)
 		return err
 	})
 	return res, err
 }
 
-func (s *Service) createSessionTx(ctx context.Context, tx *sqlx.Tx, ip, userAgent string, m Method) (SignInResult, error) {
+func (s *Service) createSessionTx(ctx context.Context, tx *sqlx.Tx, member int64, ip, userAgent string, m Method) (SignInResult, error) {
 	if len(userAgent) > 512 {
 		userAgent = userAgent[:512]
 	}
@@ -263,27 +278,27 @@ func (s *Service) createSessionTx(ctx context.Context, tx *sqlx.Tx, ip, userAgen
 	var res SignInResult
 	now := s.now()
 	var recent int
-	if err := sqlx.GetContext(ctx, tx, &recent, `SELECT COUNT(*) FROM sign_in_attempts WHERE ip = ? AND success = 1 AND time > ?`,
-		ip, db.At(now.Add(-NewIPWindow))); err != nil {
+	if err := sqlx.GetContext(ctx, tx, &recent, `SELECT COUNT(*) FROM sign_in_attempts WHERE ip = ? AND member_id = ? AND success = 1 AND time > ?`,
+		ip, member, db.At(now.Add(-NewIPWindow))); err != nil {
 		return res, err
 	}
 	res.NewIP = recent == 0
 	if _, err := tx.ExecContext(ctx, `DELETE FROM sign_in_attempts WHERE time < ?`, db.At(now.Add(-AttemptRetention))); err != nil {
 		return res, err
 	}
-	if _, err := tx.ExecContext(ctx, `INSERT INTO sign_in_attempts (ip, time, success) VALUES (?, ?, 1)`, ip, now); err != nil {
+	if _, err := tx.ExecContext(ctx, `INSERT INTO sign_in_attempts (ip, time, success, member_id) VALUES (?, ?, 1, ?)`, ip, now, member); err != nil {
 		return res, err
 	}
 	r, err := tx.ExecContext(ctx, `
-		INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, user_agent)
-		VALUES (?, 1, ?, ?, ?, ?, ?, ?)`,
-		s.vault.Lookup(token), now, now, db.At(now.Add(AbsoluteTimeout)), ip, ip, userAgent)
+		INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, user_agent)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		s.vault.Lookup(token), member, now, now, db.At(now.Add(AbsoluteTimeout)), ip, ip, userAgent)
 	if err != nil {
 		return res, err
 	}
 	id, _ := r.LastInsertId()
-	res.Session = Session{ID: id, CreatedAt: now, LastSeenAt: now, ExpiresAt: db.At(now.Add(AbsoluteTimeout)),
+	res.Session = Session{ID: id, MemberID: member, CreatedAt: now, LastSeenAt: now, ExpiresAt: db.At(now.Add(AbsoluteTimeout)),
 		CreatedIP: ip, LastIP: ip, UserAgent: userAgent, Token: token, CSRF: s.CSRFToken(token)}
-	return res, s.record(ctx, tx, "auth.signed_in", "admin", adminSubject,
+	return res, s.record(ctx, tx, "auth.signed_in", events.MemberActor(member), MemberSubject(member),
 		map[string]any{"ip": ip, "user_agent": userAgent, "new_ip": res.NewIP, "method": string(m)})
 }

@@ -85,7 +85,7 @@ func TestKnownHostActions(t *testing.T) {
 		t.Fatalf("accept: %d\n%s", rec.Code, rec.Body)
 	}
 	ev := recorded(t, s, "ssh.host_key_accepted")
-	if len(ev) != 1 || ev[0].Actor != "admin" || ev[0].Payload["old"] != old || ev[0].Payload["new"] != now {
+	if len(ev) != 1 || ev[0].Actor != events.MemberActor(1) || ev[0].Payload["old"] != old || ev[0].Payload["new"] != now {
 		t.Fatalf("events: %+v", ev)
 	}
 	if page := l.Get("/settings/ssh").Body.String(); strings.Contains(page, "Accept new key") || !strings.Contains(page, now) {

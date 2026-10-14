@@ -11,6 +11,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
@@ -300,7 +301,7 @@ func TestLinkActions(t *testing.T) {
 			t.Errorf("%s: %d events", typ, len(ev))
 		}
 		for _, e := range ev {
-			if e.Actor != "admin" || e.Subject.String() != "link:1" {
+			if e.Actor != events.MemberActor(1) || e.Subject.String() != "link:1" {
 				t.Errorf("%s: %+v", typ, e)
 			}
 		}

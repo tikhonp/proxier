@@ -118,7 +118,7 @@ func (h *handler) templateCreate(c *echo.Context) error {
 	if slug == "" {
 		slug = templates.Slugify(v.Name)
 	}
-	id, err := h.Templates.Create(c.Request().Context(), v.Name, slug, v.Description, "admin")
+	id, err := h.Templates.Create(c.Request().Context(), v.Name, slug, v.Description, web.Actor(c.Request().Context()))
 	switch {
 	case errors.Is(err, templates.ErrSlugTaken):
 		v.Errs = map[string]string{"slug": i18n.T(c.Request().Context(), "templates.err.slug_taken")}

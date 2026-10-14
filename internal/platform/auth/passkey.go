@@ -75,9 +75,10 @@ func (s *Service) EnablePasskeys(base *url.URL) error {
 func (s *Service) PasskeysOn() bool { return s.rp != nil }
 
 type webauthnUser struct {
-	id    []byte
-	name  string
-	creds []webauthn.Credential
+	member int64
+	id     []byte
+	name   string
+	creds  []webauthn.Credential
 }
 
 func (u webauthnUser) WebAuthnID() []byte                         { return u.id }
@@ -85,23 +86,26 @@ func (u webauthnUser) WebAuthnName() string                       { return u.nam
 func (u webauthnUser) WebAuthnDisplayName() string                { return u.name }
 func (u webauthnUser) WebAuthnCredentials() []webauthn.Credential { return u.creds }
 
-func (s *Service) webauthnUser(ctx context.Context, q sqlx.QueryerContext) (webauthnUser, error) {
+// webauthnUser loads the member whose column col equals key, with their
+// passkeys, or ErrNoMember.
+func (s *Service) webauthnUser(ctx context.Context, col string, key any) (webauthnUser, error) {
 	var a struct {
+		Member   int64  `db:"id"`
 		Username string `db:"username"`
 		ID       []byte `db:"webauthn_user_id"`
 	}
-	err := sqlx.GetContext(ctx, q, &a, `SELECT username, webauthn_user_id FROM admin WHERE id = 1`)
+	err := sqlx.GetContext(ctx, s.db.R, &a, `SELECT id, username, webauthn_user_id FROM members WHERE `+col+` = ?`, key)
 	if errors.Is(err, sql.ErrNoRows) {
-		return webauthnUser{}, ErrNoAdmin
+		return webauthnUser{}, ErrNoMember
 	}
 	if err != nil {
 		return webauthnUser{}, err
 	}
 	var rows []string
-	if err := sqlx.SelectContext(ctx, q, &rows, `SELECT credential FROM passkeys ORDER BY id`); err != nil {
+	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT credential FROM passkeys WHERE member_id = ? ORDER BY id`, a.Member); err != nil {
 		return webauthnUser{}, err
 	}
-	u := webauthnUser{id: a.ID, name: a.Username, creds: make([]webauthn.Credential, len(rows))}
+	u := webauthnUser{member: a.Member, id: a.ID, name: a.Username, creds: make([]webauthn.Credential, len(rows))}
 	for i, r := range rows {
 		if err := json.Unmarshal([]byte(r), &u.creds[i]); err != nil {
 			return webauthnUser{}, fmt.Errorf("auth: passkey %d: %w", i, err)
@@ -113,7 +117,7 @@ func (s *Service) webauthnUser(ctx context.Context, q sqlx.QueryerContext) (weba
 // BeginPasskey checks the password and returns the options for
 // navigator.credentials.create and the token FinishPasskey takes them back
 // with. Only the session that asked can finish.
-func (s *Service) BeginPasskey(ctx context.Context, sessionID int64, name, password string) (options []byte, token string, err error) {
+func (s *Service) BeginPasskey(ctx context.Context, sess Session, name, password string) (options []byte, token string, err error) {
 	if s.rp == nil {
 		return nil, "", ErrPasskeysOff
 	}
@@ -121,10 +125,10 @@ func (s *Service) BeginPasskey(ctx context.Context, sessionID int64, name, passw
 	if name == "" || utf8.RuneCountInString(name) > MaxPasskeyName {
 		return nil, "", ErrPasskeyName
 	}
-	if err := s.checkCurrentPassword(ctx, password); err != nil {
+	if err := s.checkCurrentPassword(ctx, sess.MemberID, password); err != nil {
 		return nil, "", err
 	}
-	user, err := s.webauthnUser(ctx, s.db.R)
+	user, err := s.webauthnUser(ctx, "id", sess.MemberID)
 	if err != nil {
 		return nil, "", err
 	}
@@ -140,23 +144,23 @@ func (s *Service) BeginPasskey(ctx context.Context, sessionID int64, name, passw
 	if options, err = json.Marshal(creation); err != nil {
 		return nil, "", err
 	}
-	return options, s.ceremonies.put(s.Now(), ceremony{session: sessionID, name: name, data: *data}), nil
+	return options, s.ceremonies.put(s.Now(), ceremony{session: sess.ID, name: name, data: *data}), nil
 }
 
 // FinishPasskey checks the browser's answer and stores the passkey.
-func (s *Service) FinishPasskey(ctx context.Context, sessionID int64, token string, body []byte) error {
+func (s *Service) FinishPasskey(ctx context.Context, sess Session, token string, body []byte) error {
 	if s.rp == nil {
 		return ErrPasskeysOff
 	}
 	c, _, ok := s.ceremonies.take(token, s.Now())
-	if !ok || c.session == 0 || c.session != sessionID {
+	if !ok || c.session == 0 || c.session != sess.ID {
 		return ErrCeremonyExpired
 	}
 	parsed, err := protocol.ParseCredentialCreationResponseBytes(body)
 	if err != nil {
 		return s.rejected("add", err)
 	}
-	user, err := s.webauthnUser(ctx, s.db.R)
+	user, err := s.webauthnUser(ctx, "id", sess.MemberID)
 	if err != nil {
 		return err
 	}
@@ -176,17 +180,18 @@ func (s *Service) FinishPasskey(ctx context.Context, sessionID int64, token stri
 		if n > 0 {
 			return s.rejected("add", errors.New("already added"))
 		}
-		if _, err := tx.ExecContext(ctx, `INSERT INTO passkeys (credential_id, name, credential, created_at) VALUES (?, ?, ?, ?)`,
-			cred.ID, c.name, string(raw), s.now()); err != nil {
+		if _, err := tx.ExecContext(ctx, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (?, ?, ?, ?, ?)`,
+			sess.MemberID, cred.ID, c.name, string(raw), s.now()); err != nil {
 			return err
 		}
-		return s.record(ctx, tx, "auth.passkey_added", events.ActorAdmin, adminSubject, map[string]any{"name": c.name})
+		return s.record(ctx, tx, "auth.passkey_added", events.MemberActor(sess.MemberID), MemberSubject(sess.MemberID), map[string]any{"name": c.name})
 	})
 }
 
 // BeginPasskeySignIn returns the options for navigator.credentials.get and
-// the token FinishPasskeySignIn takes them back with. It names no passkey:
-// the browser offers the ones it holds for this site.
+// the token FinishPasskeySignIn takes them back with. It names no passkey or
+// member: the browser offers the ones it holds for this site, and the answer's
+// user handle says whose it is.
 func (s *Service) BeginPasskeySignIn() (options []byte, token string, err error) {
 	if s.rp == nil {
 		return nil, "", ErrPasskeysOff
@@ -218,9 +223,10 @@ func (s *Service) FinishPasskeySignIn(ctx context.Context, token string, body []
 	if !ok || c.session != 0 {
 		return SignInResult{}, ErrCeremonyExpired
 	}
+	var user webauthnUser // whose passkey it is, once the user handle names a member
 	reject := func(cause error) (SignInResult, error) {
 		s.Log.Info("passkey sign-in refused", "ip", ip, "error", cause)
-		if err := s.fail(ctx, rules, start, ip, map[string]any{"stage": "passkey"}); err != nil {
+		if err := s.fail(ctx, rules, start, ip, user.member, map[string]any{"stage": "passkey"}); err != nil {
 			return SignInResult{}, err
 		}
 		return SignInResult{}, ErrPasskeyRejected
@@ -229,11 +235,13 @@ func (s *Service) FinishPasskeySignIn(ctx context.Context, token string, body []
 	if err != nil {
 		return reject(err)
 	}
-	user, err := s.webauthnUser(ctx, s.db.R)
-	if err != nil {
-		return SignInResult{}, err
-	}
-	_, cred, err := s.rp.ValidatePasskeyLogin(func(_, _ []byte) (webauthn.User, error) { return user, nil }, c.data, parsed)
+	_, cred, err := s.rp.ValidatePasskeyLogin(func(_, handle []byte) (webauthn.User, error) {
+		u, err := s.webauthnUser(ctx, "webauthn_user_id", handle)
+		if err == nil {
+			user = u
+		}
+		return u, err
+	}, c.data, parsed)
 	if err != nil {
 		return reject(err)
 	}
@@ -247,14 +255,14 @@ func (s *Service) FinishPasskeySignIn(ctx context.Context, token string, body []
 	errRemoved := errors.New("the passkey was removed meanwhile")
 	var res SignInResult
 	err = s.db.Write(ctx, func(tx *sqlx.Tx) error {
-		r, err := tx.ExecContext(ctx, `UPDATE passkeys SET credential = ?, last_used_at = ? WHERE credential_id = ?`, string(raw), s.now(), cred.ID)
+		r, err := tx.ExecContext(ctx, `UPDATE passkeys SET credential = ?, last_used_at = ? WHERE credential_id = ? AND member_id = ?`, string(raw), s.now(), cred.ID, user.member)
 		if err != nil {
 			return err
 		}
 		if n, _ := r.RowsAffected(); n == 0 {
 			return errRemoved
 		}
-		res, err = s.createSessionTx(ctx, tx, ip, userAgent, MethodPasskey)
+		res, err = s.createSessionTx(ctx, tx, user.member, ip, userAgent, MethodPasskey)
 		return err
 	})
 	if errors.Is(err, errRemoved) {
@@ -268,8 +276,8 @@ func (s *Service) rejected(what string, cause error) error {
 	return ErrPasskeyRejected
 }
 
-// Passkeys lists the passkeys, oldest first.
-func (s *Service) Passkeys(ctx context.Context) ([]Passkey, error) {
+// Passkeys lists a member's passkeys, oldest first.
+func (s *Service) Passkeys(ctx context.Context, memberID int64) ([]Passkey, error) {
 	var rows []struct {
 		ID         int64    `db:"id"`
 		Name       string   `db:"name"`
@@ -277,7 +285,7 @@ func (s *Service) Passkeys(ctx context.Context) ([]Passkey, error) {
 		CreatedAt  db.Time  `db:"created_at"`
 		LastUsedAt *db.Time `db:"last_used_at"`
 	}
-	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT id, name, credential, created_at, last_used_at FROM passkeys ORDER BY id`); err != nil {
+	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT id, name, credential, created_at, last_used_at FROM passkeys WHERE member_id = ? ORDER BY id`, memberID); err != nil {
 		return nil, err
 	}
 	out := make([]Passkey, len(rows))
@@ -294,21 +302,23 @@ func (s *Service) Passkeys(ctx context.Context) ([]Passkey, error) {
 	return out, nil
 }
 
-// HasPasskeys reports whether the sign-in page offers a passkey.
+// HasPasskeys reports whether the sign-in page offers a passkey: whether any
+// member has one, since the page doesn't know who is signing in.
 func (s *Service) HasPasskeys(ctx context.Context) (bool, error) {
 	var n int
 	err := sqlx.GetContext(ctx, s.db.R, &n, `SELECT COUNT(*) FROM passkeys`)
 	return n > 0, err
 }
 
-// RemovePasskey needs the current password.
-func (s *Service) RemovePasskey(ctx context.Context, id int64, password string) error {
-	if err := s.checkCurrentPassword(ctx, password); err != nil {
+// RemovePasskey removes one of the member's passkeys; it needs their current
+// password.
+func (s *Service) RemovePasskey(ctx context.Context, memberID, id int64, password string) error {
+	if err := s.checkCurrentPassword(ctx, memberID, password); err != nil {
 		return err
 	}
 	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
 		var name string
-		err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM passkeys WHERE id = ?`, id)
+		err := sqlx.GetContext(ctx, tx, &name, `SELECT name FROM passkeys WHERE id = ? AND member_id = ?`, id, memberID)
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrNoPasskey
 		}
@@ -318,6 +328,6 @@ func (s *Service) RemovePasskey(ctx context.Context, id int64, password string) 
 		if _, err := tx.ExecContext(ctx, `DELETE FROM passkeys WHERE id = ?`, id); err != nil {
 			return err
 		}
-		return s.record(ctx, tx, "auth.passkey_removed", events.ActorAdmin, adminSubject, map[string]any{"name": name})
+		return s.record(ctx, tx, "auth.passkey_removed", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"name": name})
 	})
 }

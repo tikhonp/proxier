@@ -114,7 +114,7 @@ templ header(s Shell) {
 		if s.Warning != nil {
 			<a href={ templ.SafeURL(s.Warning.Href) } class="hdr-cell hdr-warn pc-seg pc-hide-s"><span class="st st-look" aria-hidden="true"></span>{ s.Warning.Text }</a>
 		}
-		<div class="hdr-cell hdr-admin"><span class="admin-name" title={ s.Admin }>{ s.Admin }</span></div>
+		<div class="hdr-cell hdr-admin"><span class="admin-name" title={ s.Member }>{ s.Member }</span></div>
 		<div class="hdr-out">
 			@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Small: true})
 		</div>

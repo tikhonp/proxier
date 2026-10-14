@@ -75,7 +75,7 @@ func (h *handler) notificationsSet(c *echo.Context) error {
 	default:
 		return echo.ErrBadRequest
 	}
-	err := h.Notify.SetRule(ctx, c.Param("type"), on)
+	err := h.Notify.SetRule(ctx, c.Param("type"), on, web.Actor(ctx))
 	if errors.Is(err, notify.ErrUnknownRule) {
 		return echo.ErrNotFound
 	}
@@ -96,7 +96,7 @@ func (h *handler) notificationRetry(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrNotFound
 	}
-	if err := h.Notify.Retry(c.Request().Context(), id); err != nil && !errors.Is(err, notify.ErrNotFailed) {
+	if err := h.Notify.Retry(c.Request().Context(), id, web.Actor(c.Request().Context())); err != nil && !errors.Is(err, notify.ErrNotFailed) {
 		return err
 	}
 	return web.Redirect(c, "/")

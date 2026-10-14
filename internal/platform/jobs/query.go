@@ -254,20 +254,20 @@ func (s *System) HeaderCounts(ctx context.Context, seenAt db.Time) (running, fai
 	return
 }
 
-// SeenAt is when the admin last opened the Jobs page; zero if never.
-func (s *System) SeenAt(ctx context.Context) (db.Time, error) {
+// SeenAt is when the member last opened the Jobs page; zero if never.
+func (s *System) SeenAt(ctx context.Context, memberID int64) (db.Time, error) {
 	var t db.Time
-	err := s.d.R.GetContext(ctx, &t, `SELECT jobs_seen_at FROM admin WHERE id = 1`)
+	err := s.d.R.GetContext(ctx, &t, `SELECT jobs_seen_at FROM members WHERE id = ?`, memberID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return db.Time{}, nil
 	}
 	return t, err
 }
 
-// MarkSeen records that the admin looked at the Jobs page.
-func (s *System) MarkSeen(ctx context.Context) error {
+// MarkSeen records that the member looked at the Jobs page.
+func (s *System) MarkSeen(ctx context.Context, memberID int64) error {
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
-		_, err := tx.ExecContext(ctx, `UPDATE admin SET jobs_seen_at = ? WHERE id = 1`, s.now())
+		_, err := tx.ExecContext(ctx, `UPDATE members SET jobs_seen_at = ? WHERE id = ?`, s.now(), memberID)
 		return err
 	})
 }

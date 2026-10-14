@@ -5,7 +5,6 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -69,7 +68,7 @@ func (h *handler) saveSettings(c *echo.Context) error {
 		}
 		values[f.Key] = vs[0]
 	}
-	if err := h.Settings.Set(ctx, events.ActorAdmin, conf.Section.Name, values); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), conf.Section.Name, values); err != nil {
 		if fe, ok := err.(settings.FieldErrors); ok {
 			return h.renderSettings(c, http.StatusUnprocessableEntity, values, fe, false)
 		}

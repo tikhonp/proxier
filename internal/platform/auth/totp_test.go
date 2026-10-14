@@ -2,6 +2,7 @@ package auth_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/base32"
 	"errors"
 	"strings"
@@ -9,6 +10,9 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/db/dbtest"
+	"github.com/tikhonp/proxier/internal/platform/vault"
 )
 
 const ua = "Mozilla/5.0 Chrome/120 Safari/537 (Macintosh)"
@@ -25,11 +29,11 @@ func (e *env) lastPayload(typ string) string {
 // enableTOTP turns the app on from session 1 and returns its secret.
 func (e *env) enableTOTP() string {
 	e.t.Helper()
-	setup, err := e.s.BeginTOTP(e.ctx, 1, goodPassword)
+	setup, err := e.s.BeginTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, goodPassword)
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	if err := e.s.EnableTOTP(e.ctx, 1, setup.Token, auth.CodeAt(setup.Secret, e.now)); err != nil {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, setup.Token, auth.CodeAt(setup.Secret, e.now)); err != nil {
 		e.t.Fatal(err)
 	}
 	// the code used to turn it on can't sign in
@@ -159,7 +163,7 @@ func TestTOTPTurnedOffMeanwhileEndsThePendingSignIn(t *testing.T) {
 	e := newEnv(t)
 	secret := e.enableTOTP()
 	p := e.pending("1.1.1.1")
-	if err := e.s.DisableTOTP(e.ctx, goodPassword); err != nil {
+	if err := e.s.DisableTOTP(e.ctx, 1, goodPassword); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := e.s.SignInCode(e.ctx, p, auth.CodeAt(secret, e.now), "1.1.1.1", ua); !errors.Is(err, auth.ErrSignInExpired) {
@@ -169,35 +173,35 @@ func TestTOTPTurnedOffMeanwhileEndsThePendingSignIn(t *testing.T) {
 
 func TestTOTPSetupNeedsThePasswordAndAValidCode(t *testing.T) {
 	e := newEnv(t)
-	if _, err := e.s.BeginTOTP(e.ctx, 1, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
+	if _, err := e.s.BeginTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
 		t.Errorf("wrong password: %v", err)
 	}
-	setup, err := e.s.BeginTOTP(e.ctx, 1, goodPassword)
+	setup, err := e.s.BeginTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, goodPassword)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(setup.URI, "otpauth://totp/Proxier:admin?") || !strings.Contains(setup.URI, "secret="+setup.Secret) {
 		t.Errorf("URI %s", setup.URI)
 	}
-	if err := e.s.EnableTOTP(e.ctx, 1, setup.Token, "000000"); !errors.Is(err, auth.ErrWrongCode) {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, setup.Token, "000000"); !errors.Is(err, auth.ErrWrongCode) {
 		t.Errorf("wrong code: %v", err)
 	}
 	code := auth.CodeAt(setup.Secret, e.now)
-	if err := e.s.EnableTOTP(e.ctx, 2, setup.Token, code); err == nil {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 2, MemberID: 1}, setup.Token, code); err == nil {
 		t.Error("a setup from another session was accepted")
 	}
 	tampered := []byte(setup.Token)
 	tampered[5] ^= 1
-	if err := e.s.EnableTOTP(e.ctx, 1, string(tampered), code); err == nil {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, string(tampered), code); err == nil {
 		t.Error("a tampered setup was accepted")
 	}
-	if on, _ := e.s.TOTPEnabled(e.ctx); on || e.events("auth.totp_enabled") != 0 {
+	if on, _ := e.s.TOTPEnabled(e.ctx, 1); on || e.events("auth.totp_enabled") != 0 {
 		t.Fatal("the app is on after refused setups")
 	}
-	if err := e.s.EnableTOTP(e.ctx, 1, setup.Token, code); err != nil {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, setup.Token, code); err != nil {
 		t.Fatal(err)
 	}
-	if on, _ := e.s.TOTPEnabled(e.ctx); !on || e.events("auth.totp_enabled") != 1 {
+	if on, _ := e.s.TOTPEnabled(e.ctx, 1); !on || e.events("auth.totp_enabled") != 1 {
 		t.Fatal("the app is not on")
 	}
 	var stored []byte
@@ -208,19 +212,19 @@ func TestTOTPSetupNeedsThePasswordAndAValidCode(t *testing.T) {
 	if bytes.Contains(stored, raw) {
 		t.Error("the secret is stored in plain text")
 	}
-	if _, err := e.s.BeginTOTP(e.ctx, 1, goodPassword); !errors.Is(err, auth.ErrTOTPOn) {
+	if _, err := e.s.BeginTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, goodPassword); !errors.Is(err, auth.ErrTOTPOn) {
 		t.Errorf("a second setup: %v", err)
 	}
 }
 
 func TestTOTPSetupRunsOut(t *testing.T) {
 	e := newEnv(t)
-	setup, err := e.s.BeginTOTP(e.ctx, 1, goodPassword)
+	setup, err := e.s.BeginTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, goodPassword)
 	if err != nil {
 		t.Fatal(err)
 	}
 	e.advance(auth.TOTPSetupTTL + time.Second)
-	if err := e.s.EnableTOTP(e.ctx, 1, setup.Token, auth.CodeAt(setup.Secret, e.now)); !errors.Is(err, auth.ErrSetupExpired) {
+	if err := e.s.EnableTOTP(e.ctx, auth.Session{ID: 1, MemberID: 1}, setup.Token, auth.CodeAt(setup.Secret, e.now)); !errors.Is(err, auth.ErrSetupExpired) {
 		t.Errorf("err = %v", err)
 	}
 }
@@ -228,13 +232,13 @@ func TestTOTPSetupRunsOut(t *testing.T) {
 func TestDisablingTOTPNeedsThePassword(t *testing.T) {
 	e := newEnv(t)
 	e.enableTOTP()
-	if err := e.s.DisableTOTP(e.ctx, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
+	if err := e.s.DisableTOTP(e.ctx, 1, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
 		t.Errorf("wrong password: %v", err)
 	}
-	if err := e.s.DisableTOTP(e.ctx, goodPassword); err != nil {
+	if err := e.s.DisableTOTP(e.ctx, 1, goodPassword); err != nil {
 		t.Fatal(err)
 	}
-	if err := e.s.DisableTOTP(e.ctx, goodPassword); !errors.Is(err, auth.ErrTOTPOff) {
+	if err := e.s.DisableTOTP(e.ctx, 1, goodPassword); !errors.Is(err, auth.ErrTOTPOff) {
 		t.Errorf("turning it off twice: %v", err)
 	}
 	if e.events("auth.totp_disabled") != 1 {
@@ -247,13 +251,13 @@ func TestDisablingTOTPNeedsThePassword(t *testing.T) {
 
 func TestResetSecondFactorRemovesEverythingAndEndsSessions(t *testing.T) {
 	e := newEnv(t)
-	if r, err := e.s.ResetSecondFactor(e.ctx); err != nil || r != (auth.SecondFactorReset{}) || e.events("auth.second_factor_reset") != 0 {
+	if r, err := e.s.ResetSecondFactor(e.ctx, 1); err != nil || r != (auth.SecondFactorReset{}) || e.events("auth.second_factor_reset") != 0 {
 		t.Fatalf("with nothing to remove: %+v %v", r, err)
 	}
 	secret := e.enableTOTP()
 	_, _ = e.s.SignInCode(e.ctx, e.pending("1.1.1.1"), auth.CodeAt(secret, e.now), "1.1.1.1", ua)
-	e.db.W.MustExec(`INSERT INTO passkeys (credential_id, name, credential, created_at) VALUES (x'01', 'Phone', '{}', '')`)
-	r, err := e.s.ResetSecondFactor(e.ctx)
+	e.db.W.MustExec(`INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (1, x'01', 'Phone', '{}', '')`)
+	r, err := e.s.ResetSecondFactor(e.ctx, 1)
 	if err != nil || r != (auth.SecondFactorReset{TOTP: true, Passkeys: 1, Sessions: 1}) {
 		t.Fatalf("reset: %+v %v", r, err)
 	}
@@ -268,5 +272,42 @@ func TestResetSecondFactorRemovesEverythingAndEndsSessions(t *testing.T) {
 	}
 	if r := e.signIn("1.1.1.1"); r.Session.Token == "" {
 		t.Error("the password alone doesn't sign in after the reset")
+	}
+}
+
+// The app the one admin turned on before members keeps working for member 1
+// after the upgrade: its secret is still sealed as "admin:totp".
+func TestAppSetUpBeforeMembersStillWorks(t *testing.T) {
+	d := dbtest.Open(t)
+	if err := db.MigrateDown(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
+		t.Fatal(err)
+	}
+	v, err := vault.New(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	phc, err := auth.Hash(auth.Params{Memory: 1024, Time: 1, Threads: 1}, goodPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secret := bytes.Repeat([]byte{9}, 20)
+	at := "2026-10-01T00:00:00.000Z"
+	if _, err := d.W.Exec(`INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, webauthn_user_id) VALUES (1, 'admin', ?, 'en', ?, ?, randomblob(32))`, phc, at, at); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := d.W.Exec(`INSERT INTO totp (id, secret, created_at) VALUES (1, ?, ?)`, v.Seal(secret, "admin:totp"), at); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.MigrateUp(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
+		t.Fatal(err)
+	}
+	e := newEnvOn(t, d, v)
+	r := e.signIn("1.1.1.1")
+	if r.Pending == "" {
+		t.Fatalf("the app is off after the upgrade: %+v", r)
+	}
+	code := auth.CodeAt(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(secret), e.now)
+	if res, err := e.s.SignInCode(e.ctx, r.Pending, code, "1.1.1.1", ua); err != nil || res.Session.MemberID != 1 {
+		t.Fatalf("the code after the upgrade: %+v, %v", res.Session, err)
 	}
 }

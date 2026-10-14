@@ -14,6 +14,7 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -53,13 +54,46 @@ type Routes struct {
 
 // Request is what the middleware knows about the current request.
 type Request struct {
-	Admin   *auth.Admin   // nil when signed out
+	Member  *auth.Member  // nil when signed out
 	Session *auth.Session // nil when signed out
 	Loc     *i18n.Localizer
 	HTMX    bool
+	// usernames names members for MemberName; nil when signed out.
+	usernames func() map[int64]string
 }
 
 type ctxKey struct{}
+
+// Actor is the signed-in member as the actor of the events and jobs a
+// request causes.
+func Actor(ctx context.Context) string {
+	r := FromContext(ctx)
+	if r.Member == nil {
+		panic("web: Actor outside a signed-in request")
+	}
+	return events.MemberActor(r.Member.ID)
+}
+
+// ActorName is how the UI names an actor: a member by username (the old
+// actor "admin" is member 1), anything else as it is.
+func ActorName(ctx context.Context, actor string) string {
+	if id, ok := events.ActorMember(actor); ok {
+		if name, ok := MemberName(ctx, id); ok {
+			return name
+		}
+	}
+	return actor
+}
+
+// MemberName is a member's username, for a signed-in request.
+func MemberName(ctx context.Context, id int64) (string, bool) {
+	r := FromContext(ctx)
+	if r.usernames == nil {
+		return "", false
+	}
+	name, ok := r.usernames()[id]
+	return name, ok
+}
 
 // FromContext returns the Request of ctx; an empty one outside the middleware.
 func FromContext(ctx context.Context) *Request {

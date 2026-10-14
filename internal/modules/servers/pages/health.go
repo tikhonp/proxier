@@ -524,7 +524,7 @@ func (h *handler) runChecks(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	res, err := h.Health.RunNow(c.Request().Context(), s.ID, "admin")
+	res, err := h.Health.RunNow(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, health.ErrNotActive) {
 		return web.Redirect(c, serverHref(s.ID))
 	}
@@ -610,7 +610,7 @@ func (h *handler) pause(c *echo.Context) error {
 		v.Err = i18n.T(c.Request().Context(), "health.pause.err")
 		return web.Render(c, http.StatusUnprocessableEntity, pausePage(h.shell(c, i18n.T(c.Request().Context(), "health.pause.title", i18n.Args{"name": s.Name}), "/servers"), v))
 	}
-	if err := h.Health.Pause(c.Request().Context(), []int64{s.ID}, d, forever, "admin"); err != nil {
+	if err := h.Health.Pause(c.Request().Context(), []int64{s.ID}, d, forever, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, serverHref(s.ID)+"/health")
@@ -621,7 +621,7 @@ func (h *handler) resume(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Health.Resume(c.Request().Context(), s.ID, "admin"); err != nil {
+	if err := h.Health.Resume(c.Request().Context(), s.ID, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, serverHref(s.ID)+"/health?run="+strconv.FormatInt(h.Health.Now().Unix(), 10))

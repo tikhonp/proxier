@@ -223,7 +223,7 @@ func (h *handler) removeFromList(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Lists.Remove(c.Request().Context(), l.ID, sid, events.ActorAdmin)
+	err = h.Lists.Remove(c.Request().Context(), l.ID, sid, web.Actor(c.Request().Context()))
 	if errors.Is(err, lists.ErrNotMember) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}
@@ -243,7 +243,7 @@ func (h *handler) moveInList(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	before, after, err := h.Lists.Move(ctx, l.ID, sid, c.FormValue("dir") == "down", events.ActorAdmin)
+	before, after, err := h.Lists.Move(ctx, l.ID, sid, c.FormValue("dir") == "down", web.Actor(ctx))
 	if errors.Is(err, lists.ErrStaleOrder) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}
@@ -273,7 +273,7 @@ func (h *handler) orderList(c *echo.Context) error {
 			return h.answerMembers(c, l, 0, true, nil)
 		}
 	}
-	before, after, err := h.Lists.SetOrder(ctx, l.ID, ids, expect, events.ActorAdmin)
+	before, after, err := h.Lists.SetOrder(ctx, l.ID, ids, expect, web.Actor(ctx))
 	if errors.Is(err, lists.ErrStaleOrder) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}

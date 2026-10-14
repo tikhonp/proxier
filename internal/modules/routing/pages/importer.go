@@ -12,7 +12,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -78,7 +77,7 @@ func (h *handler) importPreview(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	id, err := h.Import.Preview(ctx, text, events.ActorAdmin)
+	id, err := h.Import.Preview(ctx, text, web.Actor(ctx))
 	var fe store.FieldErrors
 	var pe *mtvpn.ParseError
 	switch {
@@ -270,7 +269,7 @@ func (h *handler) importRun(c *echo.Context) error {
 			ch.Convert[i] = true
 		}
 	}
-	_, err = h.Import.Run(ctx, im.ID, ch, events.ActorAdmin)
+	_, err = h.Import.Run(ctx, im.ID, ch, web.Actor(ctx))
 	var fe store.FieldErrors
 	switch {
 	case errors.As(err, &fe):

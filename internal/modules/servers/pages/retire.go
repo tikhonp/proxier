@@ -74,7 +74,7 @@ func (h *handler) retirePost(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	remove := c.FormValue("remove_stack") == "1"
-	_, err = h.Retire.Retire(ctx, s.ID, c.FormValue("name"), remove, "admin")
+	_, err = h.Retire.Retire(ctx, s.ID, c.FormValue("name"), remove, web.Actor(ctx))
 	switch {
 	case errors.Is(err, retire.ErrNameMismatch):
 		v, verr := h.retireView(c, s)
@@ -97,7 +97,7 @@ func (h *handler) retireRetry(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	_, err = h.Retire.RetryFailed(c.Request().Context(), s.ID, "admin")
+	_, err = h.Retire.RetryFailed(c.Request().Context(), s.ID, web.Actor(c.Request().Context()))
 	if errors.Is(err, retire.ErrNotRetiring) {
 		return echo.NewHTTPError(http.StatusConflict, "the server's retirement has not failed")
 	}

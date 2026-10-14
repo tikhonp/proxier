@@ -397,7 +397,7 @@ func (h *handler) bulkChecks(c *echo.Context) error {
 	ctx := c.Request().Context()
 	n := 0
 	for _, s := range servers {
-		res, err := h.Health.RunNow(ctx, s.ID, "admin")
+		res, err := h.Health.RunNow(ctx, s.ID, web.Actor(ctx))
 		if err != nil {
 			return err
 		}
@@ -437,7 +437,7 @@ func (h *handler) bulkPause(c *echo.Context) error {
 	for i, s := range servers {
 		ids[i] = s.ID
 	}
-	if err := h.Health.Pause(ctx, ids, d, forever, "admin"); err != nil {
+	if err := h.Health.Pause(ctx, ids, d, forever, web.Actor(ctx)); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/servers?bulk=pause&n="+strconv.Itoa(len(ids)))

@@ -60,14 +60,14 @@ func (h *handler) generalPage(c *echo.Context) error {
 	return h.renderGeneral(c, http.StatusOK, nil, nil, c.QueryParam("saved") == "1")
 }
 
-// setLanguage changes the admin's language. Settings → General is the only
-// place that changes it: the admin menu and the : pop-up have no switch.
+// setLanguage changes the member's own language. Settings → General is the
+// only place that changes it: the header and the : pop-up have no switch.
 func (h *handler) setLanguage(c *echo.Context) error {
 	l := i18n.Lang(c.FormValue("lang"))
 	if !l.Valid() {
 		return echo.NewHTTPError(400, "unknown language")
 	}
-	if err := h.Auth.SetLanguage(c.Request().Context(), l); err != nil {
+	if err := h.Auth.SetLanguage(c.Request().Context(), web.FromContext(c.Request().Context()).Member.ID, l); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/settings/general?language=saved")
@@ -93,7 +93,7 @@ func (h *handler) generalSave(c *echo.Context) error {
 		}
 	}
 	values := h.submitted(c, sec)
-	if err := h.Settings.Set(ctx, "admin", "general", values); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "general", values); err != nil {
 		if fe, ok := err.(settings.FieldErrors); ok {
 			return h.renderGeneral(c, http.StatusUnprocessableEntity, values, fe, false)
 		}
@@ -133,11 +133,11 @@ func (h *handler) securityPage(c *echo.Context) error {
 func (h *handler) renderSecurity(c *echo.Context, status int, v securityView) error {
 	ctx := c.Request().Context()
 	q := web.FromContext(ctx)
-	sessions, err := h.Auth.Sessions(ctx)
+	sessions, err := h.Auth.Sessions(ctx, q.Member.ID)
 	if err != nil {
 		return err
 	}
-	ended, err := h.Auth.RecentEnded(ctx, 10)
+	ended, err := h.Auth.RecentEnded(ctx, q.Member.ID, 10)
 	if err != nil {
 		return err
 	}
@@ -145,11 +145,11 @@ func (h *handler) renderSecurity(c *echo.Context, status int, v securityView) er
 	if err != nil {
 		return err
 	}
-	totpOn, err := h.Auth.TOTPEnabled(ctx)
+	totpOn, err := h.Auth.TOTPEnabled(ctx, q.Member.ID)
 	if err != nil {
 		return err
 	}
-	passkeys, err := h.Auth.Passkeys(ctx)
+	passkeys, err := h.Auth.Passkeys(ctx, q.Member.ID)
 	if err != nil {
 		return err
 	}
@@ -173,7 +173,7 @@ func (h *handler) changePassword(c *echo.Context) error {
 	if pw != again {
 		return fail("settings.password.mismatch")
 	}
-	err := h.Auth.ChangePassword(ctx, web.FromContext(ctx).Session.ID, old, pw)
+	err := h.Auth.ChangePassword(ctx, *web.FromContext(ctx).Session, old, pw)
 	switch err {
 	case nil:
 		return web.Redirect(c, "/settings/security?password=changed")
@@ -196,7 +196,7 @@ func (h *handler) saveLockout(c *echo.Context) error {
 		}
 	}
 	values := h.submitted(c, sec)
-	if err := h.Settings.Set(ctx, "admin", "security", values); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "security", values); err != nil {
 		if fe, ok := err.(settings.FieldErrors); ok {
 			return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{LockoutErrs: fe, LockoutVals: values})
 		}
@@ -211,21 +211,22 @@ func (h *handler) signOutSession(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrNotFound
 	}
-	if cur := web.FromContext(ctx).Session; cur != nil && cur.ID == id {
-		if err := h.Auth.SignOut(ctx, id, "self"); err != nil {
+	q := web.FromContext(ctx)
+	if q.Session.ID == id {
+		if err := h.Auth.SignOut(ctx, q.Member.ID, id, "self"); err != nil {
 			return err
 		}
 		web.ClearSessionCookie(c, h.cookieSecure())
 		return web.Redirect(c, "/login")
 	}
-	if err := h.Auth.SignOut(ctx, id, "settings"); err != nil {
+	if err := h.Auth.SignOut(ctx, q.Member.ID, id, "settings"); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/settings/security")
 }
 
 func (h *handler) signOutEverywhere(c *echo.Context) error {
-	if _, err := h.Auth.SignOutEverywhere(c.Request().Context()); err != nil {
+	if _, err := h.Auth.SignOutEverywhere(c.Request().Context(), web.FromContext(c.Request().Context()).Member.ID); err != nil {
 		return err
 	}
 	web.ClearSessionCookie(c, h.cookieSecure())
@@ -234,7 +235,7 @@ func (h *handler) signOutEverywhere(c *echo.Context) error {
 
 func (h *handler) totpSetup(c *echo.Context) error {
 	ctx := c.Request().Context()
-	setup, err := h.Auth.BeginTOTP(ctx, web.FromContext(ctx).Session.ID, c.FormValue("password"))
+	setup, err := h.Auth.BeginTOTP(ctx, *web.FromContext(ctx).Session, c.FormValue("password"))
 	switch {
 	case errors.Is(err, auth.ErrWrongCredentials):
 		return h.renderSecurity(c, http.StatusUnprocessableEntity, securityView{TOTPErr: "settings.password.wrong"})
@@ -248,7 +249,7 @@ func (h *handler) totpSetup(c *echo.Context) error {
 
 func (h *handler) totpEnable(c *echo.Context) error {
 	ctx := c.Request().Context()
-	session, token := web.FromContext(ctx).Session.ID, c.FormValue("token")
+	session, token := *web.FromContext(ctx).Session, c.FormValue("token")
 	err := h.Auth.EnableTOTP(ctx, session, token, c.FormValue("code"))
 	switch {
 	case err == nil:
@@ -268,7 +269,7 @@ func (h *handler) totpEnable(c *echo.Context) error {
 }
 
 func (h *handler) totpDisable(c *echo.Context) error {
-	err := h.Auth.DisableTOTP(c.Request().Context(), c.FormValue("password"))
+	err := h.Auth.DisableTOTP(c.Request().Context(), web.FromContext(c.Request().Context()).Member.ID, c.FormValue("password"))
 	switch {
 	case err == nil:
 		return web.Redirect(c, "/settings/security?totp=off")
@@ -284,7 +285,7 @@ func (h *handler) totpDisable(c *echo.Context) error {
 // hands the options to navigator.credentials.create.
 func (h *handler) passkeyOptions(c *echo.Context) error {
 	ctx := c.Request().Context()
-	opts, token, err := h.Auth.BeginPasskey(ctx, web.FromContext(ctx).Session.ID, c.FormValue("name"), c.FormValue("password"))
+	opts, token, err := h.Auth.BeginPasskey(ctx, *web.FromContext(ctx).Session, c.FormValue("name"), c.FormValue("password"))
 	switch {
 	case errors.Is(err, auth.ErrWrongCredentials):
 		return passkeyError(c, http.StatusUnprocessableEntity, "settings.password.wrong")
@@ -304,7 +305,7 @@ func (h *handler) passkeyAdd(c *echo.Context) error {
 	if err != nil {
 		return passkeyError(c, http.StatusBadRequest, "auth.passkey.rejected")
 	}
-	err = h.Auth.FinishPasskey(ctx, web.FromContext(ctx).Session.ID, a.Token, a.Credential)
+	err = h.Auth.FinishPasskey(ctx, *web.FromContext(ctx).Session, a.Token, a.Credential)
 	switch {
 	case errors.Is(err, auth.ErrCeremonyExpired):
 		return passkeyError(c, http.StatusConflict, "auth.passkey.expired")
@@ -323,7 +324,7 @@ func (h *handler) passkeyRemove(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrNotFound
 	}
-	err = h.Auth.RemovePasskey(c.Request().Context(), id, c.FormValue("password"))
+	err = h.Auth.RemovePasskey(c.Request().Context(), web.FromContext(c.Request().Context()).Member.ID, id, c.FormValue("password"))
 	switch {
 	case err == nil:
 		return web.Redirect(c, "/settings/security?passkey=removed")

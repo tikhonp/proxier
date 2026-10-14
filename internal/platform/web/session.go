@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/labstack/echo/v5"
@@ -48,12 +49,17 @@ func resolve(a *auth.Service, secure bool, c *echo.Context) (expired string, err
 	var xe *auth.ExpiredError
 	switch {
 	case aerr == nil:
-		admin, err := a.Admin(c.Request().Context())
+		m, err := a.Member(c.Request().Context(), sess.MemberID)
 		if err != nil {
 			return "", err
 		}
 		q := current(c)
-		q.Session, q.Admin = &sess, &admin
+		q.Session, q.Member = &sess, &m
+		ctx := c.Request().Context()
+		q.usernames = sync.OnceValue(func() map[int64]string {
+			names, _ := a.Usernames(ctx) // without names, actors show as stored
+			return names
+		})
 		return "", nil
 	case errors.As(aerr, &xe):
 		return xe.Reason, nil
@@ -118,22 +124,22 @@ func Session(a *auth.Service, secure bool) echo.MiddlewareFunc {
 }
 
 // Localize picks the language and display time zone and puts the Localizer in
-// the request context. Signed in: the admin's language. Signed out: the
-// browser's, then the admin's, then English.
-func Localize(a *auth.Service, cat *i18n.Catalog, st *settings.Store) echo.MiddlewareFunc {
+// the request context. Signed in: the member's language. Signed out: the
+// browser's, then the default language (general.language).
+func Localize(cat *i18n.Catalog, st *settings.Store) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c *echo.Context) error {
 			ctx := c.Request().Context()
 			q := current(c)
 			lang := i18n.EN
 			switch {
-			case q.Admin != nil:
-				lang = q.Admin.Language
+			case q.Member != nil:
+				lang = q.Member.Language
 			default:
 				if l, ok := i18n.Match(c.Request().Header.Get("Accept-Language")); ok {
 					lang = l
-				} else if ad, err := a.Admin(ctx); err == nil {
-					lang = ad.Language
+				} else if d, err := st.Get(ctx, "general.language"); err == nil && i18n.Lang(d).Valid() {
+					lang = i18n.Lang(d)
 				}
 			}
 			tz := time.UTC

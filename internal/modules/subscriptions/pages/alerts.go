@@ -12,7 +12,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -191,7 +190,7 @@ func (h *handler) saveAlerts(c *echo.Context) error {
 		v.Networks, v.Apps, v.Muted = c.FormValue("networks"), c.FormValue("apps"), c.FormValue("muted") == "1"
 		networks, apps, muted = limitValue(v.Networks), limitValue(v.Apps), v.Muted
 	}
-	err = h.Alerts.SetLimits(ctx, v.L.ID, networks, apps, muted, events.ActorAdmin)
+	err = h.Alerts.SetLimits(ctx, v.L.ID, networks, apps, muted, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)

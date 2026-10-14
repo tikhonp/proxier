@@ -9,7 +9,7 @@ import (
 )
 
 func TestPublicRateLimit(t *testing.T) {
-	s := sitetest.New(t, sitetest.Options{NoAdmin: true})
+	s := sitetest.New(t, sitetest.Options{NoMember: true})
 	now := time.Date(2026, 10, 7, 12, 0, 0, 0, time.UTC)
 	lim := s.App.PublicLimit
 	lim.Now = func() time.Time { return now }

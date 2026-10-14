@@ -18,7 +18,7 @@ import (
 // generate runs Generate and fails on any error.
 func generate(t *testing.T, h *rscriptstest.Harness, id int64, f generations.Form) int64 {
 	t.Helper()
-	gid, err := h.Mod.Generations.Generate(bg, id, f, events.ActorAdmin)
+	gid, err := h.Mod.Generations.Generate(bg, id, f, events.MemberActor(1))
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -28,7 +28,7 @@ func generate(t *testing.T, h *rscriptstest.Harness, id int64, f generations.For
 // refused runs Generate and returns its field errors.
 func refused(t *testing.T, h *rscriptstest.Harness, id int64, f generations.Form) store.FieldErrors {
 	t.Helper()
-	_, err := h.Mod.Generations.Generate(bg, id, f, events.ActorAdmin)
+	_, err := h.Mod.Generations.Generate(bg, id, f, events.MemberActor(1))
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) {
 		t.Fatalf("want field errors, got %v", err)
@@ -192,7 +192,7 @@ func TestCreateLinkForTheRouter(t *testing.T) {
 		t.Fatalf("subUrl isn't the link's URL %s", url)
 	}
 	created, generated := m.Events("link.created"), m.Events("routerscript.generated")
-	if len(created) != 1 || len(generated) != 1 || created[0].Actor != "admin" || generated[0].Payload["link"] != "Router — Parents" || generated[0].Payload["link_created"] != true {
+	if len(created) != 1 || len(generated) != 1 || created[0].Actor != events.MemberActor(1) || generated[0].Payload["link"] != "Router — Parents" || generated[0].Payload["link_created"] != true {
 		t.Fatalf("events: %+v %+v", created, generated)
 	}
 	// one transaction: nothing was recorded between the two
@@ -223,7 +223,7 @@ func TestRegisterForRouting(t *testing.T) {
 	if err != nil || rt.CreatedBy != "routerscripts" || rt.Conn.Host != "10.230.3.1" {
 		t.Fatalf("routing's router: %+v %v", rt, err)
 	}
-	if ev := m.Events("routing.router_added"); len(ev) != 1 || ev[0].Payload["by"] != "routerscripts" || ev[0].Actor != "admin" {
+	if ev := m.Events("routing.router_added"); len(ev) != 1 || ev[0].Payload["by"] != "routerscripts" || ev[0].Actor != events.MemberActor(1) {
 		t.Fatalf("router_added: %+v", ev)
 	}
 	got := body(t, m.Harness, gid)

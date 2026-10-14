@@ -64,8 +64,8 @@ func TestCreateAdminAsksAgainForShortPassword(t *testing.T) {
 	if !strings.Contains(out.String(), "at least 12 characters") {
 		t.Errorf("no explanation shown:\n%s", out.String())
 	}
-	if ok, _ := a.AdminExists(t.Context()); !ok {
-		t.Error("admin not created")
+	if m, err := a.MemberByUsername(t.Context(), "admin"); err != nil || m.ID != 1 {
+		t.Errorf("first member: %+v, %v", m, err)
 	}
 }
 
@@ -75,29 +75,32 @@ func TestCreateAdminGivesUpAfterThreeRounds(t *testing.T) {
 	if err := createAdmin(t.Context(), a, p, &bytes.Buffer{}); err == nil {
 		t.Fatal("want an error after three bad rounds")
 	}
-	if ok, _ := a.AdminExists(t.Context()); ok {
-		t.Error("admin created")
+	if ok, _ := a.HasMembers(t.Context()); ok {
+		t.Error("member created")
 	}
 }
 
-func TestCreateAdminRefusesWhenAdminExists(t *testing.T) {
+func TestCreateAdminRefusesWhenAMemberExists(t *testing.T) {
 	a := newAuth(t)
-	if err := a.CreateAdmin(t.Context(), "admin", "long enough password"); err != nil {
+	if err := a.CreateFirstMember(t.Context(), "admin", "long enough password"); err != nil {
 		t.Fatal(err)
 	}
 	p := &scripted{t: t} // must not be asked anything
 	var out bytes.Buffer
-	if err := createAdmin(t.Context(), a, p, &out); !errors.Is(err, errAdminExists) {
+	if err := createAdmin(t.Context(), a, p, &out); !errors.Is(err, errMembersExist) {
 		t.Fatalf("err = %v", err)
 	}
-	if !strings.Contains(out.String(), "An admin already exists; use reset-password.") || len(p.asked) != 0 {
+	if !strings.Contains(out.String(), "A member already exists") || len(p.asked) != 0 {
 		t.Errorf("output %q, asked %v", out.String(), p.asked)
+	}
+	if err := a.CreateFirstMember(t.Context(), "other", "long enough password"); !errors.Is(err, auth.ErrMembersExist) {
+		t.Errorf("a second first member: %v", err)
 	}
 }
 
 func TestResetPasswordEndsSessions(t *testing.T) {
 	a := newAuth(t)
-	if err := a.CreateAdmin(t.Context(), "admin", "long enough password"); err != nil {
+	if err := a.CreateFirstMember(t.Context(), "admin", "long enough password"); err != nil {
 		t.Fatal(err)
 	}
 	res, err := a.SignIn(t.Context(), "admin", "long enough password", "1.1.1.1", "")
@@ -106,7 +109,7 @@ func TestResetPasswordEndsSessions(t *testing.T) {
 	}
 	p := &scripted{t: t, answers: []string{"a brand new password", "a brand new password"}}
 	var out bytes.Buffer
-	if err := resetPassword(t.Context(), a, p, &out); err != nil {
+	if err := resetPassword(t.Context(), a, "Admin", p, &out); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.Authenticate(t.Context(), res.Session.Token, "1.1.1.1"); !errors.Is(err, auth.ErrNoSession) {
@@ -115,15 +118,37 @@ func TestResetPasswordEndsSessions(t *testing.T) {
 	if !strings.Contains(out.String(), "1 session(s) ended") {
 		t.Errorf("output %q", out.String())
 	}
+	if _, err := a.SignIn(t.Context(), "admin", "a brand new password", "1.1.1.1", ""); err != nil {
+		t.Errorf("the new password: %v", err)
+	}
+}
+
+func TestResetPasswordNamesAnUnknownMember(t *testing.T) {
+	a := newAuth(t)
+	p := &scripted{t: t} // must not be asked anything
+	var out bytes.Buffer
+	if err := resetPassword(t.Context(), a, "admin", p, &out); !errors.Is(err, auth.ErrNoMember) || !strings.Contains(out.String(), "use create-admin") {
+		t.Fatalf("without members: %v %q", err, out.String())
+	}
+	if err := a.CreateFirstMember(t.Context(), "admin", "long enough password"); err != nil {
+		t.Fatal(err)
+	}
+	out.Reset()
+	if err := resetPassword(t.Context(), a, "nobody", p, &out); !errors.Is(err, auth.ErrNoMember) || !strings.Contains(out.String(), `There is no member "nobody".`) {
+		t.Fatalf("unknown username: %v %q", err, out.String())
+	}
+	if len(p.asked) != 0 {
+		t.Errorf("asked %v", p.asked)
+	}
 }
 
 func TestResetSecondFactorTurnsTheAppOffAndEndsSessions(t *testing.T) {
 	a := newAuth(t)
 	var out bytes.Buffer
-	if err := resetSecondFactor(t.Context(), a, &out); !errors.Is(err, auth.ErrNoAdmin) || !strings.Contains(out.String(), "use create-admin") {
-		t.Fatalf("without an admin: %v %q", err, out.String())
+	if err := resetSecondFactor(t.Context(), a, "admin", &out); !errors.Is(err, auth.ErrNoMember) || !strings.Contains(out.String(), "use create-admin") {
+		t.Fatalf("without members: %v %q", err, out.String())
 	}
-	if err := a.CreateAdmin(t.Context(), "admin", "long enough password"); err != nil {
+	if err := a.CreateFirstMember(t.Context(), "admin", "long enough password"); err != nil {
 		t.Fatal(err)
 	}
 	res, err := a.SignIn(t.Context(), "admin", "long enough password", "1.1.1.1", "")
@@ -131,7 +156,11 @@ func TestResetSecondFactorTurnsTheAppOffAndEndsSessions(t *testing.T) {
 		t.Fatal(err)
 	}
 	out.Reset()
-	if err := resetSecondFactor(t.Context(), a, &out); err != nil {
+	if err := resetSecondFactor(t.Context(), a, "nobody", &out); !errors.Is(err, auth.ErrNoMember) {
+		t.Fatalf("unknown username: %v", err)
+	}
+	out.Reset()
+	if err := resetSecondFactor(t.Context(), a, "admin", &out); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.Authenticate(t.Context(), res.Session.Token, "1.1.1.1"); !errors.Is(err, auth.ErrNoSession) {

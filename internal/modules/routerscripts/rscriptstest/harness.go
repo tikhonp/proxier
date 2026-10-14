@@ -114,11 +114,11 @@ func (h *Harness) Exec(q string, args ...any) {
 func (h *Harness) Script(name string, body []byte) int64 {
 	h.T.Helper()
 	ctx := context.Background()
-	id, err := h.Mod.Scripts.Create(ctx, scripts.New{Name: name, Body: string(body)}, events.ActorAdmin)
+	id, err := h.Mod.Scripts.Create(ctx, scripts.New{Name: name, Body: string(body)}, events.MemberActor(1))
 	if err != nil {
 		h.T.Fatalf("create %s: %v", name, err)
 	}
-	if _, err := h.Mod.Scripts.Publish(ctx, id, 1, "", true, events.ActorAdmin); err != nil {
+	if _, err := h.Mod.Scripts.Publish(ctx, id, 1, "", true, events.MemberActor(1)); err != nil {
 		h.T.Fatalf("publish %s: %v", name, err)
 	}
 	return id
@@ -130,15 +130,15 @@ func (h *Harness) Script(name string, body []byte) int64 {
 func (h *Harness) Publish(id int64, body []byte) int {
 	h.T.Helper()
 	ctx := context.Background()
-	d, err := h.Mod.Scripts.EditDraft(ctx, id, events.ActorAdmin)
+	d, err := h.Mod.Scripts.EditDraft(ctx, id, events.MemberActor(1))
 	if err != nil {
 		h.T.Fatal(err)
 	}
-	rev, err := h.Mod.Scripts.SaveDraft(ctx, id, d.Revision, string(body), events.ActorAdmin)
+	rev, err := h.Mod.Scripts.SaveDraft(ctx, id, d.Revision, string(body), events.MemberActor(1))
 	if err != nil {
 		h.T.Fatal(err)
 	}
-	n, err := h.Mod.Scripts.Publish(ctx, id, rev, "", true, events.ActorAdmin)
+	n, err := h.Mod.Scripts.Publish(ctx, id, rev, "", true, events.MemberActor(1))
 	if err != nil {
 		h.T.Fatal(err)
 	}

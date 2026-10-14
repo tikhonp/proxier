@@ -230,7 +230,7 @@ func (s *Service) Rules(ctx context.Context) ([]Rule, error) {
 // SetRule turns an event type's notification on or off. A rule back at its
 // default deletes its row, so a changed default reaches whoever never touched
 // it. A change records settings.changed on settings:notifications.
-func (s *Service) SetRule(ctx context.Context, eventType string, enabled bool) error {
+func (s *Service) SetRule(ctx context.Context, eventType string, enabled bool, actor string) error {
 	t, ok := s.ev.Lookup(eventType)
 	if !ok || strings.HasPrefix(eventType, eventPrefix) {
 		return fmt.Errorf("%w: %q", ErrUnknownRule, eventType)
@@ -260,7 +260,7 @@ func (s *Service) SetRule(ctx context.Context, eventType string, enabled bool) e
 			return err
 		}
 		_, err = s.ev.Record(ctx, tx, events.Event{
-			Type: settings.ChangedEvent.Name, Actor: events.ActorAdmin,
+			Type: settings.ChangedEvent.Name, Actor: actor,
 			Subject: events.Subject{Type: "settings", ID: "notifications"},
 			Payload: map[string]any{"keys": []string{"notifications." + eventType}},
 		})
@@ -333,7 +333,7 @@ func (s *Service) LatestFailed(ctx context.Context) (bool, error) {
 
 // Retry sends a failed notification again, as a new linked job; a grouped one
 // goes again with its whole group.
-func (s *Service) Retry(ctx context.Context, id int64) error {
+func (s *Service) Retry(ctx context.Context, id int64, actor string) error {
 	n, err := s.Get(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFailed
@@ -344,7 +344,7 @@ func (s *Service) Retry(ctx context.Context, id int64) error {
 	if n.State != Failed || n.JobID == 0 {
 		return ErrNotFailed
 	}
-	newID, err := s.j.Retry(ctx, n.JobID, events.ActorAdmin)
+	newID, err := s.j.Retry(ctx, n.JobID, actor)
 	if err != nil {
 		return err
 	}

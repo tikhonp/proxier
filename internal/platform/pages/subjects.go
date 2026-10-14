@@ -6,10 +6,12 @@ import (
 	"log/slog"
 	"sort"
 
+	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
+	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 // Namer is module.SubjectNamer: it names the subjects of its types.
@@ -19,7 +21,7 @@ type Namer interface {
 }
 
 // subjectNames resolves the subjects of events and jobs to a label and a
-// link. The platform names admin, job, settings and schedule; modules name
+// link. The platform names member, job, settings and schedule; modules name
 // theirs. An unnamed subject shows as "type:id" without a link.
 type subjectNames struct {
 	by       map[string]Namer
@@ -81,8 +83,12 @@ func (s *subjectNames) platform(ctx context.Context, typ string, ids []string) (
 	out := map[string]ui.SubjectRef{}
 	for _, id := range ids {
 		switch typ {
-		case "admin":
-			out[id] = ui.SubjectRef{Label: i18n.T(ctx, "subject.admin"), Href: "/settings/security"}
+		case "member", "admin": // admin:1 is the subject of events recorded before members
+			ref := ui.SubjectRef{Label: typ + ":" + id, Href: "/settings/security"}
+			if name, ok := web.MemberName(ctx, auth.SubjectMember(events.Subject{Type: typ, ID: id})); ok {
+				ref.Label = name
+			}
+			out[id] = ref
 		case "job":
 			out[id] = ui.SubjectRef{Label: "#" + id, Href: "/jobs/" + id}
 		case "settings":

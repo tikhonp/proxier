@@ -47,7 +47,7 @@ func (h *handler) backupsSave(c *echo.Context) error {
 		}
 	}
 	values := h.submitted(c, sec)
-	if err := h.Settings.Set(ctx, "admin", "backups", values); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "backups", values); err != nil {
 		var fe settings.FieldErrors
 		if errors.As(err, &fe) {
 			return h.renderBackups(c, http.StatusUnprocessableEntity, values, fe, false)
@@ -60,7 +60,7 @@ func (h *handler) backupsSave(c *echo.Context) error {
 // backupsRun queues a backup now and shows its job.
 func (h *handler) backupsRun(c *echo.Context) error {
 	req := h.Backup.Request()
-	req.CreatedBy = "admin"
+	req.CreatedBy = web.Actor(c.Request().Context())
 	e, err := h.Jobs.EnqueueNow(c.Request().Context(), req)
 	if err != nil {
 		return err

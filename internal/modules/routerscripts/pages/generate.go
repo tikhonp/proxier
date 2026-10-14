@@ -14,7 +14,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -172,7 +171,7 @@ func (h *handler) generate(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	f := genForm(c)
-	id, err := h.Generations.Generate(ctx, s.ID, f, events.ActorAdmin)
+	id, err := h.Generations.Generate(ctx, s.ID, f, web.Actor(ctx))
 	var fe store.FieldErrors
 	switch {
 	case errors.As(err, &fe):

@@ -21,11 +21,11 @@ func newPasskeyEnv(t *testing.T) *env {
 // add registers a from session 1.
 func (e *env) add(a *authtest.Authenticator, name string) error {
 	e.t.Helper()
-	opts, token, err := e.s.BeginPasskey(e.ctx, 1, name, goodPassword)
+	opts, token, err := e.s.BeginPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, name, goodPassword)
 	if err != nil {
 		e.t.Fatal(err)
 	}
-	return e.s.FinishPasskey(e.ctx, 1, token, a.Create(opts))
+	return e.s.FinishPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, token, a.Create(opts))
 }
 
 func (e *env) passkeySignIn(a *authtest.Authenticator, ip string) (auth.SignInResult, error) {
@@ -57,7 +57,7 @@ func TestPasskeySignsInAlone(t *testing.T) {
 	if p := e.lastPayload("auth.signed_in"); !strings.Contains(p, `"method":"passkey"`) {
 		t.Errorf("payload %s", p)
 	}
-	keys, err := e.s.Passkeys(e.ctx)
+	keys, err := e.s.Passkeys(e.ctx, 1)
 	if err != nil || len(keys) != 1 || keys[0].Name != "MacBook" || keys[0].LastUsedAt.IsZero() {
 		t.Fatalf("passkeys %+v %v", keys, err)
 	}
@@ -126,17 +126,17 @@ func TestUnknownOrRemovedPasskeyIsRefused(t *testing.T) {
 	if _, err := e.passkeySignIn(stranger, "1.1.1.1"); !errors.Is(err, auth.ErrPasskeyRejected) {
 		t.Errorf("unknown passkey: %v", err)
 	}
-	keys, _ := e.s.Passkeys(e.ctx)
-	if err := e.s.RemovePasskey(e.ctx, keys[0].ID, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
+	keys, _ := e.s.Passkeys(e.ctx, 1)
+	if err := e.s.RemovePasskey(e.ctx, 1, keys[0].ID, "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
 		t.Errorf("removed with a wrong password: %v", err)
 	}
-	if err := e.s.RemovePasskey(e.ctx, keys[0].ID, goodPassword); err != nil {
+	if err := e.s.RemovePasskey(e.ctx, 1, keys[0].ID, goodPassword); err != nil {
 		t.Fatal(err)
 	}
 	if p := e.lastPayload("auth.passkey_removed"); !strings.Contains(p, `"name":"Phone"`) {
 		t.Errorf("payload %s", p)
 	}
-	if err := e.s.RemovePasskey(e.ctx, keys[0].ID, goodPassword); !errors.Is(err, auth.ErrNoPasskey) {
+	if err := e.s.RemovePasskey(e.ctx, 1, keys[0].ID, goodPassword); !errors.Is(err, auth.ErrNoPasskey) {
 		t.Errorf("removed twice: %v", err)
 	}
 	if _, err := e.passkeySignIn(a, "1.1.1.1"); !errors.Is(err, auth.ErrPasskeyRejected) {
@@ -190,22 +190,22 @@ func TestPasskeyPromptIsSingleUseAndRunsOut(t *testing.T) {
 func TestPromptsDontCrossOver(t *testing.T) {
 	e := newPasskeyEnv(t)
 	a := authtest.New(t, "https://proxier.example.com")
-	opts, token, err := e.s.BeginPasskey(e.ctx, 1, "Key", goodPassword)
+	opts, token, err := e.s.BeginPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, "Key", goodPassword)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := e.s.FinishPasskey(e.ctx, 2, token, a.Create(opts)); !errors.Is(err, auth.ErrCeremonyExpired) {
+	if err := e.s.FinishPasskey(e.ctx, auth.Session{ID: 2, MemberID: 1}, token, a.Create(opts)); !errors.Is(err, auth.ErrCeremonyExpired) {
 		t.Errorf("finished from another session: %v", err)
 	}
 	if err := e.add(a, "Key"); err != nil {
 		t.Fatal(err)
 	}
-	opts, token, _ = e.s.BeginPasskey(e.ctx, 1, "Again", goodPassword)
+	opts, token, _ = e.s.BeginPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, "Again", goodPassword)
 	if _, err := e.s.FinishPasskeySignIn(e.ctx, token, a.Get(opts), "1.1.1.1", ua); !errors.Is(err, auth.ErrCeremonyExpired) {
 		t.Errorf("an add prompt signed in: %v", err)
 	}
 	opts, token, _ = e.s.BeginPasskeySignIn()
-	if err := e.s.FinishPasskey(e.ctx, 1, token, a.Create(opts)); !errors.Is(err, auth.ErrCeremonyExpired) {
+	if err := e.s.FinishPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, token, a.Create(opts)); !errors.Is(err, auth.ErrCeremonyExpired) {
 		t.Errorf("a sign-in prompt added a passkey: %v", err)
 	}
 }
@@ -226,11 +226,11 @@ func TestTheSamePasskeyIsAddedOnce(t *testing.T) {
 
 func TestAddingAPasskeyNeedsThePasswordAndAName(t *testing.T) {
 	e := newPasskeyEnv(t)
-	if _, _, err := e.s.BeginPasskey(e.ctx, 1, "Key", "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
+	if _, _, err := e.s.BeginPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, "Key", "wrong password!!"); !errors.Is(err, auth.ErrWrongCredentials) {
 		t.Errorf("wrong password: %v", err)
 	}
 	for _, name := range []string{"", "   ", strings.Repeat("я", auth.MaxPasskeyName+1)} {
-		if _, _, err := e.s.BeginPasskey(e.ctx, 1, name, goodPassword); !errors.Is(err, auth.ErrPasskeyName) {
+		if _, _, err := e.s.BeginPasskey(e.ctx, auth.Session{ID: 1, MemberID: 1}, name, goodPassword); !errors.Is(err, auth.ErrPasskeyName) {
 			t.Errorf("name %q: %v", name, err)
 		}
 	}
@@ -258,5 +258,36 @@ func TestPasskeysNeedABaseURL(t *testing.T) {
 	e := newEnv(t)
 	if _, _, err := e.s.BeginPasskeySignIn(); !errors.Is(err, auth.ErrPasskeysOff) {
 		t.Errorf("err = %v", err)
+	}
+}
+
+// A passkey signs in as the member who added it, and only that member lists
+// or removes it.
+func TestPasskeySignsInAsItsMember(t *testing.T) {
+	e := newPasskeyEnv(t)
+	anna := e.addMember("anna")
+	sess := auth.Session{ID: 2, MemberID: anna}
+	a := authtest.New(t, "https://proxier.example.com")
+	opts, token, err := e.s.BeginPasskey(e.ctx, sess, "Anna's phone", goodPassword)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := e.s.FinishPasskey(e.ctx, sess, token, a.Create(opts)); err != nil {
+		t.Fatal(err)
+	}
+	a.Count = 1
+	r, err := e.passkeySignIn(a, "1.1.1.1")
+	if err != nil || r.Session.MemberID != anna {
+		t.Fatalf("sign in: %v %+v", err, r.Session)
+	}
+	if mine, _ := e.s.Passkeys(e.ctx, 1); len(mine) != 0 {
+		t.Errorf("member 1 lists anna's passkey: %+v", mine)
+	}
+	theirs, _ := e.s.Passkeys(e.ctx, anna)
+	if len(theirs) != 1 {
+		t.Fatalf("anna's passkeys: %+v", theirs)
+	}
+	if err := e.s.RemovePasskey(e.ctx, 1, theirs[0].ID, goodPassword); !errors.Is(err, auth.ErrNoPasskey) {
+		t.Errorf("member 1 removed anna's passkey: %v", err)
 	}
 }

@@ -100,11 +100,11 @@ func TestEventsAndSettingsAreDeclared(t *testing.T) {
 	if err != nil || tz != "Europe/Moscow" {
 		t.Errorf("general.time_zone = %q, %v", tz, err)
 	}
-	err = a.Settings.Set(ctx, events.ActorAdmin, "general", map[string]string{"general.time_zone": "Mars/Base"})
+	err = a.Settings.Set(ctx, events.MemberActor(1), "general", map[string]string{"general.time_zone": "Mars/Base"})
 	if _, ok := err.(settings.FieldErrors); !ok {
 		t.Errorf("bad time zone: err = %v", err)
 	}
-	if err := a.Settings.Set(ctx, events.ActorAdmin, "general", map[string]string{"general.time_zone": "Asia/Yekaterinburg", "general.language": "ru"}); err != nil {
+	if err := a.Settings.Set(ctx, events.MemberActor(1), "general", map[string]string{"general.time_zone": "Asia/Yekaterinburg", "general.language": "ru"}); err != nil {
 		t.Fatal(err)
 	}
 	// The first Migrate generated Proxier's SSH key before the settings changed.

@@ -1,6 +1,6 @@
-// Package auth is the domain of the one admin: the password, the
-// authenticator app, passkeys, sessions, the sign-in lockout and the events
-// they record (docs/processes/platform/sign-in.md).
+// Package auth is the domain of members signing in: their passwords,
+// authenticator apps, passkeys and sessions, the sign-in lockout and the
+// events they record (docs/processes/platform/sign-in.md).
 // It knows nothing of HTTP.
 package auth
 
@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strconv"
 	"sync"
 	"time"
 
@@ -35,8 +36,8 @@ const (
 )
 
 var (
-	ErrAdminExists      = errors.New("auth: an admin already exists")
-	ErrNoAdmin          = errors.New("auth: no admin yet")
+	ErrMembersExist     = errors.New("auth: a member already exists")
+	ErrNoMember         = errors.New("auth: no such member")
 	ErrWrongCredentials = errors.New("auth: wrong username or password")
 	ErrPasswordTooShort = errors.New("auth: password shorter than 12 characters")
 	ErrPasswordTooLong  = errors.New("auth: password too long")
@@ -71,13 +72,13 @@ const SignedInEvent = "auth.signed_in"
 
 // Events are the event types auth records.
 var Events = []events.Type{
-	{Name: "admin.created", Module: "platform", Description: "The admin was created from the command line."},
+	{Name: "admin.created", Module: "platform", Description: "The first member was created from the command line."},
 	// Notifies only when the payload has new_ip: true (NotifyIf).
 	{Name: SignedInEvent, Module: "platform", Notify: true, Emoji: "🔐", Description: "Signed in from a new IP.",
 		NotifyIf: func(p map[string]any) bool { b, _ := p["new_ip"].(bool); return b }},
 	{Name: "auth.sign_in_failed", Module: "platform", Description: "A sign-in failed."},
 	{Name: "auth.locked", Module: "platform", Notify: true, Emoji: "🔐", Description: "An IP was locked out after failed sign-ins."},
-	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "The admin password was changed."},
+	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A password was changed."},
 	{Name: "auth.totp_enabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned on."},
 	{Name: "auth.totp_disabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned off."},
 	{Name: "auth.passkey_added", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was added."},
@@ -85,7 +86,7 @@ var Events = []events.Type{
 	{Name: "auth.second_factor_reset", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app and passkeys were removed from the command line."},
 	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended."},
 	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended."},
-	{Name: "admin.language_changed", Module: "platform", Description: "The admin changed the interface language."},
+	{Name: "admin.language_changed", Module: "platform", Description: "A member changed the interface language."},
 }
 
 // SecuritySection is Settings → Security's lockout fields.
@@ -98,7 +99,8 @@ var SecuritySection = settings.Section{
 	},
 }
 
-type Admin struct {
+type Member struct {
+	ID                int64
 	Username          string
 	Language          i18n.Lang
 	CreatedAt         db.Time
@@ -107,6 +109,7 @@ type Admin struct {
 
 type Session struct {
 	ID                    int64
+	MemberID              int64
 	CreatedAt, LastSeenAt db.Time
 	ExpiresAt             db.Time // absolute
 	CreatedIP, LastIP     string
@@ -119,7 +122,7 @@ type Session struct {
 	CSRF  string
 }
 
-// Service is the admin's account.
+// Service is the members' accounts.
 type Service struct {
 	Params Params                                     // DefaultParams
 	Now    func() time.Time                           // time.Now
@@ -200,7 +203,20 @@ func (s *Service) dummyHash(ctx context.Context) (string, error) {
 	return s.dummy, err
 }
 
-var adminSubject = events.Subject{Type: "admin", ID: "1"}
+// MemberSubject is the subject of a member's events. Events recorded before
+// members have the subject admin:1, which is member 1.
+func MemberSubject(id int64) events.Subject {
+	return events.Subject{Type: "member", ID: strconv.FormatInt(id, 10)}
+}
+
+// SubjectMember returns the member a subject of type member or admin names.
+func SubjectMember(sub events.Subject) int64 {
+	if sub.Type == "admin" {
+		return 1
+	}
+	id, _ := strconv.ParseInt(sub.ID, 10, 64)
+	return id
+}
 
 func (s *Service) record(ctx context.Context, tx sqlx.ExtContext, typ, actor string, subj events.Subject, payload map[string]any) error {
 	_, err := s.events.Record(ctx, tx, events.Event{Time: s.now(), Type: typ, Actor: actor, Subject: subj, Payload: payload})

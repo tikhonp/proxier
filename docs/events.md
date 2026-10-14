@@ -2,31 +2,31 @@
 
 Every state change records an event in the same transaction as the change ([architecture](./architecture.md#events-and-history)). Events are the activity history (the Activity page and each object's Activity tab) and the only input to notifications. The tables below are the full catalog. **Notify** is the default of each event's notification rule, which Settings → Notifications can change.
 
-The payload lists the fields beyond the subject. Notification texts are given in English; each has a Russian twin in the catalogs.
+The payload lists the fields beyond the subject. A member's own events (`auth.*`, `admin.*`) have the subject `member:<id>`; those recorded before members say `admin:1`, which is member 1. Notification texts are given in English; each has a Russian twin in the catalogs.
 
 ## Platform
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `admin.created` | admin | — | off | from `proxier manage create-admin` |
-| `auth.signed_in` | admin | ip, user agent, new_ip, method (`password` / `password+code` / `passkey`) | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
+| `admin.created` | member | username | off | The first member, from `proxier manage create-admin` (actor `cli`). |
+| `auth.signed_in` | member | ip, user agent, new_ip, method (`password` / `password+code` / `passkey`) | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
 | `auth.sign_in_failed` | — | ip, and username tried (password) or stage (`code` / `passkey`) | off | Never the code. |
 | `auth.locked` | — | ip, failures, minutes | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
-| `auth.password_changed` | admin | — | **on** | |
-| `auth.totp_enabled` | admin | — | **on** | |
-| `auth.totp_disabled` | admin | — | **on** | |
-| `auth.passkey_added` | admin | name | **on** | |
-| `auth.passkey_removed` | admin | name | **on** | |
-| `auth.second_factor_reset` | admin | via (`cli`), totp, passkeys, sessions | **on** | `proxier manage reset-2fa`; recorded only when it removed or ended something. |
-| `auth.signed_out` | admin | session (id), by (`self` / `settings`) | off | |
-| `auth.signed_out_everywhere` | admin | sessions ended | off | |
-| `admin.language_changed` | admin | from, to | off | |
+| `auth.password_changed` | member | — | **on** | |
+| `auth.totp_enabled` | member | — | **on** | |
+| `auth.totp_disabled` | member | — | **on** | |
+| `auth.passkey_added` | member | name | **on** | |
+| `auth.passkey_removed` | member | name | **on** | |
+| `auth.second_factor_reset` | member | via (`cli`), totp, passkeys, sessions | **on** | `proxier manage reset-2fa <username>`; recorded only when it removed or ended something. |
+| `auth.signed_out` | member | session (id), by (`self` / `settings`) | off | |
+| `auth.signed_out_everywhere` | member | sessions ended | off | |
+| `admin.language_changed` | member | from, to | off | |
 | `settings.changed` | setting group | keys changed (never values) | off | |
 | `ssh.key_generated` | ssh key (`ssh:identity`) | fingerprint, regenerated | **on when `regenerated`** | The first start generates the key silently; **Regenerate** notifies, because every server, jump host and router needs the new key. |
 | `ssh.host_key_pinned` | known host | address, fingerprint | off | First contact with an address (subject `ssh_host:<address>`). |
 | `ssh.host_key_changed` | known host | address, old and new fingerprint | **on** | All work with that host stops until accepted. Recorded once per new key, however many jobs meet it. |
 | `ssh.host_key_accepted` | known host | address, old and new fingerprint | off | |
-| `ssh.host_forgotten` | known host | address, fingerprint | off | By the admin, or when the servers module retires a server. |
+| `ssh.host_forgotten` | known host | address, fingerprint | off | By a member, or when the servers module retires a server. |
 | `job.failed` | job | type, error | **on** for job types without their own failure event | |
 | `notification.failed` | event (`event:<id>`) | channel, error | off, and never notifiable | A delivery gave up after its last retry. Shown on the dashboard. |
 | `backup.completed` | job | file, size | off | |
@@ -140,7 +140,7 @@ Lists in payloads are one comma-joined string.
 | `routerscript.archived` | router script | archived (bool) | off | |
 | `routerscript.deleted` | router script | name | off | Only a script no generation was made from. |
 | `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | |
-| `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `admin`. |
+| `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `member:<id>`. |
 | `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
 | `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
 | `routerscript.agent_session_opened` | router script | expires_at, agent, context (diff: bool), session | **on** 🤖 | "An agent can edit the draft of fresh-router". Anyone holding the copied prompt can do so. |
@@ -154,7 +154,7 @@ Titles and sentences of the events the platform notifies about; each has a Russi
 |---|---|---|---|
 | `auth.signed_in` (`new_ip`) | 🔐 | Signed in from a new IP {ip} | {browser} |
 | `auth.locked` | 🔐 | {failures} failed sign-ins from {ip} | Locked for {minutes} min. |
-| `auth.password_changed` | 🔐 | The admin password was changed | Via {via}. |
+| `auth.password_changed` | 🔐 | The password of {subject} was changed | Via {via}. |
 | `auth.totp_enabled` | 🔐 | The authenticator app was turned on | Signing in with the password now asks for a code. |
 | `auth.totp_disabled` | 🔐 | The authenticator app was turned off | The password alone signs in again. |
 | `auth.passkey_added` | 🔐 | Passkey {name} was added | It signs in without the password. |
@@ -171,10 +171,10 @@ An event without a subject (a lockout) links to Activity; any other links to its
 
 - One event, at most one notification. Health flapping is handled before the event exists: a state changes only after consecutive confirmations ([health](./processes/servers/server-health.md)).
 - Messages are short: an emoji for the state, the subject's name, one sentence, and an **Open in Proxier** button to the subject's page.
-- Messages are in the admin's language. Times use the configured time zone.
+- Messages are in member 1's language: the one chat is theirs. Times use the configured time zone.
 - Delivery details (retries, Telegram rate limits, failures): [notifications process](./processes/platform/notifications.md).
 
-Subscriptions' texts (EN; each has its RU twin). The dates are the last day the link works, in the admin's language and time zone; the button opens the link or subscription page.
+Subscriptions' texts (EN; each has its RU twin). The dates are the last day the link works, in member 1's language and the display time zone; the button opens the link or subscription page.
 
 | Event | Emoji | Title | Sentence |
 |---|---|---|---|

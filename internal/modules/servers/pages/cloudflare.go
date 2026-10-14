@@ -113,7 +113,7 @@ func (h *handler) cloudflareToken(c *echo.Context) error {
 		}
 		return fail(status, cfErr(ctx, err))
 	}
-	if err := h.Settings.Set(ctx, "admin", "cloudflare", map[string]string{cloudflare.TokenKey: token}); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "cloudflare", map[string]string{cloudflare.TokenKey: token}); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/settings/integrations/cloudflare?saved=token")
@@ -140,7 +140,7 @@ func (h *handler) cloudflareZones(c *echo.Context) error {
 			ticked = append(ticked, z.Name)
 		}
 	}
-	if err := h.Settings.Set(ctx, "admin", "cloudflare", map[string]string{cloudflare.ZonesKey: strings.Join(ticked, ",")}); err != nil {
+	if err := h.Settings.Set(ctx, web.Actor(ctx), "cloudflare", map[string]string{cloudflare.ZonesKey: strings.Join(ticked, ",")}); err != nil {
 		return err
 	}
 	return web.Redirect(c, "/settings/integrations/cloudflare?saved=zones")

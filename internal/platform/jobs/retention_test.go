@@ -85,10 +85,10 @@ func TestRetentionPrunesSignInData(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	exec(`INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'x', 'en', ?, ?)`, ago(h, 90*day), ago(h, 90*day))
+	exec(`INSERT INTO members (username, password_hash, language, webauthn_user_id, created_at, created_by, password_changed_at) VALUES ('a', 'x', 'en', x'01', ?, 'cli', ?)`, ago(h, 90*day), ago(h, 90*day))
 	exec(`INSERT INTO sign_in_attempts (ip, time, success) VALUES ('1.1.1.1', ?, 0), ('1.1.1.1', ?, 1)`, ago(h, 31*day), ago(h, day))
 	sess := func(token string, expires, ended any, reason any) {
-		exec(`INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason)
+		exec(`INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason)
 			VALUES (CAST(? AS BLOB), 1, ?, ?, ?, 'ip', 'ip', ?, ?)`, token, ago(h, 60*day), ago(h, 60*day), expires, ended, reason)
 	}
 	future := db.At(h.Clock.Now().Add(10 * day))

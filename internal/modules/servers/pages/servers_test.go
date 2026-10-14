@@ -14,6 +14,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/geoip"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
@@ -247,7 +248,7 @@ func TestServerNotes(t *testing.T) {
 		t.Fatalf("notes %q", got)
 	}
 	ev := h.Events("server.notes_changed")
-	if len(ev) != 1 || ev[0].Actor != "admin" || ev[0].Subject.String() != "server:"+sid(id) {
+	if len(ev) != 1 || ev[0].Actor != events.MemberActor(1) || ev[0].Subject.String() != "server:"+sid(id) {
 		t.Fatalf("events: %+v", ev)
 	}
 	// The same notes again change nothing and record nothing.
@@ -291,10 +292,10 @@ func suggestIP(t *testing.T, h *serverstest.Harness, answer *string) {
 // inRussian is a page as the admin sees it in Russian.
 func inRussian(t *testing.T, h *serverstest.Harness, path string) string {
 	t.Helper()
-	if err := h.App.Auth.SetLanguage(bg, "ru"); err != nil {
+	if err := h.App.Auth.SetLanguage(bg, 1, "ru"); err != nil {
 		t.Fatal(err)
 	}
-	defer func() { _ = h.App.Auth.SetLanguage(bg, "en") }()
+	defer func() { _ = h.App.Auth.SetLanguage(bg, 1, "en") }()
 	return page(t, h, path)
 }
 

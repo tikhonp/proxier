@@ -14,6 +14,7 @@ import (
 
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -29,7 +30,10 @@ const (
 // jobsCellView counts for the header; a failed query shows nothing wrong.
 func (h *handler) jobsCellView(c *echo.Context) templ.Component {
 	ctx := c.Request().Context()
-	seen, _ := h.Jobs.SeenAt(ctx)
+	var seen db.Time
+	if m := web.FromContext(ctx).Member; m != nil {
+		seen, _ = h.Jobs.SeenAt(ctx, m.ID)
+	}
 	running, failed, err := h.Jobs.HeaderCounts(ctx, seen)
 	if err != nil {
 		h.Log.Error("pages: jobs cell", "error", err)
@@ -73,8 +77,12 @@ func stepLabel(ctx context.Context, typ, step string) string {
 	return tr(ctx, "job."+typ+".step."+step, step)
 }
 
-// byLabel turns "admin", "schedule:platform.retention", "event:12" into words.
+// byLabel turns "member:1", "schedule:platform.retention", "event:12" into
+// words; a member is named by username.
 func byLabel(ctx context.Context, by string) string {
+	if _, ok := events.ActorMember(by); ok {
+		return web.ActorName(ctx, by)
+	}
 	kind, rest, _ := strings.Cut(by, ":")
 	label := tr(ctx, "jobs.by."+kind, kind)
 	if rest != "" && kind != "event" {
@@ -187,10 +195,11 @@ func (h *handler) jobsPage(c *echo.Context) error {
 
 	// Looking at the list is "seeing" the failures; the counts for the chips
 	// and the header are taken first.
-	seen, _ := h.Jobs.SeenAt(ctx)
+	me := web.FromContext(ctx).Member.ID
+	seen, _ := h.Jobs.SeenAt(ctx, me)
 	running, failedSince, _ := h.Jobs.HeaderCounts(ctx, seen)
 	if f.Before == 0 {
-		if err := h.Jobs.MarkSeen(ctx); err != nil {
+		if err := h.Jobs.MarkSeen(ctx, me); err != nil {
 			h.Log.Error("pages: mark jobs seen", "error", err)
 		}
 	}
@@ -279,7 +288,7 @@ func (h *handler) jobDetail(ctx context.Context, j jobs.Job) string {
 		}
 	case jobs.Cancelled:
 		if j.CancelRequestedBy != "" {
-			return i18n.T(ctx, "jobs.detail.cancelled_by", i18n.Args{"by": j.CancelRequestedBy})
+			return i18n.T(ctx, "jobs.detail.cancelled_by", i18n.Args{"by": byLabel(ctx, j.CancelRequestedBy)})
 		}
 	}
 	return ""
@@ -296,7 +305,7 @@ func firstLine(s string) string {
 func (h *handler) runDemo(c *echo.Context) error {
 	ctx := c.Request().Context()
 	p := jobs.DemoPayload{Seconds: 30, Fail: c.FormValue("fail") == "1"}
-	e, err := h.Jobs.EnqueueNow(ctx, jobs.Request{Type: "platform.demo", Payload: p, CreatedBy: events.ActorAdmin})
+	e, err := h.Jobs.EnqueueNow(ctx, jobs.Request{Type: "platform.demo", Payload: p, CreatedBy: web.Actor(ctx)})
 	if err != nil {
 		return err
 	}
@@ -428,7 +437,7 @@ func (h *handler) buildJob(ctx context.Context, j jobs.Job) (jobView, error) {
 	v.CanStop = j.State == jobs.Queued || j.State == jobs.Running || j.State == jobs.Interrupted
 	v.CanRetry = j.State == jobs.Failed || j.State == jobs.Cancelled
 	if j.State == jobs.Running && j.CancelRequestedBy != "" {
-		v.Note = i18n.T(ctx, "job.cancelling", i18n.Args{"by": j.CancelRequestedBy})
+		v.Note = i18n.T(ctx, "job.cancelling", i18n.Args{"by": byLabel(ctx, j.CancelRequestedBy)})
 		v.CanStop = false
 	}
 	v.Live = !isTerminal(j.State)
@@ -570,7 +579,7 @@ func (h *handler) jobCancel(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Jobs.Cancel(c.Request().Context(), id, events.ActorAdmin); err != nil {
+	if err := h.Jobs.Cancel(c.Request().Context(), id, web.Actor(c.Request().Context())); err != nil {
 		if errors.Is(err, jobs.ErrNotFound) {
 			return echo.ErrNotFound
 		}
@@ -602,7 +611,7 @@ func (h *handler) jobRetry(c *echo.Context) error {
 		}
 		return web.Redirect(c, "/jobs/"+strconv.FormatInt(id, 10))
 	}
-	nid, err := h.Jobs.Retry(ctx, id, events.ActorAdmin)
+	nid, err := h.Jobs.Retry(ctx, id, web.Actor(ctx))
 	if err != nil {
 		if errors.Is(err, jobs.ErrNotRetryable) {
 			return web.Redirect(c, "/jobs/"+strconv.FormatInt(id, 10))

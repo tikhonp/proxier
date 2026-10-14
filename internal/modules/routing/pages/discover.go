@@ -18,7 +18,6 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -124,7 +123,7 @@ func (h *handler) discoverStart(c *echo.Context) error {
 	ctx := c.Request().Context()
 	via, sid := parseVia(c.FormValue("via"))
 	depth, _ := strconv.Atoi(c.FormValue("depth"))
-	id, err := h.Discovery.Start(ctx, discovery.Start{Website: c.FormValue("website"), Via: via, ServerID: sid, Depth: depth}, events.ActorAdmin)
+	id, err := h.Discovery.Start(ctx, discovery.Start{Website: c.FormValue("website"), Via: via, ServerID: sid, Depth: depth}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderDiscoverForm(c, http.StatusUnprocessableEntity, discoverForm{
@@ -464,7 +463,7 @@ func (h *handler) runCreate(c *echo.Context) error {
 	listIDs := formIDs(c, "list")
 	p := formPick(c)
 	name, tag := c.FormValue("name"), c.FormValue("tag")
-	sid, err := h.Discovery.Create(ctx, r.ID, services.Custom{Name: name, Tag: tag}, p, listIDs, events.ActorAdmin)
+	sid, err := h.Discovery.Create(ctx, r.ID, services.Custom{Name: name, Tag: tag}, p, listIDs, web.Actor(ctx))
 	if err == nil {
 		return web.Redirect(c, svcHref(sid)+"?added=1")
 	}
@@ -503,7 +502,7 @@ func (h *handler) runAdd(c *echo.Context) error {
 	ctx := c.Request().Context()
 	sid, _ := strconv.ParseInt(c.FormValue("service"), 10, 64)
 	p := formPick(c)
-	err = h.Discovery.AddTo(ctx, r.ID, sid, p, events.ActorAdmin)
+	err = h.Discovery.AddTo(ctx, r.ID, sid, p, web.Actor(ctx))
 	if err == nil {
 		return web.Redirect(c, svcHref(sid)+"?saved=1")
 	}
@@ -530,7 +529,7 @@ func (h *handler) runAgain(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	via, sid := parseVia(c.FormValue("via"))
-	id, err := h.Discovery.Again(ctx, r.ID, via, sid, events.ActorAdmin)
+	id, err := h.Discovery.Again(ctx, r.ID, via, sid, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderRun(c, http.StatusUnprocessableEntity, r, func(v *runView) {

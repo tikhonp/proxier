@@ -9,7 +9,7 @@ import (
 
 // ephemeral holds short-lived state between two requests of one sign-in or
 // passkey ceremony, under a random token. It lives in memory: a restart only
-// makes the admin start that sign-in again.
+// makes the member start that sign-in again.
 type ephemeral[T any] struct {
 	ttl time.Duration
 	max int // the oldest entry makes room past it, so a flood can't grow memory

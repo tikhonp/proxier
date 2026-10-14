@@ -59,7 +59,7 @@ type Shell struct {
 	Title    string // already translated
 	Path     string // current path, for the sidebar's current row
 	CSRF     string
-	Admin    string // username, for the admin menu
+	Member   string // username, for the header
 	Lang     i18n.Lang
 	Nav      []NavGroup
 	Keys     Keymap

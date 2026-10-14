@@ -61,7 +61,7 @@ templ SignIn(v SignInView) {
 				if v.Passkeys {
 					<button type="button" class="pc-btn hidden" data-passkey-signin data-failed={ i18n.T(ctx, "auth.passkey.failed") } disabled?={ v.Error == "locked" }>{ i18n.T(ctx, "auth.passkey.sign_in") }</button>
 				}
-				<p class="help">{ i18n.T(ctx, "auth.forgot") } <code>proxier manage reset-password</code></p>
+				<p class="help">{ i18n.T(ctx, "auth.forgot") } <code>proxier manage reset-password &lt;username&gt;</code></p>
 			</form>
 		</main>
 		if v.Passkeys {
@@ -92,7 +92,7 @@ templ SignInCode(v SignInView) {
 					{ i18n.T(ctx, "auth.code.help") }
 					<a href={ templ.SafeURL("/login?next=" + url.QueryEscape(v.Next)) }>{ i18n.T(ctx, "auth.code.start_over") }</a>
 				</p>
-				<p class="help">{ i18n.T(ctx, "auth.code.lost") } <code>proxier manage reset-2fa</code></p>
+				<p class="help">{ i18n.T(ctx, "auth.code.lost") } <code>proxier manage reset-2fa &lt;username&gt;</code></p>
 			</form>
 		</main>
 	}

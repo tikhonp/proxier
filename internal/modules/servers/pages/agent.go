@@ -156,7 +156,7 @@ func (h *handler) agentOpen(c *echo.Context) error {
 			v.Picked[sid] = true
 		}
 	}
-	opened, err := h.Agent.OpenSession(ctx, o, "admin")
+	opened, err := h.Agent.OpenSession(ctx, o, web.Actor(ctx))
 	if err != nil {
 		key := ""
 		switch {
@@ -201,7 +201,7 @@ func (h *handler) agentRevoke(c *echo.Context) error {
 		return echo.ErrNotFound
 	}
 	// A session that already ended is as revoked as it can be.
-	if err := h.Agent.Revoke(c.Request().Context(), sid, "admin"); err != nil && !errors.Is(err, agent.ErrNotOpen) {
+	if err := h.Agent.Revoke(c.Request().Context(), sid, web.Actor(c.Request().Context())); err != nil && !errors.Is(err, agent.ErrNotOpen) {
 		return notFound(err)
 	}
 	return web.Redirect(c, actionHref(id, "?saved=revoked"))

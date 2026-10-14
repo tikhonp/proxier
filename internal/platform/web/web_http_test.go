@@ -26,7 +26,7 @@ func TestCrossSitePostIsRefused(t *testing.T) {
 	if rec.Code != 403 {
 		t.Fatalf("status %d, want 403", rec.Code)
 	}
-	if a, _ := s.App.Auth.Admin(t.Context()); a.Language != "en" {
+	if m, _ := s.App.Auth.Member(t.Context(), 1); m.Language != "en" {
 		t.Error("the language changed")
 	}
 	// the same request from the same site works

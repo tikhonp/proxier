@@ -17,13 +17,13 @@ func TestRuleRowsOnlyForNonDefaults(t *testing.T) {
 	}
 
 	// Already at its default: nothing stored, nothing recorded.
-	must(t, e.svc.SetRule(bg, "test.server_down", true))
+	must(t, e.svc.SetRule(bg, "test.server_down", true, events.MemberActor(1)))
 	if rows() != 0 || changed() != 0 {
 		t.Fatalf("a no-op left %d rows and %d events", rows(), changed())
 	}
 
-	must(t, e.svc.SetRule(bg, "test.server_down", false))
-	must(t, e.svc.SetRule(bg, "test.server_degraded", true))
+	must(t, e.svc.SetRule(bg, "test.server_down", false, events.MemberActor(1)))
+	must(t, e.svc.SetRule(bg, "test.server_degraded", true, events.MemberActor(1)))
 	if rows() != 2 || changed() != 2 {
 		t.Fatalf("%d rows, %d events", rows(), changed())
 	}
@@ -33,8 +33,8 @@ func TestRuleRowsOnlyForNonDefaults(t *testing.T) {
 	}
 
 	// Back to the default: the row goes, the change is recorded.
-	must(t, e.svc.SetRule(bg, "test.server_down", true))
-	must(t, e.svc.SetRule(bg, "test.server_degraded", false))
+	must(t, e.svc.SetRule(bg, "test.server_down", true, events.MemberActor(1)))
+	must(t, e.svc.SetRule(bg, "test.server_degraded", false, events.MemberActor(1)))
 	if rows() != 0 || changed() != 4 {
 		t.Fatalf("%d rows, %d events", rows(), changed())
 	}
@@ -55,10 +55,10 @@ func TestRuleRowsOnlyForNonDefaults(t *testing.T) {
 		t.Fatalf("%+v", r)
 	}
 
-	if err := e.svc.SetRule(bg, "no.such_type", true); !errors.Is(err, notify.ErrUnknownRule) {
+	if err := e.svc.SetRule(bg, "no.such_type", true, events.MemberActor(1)); !errors.Is(err, notify.ErrUnknownRule) {
 		t.Fatalf("unknown type: %v", err)
 	}
-	if err := e.svc.SetRule(bg, "notification.failed", true); !errors.Is(err, notify.ErrUnknownRule) {
+	if err := e.svc.SetRule(bg, "notification.failed", true, events.MemberActor(1)); !errors.Is(err, notify.ErrUnknownRule) {
 		t.Fatalf("notification.failed can be turned on: %v", err)
 	}
 }

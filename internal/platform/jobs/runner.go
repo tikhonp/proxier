@@ -448,7 +448,7 @@ func (s *System) failTx(ctx context.Context, tx *sqlx.Tx, j Info, t *Type, step 
 
 func (s *System) finishCancelled(ctx context.Context, run *Run, t *Type, by string) {
 	if by == "" {
-		by = events.ActorAdmin
+		by = events.ActorSystem
 	}
 	_ = run.log.Flush(ctx)
 	err := s.owned(ctx, run, func(tx *sqlx.Tx) error {

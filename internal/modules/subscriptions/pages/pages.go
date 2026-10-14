@@ -201,7 +201,7 @@ func (h *handler) renderNew(c *echo.Context, status int, v newView) error {
 func (h *handler) create(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := newView{Name: c.FormValue("name"), Title: c.FormValue("title"), Description: c.FormValue("description")}
-	id, err := h.Subs.Create(ctx, v.Name, v.Title, v.Description, events.ActorAdmin)
+	id, err := h.Subs.Create(ctx, v.Name, v.Title, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -406,7 +406,7 @@ func (h *handler) save(c *echo.Context) error {
 	if st.GraceMinutes, err = strconv.Atoi(strings.TrimSpace(c.FormValue("grace"))); err != nil {
 		st.GraceMinutes = -1
 	}
-	changed, err := h.Subs.Update(ctx, s.ID, st, events.ActorAdmin)
+	changed, err := h.Subs.Update(ctx, s.ID, st, web.Actor(ctx))
 	var errs store.FieldErrors
 	if errors.As(err, &errs) {
 		v, verr := h.pageView(c, s)

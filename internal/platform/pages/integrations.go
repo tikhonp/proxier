@@ -113,7 +113,7 @@ func (h *handler) telegramToken(c *echo.Context) error {
 		h.Log.Warn("pages: telegram getMe", "error", err)
 		return fail("telegram.unreachable")
 	}
-	err = h.Settings.Set(ctx, "admin", "telegram", map[string]string{
+	err = h.Settings.Set(ctx, web.Actor(ctx), "telegram", map[string]string{
 		"telegram.bot_token": token, "telegram.bot_username": me.Username,
 	})
 	if err != nil {
@@ -163,7 +163,7 @@ func (h *handler) telegramDetect(c *echo.Context) error {
 func (h *handler) telegramChat(c *echo.Context) error {
 	ctx := c.Request().Context()
 	id, title := strings.TrimSpace(c.FormValue("chat_id")), strings.TrimSpace(c.FormValue("chat_title"))
-	err := h.Settings.Set(ctx, "admin", "telegram", map[string]string{"telegram.chat_id": id, "telegram.chat_title": title})
+	err := h.Settings.Set(ctx, web.Actor(ctx), "telegram", map[string]string{"telegram.chat_id": id, "telegram.chat_title": title})
 	if err != nil {
 		var fe settings.FieldErrors
 		if errors.As(err, &fe) {

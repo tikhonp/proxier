@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -96,7 +97,7 @@ func TestRefreshAndRejectionOnServicePage(t *testing.T) {
 	}
 	body = h.Login.Get(href + "?accepted=1").Body.String()
 	has(t, "accepted", body, "netflix now has 84 domains: accepted anyway.")
-	if acc, _ := h.Mod.Services.Accepted(bg(), id); acc.Count() != 84 || acc.ForcedBy != "admin" {
+	if acc, _ := h.Mod.Services.Accepted(bg(), id); acc.Count() != 84 || acc.ForcedBy != events.MemberActor(1) {
 		t.Errorf("accepted: %d %q", acc.Count(), acc.ForcedBy)
 	}
 
