@@ -2,7 +2,7 @@
 
 ## Runtime shape
 
-Proxier is **one Go binary** (`proxier`) in one container, with its data in one SQLite file ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). It runs on blackberry. A headless Chromium sidecar is used only by discovery. `proxier serve` runs the HTTP server, the scheduler and every worker pool in one process. `proxier manage …` holds the one-off admin commands (create the admin, reset the password, run migrations, back up).
+Proxier is **one Go binary** (`proxier`) in one container, with its data in one SQLite file ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). It runs on blackberry. Only discovery uses the headless Chromium sidecar. `proxier serve` runs the HTTP server, the scheduler and every worker pool in one process. `proxier manage …` holds the one-off admin commands (create the admin, reset the password, run migrations, back up).
 
 ```mermaid
 flowchart LR
@@ -37,11 +37,11 @@ flowchart LR
     PX -- tsnet node: SSH --> JH --> RTR
 ```
 
-Proxier makes every outbound connection from home, so its checks see the Russian network ([ADR 0005](./adr/0005-home-is-the-russian-vantage-point.md)). Home has a MikroTik with selective VPN routing, so one rule matters everywhere: **traffic from Proxier to its servers must never enter the router's VPN**. Otherwise the proxy test measures the tunnel, not the Russian path. Proxier refuses routing lists that cover a server's hostname ([routing lists](./processes/routing/routing-lists.md)).
+Proxier makes every outbound connection from home, so its checks see the Russian network ([ADR 0005](./adr/0005-home-is-the-russian-vantage-point.md)). Home has a MikroTik with selective VPN routing, so one rule holds everywhere: **traffic from Proxier to its servers must never enter the router's VPN**, or the proxy test measures the tunnel instead of the Russian path. Proxier refuses routing lists that cover a server's hostname ([routing lists](./processes/routing/routing-lists.md)).
 
 ## Platform and modules
 
-The code is a **platform** plus **modules** ([ADR 0002](./adr/0002-modules-talk-through-ports-and-events.md)). Modules are Go packages compiled in, not runtime plugins. A module is enabled by being registered in `main`. Removing it from that list removes its pages, jobs and tables from use, and the modules that depend on it hide the features that needed it.
+The code is a **platform** plus **modules** ([ADR 0002](./adr/0002-modules-talk-through-ports-and-events.md)). Modules are Go packages compiled in, not runtime plugins. `modules()` in `cmd/proxier/main.go` enables them. Taking one out of that list takes its pages, jobs and tables out of use, and the modules that depend on it hide the features that needed it.
 
 The platform provides: the HTTP server and its middleware (session, CSRF, rate limits, i18n), settings, the secret vault, the job system and scheduler, the event log and dispatcher, notification channels, the SSH client (jump hosts, pinned host keys), the tailnet node, and the shared UI shell (layout, navigation, components).
 
@@ -60,7 +60,7 @@ Each module registers, at startup:
 | Translations (EN, RU) | `servers.*` keys |
 | Ports it provides to other modules | `EndpointCatalog`, `ProxyDialer` |
 
-**Ports** are small Go interfaces a module exports for others to call synchronously. Today's ports:
+**Ports** are small Go interfaces a module exports for others to call synchronously:
 
 | Port | Provided by | Used by | What it does |
 |---|---|---|---|
@@ -78,9 +78,9 @@ A port's consumer handles its absence: no subscriptions module means router scri
 
 ### Extension points
 
-These are pluggable in code: an interface plus a registry. Adding one is a new Go file, not a change to the module.
+Each is an interface plus a registry, so a new kind is a new Go file, not a change to the module.
 
-| Module | Extension point | First implementations | Later candidates |
+| Module | Extension point | Built | Candidates |
 |---|---|---|---|
 | Servers | Endpoint type: builds connection URIs, tests a connection, validates params | `vless-xhttp-tls` | VLESS Reality, Hysteria2, Trojan |
 | Servers | Step kind (template steps) | `base-bootstrap`, `upload-files`, `run`, `compose-up`, `compose-down`, `wait-http` | `apt-upgrade`, `reboot` |
@@ -150,7 +150,7 @@ Comparing desired with applied gives a **plan**. The admin can preview the plan 
 
 ## HTTP surfaces
 
-One listener, two kinds of routes. The namespaces are fixed so the gateway can later split them across hosts without a code change ([ADR 0006](./adr/0006-one-public-host-for-admin-and-public-urls.md)).
+One listener, two kinds of routes. The prefixes are fixed, so the gateway could split them across hosts without a code change ([ADR 0006](./adr/0006-one-public-host-for-admin-and-public-urls.md)).
 
 | Prefix | Who | Auth | Purpose |
 |---|---|---|---|
@@ -181,7 +181,7 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 
 ## Security model (summary)
 
-- One admin, password sign-in on a public host, no 2FA yet. Mitigations: login lockout per IP, a notification on sign-in from a new IP, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
+- One admin, password sign-in on a public host, no second factor. Mitigations: login lockout per IP, a notification on sign-in from a new IP, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
 - Secrets encrypted at rest. The root password of a new VPS is kept, encrypted, only until Proxier's key is installed, then erased ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
 - SSH host keys are pinned on first contact. A changed key stops all work with that host until the admin accepts the new key ([ADR 0007](./adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 - Proxier never gets the Docker socket of the machine it runs on ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)).
@@ -196,7 +196,7 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 
 ## Configuration
 
-Environment variables hold what's needed before the database is readable, plus anything that is easier to keep in the `secrets/` submodule. Everything else is in Settings (stored, secrets encrypted).
+Environment variables hold what Proxier needs before the database is readable, and what is easier to keep in the `secrets/` submodule. Everything else is in Settings, stored in the database with secrets encrypted.
 
 | Variable | Meaning | Default |
 |---|---|---|
@@ -216,7 +216,7 @@ Environment variables hold what's needed before the database is readable, plus a
 
 | Concern | Choice | Note |
 |---|---|---|
-| Language | Go (current release, 1.27 at the time of writing) | |
+| Language | Go 1.27 | |
 | Database | SQLite through `modernc.org/sqlite` (no CGO) | as in vk2tg |
 | Migrations | goose, embedded, one version table per module | |
 | SSH / file upload | `golang.org/x/crypto/ssh` + SFTP | jump hosts by dialing through the first client |

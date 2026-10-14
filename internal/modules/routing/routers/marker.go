@@ -34,7 +34,7 @@ type syncPayload struct {
 	Trigger  string   `json:"trigger"`
 	Manual   bool     `json:"manual,omitempty"`
 	Why      []string `json:"why,omitempty"`
-	Remove   []string `json:"remove,omitempty"` // unmanaged tags to remove (3f)
+	Remove   []string `json:"remove,omitempty"` // unmanaged tags to remove
 }
 
 // mergeSync keeps manual when either request had it and unions why and remove.

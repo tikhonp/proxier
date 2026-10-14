@@ -50,8 +50,8 @@ var (
 	ErrNotRetiring  = errors.New("retire: the server's retirement has not failed")
 )
 
-// UsageReader names the subscriptions and links that serve a server (Phase 2
-// implements it; the dialog says so while nothing does).
+// UsageReader names the subscriptions and links that serve a server (the
+// subscriptions module implements it; without it the dialog says so).
 type UsageReader interface {
 	Usage(ctx context.Context, serverID int64) (subscriptions []string, links int, err error)
 }

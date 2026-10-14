@@ -32,7 +32,7 @@ func validClock(v string) error {
 	return nil
 }
 
-// Section is the module's settings section (Settings → Routing, from 3c).
+// Section is the module's settings section (Settings → Routing).
 var Section = settings.Section{
 	Name: "routing", Module: "routing",
 	Fields: []settings.Field{

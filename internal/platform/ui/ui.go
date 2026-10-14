@@ -63,7 +63,7 @@ type Shell struct {
 	Lang     i18n.Lang
 	Nav      []NavGroup
 	Keys     Keymap
-	Warning  *HeaderWarning  // optional warning cell (0d: Telegram)
+	Warning  *HeaderWarning  // optional warning cell (Telegram)
 	JobsCell templ.Component // the header cell, polled from /jobs/cell
 	PageKeys string          // key line hint when nothing is under the cursor (i18n key)
 	// Scripts are extra ES modules of this page, as static paths

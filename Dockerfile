@@ -42,8 +42,8 @@ RUN --mount=type=cache,target=/go/pkg/mod/ \
     mkdir /out/data
 
 # prod: distroless, no shell, uid 65532. CA certificates come with the image;
-# time zones are compiled into the binary (time/tzdata). Phase 1 adds nginx
-# and bash for the template validators, which changes this base.
+# time zones are compiled into the binary (time/tzdata). The template
+# validators are pure Go, so the binary is all the image holds (ADR 0009).
 FROM gcr.io/distroless/static-debian13:nonroot AS prod
 ARG APP_VERSION=dev
 ARG BUILD_DATE=

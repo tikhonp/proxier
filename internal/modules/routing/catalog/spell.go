@@ -68,7 +68,7 @@ func (sp *speller) selectable(portal, kind, name string) bool {
 // Offers are the catalog's selectors whose tag is tag, spelled: v2fly:<tag>
 // when v2fly has that list, and the iplist selector of the first portal with
 // a selectable site or group of that name. Adopting an unmanaged router tag
-// offers them (3f).
+// offers them.
 func (s *Service) Offers(ctx context.Context, tag string) ([]string, error) {
 	var out []string
 	ok, err := store.V2flyHas(ctx, s.d.DB.R, tag)

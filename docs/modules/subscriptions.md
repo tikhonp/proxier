@@ -12,7 +12,7 @@ The module uses the servers module through its `EndpointCatalog` port and never 
 | Title | What apps show as the subscription's name (`profile-title`), at most 60 characters. | the name |
 | Description | Admin-facing note. | — |
 | Servers | Ordered list of active servers. Every endpoint of each server is served, in that order. | empty |
-| Formats | Which formats links may be served in, and the default. First version: `uri-plain`, `uri-base64` ([subscription format](../integrations/subscription-format.md)). | both allowed, `uri-plain` default |
+| Formats | Which formats links may be served in, and the default: `uri-plain`, `uri-base64` ([subscription format](../integrations/subscription-format.md)). | both allowed, `uri-plain` default |
 | Update interval | Whole hours suggested to apps between refreshes (`profile-update-interval`), 1–168. | 12 |
 | Hide unhealthy servers | Off, or on with the states to hide, chosen from `blocked`, `down`, `degraded`, `unknown` (default `blocked`, `down`; `paused` never hides), and a grace period of 0–10 080 min (default 30). | off |
 | Add new servers automatically | Every server that becomes active is appended to this subscription. | off |
@@ -106,7 +106,7 @@ Section `subscriptions`, on **Settings → Subscriptions**:
 | `subscriptions.network_country_url` | `https://ipinfo.io/{ip}/country` | Country lookup of a network's first address; empty turns it off. |
 | `subscriptions.tombstone` | 30 days | How long a deleted link serves "⛔ Link removed" (and holds its subscription) before it answers `404` (1–365 days). |
 | `subscriptions.fetch_retention` | 90 days | Fetches older than this are deleted (at least 7 days). |
-| `subscriptions.cutoff_rotates` | off | Whether Cut off also rotates every server of the link's subscription. Off: it only disables the link ([cut-off](../processes/servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). |
+| `subscriptions.cutoff_rotates` | off | Whether Cut off also rotates every server of the link's subscription. Off: it only disables the link ([cut-off](../processes/servers/credential-rotation.md#steps-cut-off-rotating-for-a-link)). |
 
 ## Ports for other modules
 

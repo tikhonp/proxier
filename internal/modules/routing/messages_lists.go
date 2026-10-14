@@ -2,7 +2,7 @@ package routing
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// listMessages are the routing lists' texts (3b).
+// listMessages are the routing lists' texts.
 var listMessages = i18n.Messages{
 	// Nav, the lists page, search
 	"lists.nav":                 {EN: "Lists", RU: "Списки"},

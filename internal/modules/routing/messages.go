@@ -196,7 +196,7 @@ var messages = i18n.Messages{
 	"services.skip.unsupported":    {EN: "not supported on RouterOS", RU: "не поддерживается в RouterOS"},
 	"services.skip.invalid":        {EN: "not a valid domain name", RU: "недопустимое имя домена"},
 
-	// Settings (the page arrives in 3c)
+	// Settings
 	"settings.routing":                         {EN: "Routing", RU: "Маршрутизация"},
 	"settings.field.routing.refresh_at":        {EN: "Daily refresh at", RU: "Ежедневное обновление в"},
 	"settings.field.routing.refresh_at.help":   {EN: "When upstream services are refreshed, as HH:MM in the display time zone.", RU: "Когда обновляются сервисы из источников, ЧЧ:ММ в часовом поясе отображения."},

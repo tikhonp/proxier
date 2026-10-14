@@ -85,8 +85,8 @@ type ProxyTest struct {
 	Line int
 }
 
-// Known kinds. Endpoint types are the ones servers/endpoint implements; 1c
-// adds to this list when it adds a type.
+// Known kinds. Endpoint types are the ones servers/endpoint implements; a
+// new type is added here too.
 var (
 	StepKinds         = []string{"base-bootstrap", "upload-files", "run", "compose-up", "compose-down", "wait-http"}
 	CheckKinds        = []string{"compose-running", "http-local", "cert-expiry", "disk-free", "run"}

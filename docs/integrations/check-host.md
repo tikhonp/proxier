@@ -1,10 +1,10 @@
 # check-host.net (external checker)
 
-The first external checker. It tells whether a server's port 443 is reachable over TCP from nodes in Russia and abroad. That separates **down** from **blocked** when Proxier's own checks from home fail ([health](../processes/servers/server-health.md)). It is a public service without an account, so it is used sparingly. The API below was verified against the real service on 2026-10-08.
+The external checker. It tells whether a server's port 443 is reachable over TCP from nodes in Russia and abroad. That separates **down** from **blocked** when Proxier's own checks from home fail ([health](../processes/servers/server-health.md)). It is a public service without an account, so it is used sparingly. The API below is as observed on the real service on 2026-10-08.
 
 ## API (as observed)
 
-1. **Nodes**: `GET https://check-host.net/nodes/hosts` (with `Accept: application/json`) answers `{"nodes": {"ru1.node.check-host.net": {"asn": "AS14576", "ip": "185.130.104.238", "location": ["ru", "Russia", "Moscow"]}, …}}`. Proxier refreshes the list daily and keeps node name, country and city. At the time of writing there were 3 nodes in Russia (`ru1`–`ru3`) and about 50 elsewhere, none in Finland.
+1. **Nodes**: `GET https://check-host.net/nodes/hosts` (with `Accept: application/json`) answers `{"nodes": {"ru1.node.check-host.net": {"asn": "AS14576", "ip": "185.130.104.238", "location": ["ru", "Russia", "Moscow"]}, …}}`. Proxier refreshes the list daily and keeps node name, country and city. That day there were 3 nodes in Russia (`ru1` to `ru3`) and about 50 elsewhere, none in Finland.
 2. **Start a check**: `GET https://check-host.net/check-tcp?host=<ip>:443&node=<node>&node=<node>…` answers `{"ok": 1, "request_id": "4f96e3c5kd18", "permanent_link": "…", "nodes": {"<node>": ["de", "Germany", "Nuremberg", "<ip>", "<asn>"], …}}`.
 3. **Results**: `GET https://check-host.net/check-result/<request_id>`, polled every 2 s until every node has answered or 30 s have passed. The answer maps each node to `null` while it works, to `[{"address": "1.1.1.1", "time": 0.019135}]` once connected (`time` in seconds), or to `[{"error": "Connection timed out"}]` / `[{"error": "Connection refused"}]`. Results stay available for the same request id.
 
@@ -19,4 +19,4 @@ The first external checker. It tells whether a server's port 443 is reachable ov
 ## Limits of what it tells
 
 - A TCP connect from a Russian node doesn't prove the proxy works from Russia. DPI and throttling act after the handshake, which is why the proxy test from home is the ground truth.
-- The nodes sit in data centres, not on home or mobile networks, so blocks specific to an ISP or to mobile networks are invisible to them. Probe agents, in the backlog, would cover that.
+- The nodes sit in data centres, not on home or mobile networks, so blocks specific to an ISP or to mobile networks are invisible to them. Probe agents, in the [backlog](../overview.md#backlog), would cover that.

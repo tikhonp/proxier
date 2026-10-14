@@ -4,14 +4,14 @@
 
 The catalog lets the admin find services without knowing selectors by heart. It is mtvpn's `search`, kept locally and searched instantly. It also feeds discovery's catalog lookup through a reverse index from domains to the selectors that contain them. Source details: [domain sources](../../integrations/domain-sources.md).
 
-## Steps — refresh
+## Steps: refresh
 
 1. **v2fly commit**: one GitHub API request (`repos/v2fly/domain-list-community/commits/master`, `Accept: application/vnd.github.sha`) gives master's commit. When it is the commit of the catalog in force, nothing is downloaded.
 2. **v2fly names and reverse index**: download the repository archive at that commit (at `master` when the API failed). Every file under `data/` is a selector `v2fly:<name>`, the names come from the archive (the trees API isn't needed); every list is parsed and its includes resolved in memory with their filters, for its name count. Each direct suffix and exact entry is recorded with its list and attributes, and each include with its filter, so a lookup can follow them. The commit is recorded.
 3. **iplist**: for each portal (main, beta, russia), request the custom export with the template `{group}|{site}|{data}`: one line per domain, so each gives a (portal, group, site) triple and a domain of that site for the reverse index. Groups get their site and domain counts. An export equal to the last one (SHA-256) is not written again.
 4. Each source's new catalog is written as a new **generation** in short batches, then put in force in one short transaction, then the old generation is deleted; search answers from the old one until the switch. If a source fails, its previous catalog is kept and marked with its age; the other sources still refresh. → `routing.catalog_refreshed{v2fly, iplist_main, iplist_beta, iplist_russia}` (entries, −1 for a failed source), only when a source changed or failed. A source failing on 3 consecutive refreshes (days) → `routing.catalog_refresh_failed{source, error, since}` (notifies, once per run of failures)
 
-## Steps — search
+## Steps: search
 
 1. Routing → **Search**: a query box (substring match on the name, case-insensitive), with filters for source (v2fly / iplist), kind (v2fly list / iplist site / iplist group) and portal. v2fly lists come first, then iplist groups, then sites, each by name; at most 200 results ("N more: type more of the name").
 2. Each result shows:

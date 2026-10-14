@@ -4,7 +4,7 @@
 
 `fresh-router.rsc` changes over time (RouterOS quirks, new watchdogs, guest VLAN rules). Proxier keeps every version, shows what each changed, and detects each version's parameters from the script itself. The script stays a plain RouterOS file you could still import by hand ([ADR 0011](../../adr/0011-router-script-parameters-from-local-block.md)).
 
-## Steps — creating and publishing
+## Steps: creating and publishing
 
 1. Router scripts → **New script**: name ("fresh-router"), slug, description, and the body (paste or upload `fresh-router.rsc`). The body becomes a draft. → `routerscript.created`
 2. The editor shows the body with RouterOS highlighting and, next to it, the **detected parameters** (name, default, description, annotations) and **computed values**, updated as the body changes.
@@ -18,9 +18,9 @@
    **Publish vN…** saves the editor first, then opens the publish page: the errors with their lines, then the warnings, the notes, a tick "Publish with these warnings" when there are any, and what happens. On success the draft becomes version N+1 and the **current** version, the confirmed warnings are kept with it, and the first publish fixes the slug. → `routerscript.version_published{version, parameters, warnings}`
 4. **Edit** creates a draft from the current version (or opens the one there is). **Save draft** keeps a revision: a save from a tab whose draft another tab saved meanwhile is refused with the band "The draft changed since you opened it (another tab saved it)." and **Reload**, and the typed text stays in the editor. **Discard draft** drops it; it needs a version (a script with none is deleted instead). → `routerscript.draft_saved{based_on}`, `routerscript.draft_discarded{based_on}`
 
-## Steps — handing the draft to an agent
+## Steps: handing the draft to an agent
 
-A coding agent on the admin's machine (Claude Code, Codex or similar) can change a draft remotely, as it can a [template draft](../servers/template-authoring.md#steps--handing-the-draft-to-an-agent). Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
+A coding agent on the admin's machine (Claude Code, Codex or similar) can change a draft remotely, as it can a [template draft](../servers/template-authoring.md#steps-handing-the-draft-to-an-agent). Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
 
 1. Over the draft, the admin chooses **Hand off to an agent…** and fills in:
    - what the problem is and what the agent should do, as free text (for example the error RouterOS printed on import);
@@ -54,7 +54,7 @@ Rules:
 - **Limits.** The script's own limits (512 KiB, UTF-8 without NUL bytes, not empty: `422` with the editor's message; a body over 1 MiB is `413`). 600 requests per session and 60 per minute, as for templates.
 - **The prompt is a secret.** The token is shown once; reloading the answer to the form shows "Already copied" and opens nothing. A new hand-off makes a new session.
 
-## Steps — versions
+## Steps: versions
 
 1. The script page lists versions: number, published, notes, generations made from it, and which one is current.
 2. **View**, **Diff** (any two), **Download** (unfilled, exactly as written).
@@ -62,7 +62,7 @@ Rules:
 
 ## Parameter detection
 
-Given this excerpt of today's script:
+Given this excerpt of `fresh-router.rsc`:
 
 ```
 # PARAMETERS
@@ -99,7 +99,7 @@ Given this excerpt of today's script:
 
 ## Edge cases (each is a test)
 
-- Upload today's `fresh-router.rsc` (no end marker) → a warning on publish. The block runs into the PRECHECK section: `minVer` is detected as a parameter, and `ver` and `v` as computed values.
+- Upload the original `fresh-router.rsc` (no end marker; the `paramstest` fixture) → a warning on publish. The block runs into the PRECHECK section: `minVer` is detected as a parameter, and `ver` and `v` as computed values.
 - A `# PARAMETERS` line followed only by a comment, with no end marker → a warning that the block has no `:local` line, not an empty list of last values ("…are .").
 - The same file with `# END PARAMETERS` added after `dohForwarder` → no warning, 18 parameters and `vpnGateway` computed, with descriptions from the comments above each `:local`.
 - `:local containerIface "container"` under the sub-heading comment `# interface names` → only the comment line directly above `lanIface` is a description. `containerIface` has none.

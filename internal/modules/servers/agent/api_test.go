@@ -485,7 +485,7 @@ func TestManifestDocsInSync(t *testing.T) {
 	}
 	doc := string(raw)
 	from := strings.Index(doc, "### Manifest\n")
-	to := strings.Index(doc, "### Future: per-link credentials")
+	to := strings.Index(doc, "### The client list")
 	if from < 0 || to < from {
 		t.Fatal("the manifest section of docs/modules/servers.md moved: update this test")
 	}

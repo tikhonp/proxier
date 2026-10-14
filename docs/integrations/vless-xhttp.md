@@ -1,6 +1,6 @@
 # VLESS over XHTTP (the seed template and endpoint type)
 
-The first endpoint type, `vless-xhttp-tls`, and the seed template "VLESS XHTTP behind nginx" come from `servers-templates/proxy`. The stack is unchanged. What changes is who runs it: Proxier renders the files and runs the steps instead of an interactive `setup.sh`.
+The endpoint type `vless-xhttp-tls` and the seed template "VLESS XHTTP behind nginx" come from `servers-templates/proxy`. The stack is unchanged. What changes is who runs it: Proxier renders the files and runs the steps instead of an interactive `setup.sh`.
 
 ## The stack
 
@@ -22,7 +22,7 @@ client --TLS:443--> nginx --/<xhttp-path>/...--> xray (VLESS over XHTTP, h2c via
 | `compose.yaml` | `compose.yaml` | none |
 | `nginx/default.conf.template` | same | none (`${SERVER_DOMAIN}`, `${VLESS_XHTTP_PATH}` still come from `.env` through the nginx image's envsubst) |
 | `site/index.html` | same | none |
-| `xray-config.json` | `xray-config.json` with `VLESS_CLIENT_UUID` / `VLESS_XHTTP_PATH` placeholders replaced by `sed` | Go template: `clients` rendered from `.Clients` ([servers module](../modules/servers.md#future-per-link-credentials)), `path` from `.Gen.xhttp_path` |
+| `xray-config.json` | `xray-config.json` with `VLESS_CLIENT_UUID` / `VLESS_XHTTP_PATH` placeholders replaced by `sed` | Go template: `clients` rendered from `.Clients` ([servers module](../modules/servers.md#the-client-list)), `path` from `.Gen.xhttp_path` |
 | `.env` | written line by line by `setup.sh` | rendered: `CONTAINER_POSTFIX={{ .Gen.container_postfix }}`, `SERVER_DOMAIN={{ .Server.ProxyHostname }}`, `VLESS_XHTTP_PATH={{ .Gen.xhttp_path }}` |
 | `issue-cert.sh` | `issue_certificate()` in `setup.sh` | a standalone script that exits early when the certificate exists (so retries are safe) and adds `-m <email> --no-eff-email` only when the parameter is set |
 

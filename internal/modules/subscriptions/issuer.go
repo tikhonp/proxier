@@ -10,7 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 )
 
-// The port router scripts use (docs/modules/subscriptions.md#ports). A module
+// The port router scripts use (docs/modules/subscriptions.md#ports-for-other-modules). A module
 // never reads this module's tables; it asks through it.
 
 // FieldErrors are the port's field errors (field → i18n key), so a consumer

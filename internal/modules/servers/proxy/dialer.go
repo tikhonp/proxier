@@ -17,7 +17,7 @@ type DialFunc func(ctx context.Context, network, addr string) (net.Conn, error)
 
 // Dialer starts an xray client for e and keeps it until the closer is closed.
 // Connections made through it travel the endpoint exactly like a real
-// client's. Discovery in Phase 3 browses through a server this way.
+// client's. Discovery browses through a server this way.
 func Dialer(_ context.Context, e endpoint.Endpoint, o Options) (DialFunc, io.Closer, error) {
 	inst, err := instance(e, o)
 	if err != nil {

@@ -167,7 +167,7 @@ func (h *Harness) Settle() {
 }
 
 // Registered starts a fake router (behind a fake jump host with ViaJump) and
-// registers it in awaiting setup on Main, nothing pinned, as Phase 4's router
+// registers it in awaiting setup on Main, nothing pinned, as a generated router
 // script would. The jump host is nil without ViaJump.
 func (h *Harness) Registered(name string, opts ...RouterOption) (*routerostest.Router, *sshxtest.Server, int64) {
 	h.T.Helper()

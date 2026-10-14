@@ -22,8 +22,8 @@ type Portal struct{ Name, Base string } // "beta", "https://beta.iplist.opencck.
 // Endpoints are every upstream base URL.
 type Endpoints struct {
 	V2flyRaw  string   // https://raw.githubusercontent.com/v2fly/domain-list-community/refs/heads/master/data/
-	GitHubAPI string   // https://api.github.com/ (3c)
-	Codeload  string   // https://codeload.github.com/ (3c)
+	GitHubAPI string   // https://api.github.com/
+	Codeload  string   // https://codeload.github.com/
 	Portals   []Portal // main, beta, russia, in that order
 }
 

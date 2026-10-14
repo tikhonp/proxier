@@ -21,8 +21,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
-// UsageReader names the subscriptions and links that serve a server. Phase 2
-// implements it; the pages show "—" while nothing does.
+// UsageReader names the subscriptions and links that serve a server. The
+// subscriptions module implements it; without it the pages show "—".
 type UsageReader interface {
 	Usage(ctx context.Context, serverID int64) (subscriptions []string, links int, err error)
 }
@@ -104,13 +104,13 @@ type serverView struct {
 	CanCancel         bool
 	Saved             bool
 	Err               string
-	// 1e: the change in progress (or the one the page was opened for), the
+	// The change in progress (or the one the page was opened for), the
 	// actions, the roll back notice and the default version when newer.
 	Change   *jobSide
 	Actions  []ui.Action
 	Rollback *rollbackBand
 	UpdateTo int
-	// 1g: retirement. Retiring is out of service while the job runs (and
+	// Retirement: Retiring is out of service while the job runs (and
 	// after it failed); Retired is read-only history.
 	Retiring     bool
 	Retired      bool

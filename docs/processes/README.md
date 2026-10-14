@@ -1,14 +1,14 @@
 # Processes
 
-Every business flow of Proxier, step by step. Each document has the same shape:
+Every flow of Proxier, step by step. Each document has the same shape:
 
 - **Actors**: who and what takes part.
 - A short introduction: what the flow is for.
 - **Steps**: numbered. `→ event.name{fields}` marks the event a step records ([events](../events.md)).
 - **Rules**: what always holds, whatever the path.
-- **Edge cases (each is a test)**: every line becomes a test when the flow is built.
+- **Edge cases (each is a test)**: every line has a test.
 
-Read a flow's document before building or changing it. If the behaviour changes, the document changes in the same commit.
+Read a flow's document before changing it. When the behaviour changes, the document changes in the same commit, and a new edge case comes with its test.
 
 ## Platform
 
@@ -42,7 +42,7 @@ Read a flow's document before building or changing it. If the behaviour changes,
 - [Routing lists](./routing/routing-lists.md): lists, ownership, the server-hostname guard.
 - [Router sync](./routing/router-sync.md): adding routers, syncing, drift, unmanaged tags.
 - [Shadowrocket config](./routing/shadowrocket-config.md): the hosted config.
-- [mtvpn import](./routing/mtvpn-import.md): moving the current setup in.
+- [mtvpn import](./routing/mtvpn-import.md): moving an mtvpn setup in.
 
 ## Router scripts
 

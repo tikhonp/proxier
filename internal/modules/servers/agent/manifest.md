@@ -111,7 +111,7 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.tikhonnnnn.com` |
 | `.Params.<key>` | parameters |
 | `.Gen.<key>` | generated values |
-| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. In the first version it holds exactly one entry, the endpoint credential named `shared`. |
+| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. It holds one entry: the endpoint credential, named `shared`. |
 | `.Template.Slug`, `.Template.Version` | `vless-xhttp`, `3` |
 
 Functions: `json`, `quote`, `default`, `lower`, `upper`, `trim`, `urlquery`, `b64enc`, `sha256`, `join`, `indent`.

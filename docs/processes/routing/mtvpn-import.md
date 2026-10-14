@@ -2,7 +2,7 @@
 
 **Actors**: Admin; routing module.
 
-A one-time move of the current mtvpn setup into Proxier: the services and hosted service lists from `mtvpn.yaml` become services in a routing list, your own domain-list files become custom services if you want, and the Shadowrocket base becomes a hosted Shadowrocket config. Routers aren't touched by the import. They are added afterwards ([router sync](./router-sync.md)), and their first sync changes nothing that already matches.
+A one-time move of an mtvpn setup into Proxier: the services and hosted service lists from `mtvpn.yaml` become services in a routing list, your own domain-list files become custom services if you want, and the Shadowrocket base becomes a hosted Shadowrocket config. Routers aren't touched by the import. They are added afterwards ([router sync](./router-sync.md)), and their first sync changes nothing that already matches.
 
 ## Steps
 
@@ -33,7 +33,7 @@ A one-time move of the current mtvpn setup into Proxier: the services and hosted
 
 ## Edge cases (each is a test)
 
-- Today's `mtvpn.yaml` (one service list, one raw-URL service, a Shadowrocket base) → the list's selectors plus `tunneled-domains` imported into "Main", and a Shadowrocket config created. `shadowrocket_password` is not stored anywhere.
+- An `mtvpn.yaml` with one service list, one raw-URL service and a Shadowrocket base → the list's selectors plus `tunneled-domains` imported into "Main", and a Shadowrocket config created. `shadowrocket_password` is not stored anywhere.
 - `services: [anthropic]` and a list containing `v2fly:anthropic` → one service `v2fly:anthropic`, tag `anthropic`.
 - `mine=https://…/list.txt` → a URL service with tag `mine`.
 - A `service_lists` URL returning `404` → reported. The other selectors are still importable.

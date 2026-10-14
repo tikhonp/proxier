@@ -23,7 +23,7 @@ const routersPath = "/routing/routers"
 
 func routerHref(id int64) string { return routersPath + "/" + i64(id) }
 
-// registerRouters adds the routers' routes (3e).
+// registerRouters adds the routers' routes.
 func (h *handler) registerRouters(r web.Routes) {
 	r.Admin.GET(routersPath, h.routersList)
 	r.Admin.GET(routersPath+"/new", h.routerAddPage)
@@ -509,7 +509,7 @@ type routerView struct {
 	History   []historyRow
 	OlderHref string
 	Activity  []eventLine
-	// 3f
+	// lifecycle
 	Awaiting  *awaitingBand
 	Paused    bool
 	Removing  *removingBand

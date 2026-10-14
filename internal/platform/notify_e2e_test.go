@@ -13,7 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
-// TestFailedDemoJobReachesTelegram is the Phase 0 exit demo's last leg: a job
+// TestFailedDemoJobReachesTelegram follows a failure end to end: a job
 // fails, its event reaches the notifier, and the bot gets it in the admin's
 // language with a button to the job.
 func TestFailedDemoJobReachesTelegram(t *testing.T) {

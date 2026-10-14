@@ -5,7 +5,7 @@ import "github.com/tikhonp/proxier/internal/platform/i18n"
 // messages are the module's texts (prefixes servers. templates.
 // health. stats. agent., plus event.<type>, notify.<type> and settings keys).
 var messages = i18n.Messages{
-	// Templates (the page arrives in 1b; the editor's validation texts are findings and stay English)
+	// Templates (the editor's validation texts are findings and stay English)
 	"templates.err.name":       {EN: "Use 1–80 characters.", RU: "От 1 до 80 символов."},
 	"templates.err.slug":       {EN: "Use a lower-case letter, then letters, digits and dashes (2–40 characters).", RU: "Строчная буква, затем буквы, цифры и дефисы (2–40 символов)."},
 	"templates.err.slug_taken": {EN: "This slug is already used.", RU: "Этот идентификатор уже занят."},

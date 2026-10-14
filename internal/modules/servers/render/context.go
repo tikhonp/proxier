@@ -60,7 +60,7 @@ type Context struct {
 	Template Template
 }
 
-// SharedClient is the name of the one client of the first version.
+// SharedClient is the name of the one client: the endpoint's shared credential (ADR 0004).
 const SharedClient = "shared"
 
 // sampleUUID stands in for the credential when a manifest has no endpoint

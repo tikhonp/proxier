@@ -9,7 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
-// The states of a service as the refresh leaves it (3c).
+// The states of a service as the refresh leaves it.
 const (
 	StateOK      = "ok"
 	StateWaiting = "waiting" // a rejected snapshot waits for Accept anyway or Dismiss

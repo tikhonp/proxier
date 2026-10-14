@@ -90,8 +90,8 @@ var (
 	ErrNothingToRotate = deploy.ErrNothingToRotate
 )
 
-// UsageReader names the subscriptions and links that serve a server. Phase 2
-// implements it; until then the module shows "—".
+// UsageReader names the subscriptions and links that serve a server. The
+// subscriptions module implements it; without it the pages show "—".
 type UsageReader = pages.UsageReader
 
 // EndpointCatalog returns the module's catalog port.
@@ -110,8 +110,8 @@ func (m *Module) Rotator() Rotator { return rotator{m} }
 // makes provisioning check nothing.
 func (m *Module) SetRouting(g RoutingGuard) { m.routing = g }
 
-// SetUsage gives the module the subscriptions port; nil (the default in
-// Phase 1) makes its pages show "—".
+// SetUsage gives the module the subscriptions port; nil (no subscriptions
+// module) makes its pages show "—".
 func (m *Module) SetUsage(u UsageReader) { m.usage = u }
 
 type catalog struct{ m *Module }

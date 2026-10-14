@@ -161,7 +161,7 @@ func (h *Harness) Fetch(method, path, addr, ua string) *httptest.ResponseRecorde
 	return h.Site.Do(sitetest.Req{Method: strings.ToUpper(method), Path: path, Addr: addr, Header: hd})
 }
 
-// Exec runs SQL on the write connection (link rows before 2b builds links).
+// Exec runs SQL on the write connection, for rows a test sets up by hand.
 func (h *Harness) Exec(q string, args ...any) {
 	h.T.Helper()
 	if _, err := h.App.DB.W.ExecContext(context.Background(), q, args...); err != nil {

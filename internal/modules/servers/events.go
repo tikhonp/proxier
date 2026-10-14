@@ -11,7 +11,7 @@ func notCancelled(p map[string]any) bool {
 	return !c
 }
 
-// healthNotifies is the recovery rule (build README, Phase 1 decisions): a
+// healthNotifies is the recovery rule (docs/events.md#servers): a
 // change to blocked or down notifies, and so does a change back to healthy,
 // but only from blocked or down. degraded and unknown stay quiet.
 func healthNotifies(p map[string]any) bool {

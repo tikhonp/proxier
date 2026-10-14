@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// serverMessages are the texts of the server pages and of provisioning (1d).
+// serverMessages are the texts of the server pages and of provisioning.
 var serverMessages = i18n.Messages{
 	"servers.nav":    {EN: "Servers", RU: "Серверы"},
 	"servers.title":  {EN: "Servers", RU: "Серверы"},

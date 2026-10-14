@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// healthMessages are the texts of health and stats (1f): the verdict reasons,
+// healthMessages are the texts of health and stats: the verdict reasons,
 // the Health and Stats tabs, the pause dialog, the jobs and the settings.
 var healthMessages = i18n.Messages{
 	"servers.tab.health": {EN: "Health", RU: "Состояние"},

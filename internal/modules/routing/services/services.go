@@ -112,7 +112,7 @@ type Row struct {
 	Suffix  int      // of which suffix
 	Exact   int      // and exact
 	State   string   // ok, waiting, failing (store.State*)
-	Lists   []string // the lists that hold it (3b fills them)
+	Lists   []string // the lists that hold it
 	SavedAt time.Time
 }
 

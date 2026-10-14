@@ -429,8 +429,8 @@ func TestAdoptAndRemovePages(t *testing.T) {
 }
 
 // A preview queued behind a running sync says it waits for that job and
-// polls every 5 s, not "Reading the router…" every second (job #3837 held
-// Telepat while its preview polled for an hour).
+// polls every 5 s, not "Reading the router…" every second for as long as
+// the sync holds the router.
 func TestPreviewWaitingBehindASyncSaysSo(t *testing.T) {
 	h := routingtest.New(t)
 	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")

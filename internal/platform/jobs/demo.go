@@ -13,8 +13,8 @@ type DemoPayload struct {
 	Fail       bool `json:"fail"`
 }
 
-// demoType is the Phase 0 exit demo: it writes a live log, can be cancelled
-// mid-count, and fails on request.
+// demoType is a job to try the job system with (Jobs → Run demo job): it
+// writes a live log, can be cancelled mid-count, and fails on request.
 func demoType() Type {
 	return Type{
 		Name: "platform.demo", Queue: Maintenance, MaxAttempts: 1,

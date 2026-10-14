@@ -2,7 +2,7 @@ package routing
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// shadowrocketMessages are the Shadowrocket configs' and the mtvpn import's texts (3d).
+// shadowrocketMessages are the Shadowrocket configs' and the mtvpn import's texts.
 var shadowrocketMessages = i18n.Messages{
 	// Nav, the configs page, search
 	"shadowrocket.nav":           {EN: "Shadowrocket", RU: "Shadowrocket"},

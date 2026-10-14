@@ -64,7 +64,7 @@ A tag is never empty: an empty tag is what untagged router entries carry. It nev
 - **`wildcard=1` is mandatory.** `wildcard=0` returns every hostname ever seen (15,000+ for youtube). The wildcard set is the apex list, exactly what `match-subdomain=yes` means.
 - **A miss is `200` with an empty body**, not `404`. So an unreachable portal must never count as a miss: "not found" requires every portal in scope to answer empty.
 - The output is a plain list of suffix domains. The domain-name check drops the scraped junk it sometimes carries.
-- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}|{data}` per portal. It prints one line per domain (`{data}` is the selected data, the domain itself: verified 2026-10-08), so each line gives a (portal, group, site) triple and a domain of that site for the reverse index. Each portal is written as a new generation of the catalog; an export whose SHA-256 equals the one in force is not written again.
+- Catalog: `?format=custom&data=domains&wildcard=1&template={group}|{site}|{data}` per portal. It prints one line per domain (`{data}` is the selected data, the domain itself), so each line gives a (portal, group, site) triple and a domain of that site for the reverse index. Each portal is written as a new generation of the catalog; an export whose SHA-256 equals the one in force is not written again.
 
 ## URL
 
@@ -75,4 +75,4 @@ A tag is never empty: an empty tag is what untagged router entries carry. It nev
 ## Custom
 
 - Domains stored in Proxier and edited in the UI. No fetching. The snapshot is written on save.
-- Input is normalised ([service management](../processes/routing/service-management.md#steps--custom-services)): lowercase, scheme/path/port stripped, `*.` meaning suffix, internationalised names to punycode, IPs refused.
+- Input is normalised ([service management](../processes/routing/service-management.md#steps-custom-services)): lowercase, scheme/path/port stripped, `*.` meaning suffix, internationalised names to punycode, IPs refused.

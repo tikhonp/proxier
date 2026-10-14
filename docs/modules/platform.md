@@ -1,12 +1,12 @@
 # Platform
 
-The platform is everything the modules stand on. It has no business logic of its own about proxies, but it owns how Proxier signs in, stores secrets, runs work, remembers history, talks to the admin, and reaches remote machines. Modules use it through the registrations described in [architecture](../architecture.md#platform-and-modules).
+The platform is what every module builds on. It knows nothing about proxies. It owns how Proxier signs the admin in, stores secrets, runs work, keeps history, notifies the admin and reaches remote machines. Modules use it through the registrations described in [architecture](../architecture.md#platform-and-modules).
 
 ## Admin and sign-in
 
 - There is exactly **one admin**. It is created with `proxier manage create-admin` (username + password, asked interactively), and no other way. `proxier manage reset-password` sets a new password from the container's shell, and ends every session.
 - Passwords are at least 12 characters and stored as an argon2id hash.
-- Sign-in is username + password on `/login`. There is no 2FA in the first version. The flow is built so a second step can be inserted between "password correct" and "session created".
+- Sign-in is username + password on `/login`. There is no second factor; one would go between "password correct" and "session created", and nothing else in the flow would change.
 - **Sessions**: an HttpOnly, Secure, SameSite=Lax cookie. They expire after 7 days idle and 30 days total. Every session lasts the same; there is no "remember me". Settings → Security lists the sessions (created, last seen, IP, browser) with **Sign out** for each and **Sign out everywhere**.
 - **Lockout**: 5 failed sign-ins from one IP within 15 minutes lock that IP out for 15 minutes. The response is the same for a wrong username and a wrong password.
 - A sign-in from an IP not seen in the last 30 days sends a notification. With password-only sign-in on a public host, this is the main alarm for a stolen password.
@@ -85,16 +85,16 @@ Events are described in [architecture](../architecture.md#events-and-history) an
 
 ## Notifications
 
-Telegram is the only channel in the first version. Channels are an extension point. Setup: a bot token from BotFather, then **Detect chat** (you send `/start` to the bot, and Proxier reads the chat ID from the bot's updates), then **Send test**. Event types are toggled in Settings → Notifications. Flow and edge cases: [notifications](../processes/platform/notifications.md).
+Telegram is the only channel; channels are an extension point. Setup: a bot token from BotFather, then **Detect chat** (you send `/start` to the bot, and Proxier reads the chat ID from the bot's updates), then **Send test**. Event types are toggled in Settings → Notifications. Flow and edge cases: [notifications](../processes/platform/notifications.md).
 
 ## Languages and time
 
-- The UI is in **English and Russian** from the first version. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
+- The UI is in **English and Russian**. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
 - The admin's language is changed only in Settings → General → **Language** (`admin.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`.
 - Each **link has a language** (default from Settings), used for its stub entry text.
 - Telegram messages use the admin's language.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.
-- The design must allow Russian strings about 30 % longer than English.
+- Russian strings run about 30 % longer than English, so no label or button has a fixed width.
 
 ## Backups
 

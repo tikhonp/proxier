@@ -5,9 +5,9 @@ Proxier fills in `fresh-router.rsc` per router without any template syntax. The 
 ## Considered options
 
 - **Go template placeholders** (`{{ .LanNet }}`): explicit and flexible, but the file is no longer RouterOS until rendered, and every edit has to keep two syntaxes apart.
-- **Detecting the end of the block from headings**: the existing script's comments start with capitals too (`# LAN /24…`, `# DOH_FORWARDER…`), so heading detection would cut the block short. Hence the explicit end marker.
+- **Detecting the end of the block from headings**: `fresh-router.rsc`'s comments start with capitals too (`# LAN /24…`, `# DOH_FORWARDER…`), so heading detection would cut the block short. Hence the explicit end marker.
 
 ## Consequences
 
 - Values that aren't literals (expressions such as `($containerNet . ".2")`) are computed, not parameters.
-- The existing script needs one added line, `# END PARAMETERS`, plus optional annotations, before it is published in Proxier.
+- A script needs the `# END PARAMETERS` line; without it, publishing warns and the block runs on to the first line that is no `:local` or comment. Annotations are optional.

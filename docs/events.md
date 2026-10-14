@@ -1,6 +1,6 @@
 # Events
 
-Every state change records an event in the same transaction as the change ([architecture](./architecture.md#events-and-history)). Events are the activity history (Activity page, the Activity tab on each object) and the only input to notifications. The tables below are the full catalog for the first version. **Notify** is the default of the notification rule, which the admin can turn on or off in Settings → Notifications.
+Every state change records an event in the same transaction as the change ([architecture](./architecture.md#events-and-history)). Events are the activity history (the Activity page and each object's Activity tab) and the only input to notifications. The tables below are the full catalog. **Notify** is the default of each event's notification rule, which Settings → Notifications can change.
 
 The payload lists the fields beyond the subject. Notification texts are given in English; each has a Russian twin in the catalogs.
 
@@ -64,7 +64,7 @@ The payload lists the fields beyond the subject. Notification texts are given in
 | `health.foreign_unreachable` | — | reference check results | **on** | "Foreign internet is unreachable from home; server verdicts are on hold" |
 | `health.home_recovered` | — | duration | **on** | |
 
-No longer recorded: `location.created` (code, name, country), `location.changed` (fields) and `location.deleted` (code, name), from when servers had a location instead of a country ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). They are not declared any more, so they can't be recorded or notified, but older ones still read in Activity, their subject named from the `location.created` that added it ("nl · Netherlands", without a link).
+`location.created`, `location.changed` and `location.deleted` date from when servers had a location ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). They are no longer declared, so nothing records or notifies them, but old ones still read in Activity, their subject named from the `location.created` that added it ("nl · Netherlands", without a link).
 
 ## Subscriptions
 
@@ -111,7 +111,7 @@ Lists in payloads are one comma-joined string.
 | `routing.shadowrocket_deleted` | Shadowrocket config | name, list | off | |
 | `routing.router_added` | router | list, host, by (admin / routerscripts) | off | |
 | `routing.router_updated` | router | changes (of name, connection, names, list), from, to (the old and new name on a rename, list names on a list switch) | off | |
-| `routing.router_connected` | router | version, board | off | First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup" (3f: also an awaiting router's probe, which queues the initial sync). |
+| `routing.router_connected` | router | version, board | off | First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup". An awaiting router's probe records it too and queues the initial sync. |
 | `routing.router_synced` | router | added, updated, removed, recorded, trigger (change, manual, initial) | off | Only when something was pushed or recorded: a sync with nothing to do records no event. |
 | `routing.router_sync_failed` | router | step (connect, read, push, verify), error (the problem sentence), consecutive, manual, attempt, final | **on** when the job gives up (final) 🔴 | Recorded for every failed attempt; `final` is the last attempt or an error no retry fixes (a refused key, a changed or unknown host key, the tailnet off). "Home: sync gave up at connect" / "Proxier can't reach the router 10.230.1.1:22: connection refused. Nothing was changed on the router. · after 4 attempts" (the attempts only when more than one). |
 | `routing.router_recovered` | router | failures, notified | **on** after a notified failure 🟢 | The first success after failed attempts; a failure that never notified recovers quietly. "Home is in sync again" / "After 4 failed attempts." |

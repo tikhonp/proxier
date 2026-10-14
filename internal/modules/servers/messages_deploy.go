@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// deployMessages are the texts of changing a running server (1e): the plan
+// deployMessages are the texts of changing a running server: the plan
 // screen, rollouts, the Stack tab, rotation and the jobs behind them.
 var deployMessages = i18n.Messages{
 	// the server page

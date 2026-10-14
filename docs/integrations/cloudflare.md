@@ -1,6 +1,6 @@
 # Cloudflare (DNS provider)
 
-The first DNS driver. Proxier creates the A records of servers it provisions, waits for them to resolve, and deletes them at retirement. It never touches records it didn't create.
+The DNS driver. Proxier creates the A records of servers it provisions, waits for them to resolve, and deletes them at retirement. It never touches records it didn't create.
 
 ## Setup
 
@@ -11,7 +11,7 @@ The first DNS driver. Proxier creates the A records of servers it provisions, wa
 
 | Field | Value |
 |---|---|
-| Type | `A` (IPv4 only in the first version) |
+| Type | `A` (IPv4 only) |
 | Name | the management hostname (and the proxy hostname, once different) |
 | Content | the server's IP |
 | Proxied | **false, always.** Clients connect straight to nginx with the server's own certificate, and Let's Encrypt must reach port 80. A proxied record would break both. |

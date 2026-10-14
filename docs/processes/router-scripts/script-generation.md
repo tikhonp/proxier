@@ -4,7 +4,7 @@
 
 Setting up a new MikroTik means filling in the current router script for it, getting the file onto the router, and importing it. Proxier fills it in from a form. It can create the router's subscription link (so the router's mihomo uses Proxier's servers) and register the router for domain sync, all in one go. The router can then fetch its file itself.
 
-## Steps — generating
+## Steps: generating
 
 1. Script page → **Generate for a new router** (it uses the current version; the form's **Version** select offers the others, and a version page has **Generate from this version**). An archived script, or one without a version, can't generate (409 with the reason).
 2. **Router name** (1–60, required): it names the file, the default link name and the registered router.
@@ -37,7 +37,7 @@ The file is never stored: it is the version's body with the values filled in, ma
 
 The generation page says when the link's URL changed after the generation (its token was regenerated or it was deleted), or Proxier's SSH key did: the file holds the old one, so generate again.
 
-## Steps — getting it onto the router
+## Steps: getting it onto the router
 
 1. **Download** (signed-in admin) → `fresh-router-<router>-v<version>.rsc`, `no-store`. It records nothing (the request log has it).
 2. **Create fetch URL** (the generation page's Fetch URL area; **New fetch URL…** with a confirmation while one waits: "A new URL makes this one stop working.") → a token (`vault.NewToken()`, sealed as `fetch_url:<id>:token`, found by its lookup) valid for **1 hour** and **one** successful download. In the same transaction a URL of the generation that still waited ends first: as *replaced* when it still worked, as *expired* (with its `routerscript.fetch_url_expired`) when its hour had passed before the scan saw it. A generation of an archived script can still get one. The page shows the URL masked (`https://proxier.tikhonnnnn.com/f/••••••••`) with **Reveal** / **Hide** and **Copy**, the state line ("expires at 17:30 · in 58 min"), and the commands to paste into the new router's terminal, each with **Copy**, and **Copy both lines** (`y`):
@@ -47,7 +47,7 @@ The generation page says when the link's URL changed after the generation (its t
    /import fresh-router.rsc
    ```
 
-   The file is saved under the script's slug. The router needs the internet to fetch: after a reset with `no-defaults`, give its WAN port a DHCP client first (open question "to verify" 9).
+   The file is saved under the script's slug. The router needs the internet to fetch: after a reset with `no-defaults`, give its WAN port a DHCP client first ([open questions](../../open-questions.md#a-reset-routers-first-fetch)).
 
    → `routerscript.fetch_url_created{expires, replaced}`
 3. The router requests the URL with `GET`, and Proxier answers with the generation's file (`200`, `text/plain`, as an attachment named like the download, byte for byte what **Download** gives). The URL is used up when Proxier answers, so a download cut short needs a new URL; the file is made before, and a failure to make it leaves the URL working. The URL's token is erased. → `routerscript.fetched{ip, user_agent}` (actor `system`, notifies)

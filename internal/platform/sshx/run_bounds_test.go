@@ -12,8 +12,8 @@ import (
 )
 
 // These cover a host that stops answering a command's session: it never sends
-// the exit status or closes the channel, and ignores Proxier's close (router
-// sync job #3837 hung like this on an /import). Run must still return within
+// the exit status or closes the channel, and ignores Proxier's close (a
+// router's /import once hung a sync like this). Run must still return within
 // its timeout plus CloseGrace, and close the connection it can no longer
 // trust.
 

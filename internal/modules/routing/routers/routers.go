@@ -1,7 +1,7 @@
-// Package routers keeps MikroTik routers equal to their routing list (3e):
+// Package routers keeps MikroTik routers equal to their routing list:
 // adding and testing them, the pure plan, sync and preview jobs, the marker
-// that turns changes into coalesced syncs, and their history. Drift, unmanaged
-// tags, awaiting setup, pausing and removal are 3f's.
+// that turns changes into coalesced syncs, and their history; also drift,
+// unmanaged tags, awaiting setup, pausing and removal.
 package routers
 
 import (

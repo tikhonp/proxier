@@ -73,8 +73,8 @@ type List struct {
 type Row struct {
 	List
 	Services int
-	Domains  int      // owned names
-	Targets  []Target // 3d, 3e
+	Domains  int // owned names
+	Targets  []Target
 	Warnings int
 }
 

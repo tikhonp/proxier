@@ -12,8 +12,8 @@ import (
 )
 
 // An /import the router runs in full and then never ends (no exit status, no
-// channel close, Proxier's close ignored), as Telepat did to job #3837 behind
-// its jump host. The sync must not hang on it.
+// channel close, Proxier's close ignored), as a real router behind a jump host
+// once did. The sync must not hang on it.
 
 // forgottenImport is a router behind a jump host whose first import is
 // forgotten, following Main with openai. Run gives up on a session 100 ms

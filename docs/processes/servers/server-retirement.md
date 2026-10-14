@@ -24,7 +24,7 @@ Retirement takes a server out of service for good: it leaves every subscription,
 
 - Retirement can't be undone. A retired server can't be activated, upgraded or edited. To get a server there again, provision a new one (it gets a new number).
 - Retired servers are hidden from the server list by default ("show retired" reveals them) and are never offered anywhere.
-- Generated values are erased at retirement, so the old credentials can't be shown or served again. Deployed files are kept (encrypted) for history; since the values that masked them are erased, they are never shown or compared again (the Stack tab lists deployments only). Phase 1 has no rule that prunes deployments.
+- Generated values are erased at retirement, so the old credentials can't be shown or served again. Deployed files are kept (encrypted) for history; since the values that masked them are erased, they are never shown or compared again (the Stack tab lists deployments only). Nothing prunes them.
 - Proxier never deletes a DNS record it didn't create, or one that no longer points to the server.
 - A server can be retired from provisioning, failed or active.
 

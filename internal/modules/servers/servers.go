@@ -57,10 +57,10 @@ type Module struct {
 	Health *health.Service
 	// Retire takes servers out of service for good.
 	Retire *retire.Service
-	// Agent hands template drafts to coding agents (1h).
+	// Agent hands template drafts to coding agents.
 	Agent *agent.Service
 	// DNS writes and removes servers' A records; Waiter waits for resolvers to
-	// show them (1d composes both into provisioning).
+	// show them (provisioning uses both).
 	DNS    dns.Driver
 	Waiter dns.Waiter
 	// CloudflareClient makes the API client for a token; tests point it at
@@ -164,8 +164,8 @@ func (m *Module) AfterMigrate(ctx context.Context) error {
 
 func (*Module) EventTypes() []events.Type { return Events }
 
-// JobTypes: provisioning (1d), the changes to active servers (1e), the health
-// checks (1f) and retirement (1g).
+// JobTypes: provisioning, the changes to active servers, the health
+// checks and retirement.
 func (m *Module) JobTypes() []jobs.Type {
 	types := append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
 	types = append(types, m.Health.JobTypes()...)

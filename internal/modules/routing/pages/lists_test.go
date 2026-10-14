@@ -34,7 +34,7 @@ func TestListPages(t *testing.T) {
 	mine := h.Custom("mine", "claude.ai", "example.com")
 	main := h.List("Main", anthropic, mine)
 	h.List("Parents")
-	// a refresh (3c) brings a name that covers nl-1: left out, with a warning
+	// a refresh brings a name that covers nl-1: left out, with a warning
 	h.Exec(`UPDATE routing_snapshots SET suffix = 'anthropic.com' || char(10) || 'claude.ai' || char(10) || 'tikhonnnnn.com', suffix_count = 3
 		WHERE service_id = ? AND status = 'accepted'`, anthropic)
 
@@ -352,10 +352,8 @@ func TestListEventsInActivity(t *testing.T) {
 	}
 }
 
-// From the phone test: Add services said "custom" twice for each custom
-// service (its selector line and its source cell), and the Lists page's counts
-// read "0 0" on a phone, whose column heads are hidden: they carry their words
-// there.
+// Add services says "custom" once for each custom service, and on a phone,
+// whose column heads are hidden, the Lists page's counts carry their words.
 func TestListPagesSayThingsOnce(t *testing.T) {
 	h := routingtest.New(t)
 	h.Custom("mine", "example.com")

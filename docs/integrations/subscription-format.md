@@ -1,15 +1,15 @@
 # Subscription format
 
-What a link's URL returns ([fetch](../processes/subscriptions/subscription-fetch.md)). The format is de facto, defined by what client apps accept, not by a standard. The behaviour of each app is still to verify with real apps ([open questions](../open-questions.md#to-verify-on-the-real-deployment)).
+What a link's URL returns ([fetch](../processes/subscriptions/subscription-fetch.md)). The format is de facto, defined by what client apps accept, not by a standard. Which apps take a stub entry as their new list is in [open questions](../open-questions.md#client-apps-and-the-stub-entry).
 
-## Formats (first version)
+## Formats
 
 | Format | Body |
 |---|---|
 | `uri-plain` | Connection URIs, one per line, `\n`-separated, with a trailing newline. |
 | `uri-base64` | Standard base64 (with padding) of the `uri-plain` body. This is the v2rayN convention, which some apps prefer. |
 
-Formats are pluggable renderers. Later candidates: mihomo/Clash YAML, sing-box JSON, and a browser page. Each subscription chooses which formats are allowed and which is the default. A link may override the default, and `?format=` picks among the allowed ones.
+Formats are pluggable renderers; mihomo/Clash YAML, sing-box JSON and a browser page are in the [backlog](../overview.md#backlog). Each subscription chooses which formats are allowed and which is the default. A link may override the default, and `?format=` picks among the allowed ones.
 
 ## Headers
 
@@ -20,6 +20,8 @@ Formats are pluggable renderers. Later candidates: mihomo/Clash YAML, sing-box J
 | `subscription-userinfo` | `upload=0; download=0; total=0; expire=1796158799` (end of 1 Dec 2026, Moscow time) | Apps show the expiry date. Traffic fields are 0 because traffic isn't counted. `expire=0` means no expiry. |
 | `content-disposition` | `inline; filename*=UTF-8''%D0%A1%D0%B5%D0%BC%D1%8C%D1%8F.txt` | Some apps name the profile after the file. |
 | `Cache-Control` | `no-store` | No caching anywhere between the app and Proxier. |
+
+The apps tried on the real deployment honour the first four.
 
 ## Stub entry
 

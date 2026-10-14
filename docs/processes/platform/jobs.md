@@ -4,7 +4,7 @@
 
 All long or remote work is a job: provisioning, redeploys, check rounds, router syncs, refreshes, discovery, notifications, backups. Jobs are stored, so the admin can see what ran, what failed and why, retry it, or cancel it, and a restart doesn't lose work. The machinery is described in [architecture](../../architecture.md#jobs). This document is the behaviour.
 
-## Steps — lifecycle
+## Steps: lifecycle
 
 1. A module enqueues a job: type, queue, payload, resource key, optional coalescing key, optional delay, created by (admin / schedule / event).
    - If the coalescing key matches a **queued** job, the new request merges into it: the payload is merged and the later of the two run-after times is kept. No new job is created.
@@ -19,11 +19,11 @@ All long or remote work is a job: provisioning, redeploys, check rounds, router 
 6. **Cancel** on a queued job → `cancelled` at once. On a running job, the cancel is requested. The handler stops at the next step boundary (or sooner where a step supports it) → `cancelled`. Steps already done are not undone unless the job type defines a cleanup.
 7. **Retry** on a failed or cancelled job creates a new job ("retry of #123") that starts at the step that didn't finish. It runs even if the original had no attempts left.
 
-## Steps — restart
+## Steps: restart
 
 1. On startup, every `running` job of another boot is marked `interrupted` in its log at once (one process owns the database, so it cannot still be running). Inside one boot a lease that expires means a stuck runner: the job is interrupted and `/healthz` fails until then.
 2. Interrupted jobs are queued again and resume from the first step that didn't succeed. Every step is written to be safe to run twice.
-3. A job whose type says it can't resume (none in the first version) becomes `failed` with "interrupted by restart".
+3. A job whose type says it can't resume becomes `failed` with "interrupted by restart" (no job type says so).
 
 A step may also return `Defer(d)`: the job is queued again after `d` without counting the attempt (Telegram rate limits).
 

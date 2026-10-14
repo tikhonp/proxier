@@ -1,36 +1,42 @@
 # Open questions
 
-Decisions deliberately left open, and facts that only the real deployment can verify. When one is settled, move the answer into the relevant doc (and an ADR if it qualifies) and delete it here.
+Facts that only the real deployment can confirm: real apps, real routers, real networks. Nothing here is a decision still to take. When a question is answered, write the answer into the relevant doc (an ADR if it qualifies) and delete it here. Never fake an answer with a test against a fake.
 
-Settled on 2026-10-07:
-- UI technology → templ + htmx ([ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)).
-- Proxy hostnames in certificate-transparency logs → an accepted risk for the first version, with central wildcard certificates planned ([servers module](./modules/servers.md#dns), [roadmap](./roadmap.md#later)).
-- "Activate anyway" → yes ([provisioning](./processes/servers/server-provisioning.md#steps--after-a-failure)).
-- Root or a deploy user → a `proxier` sudo user; root login is turned off ([provisioning](./processes/servers/server-provisioning.md)).
-- Proxy test URL → configurable, globally and per template ([health](./processes/servers/server-health.md)).
+## Client apps and the stub entry
 
-Settled on 2026-10-09, while planning Phase 4:
-- `mtvpn:` naming → kept: the infra-pin prefix, `to_vpn_list` and `vpn-doh` stay ([ADR 0010](./adr/0010-router-contract-stays-mtvpn-compatible.md)); a router with other names already works through its per-router names.
-- Zero-touch router registration → built in Phase 4: a `@fill proxier-ssh-key` parameter is filled with Proxier's public key, so the imported script creates the `proxier` user and adds the key itself ([router scripts](./modules/router-scripts.md#parameters)).
+Which apps replace their list when a refresh returns one stub entry, and which keep the old list on a `404`. [ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md) rests on the first. Seen so far: Shadowrocket and Hiddify replace their list with the stub. Not tried: Happ, v2RayTun, Streisand, v2rayNG, and any app's answer to a `404`.
 
-Settled on 2026-10-12 (both built the same day):
-- Per-link credentials → no: credentials stay shared ([ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md)). Instead a setting, **rotate servers when a link is cut off**, off by default: while off, Cut off only ends the link (disabled, token dead) and touches no server, and its plan page says so. A vless link someone saved is an accepted risk.
-- Notification bursts → grouped: health changes of the same kind within a window (~2 min) go out as one message listing the servers; a lone change goes out by itself after the window.
+## check-host.net limits
 
-## To decide
+No page states the rate limits or terms for automated use ([check-host.net](./integrations/check-host.md)). Proxier stays at 6 nodes per check, one check per 30 min per server and 60 checks an hour; a refusal shows as an HTTP error (`unavailable`). No refusal has been seen.
 
-None at the moment.
+## Russian throttling and the proxy test
 
-## To verify on the real deployment
+Whether the proxy test's 256 KB object and its `stalled` class catch the throttling of foreign hosting networks that stalls after the first 16 to 20 KB ([health](./processes/servers/server-health.md)). Only a real server in a throttled network answers it. Not seen yet.
 
-1. **Client apps and the stub entry.** Which apps replace their list when a successful refresh returns one stub entry (expected: Happ, v2RayTun, Hiddify, Streisand, v2rayNG, Shadowrocket)? Which ones keep the old list on a `404`? This is the basis of [ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md). **Partly answered 2026-10-12:** Shadowrocket and Hiddify replace their list with the stub; the others and the `404` case are untried.
-2. **Subscription headers** honoured per app: `profile-title`, `profile-update-interval`, `subscription-userinfo` (expire), `content-disposition` filename. **Answered 2026-10-12:** all honoured by the apps tried.
-3. **check-host.net API**: ~~endpoints, response shapes and node names~~ (answered 2026-10-08, against the real service: `/nodes/hosts`, `/check-tcp`, `/check-result/{id}`; shapes in [the integration doc](./integrations/check-host.md#api-as-observed); 3 Russian nodes, none in Finland). Since 2026-10-12 running for real without a refusal. Still open: its rate limits and terms of use for automated use, which no page states; Proxier stays at 6 nodes per check, 30 min per server and 60 checks per hour, and a refusal shows as an HTTP error (`unavailable`).
-4. **iplist custom export**: ~~whether `format=custom` can emit the domain itself (for the reverse index), beyond the `{group}|{site}` template mtvpn uses~~ (answered 2026-10-08 while planning Phase 3, against the live portals: the template's `{data}` placeholder prints the selected data, so `template={group}|{site}|{data}` gives one `group|site|domain` line per domain. The whole export was small that day: main 880 lines (228 sites, 20 groups), beta 4 540 (102 sites), russia 351 (87 sites). The catalog indexes every iplist domain.)
-5. **RouterOS**: ~~SFTP vs SCP upload on the target versions~~ (decided: SFTP with a plain write, no temporary file or rename; mtvpn's `scp` on macOS speaks SFTP since OpenSSH 9.0, so the user's router already accepts it). **Answered 2026-10-14** by [Phase 4's exit demo](./exit-demos.md#phase-4-router-scripts) on a spare router (7.24.5, through a jump host): the exact commands the add page shows (`/user group add name=proxier policy=read,write,ftp,ssh`, `/user add name=proxier group=proxier password=[:rndstr …]`, `/user ssh-keys add user=proxier key="<key>"`), work from an imported script (`:rndstr` included), and the group is enough for the first sync's `/import` of the service blocks. Test connection's upload check and the import scan's "not enough permissions" catch a missing policy. Still open: the same lines pasted from the add page (expected to behave alike), and `/ip dns forwarders` in the check.
-6. **xray-core as a library**: ~~the binary size impact~~ (answered: v1.260327.0 embeds with `CGO_ENABLED=0`; the stripped binary grew from 47.3 to 62.4 MB, the image from 71 to 92.8 MB). ~~The XHTTP `stream-up` client mode working through nginx `grpc_pass` exactly as the template's links expect~~ (answered 2026-10-12: a real provisioned VPS works, phones connect with the template's links). The proxy test is proven against an in-process xray XHTTP server, which accepts any mode, so it says nothing about nginx. One more finding: xray's own XHTTP client has a data race (`splithttp.WaitReadCloser.Set`) that `go test -race` reports, so the packages that push XHTTP traffic (`proxy`, `provision`, `deploy`) are tested without `-race` ([development](./development.md#tests)).
-7. **tsnet with headscale**: whether the node joins headscale 0.29 with a pre-auth key, and whether it needs a non-expiring key. The key is used only while the node has no login (the state in `/data/tailnet` keeps it across restarts), Settings → Integrations → Tailnet shows the key expiry and takes a new pre-auth key (never stored), and a node with saved state starts without `PROXIER_TS_AUTHKEY`. **Answered 2026-10-12:** it joins with a pre-auth key and survives restarts; what happens at key expiry is not yet seen.
-8. **Russian throttling of foreign hosting networks** (stalling after the first ~16–20 KB) as it applies to the chosen test payload size. Proxier has the means to see it (the proxy test's `stalled` class, the blocked verdict with its reason); only a real server in a throttled network answers it. Not seen as of 2026-10-12.
-9. **A reset router's first fetch** (Phase 4). `fresh-router.rsc` wants a configuration reset with `no-defaults=yes`, which leaves the router without internet, so `/tool fetch` needs a DHCP client on the WAN port first; the script then adds its own (`/ip dhcp-client add interface=$wanIface`), which RouterOS may refuse as a second client on the port and stop the import. **Partly answered 2026-10-14:** after a `no-defaults` reset, a file uploaded by hand imports whole and the script's own DHCP client comes up (there was no other client on the port); the probe connected and the first sync ran 2–10 minutes later. Still untried: `/tool fetch` itself (its user agent) and a DHCP client added by hand for it beside the script's own. Until then the generation page's Fetch URL area says to give the WAN port a DHCP client first.
-10. **A subdomain beside its parent suffix on RouterOS** ([ADR 0016](./adr/0016-every-listed-name-reaches-the-router.md)). Since 2026-10-11 a name under another service's suffix (`console.anthropic.com` in `mine`, `anthropic.com` in `anthropic`) is installed as its own FWD entry and address-list hostname entry. Expected, as with mtvpn, which installed such names: the router resolves the subdomain from its address-list entry, and a query for it, matched by both static entries, goes to the same forwarder and fills the same address list. Not yet seen on a real router: which static entry RouterOS matches first, and that the subdomain's addresses land in `to_vpn_list` before any client asks for it.
-11. **RouterOS ending a long `/import`'s session** ([2026-10-12](./router-sync-hang-2026-10-12.md)). Telepat (hEX S, 7.24.5) ran a 370 KiB import through the jump host and never sent the exit status or closed the channel; Proxier now ends such a command at its timeout. Not yet known: whether RouterOS ever sends `exit-status` and `close` after a long `/import`, and whether its `inactivity-timeout` or the jump host plays a part. `ssh -v proxier@<router> '/import file-name=<big file> verbose=no'` through the jump host answers it; if RouterOS never ends the session, a sync takes 30 min per file and an import timeout tuned to the file size would be the fix. On 2026-10-14 a spare router's first sync through a jump host ended its `/import` promptly, so the hang is not every long import's.
+## The tailnet key's expiry
+
+The node joins headscale 0.29 with a pre-auth key and survives restarts on its saved state. What happens when the node key expires is not seen: whether Settings → Integrations → Tailnet's new pre-auth key brings it back as expected ([platform](./modules/platform.md#tailnet)).
+
+## A reset router's first fetch
+
+After `/system reset-configuration no-defaults=yes` a router has no internet, so `/tool fetch` needs a DHCP client on the WAN port first, and the script then adds its own (`/ip dhcp-client add interface=$wanIface`). RouterOS may refuse a second client on the port and stop the import. Seen: a file uploaded by hand imports whole on 7.24.5, the script's own DHCP client comes up, and the router connects and syncs 2 to 10 minutes later. Not tried: `/tool fetch` itself (its user agent, the "was fetched" notification, the `404` of a second fetch) and a hand-added DHCP client beside the script's. Until then the generation page tells the admin to give the WAN port a DHCP client before fetching ([script generation](./processes/router-scripts/script-generation.md)).
+
+## Proxier's user from the add page
+
+The key commands work from an imported router script on 7.24.5, and the `proxier` group is enough for the sync's `/import` ([RouterOS](./integrations/routeros.md#proxiers-user-on-the-router)). Not tried: the same lines pasted from the add page (expected to behave alike), and `/ip dns forwarders` in the connection check.
+
+## A subdomain beside its parent suffix
+
+A name under another service's suffix (`console.anthropic.com` in `mine`, `anthropic.com` in `anthropic`) is installed as its own FWD entry and address-list entry ([ADR 0016](./adr/0016-every-listed-name-reaches-the-router.md)). Expected, as with mtvpn: a query for the subdomain, matched by both static entries, goes to the same forwarder and fills the same address list. Not seen on a real router: which static entry RouterOS matches first, and whether the subdomain's addresses reach `to_vpn_list` before any client asks for it.
+
+## RouterOS ending a long `/import`
+
+One router (hEX S, 7.24.5, behind a jump host) ran a 370 KiB import in full and never sent the exit status or closed the channel. Proxier now ends such a command at its timeout ([router sync](./processes/routing/router-sync.md#rules)). Not known: whether RouterOS ever ends the session after a long `/import`, and whether its `inactivity-timeout` or the jump host plays a part. Another router's first sync through a jump host ended its `/import` promptly, so not every long import hangs. `ssh -v proxier@<router> '/import file-name=<big file> verbose=no'` through the jump host would answer it. If RouterOS never ends the session, each file takes the full 30-minute timeout, and an import timeout sized to the file would be the fix.
+
+## Not yet seen on real devices
+
+- Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.
+- Telegram delivery of every notification text.
+- The IP country lookup (ipinfo.io) from the deployment.
+- An agent session (`/agent/v1`) driven by a real Claude Code or Codex run.

@@ -18,8 +18,8 @@ import (
 
 // Cut off disables a link and, when the setting subscriptions.cutoff_rotates is
 // on, rotates every server of its subscription, one at a time
-// (docs/processes/servers/credential-rotation.md#cut-off): an event subscriber
-// starts the next rotation when the previous one ends.
+// (docs/processes/servers/credential-rotation.md#steps-cut-off-rotating-for-a-link):
+// an event subscriber starts the next rotation when the previous one ends.
 
 var (
 	// ErrNoRotator: the servers module offers no rotation, so there is no cut-off.

@@ -353,7 +353,7 @@ func TestNamesAreNeverReused(t *testing.T) {
 	if h.Server(first).Name != "nl-1" || h.Server(first).State != "failed" {
 		t.Fatalf("first: %+v", h.Server(first))
 	}
-	// Retired by hand until 1g builds the flow, which re-runs this through it.
+	// Retired by hand: this test is about the name, not about retirement.
 	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET state = 'retired' WHERE id = ?`, first); err != nil {
 		t.Fatal(err)
 	}

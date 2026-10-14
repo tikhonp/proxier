@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// agentMessages are the texts of the agent hand-off (1h). What the agent itself
+// agentMessages are the texts of the agent hand-off. What the agent itself
 // reads (the prompt, the API's answers) is English and lives in servers/agent.
 var agentMessages = i18n.Messages{
 	"job.servers.agent_sessions":             {EN: "Close expired agent sessions", RU: "Закрыть истёкшие сеансы агентов"},

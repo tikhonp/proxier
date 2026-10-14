@@ -1,6 +1,6 @@
 // Package change is the seam through which every change that can alter what
-// a target gets marks its targets for sync (build README, Phase 3: "The sync
-// seam"). Until router sync exists (3e) nothing listens.
+// a target gets marks its targets for sync. The routers' marker turns the
+// marks into coalesced syncs.
 package change
 
 import (
@@ -14,7 +14,7 @@ import (
 type Change struct {
 	Lists    []int64 // lists whose services or order changed
 	Services []int64 // services whose accepted snapshot or tag changed: every list holding them
-	Routers  []int64 // routers whose own list changed (3e)
+	Routers  []int64 // routers whose own list changed
 	Actor    string
 	Why      string // for the sync record: "anthropic changed", "Main reordered"
 }
@@ -29,7 +29,7 @@ type None struct{}
 
 func (None) Mark(context.Context, *sqlx.Tx, Change) error { return nil }
 
-// Recorder keeps every change; tests use it until 3e.
+// Recorder keeps every change, for tests.
 type Recorder struct {
 	mu      sync.Mutex
 	changes []Change

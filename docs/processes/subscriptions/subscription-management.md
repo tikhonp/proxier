@@ -4,7 +4,7 @@
 
 A subscription is the set of servers a group of links gets: "Family", "Friends", "Me — everything". The admin chooses and orders the servers, and sets how the output is written and whether broken servers disappear from it on their own. Links then just point at a subscription ([link lifecycle](./link-lifecycle.md)).
 
-## Steps — creating and editing
+## Steps: creating and editing
 
 1. Subscriptions → **New subscription**: name, title (prefilled with the name), description. → `subscription.created`
 2. **Servers**: **Add servers** lists the active servers that aren't in it yet (flag, name, health), with multi-select; the ticked ones are appended in name order. Rows are reordered by drag, by `J`/`K` on the selected row, or by their ↑/↓ buttons. Each row shows health and whether it is hidden right now, with **Remove** (a simple confirmation). → `subscription.servers_changed{added, removed, reordered}`
@@ -18,7 +18,7 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
 4. **Preview** shows exactly what a link of this subscription would receive now: the headers and the connection URIs (credentials masked until revealed), with hidden servers listed and the reason, and members not in service. A preview records nothing.
 5. **Delete** works only when no link points to the subscription, a deleted link counting until its tombstone ends. Otherwise the dialog lists the links (and the day each deleted one stops holding it) and offers **Move links to…**. → `subscription.deleted`
 
-## Steps — reactions to servers
+## Steps: reactions to servers
 
 1. `server.activated` → every subscription with **add new servers automatically** appends the server at the end. → `subscription.servers_changed{added, auto: true}`
 2. `server.retired` → the server is removed from every subscription. → `subscription.servers_changed{removed, reason: retired}`

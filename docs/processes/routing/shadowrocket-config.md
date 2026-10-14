@@ -2,16 +2,16 @@
 
 **Actors**: Admin; Shadowrocket on the phone (through `GET /r/{token}/{name}.conf`); routing module.
 
-The phone, away from home, should tunnel the same domains as the home router. Proxier hosts a Shadowrocket config for that: the admin's hand-written base config, with the routing list's rules spliced into `[Rule]`. Shadowrocket subscribes to its URL once, and every routing change reaches the phone on its next refresh. This replaces `mtvpn.py shadowrocket` and the copyparty upload. Format rules: [Shadowrocket integration](../../integrations/shadowrocket.md).
+The phone, away from home, should tunnel the same domains as the home router. Proxier hosts a Shadowrocket config for that: the admin's hand-written base config, with the routing list's rules spliced into `[Rule]`. Shadowrocket subscribes to its URL once, and every routing change reaches the phone on its next refresh. It replaced `mtvpn.py shadowrocket` and the copyparty upload. Format rules: [Shadowrocket integration](../../integrations/shadowrocket.md).
 
-## Steps — creating
+## Steps: creating
 
 1. Routing → Shadowrocket → **New config**: name (also the file name, e.g. `iphone`: lower case, and a name that isn't a file name yet is made one as a custom service's tag is, so "iPhone Mom" is `iphone-mom`; the form shows "File name: iphone-mom.conf" as it is typed, and refuses only a name with no Latin letter or digit), routing list, rule policy (default `PROXY`), and the base config (paste, upload, or **Import from URL**, which reads it once, e.g. from copyparty).
 2. The base config is validated: it must have a `[Rule]` section. Otherwise saving is refused, with "no [Rule] section to add the services to".
 3. Saving creates base config version 1 and the token, and shows the URL `https://proxier.tikhonnnnn.com/r/{token}/iphone.conf` with **Copy** and a **QR code**. → `routing.shadowrocket_created`
 4. In Shadowrocket: Config → add the URL, then use it.
 
-## Steps — serving
+## Steps: serving
 
 1. Rate limit per IP as for links. An unknown token → `404`.
 2. Render:
@@ -21,7 +21,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 3. Answer `200` with `Content-Type: text/plain; charset=utf-8` and `Cache-Control: no-store`.
 4. Record the fetch: time, IP, user agent.
 
-## Steps — editing
+## Steps: editing
 
 1. **Edit base config** opens the editor: the code across the page, filling the window, with **Save** in the title and the upload, the import and the version's note under the code. Saving validates and creates a new base version. Older versions can be viewed, diffed and restored (a restore creates a new version). → `routing.shadowrocket_updated`
 2. **Preview** ("What the phone gets", on the config page) shows the rendered output exactly as the phone would get it, numbered, with Proxier's block marked; **Download** is in its title band.
