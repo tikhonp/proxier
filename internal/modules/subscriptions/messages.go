@@ -321,8 +321,8 @@ var messages = i18n.Messages{
 	"links.move.submit":  {EN: "Move links", RU: "Перенести ссылки"},
 	"links.move.nowhere": {EN: "There is no other subscription. Create one to move them to, or delete the links.", RU: "Другой подписки нет. Создайте её, чтобы перенести ссылки, или удалите их."},
 
-	// Settings section (its page arrives in 2c)
-	// Shared-link alerts (2c)
+	// Settings section
+	// Shared-link alerts
 	"alerts.looks_shared":         {EN: "looks shared", RU: "похоже, поделились"},
 	"alerts.word":                 {EN: "alert", RU: "тревога"},
 	"alerts.dash.counts":          {EN: "{networks}, {apps} in 24 h", RU: "{networks}, {apps} за сутки"},
@@ -369,7 +369,7 @@ var messages = i18n.Messages{
 	"alerts.field.muted.help":     {EN: "No notifications and no marker; the counts still show on its page.", RU: "Ни уведомлений, ни отметки; счётчики видны на её странице."},
 	"alerts.err.limit":            {EN: "A whole number from 1 to 1000, or empty for the setting.", RU: "Целое число от 1 до 1000 или пусто для значения из настроек."},
 
-	// Jobs (2c)
+	// Jobs
 	"job.subscriptions.expiry_scan":                   {EN: "Link expiry scan", RU: "Проверка сроков ссылок"},
 	"job.subscriptions.expiry_scan.step.expiry":       {EN: "Expiry warnings", RU: "Предупреждения о сроках"},
 	"job.subscriptions.expiry_scan.step.tombstones":   {EN: "End tombstones", RU: "Завершение удалённых ссылок"},
@@ -430,7 +430,7 @@ var messages = i18n.Messages{
 	"notify.link.shared_suspected":           {EN: "{subject} looks shared", RU: "Ссылкой {subject}, похоже, поделились"},
 	"notify.link.shared_suspected.body":      {EN: "Fetched from {networks} and {apps} in 24 h.", RU: "За сутки её запросили из {networks} и {apps}."},
 
-	// Cut-off (2d)
+	// Cut-off
 	"cutoff.crumb":                 {EN: "Cut off", RU: "Отрезать"},
 	"cutoff.title":                 {EN: "Cut off {name}", RU: "Отрезать {name}"},
 	"cutoff.note":                  {EN: "The link is disabled at once: its app gets the “disabled” entry on its next refresh. Then every server of its subscription gets new credentials, one at a time, so copied URIs stop working too.", RU: "Ссылка отключается сразу: при следующем обновлении приложение получит заглушку «отключена». Затем каждый сервер её подписки по очереди получает новые ключи, и скопированные URI тоже перестают работать."},

@@ -1,7 +1,6 @@
 // Package own is pure: ownership within a routing list (ADR 0013), the
 // server-hostname guard and "covered by". Nothing here is stored: a page, a
-// sync, a preview or a fetch computes it when it needs it (build README,
-// Phase 3: "Ownership is computed, never stored").
+// sync, a preview or a fetch computes it when it needs it.
 package own
 
 import (
@@ -30,7 +29,7 @@ const (
 	ReasonCovered = "covered" // an exact name another service has as a suffix
 	ReasonOwned   = "owned"   // an earlier service has it in the same form
 	ReasonGuarded = "guarded" // it covers a server's hostname
-	ReasonPinned  = "pinned"  // excluded by the caller (a router's infra pins, 3e)
+	ReasonPinned  = "pinned"  // excluded by the caller (a router's infra pins)
 )
 
 // Drop is a name a service lists but doesn't install.

@@ -4,7 +4,7 @@
 
 The admin types a website, and Proxier finds the domains it uses so they can be tunneled. First it checks whether a known list already covers the site (catalog lookup). Then it opens the site in a headless browser and records every hostname the page loads (headless visit). The admin ticks what to keep, and it becomes a custom service. Nothing changes until the admin saves.
 
-## Steps — starting a run
+## Steps: starting a run
 
 1. Routing → **Discover**. Fields:
    - **Website**: a URL or a domain.
@@ -12,7 +12,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
    - **Depth**: **Home page** (default), or **Home page + up to 5 links** on the same site.
 2. **Discover** queues the job and opens the run page, which fills in as steps finish.
 
-## Steps — the job
+## Steps: the job
 
 1. **Normalise**: take the host and find its registrable domain with the public suffix list (`www.claude.ai` → `claude.ai`; `me.github.io` stays `me.github.io`, because `github.io` is a public suffix).
 2. **Catalog lookup**: search the reverse index for the host, the registrable domain and their parent domains. Show every selector containing them: exact, suffix, or a suffix above. Each suggestion shows its domain count and whether it is already a service and in which lists. This step takes milliseconds and is shown first.
@@ -37,7 +37,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
    Every hostname is also marked **covered by** when a service in the routing lists already covers it.
 5. Finish → `routing.discovery_completed{website, hosts, suggestions}`. When the visit itself can't run (Chromium unreachable, a DevTools error, the server's dialer gone) → `routing.discovery_failed{website, error}`, and the catalog suggestions still show. A page that never loads is **not** a failure of the run: its visit says so ("the page never loaded: ERR_CONNECTION_RESET"), its hosts are marked failed, and Auto repeats it. The site's own class wins over the built-in lists (a run of `cloudflare.com` finds first-party hosts).
 
-## Steps — using the result
+## Steps: using the result
 
 1. The run page shows:
    - the suggestions;
@@ -52,7 +52,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 ## Rules
 
 - Discovery never changes routing by itself. Only the save actions do, through the normal flows.
-- The browser never signs in, never fills forms and never accepts cookie banners. It sees what an anonymous visitor sees. Logged-in app pages are out of reach in the first version (HAR import is in the backlog).
+- The browser never signs in, never fills forms and never accepts cookie banners. It sees what an anonymous visitor sees. Logged-in app pages are out of reach (HAR import is in the [backlog](../../overview.md#backlog)).
 - Each run uses its own browser context, so nothing carries over between runs.
 - A visit through a server goes out from that server's IP, as a client of its endpoint would. A direct visit goes out from home.
 - Without Chromium configured, a run is the catalog lookup only, and the page explains that visits need a Chromium container where Proxier is deployed, in words, without an environment variable's name (the admin may be on a phone, far from the deployment).

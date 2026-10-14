@@ -1,8 +1,8 @@
 # Routing
 
-The routing module decides which domains go through the VPN, and keeps every place that needs that list in sync: MikroTik routers (over SSH) and the Shadowrocket config on the phone (hosted by Proxier). It is `mtvpn.py`, always on, driven from the UI, and it replaces the copyparty uploads and the hosted service-list files.
+The routing module decides which domains go through the VPN and keeps every place that needs that list in sync: MikroTik routers (over SSH) and the Shadowrocket config on the phone (hosted by Proxier). It took over from `mtvpn.py`, the copyparty uploads and the hosted service-list files.
 
-## From mtvpn to Proxier
+## What became of mtvpn
 
 | mtvpn | Proxier |
 |---|---|
@@ -19,11 +19,11 @@ The routing module decides which domains go through the VPN, and keeps every pla
 | — | **Discovery**: type a website, get its domains ([discovery](../processes/routing/domain-discovery.md)). |
 | — | History of every snapshot with diffs, notifications, a one-time [import of `mtvpn.yaml`](../processes/routing/mtvpn-import.md). |
 
-Router-side behaviour stays **compatible with mtvpn**: same object types, same tags, same `mtvpn:` infra pins, same address-list and forwarder names. A router mtvpn manages today needs no migration ([ADR 0010](../adr/0010-router-contract-stays-mtvpn-compatible.md)).
+Router-side behaviour stays **compatible with mtvpn**: same object types, same tags, same `mtvpn:` infra pins, same address-list and forwarder names. A router mtvpn managed needs no migration ([ADR 0010](../adr/0010-router-contract-stays-mtvpn-compatible.md)).
 
 ## Sources and selectors
 
-A **service** is a named set of domains from one **source**. Sources are pluggable. The first four:
+A **service** is a named set of domains from one **source**. Sources are pluggable. There are four:
 
 | Source | Selector | Notes |
 |---|---|---|
@@ -55,7 +55,7 @@ Type a website. Proxier first looks it up in the catalog, suggesting existing se
 
 ## Routing lists
 
-- A **routing list** is a named, ordered set of services. "Main" exists from the first start and is the default for new targets. Each target follows exactly one list. A service can be in many lists.
+- A **routing list** is a named, ordered set of services. "Main" exists from the start and is the default for new targets. Each target follows exactly one list. A service can be in many lists.
 - **Ownership**: within a list, every name is installed once. It is computed (package `own`) whenever a page, a sync or a fetch needs it, never stored.
   - Names that trip the guard, and a router's infra pins, are taken out first: installed by nobody.
   - An exact name that another service has as a suffix is dropped: the suffix installs it.
@@ -69,7 +69,7 @@ Flows: [routing lists](../processes/routing/routing-lists.md).
 
 ## Targets
 
-Target kinds are pluggable. The first two:
+Target kinds are pluggable. There are two:
 
 **Router** (MikroTik, RouterOS 7):
 
@@ -115,7 +115,6 @@ Proxier renders the config when it's requested: the base config verbatim, with t
 | Port | Used by | Contract |
 |---|---|---|
 | `RouterRegistrar` (`Module.RouterRegistrar()`, `registrar.go`) | router scripts | `Lists` (the default first), `Routers` (every router not being removed), `Router` (one as it is now: state, list, awaiting until, connected, last sync, host and jump host, address-list and forwarder names, and `KeyCommands`, the add page's three commands from `routeros.KeyCommands`; `ErrRouterNotFound` once removed), `JumpHosts` (the distinct jump hosts of routers, with whether Proxier pinned each key), and `Register(ctx, tx, r, actor)`: `routers.Service.RegisterTx` inside the caller's transaction, the router in `awaiting setup` with `created_by = routerscripts` and `routing.router_added{by: routerscripts}` recorded with the admin as actor; its field errors (`routing.FieldErrors`, keyed as Add router's) come before anything is written. New routers get `routing.DefaultAddressList` / `DefaultForwarder`. |
-
 | `RoutingGuard` | servers (provisioning) | `Covering(ctx, hostnames)`: for each hostname a listed name covers (any listed name, installed or not), the name, its service and its list. `Module.Guard()`, set with `srv.SetRouting(rt.Guard())`. |
 
 It consumes `ServerHostnames` (the guard) and `ProxyDialer` (discovery through a server) from servers.

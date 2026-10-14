@@ -159,5 +159,5 @@ func (s *Service) FetchURLs(ctx context.Context, generationID int64) ([]FetchURL
 	return out, nil
 }
 
-// timeText is a time as events carry it (Phase 2's rule): the stored form.
+// timeText is a time as event payloads carry it: the stored form.
 func timeText(t db.Time) string { return t.UTC().Format(db.TimeLayout) }

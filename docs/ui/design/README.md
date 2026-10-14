@@ -1,18 +1,18 @@
 # Design: the Rosé Pine console
 
-This folder holds the final visual design of the Proxier UI. [../README.md](../README.md) says *what* each screen shows and does. This folder says *how it looks and behaves*:
+This folder says how the Proxier UI looks and behaves. [../README.md](../README.md) says what each screen shows and does.
 
-- `tokens.css`: every colour, size and shared class, ready to use as the app's base stylesheet;
+- `tokens.css`: every colour, size and shared class (a reference copy: the app's own stylesheets are the record, see [below](#changing-the-design));
 - `screens/`: the source of each designed screen, exported from the design canvas;
 - this file: the rules, so a new screen can be built without the canvas.
 
-The canvas itself is <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec>, on the **Rosé Pine** page. Its other page, **Console**, is an earlier look kept for reference only.
+The canvas is <https://claude.ai/artifact/TM7E3qaH69dDpV2aY4axec>, on the **Rosé Pine** page. Its **Console** page is an older look, not used.
 
 ## Principles
 
 1. **Dark only.** Rosé Pine (main) on a black ground, in one typeface, IBM Plex Mono.
 2. **Colour means state.** Ink is grey-violet. Colour appears only for a state, and every state is also a shape and a word. Healthy stays quiet: a pine dot with a subtle word.
-3. **Big blocks flush, small things padded.** Header, sidebar, areas, title bands, tables, banners and the key line run edge to edge and meet along 1 px `--overlay` lines. Buttons and fields are bordered boxes with room around them. Text inside a block keeps 16 px from its sides, as the rows do; a note under a table or area (12 px, subtle, `.foot`) too, so its left edge lines up with the rows above. A block with nothing in it isn't drawn: an empty one would stand as a padded band between two lines (a healthy verdict has no body), and a group heading always has a row under it.
+3. **Big blocks flush, small things padded.** Header, sidebar, areas, title bands, tables, banners and the key line run edge to edge and meet along 1 px `--overlay` lines. Buttons and fields are bordered boxes with room around them. Text inside a block keeps 16 px from its sides, as the rows do; a note under a table or area (12 px, subtle, `.foot`) too, so its left edge lines up with the rows above. A block with nothing in it isn't drawn, since an empty one stands as a padded band between two lines (a healthy verdict has no body); a group heading always has a row under it.
 4. **Less on screen.** One line per thing. The rest is one key or one click away.
 5. **Keyboard first on desktop, usable on a phone.** Every action has a key, and the bottom line shows which. The phone is for reacting to a notification.
 
@@ -89,10 +89,10 @@ The desktop layout, from top to bottom:
 - **Tables** never squeeze: each column has a minimum width, and a table wider than the page scrolls sideways in its own box (`.tbl`), as the Servers screen draws it. A cell is one line; a long value ends in "…" with the whole value in a tooltip. Words are never broken inside; only messages wrap, between words. A URL breaks only after a slash.
 - **Side panels** beside a long form or list (New server's "Will be created", the generate form's summary, a script's parameters, a search preview) are a column as tall as the page part they sit in, so their divider runs from top to bottom, as the New server screen draws it. Their content stays at the top of the window while the page scrolls (the header scrolls away, so there is no gap above it); a panel taller than the window above the key line scrolls on its own.
 - **Logs** scroll in their own box (the `--base` well), at most 60 % of the window, as the provisioning screen draws its fixed-height log, so the page below a log is a short scroll away. The box opens at its end and follows new lines while the reader is there; **Follow** in the log's head shows it, and **Expand** makes the box as tall as the window under its head.
-- **Parts of an area body** under each other (a URL and its buttons, the note under them, the QR's note, **Show QR** and the code, a fingerprint and its buttons) keep 12 px between them, as the Link screen's QR area draws its column, the same as the body's padding above and below them. A secret field's buttons wrap together. **Show QR** turns into **Hide QR** in its place and the code opens under it, as the phone's link screen keeps its toggle above the code: the canvas's desktop Link screen draws the toggle under the code, where it would move the length of the code under the pointer.
-- **Output previews** under padded controls (a subscription's preview under its format select, **Reveal** and **Hide**) sit inside the area's 16 px padding, so their edges are the controls' edges, and wrap anywhere, as the Subscription screen breaks its URIs, rather than scrolling sideways: in the admin's browser the sideways scrollbar ran over the note under it. The canvas draws this preview flush; the controls above it are padded, so it is inset. Its notes are the `.foot` note, 12 px below it, and are left out when there is nothing to say.
-- **A rendered config** (a Shadowrocket config's "What the phone gets") grows with the page, as the Shadowrocket config screen draws it, rather than scrolling in a box of its own: a box beside the page's scrollbar was a second scrollbar, and its end sat under the key line. A long line wraps anywhere, and its continuation is indented 4 characters under the line's start, so it never reads as a new line. Its **Download** sits in its title band, not after its last line. On the config page the URL is a strip across the page above the columns, as the screen draws it; the columns are the preview (1.3) and versions, fetches and actions (at least 540 px), stacked below 1270 px with the short column first.
-- **Action rows** (an **Actions** area: a button and what it does) put the buttons in one column as wide as the longest button, the descriptions lined up beside it; a fixed column let a long label ("Change routing list or policy…") run over its description.
+- **Parts of an area body** under each other (a URL and its buttons, the note under them, the QR's note, **Show QR** and the code, a fingerprint and its buttons) keep 12 px between them, as the Link screen's QR area draws its column, the same as the body's padding above and below them. A secret field's buttons wrap together. **Show QR** turns into **Hide QR** in its place and the code opens under it, as the phone's link screen draws it, so toggling moves nothing under the pointer. (The canvas's desktop Link screen draws the toggle under the code; the app doesn't.)
+- **Output previews** under padded controls (a subscription's preview under its format select, **Reveal** and **Hide**) sit inside the area's 16 px padding, so their edges are the controls' edges, and wrap anywhere, as the Subscription screen breaks its URIs, rather than scrolling sideways, since a sideways scrollbar covers the note under it. (The canvas draws this preview flush.) Its notes are the `.foot` note, 12 px below it, and are left out when there is nothing to say.
+- **A rendered config** (a Shadowrocket config's "What the phone gets") grows with the page, as the Shadowrocket config screen draws it, rather than scrolling in a box of its own, which would be a second scrollbar beside the page's. A long line wraps anywhere, and its continuation is indented 4 characters under the line's start, so it never reads as a new line. Its **Download** sits in its title band, not after its last line. On the config page the URL is a strip across the page above the columns, as the screen draws it; the columns are the preview (1.3) and versions, fetches and actions (at least 540 px), stacked below 1270 px with the short column first.
+- **Action rows** (an **Actions** area: a button and what it does) put the buttons in one column as wide as the longest button, the descriptions lined up beside it, so a long label never runs over its description.
 - **Code editors** (a template's draft, a router script's draft, a Shadowrocket base config) run flush across the page column, from its edge (or the file tree) to the side panel, under a title band whose right end holds **Wrap lines** (a checkbox, as a log's Follow) and **Full screen**, as the Script screen draws its draft. On a page whose job is the editor (the template editor, New config, Edit base config) the editor fills the window under the title down to the key line: the page doesn't scroll, the code and the side panels scroll on their own, and the page's actions stay in the title block. Below 1100 px the template editor's results take at most 40 % of the window under the code; a window too short for the code's minimum (360 px with its band) scrolls the page. **Full screen** hides the header and the sidebar and gives the editor the window under the title; **Exit full screen** or `esc` (after the `esc` that leaves the code) returns.
 - **Counts strip**: equal cells in a grid with 1 px gaps. Each cell holds a marker, a label and a big number. A zero count is muted.
 - **Key line** (28 px, desktop only), at the bottom.
@@ -169,12 +169,12 @@ A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the
 Under 760 px the layout changes:
 
 - The sidebar becomes a drawer behind a ☰ cell, and the key line goes away.
-- The header grows to 56 px, with flush cells: ☰, the logo (12 px sides), then at the right search as a 48 px magnifier cell (a field there was a 60 px stub reading "/ S…"), the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
+- The header grows to 56 px, with flush cells: ☰, the logo (12 px sides), then at the right search as a 48 px magnifier cell, the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
 - Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
-- Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row (stacked, they took 650 px before the code).
+- Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row, so they don't push the code a screen down.
 - Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A tick box or radio sits in its label, which is tapped; one with no words (a row's tick on Import or Discover) is in a `.tick` label, a 40 px cell around it. A filter row's selects share its width, its button as tall as they are (48 px).
-- An alert's sentence and its link are one item (a `<span>`): as flex items of their own the link took a narrow column and broke after every word.
+- An alert's sentence and its link are one item (a `<span>`), so the link never gets a narrow column of its own.
 - Settings › Notifications' groups (one per module, with its count of events and of changed ones) start closed; switching a rule comes back to it with its group open. Open, a rule is its switch beside its name, description and default.
 
 A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys) is hidden there, whatever the width.
@@ -191,7 +191,7 @@ The files in `screens/` are the canvas source (`.dc.html`). Use them as a refere
 
 - They need the canvas runtime (`support.js`), so they don't open on their own.
 - The markup and inline styles are exact. The `<helmet>` block carries the same classes as `tokens.css`.
-- Their header ends in an `admin ▾` menu cell, which is gone: the header ends with the admin's name and **Sign out** (Layout, above).
+- Their header ends in an `admin ▾` menu cell, which the app doesn't have: the header ends with the admin's name and **Sign out** (Layout, above). The server page's More menu is gone too: its secondary actions are in an Actions area.
 - The sample data is in the `renderVals()` script at the bottom.
 
 | Area | File | Screen |
@@ -252,10 +252,6 @@ A few screens are left out because they reuse a drawn layout. These are the serv
 
 ## Changing the design
 
-The canvas is the source of truth until the app exists. To change the design, change the canvas first, then refresh this folder:
+The app's stylesheets in `internal/platform/ui/static/css/` (`tokens.css`, `fonts.css`, `app.css`) are the record; this folder's `tokens.css` is a reference copy. A small change goes straight into the app's CSS and, when it changes a rule, into this file.
 
-1. Ask Claude to "pull the latest design from the canvas".
-2. Claude copies the `RP-*.dc.html` files into `screens/`.
-3. Claude updates `tokens.css` and this file wherever a rule changed.
-
-Since Phase 0b the app's own stylesheets in `internal/platform/ui/static/css/` (`tokens.css`, `fonts.css`, `app.css`) are the stylesheet of record; this folder's `tokens.css` is the reference copy.
+A larger change starts on the canvas. Then refresh this folder: copy the changed `RP-*.dc.html` files into `screens/`, and update `tokens.css` and this file wherever a rule changed.

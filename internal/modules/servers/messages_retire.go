@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// retireMessages: retirement (1g) and the server list's columns and bulk actions.
+// retireMessages: retirement and the server list's columns and bulk actions.
 var retireMessages = i18n.Messages{
 	// the job
 	"job.servers.retire":                          {EN: "Retire server", RU: "Вывод сервера из работы"},

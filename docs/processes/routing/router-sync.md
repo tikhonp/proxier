@@ -4,7 +4,7 @@
 
 Router sync keeps a MikroTik's tunneled domains equal to its routing list: the DNS static FWD entries and the firewall address-list entries that mtvpn used to write, under the same tags. It runs by itself after every relevant change and repairs drift. It never touches what it doesn't own. The RouterOS details are in the [RouterOS integration](../../integrations/routeros.md).
 
-## Steps — adding a router
+## Steps: adding a router
 
 1. Routing → Routers → **Add router**. Fields:
    - name and routing list;
@@ -23,9 +23,9 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 
    The result lists each check. A missing forwarder or pin gives the warning "this router doesn't look set up by the router script"; Save is still allowed. **Stop** at a fingerprint ends the test and pins nothing.
 4. **Save** → the router is **active**. → `routing.router_added`. When the latest test of exactly these values passed (or warned), the router is connected → `routing.router_connected{version, board}`, and its initial sync is queued. Save also works **untested**: the router then waits ("Not connected yet: Test connection to confirm the host keys; the initial sync runs after it passes."), changes queue nothing for it, and its first passing test records `routing.router_connected` and queues the initial sync. **Sync now** on it is allowed and fails with "first contact with 10.230.1.1:22: confirm its fingerprint with Test connection".
-5. A router created by router scripts (`routers.Register`, wrapped by Phase 4's `RouterRegistrar`) starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days (`routing.probe`). A probe pins the router's own key on first contact (nobody can confirm a fresh router's key), but its jump host must already be confirmed: a probe never pins a jump host. The first success makes it active and runs the initial sync, as in step 4. A failed probe records nothing; the router page shows its error. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**, whose pass (the admin confirms both keys) activates it the same way.
+5. A router created by router scripts (`routers.Register`, through the `RouterRegistrar` port) starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days (`routing.probe`). A probe pins the router's own key on first contact (nobody can confirm a fresh router's key), but its jump host must already be confirmed: a probe never pins a jump host. The first success makes it active and runs the initial sync, as in step 4. A failed probe records nothing; the router page shows its error. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**, whose pass (the admin confirms both keys) activates it the same way.
 
-## Steps — sync
+## Steps: sync
 
 1. **Connect** through the jump host if set. Host keys must match their pins. A router no longer active (or gone) ends the job quietly. The first successful connection ever → `routing.router_connected`.
 2. **Read** the router (every attempt and every resume starts here, so a retry never pushes a stale plan; files a cut-short run left are deleted first):
@@ -53,7 +53,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
    - Each tag is one idempotent block. It removes the tag's entries, removes untagged duplicates of its names (adoption), and adds all names tagged ([RouterOS integration](../../integrations/routeros.md#service-block)).
    - Blocks are packed, in that order, into files `proxier-sync-<job>-<n>.rsc` of at most 2,000 domains (a bigger block is split, its later parts continued), uploaded over SFTP with a plain write and run with `/import file-name=… verbose=no`. The output is scanned for error patterns, because `/import` can report success on a failed line.
    - Each file is deleted afterwards, whether or not it succeeded. After a file succeeds its tags are recorded as applied; after one fails, the router is read again and each of its tags that landed anyway is recorded.
-   - Before it reads (step 3), every sync deletes every `proxier-sync-*` file on the router, whichever job left it: its own after a restart, another's after a cancel, a shutdown, or a failed import whose reconnect failed too.
+   - Before it reads (step 2), every sync deletes every `proxier-sync-*` file on the router, whichever job left it: its own after a restart, another's after a cancel, a shutdown, or a failed import whose reconnect failed too.
 6. **Verify**: re-read the router; every pushed tag must now match (updates) or hold nothing (removals), else the job fails at verify ("openai: 29 names on the router, 31 expected").
 7. **Record**: per tag, the applied hash and counts. The sync record keeps the plan, the result and the log. → `routing.router_synced{added, updated, removed, recorded, trigger}` when anything was pushed or recorded; a sync with nothing to do records no event.
 8. A failure at any step stops the attempt. Tags already pushed keep their new applied state, and the failed tag keeps its old one. Every failed attempt is recorded → `routing.router_sync_failed{step, error, consecutive, manual, attempt, final}`. Retries come after 5 min, 15 min and 1 h. Only the **final** failure notifies: the fourth attempt, or an error no retry fixes (a refused key, a changed or unknown host key, the tailnet off), also for **Sync now**. The next success after failures → `routing.router_recovered`, which notifies only after a notified failure.
@@ -68,7 +68,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 | An unmanaged tag adopted or removed | queued at once |
 | Router resumed from paused | queued at once (full) |
 
-## Steps — preview, drift, unmanaged tags
+## Steps: preview, drift, unmanaged tags
 
 1. **Preview sync** runs steps 1–4 only (read-only). It shows the plan per tag (unchanged / update with +added −removed / remove / unmanaged) and the exact RouterOS scripts, with **Run this sync**.
 2. **Drift check** (every `routing.drift_every`, 6 h by default, read-only) reads the router and compares it with the **applied** record, not the desired state. Pending desired changes have syncs of their own. A tag drifts when it is gone, its DNS entries' names differ from the applied hash, an entry isn't `FWD` to the forwarder, or its address-list count differs. Differences are drift → `routing.drift_detected{tags, repair}`. With auto-repair on, a sync is queued at once. With it off, a notification is sent once per set of drifting tags (the same drift found again records nothing) and the router page shows **Repair**. The round skips a router with a job queued or running (that job reads it anyway), and paused, awaiting and removing routers. A check that can't connect fails only its own row: no failure is counted and no event recorded.
@@ -79,7 +79,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 
    A tag that isn't a valid tag (a space, say) can't be adopted: only remove and ignore are offered. A tag that leaves the router and comes back notifies again (an ignored one too: ignoring holds while the tag is seen).
 
-## Steps — pausing and removing
+## Steps: pausing and removing
 
 1. **Pause** → queued syncs, previews and drift checks are cancelled; no syncs, no previews, no drift checks. **Resume** → full sync. → `routing.router_paused`, `routing.router_resumed`
 2. **Remove router** asks: **Keep everything on the router** (default; the router is removed at once), or **Remove every tag Proxier installed**: the router is *removing* and `routing.remove` removes every applied tag (infra pins, untagged and unmanaged entries stay), then deletes the router. → `routing.router_removed{name, cleaned}`. Its failures are recorded like a sync's and notify when the job gives up; the router stays *removing* (no syncs) with **Retry** and **Remove without cleaning**. Pinned host keys stay (Settings → SSH forgets them).
@@ -115,7 +115,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - `/import` output contains "syntax error" → the sync fails at push, the file is deleted, the failed tag keeps its old applied state, and the earlier tags keep their new one.
 - The router is offline → the sync fails at connect, retries after 5 min, 15 min and 1 h, and only the fourth (final) failure notifies. When it is back, `routing.router_recovered` notifies. A sync that fails once and then succeeds recovers without a notification.
 - The container restarts during `/import` of a block → the job resumes and re-runs that block. The tag ends correct.
-- The router runs an `/import` in full and never ends its session (no exit status, no channel close, Proxier's close ignored; Telepat behind its jump host, [2026-10-12](../../router-sync-hang-2026-10-12.md)) → after the import timeout Proxier closes the connection, connects again, deletes the file and re-reads: the tags that landed are recorded, the attempt fails at push, and the retry has nothing left to push.
+- The router runs an `/import` in full and never ends its session (no exit status, no channel close, Proxier's close ignored, as one router behind a jump host did: [open questions](../../open-questions.md#routeros-ending-a-long-import)) → after the import timeout Proxier closes the connection, connects again, deletes the file and re-reads: the tags that landed are recorded, the attempt fails at push, and the retry has nothing left to push.
 - The admin cancels a sync whose `/import` never ends → the job is cancelled at once (no failure counted); the next sync deletes its file and records what landed. A shutdown during it interrupts the job; the resume deletes the leftover file and records what landed.
 - The admin cancels a sync during an `/import` → its file stays until the next sync, which deletes it.
 - **Preview sync** while another job holds the router → the preview says it waits for that job (with a link) and polls every 5 s; it reads the router once the job ends.

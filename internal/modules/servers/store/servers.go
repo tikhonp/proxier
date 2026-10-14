@@ -303,7 +303,7 @@ func RunningDeployment(ctx context.Context, q sqlx.QueryerContext, serverID int6
 }
 
 // CurrentDeployment is the server's latest succeeded deployment that uploaded
-// files: its current files (README of Phase 1, "Current files"). Never just
+// files: its current files (docs/data-model.md#servers). Never just
 // the latest one: restart, images and reboot upload nothing.
 func CurrentDeployment(ctx context.Context, q sqlx.QueryerContext, serverID int64) (Deployment, bool, error) {
 	var d Deployment

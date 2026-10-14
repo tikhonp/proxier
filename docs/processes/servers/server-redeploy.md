@@ -4,7 +4,7 @@
 
 Because Proxier renders every file itself, it can change a server after provisioning by rendering again and applying only the difference. This covers **redeploy** (same version), **upgrade** (another version, alone or rolled out across many servers), **parameter changes**, and the lighter stack operations (**restart stack**, **update images**, **reboot**, **container logs**). Rotation is its own flow ([credential rotation](./credential-rotation.md)) but reuses this one.
 
-## Steps — redeploy, upgrade, parameter change
+## Steps: redeploy, upgrade, parameter change
 
 1. The admin chooses an action on an **active** server's page:
    - **Redeploy**: the current version.
@@ -26,7 +26,7 @@ Because Proxier renders every file itself, it can change a server after provisio
 6. A failure stops the job. The server stays **active**, at whatever state the remote side reached, and the deployment is recorded as failed. Health checks report the actual effect. → `server.redeploy_failed{kind, step, error}` (notifies). A cancelled job fails its deployment the same way (`error: cancelled`) and records the event with `cancelled: true`, which does not notify.
 7. **Roll back** on the latest deployment, when it failed after putting files on the server, opens a forced redeploy of the version and parameters of the current files through the same plan screen. It is forced because the failed deployment may have changed the server in ways the stored current files do not show.
 
-## Steps — rolling upgrade
+## Steps: rolling upgrade
 
 1. The server list → select servers (or "all on older versions") → **Upgrade to default version**.
 2. Proxier shows, per server, the version change and the number of changed files. Servers needing new parameters without defaults are listed and need values first.
@@ -35,7 +35,7 @@ Because Proxier renders every file itself, it can change a server after provisio
 5. **Stop rollout** starts nothing new; the server being upgraded finishes on its own. When the rollout ends, one `server.rollout_finished{state, done, failed, not_started}` is recorded.
 6. A server that is not active, or already at the target version, when its turn comes is **skipped** with the reason shown.
 
-## Steps — lighter operations
+## Steps: lighter operations
 
 | Operation | Job steps | Records |
 |---|---|---|

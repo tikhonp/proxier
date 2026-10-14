@@ -5,7 +5,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-// lifeBands are the router page's bands of 3f: awaiting setup, paused,
+// lifeBands are the router page's lifecycle bands: awaiting setup, paused,
 // removing, drift.
 templ lifeBands(v routerView) {
 	if v.Awaiting != nil {

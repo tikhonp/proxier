@@ -3,7 +3,7 @@ package routing
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
 // routerLifeMessages are the texts of drift, unmanaged tags, awaiting setup,
-// pause, removal and the dashboard's Routing area (3f).
+// pause, removal and the dashboard's Routing area.
 var routerLifeMessages = i18n.Messages{
 	// The routers list
 	"routers.col.watch":       {EN: "Watch", RU: "Внимание"},

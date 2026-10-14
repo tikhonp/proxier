@@ -184,7 +184,7 @@ func (h *handler) listActivity(ctx context.Context, l lists.List) ([]eventLine, 
 
 // answerMembers re-renders the Services area for htmx and redirects to the
 // page otherwise; htmx swaps only 2xx answers, so a stale order answers 200
-// with the order as stored and says why (2a's pattern).
+// with the order as stored and says why, as the subscription page does.
 func (h *handler) answerMembers(c *echo.Context, l lists.List, moved int64, stale bool, undo *undoView) error {
 	if !htmx(c) {
 		if stale {

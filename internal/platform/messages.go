@@ -389,7 +389,7 @@ var messages = i18n.Messages{
 	"job.platform.notify.step.send":             {EN: "Send", RU: "Отправка"},
 	"job.platform.retention.step.notifications": {EN: "Old notifications", RU: "Старые уведомления"},
 
-	// SSH, tailnet, backups (0e)
+	// SSH, tailnet, backups
 	"settings.ssh":      {EN: "SSH", RU: "SSH"},
 	"settings.backups":  {EN: "Backups", RU: "Резервные копии"},
 	"settings.ssh.note": {EN: "Proxier's own key, your keys for new servers, and the host keys it has pinned.", RU: "Собственный ключ Proxier, ваши ключи для новых серверов и закреплённые ключи хостов."},

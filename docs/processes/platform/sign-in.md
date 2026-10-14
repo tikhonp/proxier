@@ -4,13 +4,13 @@
 
 There is one admin. Sign-in is a password on a public host with no second factor, so the rules focus on lockout, short sessions and telling the admin about every sign-in from a new IP.
 
-## Steps — creating the admin
+## Steps: creating the admin
 
 1. `docker exec -it proxier /bin/proxier manage create-admin` asks for a username and a password, twice. The password must be at least 12 characters. → `admin.created`
 2. Running it again when an admin exists refuses: "An admin already exists; use reset-password."
 3. `proxier manage reset-password` sets a new password and ends every session. → `auth.password_changed{via: cli}`
 
-## Steps — signing in
+## Steps: signing in
 
 1. Every admin URL without a valid session redirects to `/login?next=<path>`.
 2. The admin enters username and password. If the IP is locked, the form says "Too many attempts. Try again in N min" and checks nothing.
@@ -18,7 +18,7 @@ There is one admin. Sign-in is a password on a public host with no second factor
 4. The 5th failure from one IP within 15 minutes locks that IP for 15 minutes. → `auth.locked{ip, failures}` (notifies)
 5. Correct: a new session is created with a fresh cookie, and the browser goes to `next` (a local path only, otherwise the dashboard). → `auth.signed_in{ip, user_agent, new_ip}`. A sign-in from an IP that has no successful sign-in in the last 30 days has `new_ip: true` and notifies.
 
-## Steps — sessions
+## Steps: sessions
 
 1. Each request with a session updates its last-seen time (at most once a minute). A session ends after 7 days without requests or 30 days after creation, whichever comes first.
 2. **Sign out**, the last cell of the header on every page, ends the current session with one click, with no confirmation, and goes to the sign-in page.

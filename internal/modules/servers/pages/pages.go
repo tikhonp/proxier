@@ -43,16 +43,16 @@ type Deps struct {
 	Vault     *vault.Vault
 	Jobs      *jobs.System
 	Provision *provision.Service
-	// Deploy plans and runs changes to active servers (1e).
+	// Deploy plans and runs changes to active servers.
 	Deploy *deploy.Service
-	// Health runs and reads the checks; Stats answers the Stats tab (1f).
+	// Health runs and reads the checks; Stats answers the Stats tab.
 	Health *health.Service
 	Stats  *stats.Service
-	// Retire takes servers out of service (1g).
+	// Retire takes servers out of service.
 	Retire *retire.Service
-	// Agent hands template drafts to coding agents (1h).
+	// Agent hands template drafts to coding agents.
 	Agent *agent.Service
-	// Usage is the subscriptions port (Phase 2); it returns nil until then.
+	// Usage is the subscriptions port; it returns nil without that module.
 	Usage func() UsageReader
 }
 

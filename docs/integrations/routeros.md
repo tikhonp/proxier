@@ -1,6 +1,6 @@
 # RouterOS (MikroTik target)
 
-Router sync writes exactly what `mtvpn.py` wrote, so routers set up with `fresh-router.rsc` and managed by mtvpn need no migration ([ADR 0010](../adr/0010-router-contract-stays-mtvpn-compatible.md)). This document is the contract. The flow is in [router sync](../processes/routing/router-sync.md).
+Router sync writes exactly what `mtvpn.py` wrote, so routers set up with `fresh-router.rsc` and managed by mtvpn needed no migration ([ADR 0010](../adr/0010-router-contract-stays-mtvpn-compatible.md)). This document is the contract. The flow is in [router sync](../processes/routing/router-sync.md).
 
 ## Split of responsibilities
 
@@ -61,7 +61,7 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 /ip firewall address-list remove [find list="to_vpn_list" comment="<tag>" dynamic=no]
 ```
 
-`<tag>` is escaped (`routeros.Quote`): `"`, `\`, `$` and `?` get a backslash, a control character becomes `\XX` (hex, capitals). A service's tag never needs it; an unmanaged tag being removed is a comment read from the router, which may hold anything, and must not end the string or the line. Not yet tried on a real router with such a comment.
+`<tag>` is escaped (`routeros.Quote`): `"`, `\`, `$` and `?` get a backslash, a control character becomes `\XX` (hex, capitals). A service's tag never needs it; an unmanaged tag being removed is a comment read from the router, which may hold anything, and must not end the string or the line. No real router has had such a comment yet.
 
 ## Reading state
 
@@ -80,15 +80,15 @@ Test connection and every sync's connect step also run one check line: the versi
 
 1. Remove any file a cut-short run left, of this job or another (a cancelled one): `:do {/file remove [find name~"^proxier-sync-"]} on-error={}`. Only one job runs on a router at a time, so no file is in use.
 2. Pack the blocks, in push order, into files `proxier-sync-<job>-<n>.rsc` of at most 2 000 domains each. A block that doesn't fit in the current file starts the next one; a block over 2 000 names is split over several files, every part after the first **continued** (no tag-removal lines: only the adoption loops and the adds), so each file stays idempotent. Removal blocks count as no names. Each file starts with a header comment (`# proxier sync · router Home · job #2207 · file 1/2: update openai (+31), update mine (+2)`) and each block with a comment line.
-3. Upload each file over SFTP with a plain write: no temporary file, `chmod`, `fsync` or rename, which RouterOS's SFTP server may lack. (macOS's `scp` speaks SFTP since OpenSSH 9.0, which is what mtvpn used, so the router already accepts it.)
-4. Run `/import file-name=proxier-sync-<job>-<n>.rsc verbose=no` with a 30-minute timeout. A client timeout mid-import would leave a tag half-installed. The block is idempotent, so a retry heals it, but a long timeout avoids the problem. RouterOS 7.24.5 once ran a whole import and never ended the session: no exit status, no channel close, and no answer to Proxier's close ([2026-10-12](../router-sync-hang-2026-10-12.md)). So when a command's timeout (or a cancel) has closed the session and the router hasn't confirmed it within 5 s, Proxier closes the whole connection. It then connects again to delete the file and re-read (step 7).
+3. Upload each file over SFTP with a plain write: no temporary file, `chmod`, `fsync` or rename, which RouterOS's SFTP server may lack. mtvpn's `scp` spoke SFTP too (OpenSSH 9.0 and later on macOS), so routers accept it.
+4. Run `/import file-name=proxier-sync-<job>-<n>.rsc verbose=no` with a 30-minute timeout. A client timeout mid-import would leave a tag half-installed. The block is idempotent, so a retry heals it, but a long timeout avoids the problem. RouterOS 7.24.5 once ran a whole import and never ended the session: no exit status, no channel close, and no answer to Proxier's close ([open questions](../open-questions.md#routeros-ending-a-long-import)). So when a command's timeout (or a cancel) has closed the session and the router hasn't confirmed it within 5 s, Proxier closes the whole connection. It then connects again to delete the file and re-read (step 7).
 5. `/import` can exit with success when a line failed. Its output is scanned for `syntax error|failure|expected|no such item|does not match|bad command|invalid|not enough permissions` (the last one: a user whose group lacks `write` or `ftp`), ignoring SSH noise (warnings, post-quantum notices, blank lines). A non-zero exit fails too.
 6. Always delete the file afterwards: `:do {/file remove [find name="<file>"]} on-error={}`.
 7. After a file succeeds, each of its blocks is recorded as applied (a split block once its last part landed). After a file fails, the router is read again: `/import` stops at the first failing line, so earlier blocks of the file may have run, and each of its tags that now matches is recorded; the others keep their old applied state.
 
 ## Proxier's user on the router
 
-Proxier logs in as its own user in a restricted group. The add page shows the commands; on 7.24.5 they work from an imported router script, and the group is enough for the sync's `/import` (seen 2026-10-14, [open questions](../open-questions.md) "to verify" 5):
+Proxier logs in as its own user in a restricted group. The add page shows the commands. On 7.24.5 they work from an imported router script, and the group is enough for the sync's `/import` (what is untried is in [open questions](../open-questions.md#proxiers-user-from-the-add-page)):
 
 ```
 /user group add name=proxier policy=read,write,ftp,ssh

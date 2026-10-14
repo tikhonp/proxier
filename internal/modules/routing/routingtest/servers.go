@@ -12,8 +12,8 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 )
 
-// Servers is an in-memory ServerHostnames (3b), EndpointCatalog and
-// ProxyDialer (3g). Its dialer dials directly and records the server; it
+// Servers is an in-memory ServerHostnames, EndpointCatalog and
+// ProxyDialer. Its dialer dials directly and records the server; it
 // never starts xray.
 type Servers struct {
 	mu     sync.Mutex

@@ -101,7 +101,7 @@ func TestTokenLookupIsUnique(t *testing.T) {
 	d := open(t)
 	mustFail(t, d, "a token without a lookup", insertLink, 1, "A", []byte("a"), nil, "active", nil)
 	mustFail(t, d, "a lookup without a token", insertLink, 1, "A", nil, []byte("la"), "active", nil)
-	mustExec(t, d, insertLink, 1, "A", []byte{}, []byte("la"), "active", nil) // the empty placeholder of 2b
+	mustExec(t, d, insertLink, 1, "A", []byte{}, []byte("la"), "active", nil) // an empty placeholder token
 	mustFail(t, d, "a repeated lookup", insertLink, 1, "B", []byte("b"), []byte("la"), "active", nil)
 	for _, n := range []string{"C", "D", "E"} {
 		mustExec(t, d, insertLink, 1, n, nil, nil, "deleted", now)

@@ -4,7 +4,7 @@
 
 Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)), so the only way to take access away from someone who has a working connection URI is to change the credential for everyone. Rotation replaces a server's **rotatable generated values** (in the seed template, the client UUID and the XHTTP path) and redeploys. Links serve the new connection URIs at once, because outputs are computed on every fetch. Apps that refresh keep working. Anything holding only the old URIs stops.
 
-## Steps — rotating one server
+## Steps: rotating one server
 
 1. Server page → **Rotate credentials**. The dialog says:
    - which values will change;
@@ -20,9 +20,9 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
 4. If a step fails before the commit, the **restore runs inside the failing step**, before the job reports the failure: the server's current files are uploaded again (a deployment of kind `restore`), the redeploy steps run, the proxy test passes with the old values, and the new values are dropped. The old values stay in force throughout. → `server.redeploy_failed{kind: rotate, step, error, restored}`; `restored` is false when the restore failed too, and the log says what may be on the server.
 5. If the admin cancels after the new values exist, the cancellation queues a `servers.restore` job (the rotation's log says "restore queued as job #N") that does the same.
 
-## Steps — cut-off (rotating for a link)
+## Steps: cut-off (rotating for a link)
 
-Rotation on cut-off is a setting, `subscriptions.cutoff_rotates`, **off by default** (decided 2026-10-12): while it is off, Cut off only disables the link and every server is skipped as "rotation on cut-off is off", so a URI someone copied keeps working. The plan page, the Actions line and the alert band say so. The setting is read for each server when its turn comes, so turning it off stops a cut-off under way before its next server. The steps below are with it on.
+Rotation on cut-off is a setting, `subscriptions.cutoff_rotates`, **off by default**. While it is off, Cut off only disables the link and every server is skipped as "rotation on cut-off is off", so a URI someone copied keeps working. The plan page, the Actions line and the alert band say so. The setting is read for each server when its turn comes, so turning it off stops a cut-off under way before its next server. The steps below are with it on.
 
 1. Link page → **Cut off…** (in the Actions area, and in the shared-link alert band). The page lists every server of the link's subscription in order with its health, the ones that can't be rotated with why ("not in service", "its template has no rotatable values"), how many other active links in how many subscriptions get new URIs, and the warning above. A subscription with nothing to rotate says so: Cut off only disables the link.
 2. **Cut off** disables the link at once (it serves the "disabled" stub entry from now on; an already disabled link stays as it is), skips and names the servers that can't be rotated, and queues the first rotation, all in one transaction. → `link.disabled` (when it was active), `link.cut_off{servers, skipped}`

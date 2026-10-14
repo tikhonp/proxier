@@ -31,17 +31,15 @@ import (
 
 // Deps are what the pages use.
 type Deps struct {
-	Services *services.Service
-	Lists    *lists.Service
-	Refresh  *refresh.Service
-	Catalog  *catalog.Service
-	// Shadowrocket and Import are 3d's.
+	Services     *services.Service
+	Lists        *lists.Service
+	Refresh      *refresh.Service
+	Catalog      *catalog.Service
 	Shadowrocket *shadowrocket.Service
 	Import       *mtvpn.Service
-	// Routers is 3e's; SSH shows Proxier's key and the pinned fingerprints.
-	Routers *routers.Service
-	SSH     *sshx.SSH
-	// Discovery is 3g's.
+	Routers      *routers.Service
+	// SSH shows Proxier's key and the pinned fingerprints.
+	SSH       *sshx.SSH
 	Discovery *discovery.Service
 	Jobs      *jobs.System
 	Settings  *settings.Store

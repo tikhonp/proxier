@@ -4,7 +4,7 @@
 
 Provisioning turns a freshly issued VPS (an IP and a root password) into an **active** server built from a template version. The admin fills in one form and watches the job. There is nothing to type over SSH and nothing to do in DNS. A server only becomes active once a real proxy connection from home works through it.
 
-## Steps — the form
+## Steps: the form
 
 1. Servers → **New server**. Fields:
    - **IP address** (IPv4) and **SSH port** (default 22, under "advanced").
@@ -23,7 +23,7 @@ Provisioning turns a freshly issued VPS (an IP and a root password) into an **ac
    Failures are shown on the form and nothing is created.
 4. The server is created in **provisioning** with its name reserved, the root password goes encrypted into the job payload, and the job is queued. The browser goes to the server page, which shows the steps and the live log. → `server.created{ip, country, template_version}`
 
-## Steps — the job
+## Steps: the job
 
 Each step is resumable. A retried job starts at the step that didn't finish.
 
@@ -53,7 +53,7 @@ Each step is resumable. A retried job starts at the step that didn't finish.
 
 The job makes one attempt and never retries by itself: a retry may need input, so it is the admin's. Any step failing stops the job. The server becomes **failed**, and the page shows the step, the error and the log. → `server.provisioning_failed{step, error}` (notifies). **Cancelling** the job ends the same way with the error `cancelled` and `cancelled: true` in the event, which does not notify; DNS records already made stay until retry or retirement.
 
-## Steps — after a failure
+## Steps: after a failure
 
 1. **Retry** resumes at the failed step.
    - If the failed step was preflight or install access (before Proxier's key works), it **always** asks for the root password again; the new one replaces any kept one. Later failures ask for nothing.
@@ -103,5 +103,5 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 - **Cancel** during DNS → job cancelled, server **failed**, DNS record kept until retirement or retry.
 - Two servers created in the same country at the same moment → `nl-2` and `nl-3`, never two `nl-2`.
 - A server fails provisioning as `nl-2` and is retired; the next new server in the Netherlands → `nl-3`.
-- A server from before servers had a country, `ams-1` in NL → keeps its name; the next new server in the Netherlands is numbered after the highest `nl-` number, not after `ams-1`.
+- A server created when servers had locations, `ams-1` in NL → keeps its name; the next new server in the Netherlands is numbered after the highest `nl-` number, not after `ams-1`.
 - Success → server active, health `unknown`, first check round within 5 minutes. Subscriptions with "add new servers automatically" include it, and the `server.activated` notification arrives.

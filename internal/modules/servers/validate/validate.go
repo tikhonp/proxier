@@ -25,10 +25,10 @@ type Input struct {
 
 // Hooks the module fills in Init. Nil means the check finds nothing.
 var (
-	// XrayConfig is proxy.ValidateConfig (1c): it refuses a config xray-core
+	// XrayConfig is proxy.ValidateConfig: it refuses a config xray-core
 	// cannot build an instance from.
 	XrayConfig func(rendered []byte) error
-	// EndpointFields is endpoint.Check (1c): the per-type checks of rendered
+	// EndpointFields is endpoint.Check: the per-type checks of rendered
 	// endpoint fields.
 	EndpointFields func(e render.RenderedEndpoint) []string
 )

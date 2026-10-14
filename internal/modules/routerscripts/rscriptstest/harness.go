@@ -101,7 +101,7 @@ func (h *Harness) Events(typ string) []events.Event {
 	return list
 }
 
-// Exec runs a statement on the write connection (rows 4b's code would write).
+// Exec runs a statement on the write connection, for rows a test sets up by hand.
 func (h *Harness) Exec(q string, args ...any) {
 	h.T.Helper()
 	if _, err := h.App.DB.W.ExecContext(context.Background(), q, args...); err != nil {

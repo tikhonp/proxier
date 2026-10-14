@@ -2,7 +2,7 @@ package routerscripts
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// generationMessages are the texts of generating (4b).
+// generationMessages are the texts of generating.
 var generationMessages = i18n.Messages{
 	"rscripts.search.generate":   {EN: "Generate for a new router · {name}", RU: "Сгенерировать для нового роутера · {name}"},
 	"rscripts.search.action":     {EN: "action", RU: "действие"},
@@ -154,7 +154,7 @@ var generationMessages = i18n.Messages{
 	"generations.changes.title":       {EN: "Changes in {file}", RU: "Изменения в {file}"},
 	"generations.changes.masked":      {EN: "secret values shown as •••", RU: "секретные значения скрыты как •••"},
 
-	// Fetch URL, After the import, Fetch history (4c)
+	// Fetch URL, After the import, Fetch history
 	"generations.fetch":                      {EN: "Fetch URL", RU: "URL для загрузки"},
 	"generations.fetch.once":                 {EN: "works once", RU: "работает один раз"},
 	"generations.fetch.expires":              {EN: "expires at {time} · in {n} min|expires at {time} · in {n} min", RU: "истекает в {time} · через {n} мин|истекает в {time} · через {n} мин|истекает в {time} · через {n} мин"},

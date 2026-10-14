@@ -40,9 +40,9 @@ import (
 
 // Ports are what the module uses of the servers module. A nil one hides its features.
 type Ports struct {
-	Hostnames servers.ServerHostnames // the guard (3b)
-	Catalog   servers.EndpointCatalog // discovery's server picker (3g)
-	Dialer    servers.ProxyDialer     // discovery through a server (3g)
+	Hostnames servers.ServerHostnames // the guard
+	Catalog   servers.EndpointCatalog // discovery's server picker
+	Dialer    servers.ProxyDialer     // discovery through a server
 }
 
 // Module is the routing module.
@@ -51,19 +51,19 @@ type Module struct {
 	Now func() time.Time
 	// Endpoints are the upstream base URLs; tests replace them before Open.
 	Endpoints sources.Endpoints
-	// Marker marks targets for sync: Init sets the routers' (3e). Services
+	// Marker marks targets for sync: Init sets the routers'. Services
 	// hold the module itself, which forwards to it at call time.
 	Marker   change.Marker
 	Services *services.Service
 	Lists    *lists.Service
 	Refresh  *refresh.Service
 	Catalog  *catalog.Service
-	// Shadowrocket hosts the configs (3d); Import is the mtvpn import (3d).
+	// Shadowrocket hosts the configs; Import is the mtvpn import.
 	Shadowrocket *shadowrocket.Service
 	Import       *mtvpn.Service
-	// Routers keeps routers in sync (3e).
+	// Routers keeps routers in sync.
 	Routers *routers.Service
-	// Discovery finds a website's domains (3g). Browser is the Chromium it
+	// Discovery finds a website's domains. Browser is the Chromium it
 	// visits with: Init sets the sidecar's when PROXIER_CHROMIUM_URL is set,
 	// tests a fake before Open; nil runs the catalog lookup only.
 	// ChromiumPeer is the Chromium host's address a visit's SOCKS listener

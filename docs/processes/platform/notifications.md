@@ -2,9 +2,9 @@
 
 **Actors**: Admin; the notifier (an event subscriber); Telegram Bot API.
 
-Notifications tell the admin about events that need attention: a server down or blocked, a failed setup, a sync failing, a link that looks shared, a sign-in from a new IP. Telegram is the only channel in the first version. Channels are an extension point.
+Notifications tell the admin about events that need attention: a server down or blocked, a failed setup, a sync failing, a link that looks shared, a sign-in from a new IP. Telegram is the only channel; channels are an extension point.
 
-## Steps — setup
+## Steps: setup
 
 1. Settings → Integrations → Telegram: the admin pastes a bot token from BotFather. Proxier calls `getMe` and shows the bot's name. A wrong token is refused on the spot.
 2. **Detect chat**: the admin sends `/start` to the bot. Proxier reads the bot's recent updates, shows the chats found (name, type), and the admin picks one. The admin can also type a chat ID.
@@ -12,7 +12,7 @@ Notifications tell the admin about events that need attention: a server down or 
 4. **Send test** is a separate button: a test message goes out and its result (sent, or the error) is shown. The chat stays saved whatever the result.
 5. Settings → Notifications: one toggle per event type, grouped by module, initially the defaults from [events](../../events.md).
 
-## Steps — delivery
+## Steps: delivery
 
 1. The notifier receives every committed event (at least once). For an event type whose rule is on, it renders the message in the admin's language and queues a `notify` job. Events whose type is off produce nothing.
 2. The job sends the message: an emoji for the state, the subject's name, one sentence, and a button **Open in Proxier** linking to the subject's page.
@@ -24,7 +24,7 @@ Notifications tell the admin about events that need attention: a server down or 
 
 - One event, at most one notification. Duplicate delivery of an event is recognised by the event ID and doesn't send twice.
 - Nothing is sent from inside a transaction. A state change commits first, then the notification is queued.
-- A type may group its notifications (`events.Type.Group`, decided 2026-10-12): those with the same key wait `notify.GroupWindow` (2 min) from the first and go out as one message, titled with their count (`notify.<type>.group.<key>`, else "{n} notifications") and listing each one's text on its own line; its button opens `GroupHref`. A lone one goes out unchanged after the window. `server.health_changed` groups by the state reached (blocked, down, healthy again), so a hosting network blocked at once is one "3 servers are blocked", not three messages; its button opens the server list. Retrying a failed group resends the whole group.
+- A type may group its notifications (`events.Type.Group`): those with the same key wait `notify.GroupWindow` (2 min) from the first and go out as one message, titled with their count (`notify.<type>.group.<key>`, else "{n} notifications") and listing each one's text on its own line; its button opens `GroupHref`. A lone one goes out unchanged after the window. `server.health_changed` groups by the state reached (blocked, down, healthy again), so a hosting network blocked at once is one "3 servers are blocked", not three messages; its button opens the server list. Retrying a failed group resends the whole group.
 - Messages go out one at a time, at most one per second, which keeps within Telegram's per-chat limits. A burst queues; it is never dropped.
 - Telegram being unreachable never blocks anything else. Notifications wait in their queue.
 - Messages never contain secrets: no tokens, no connection URIs, no IPs of link holders beyond what the event needs (the shared-link alert shows counts, not IPs).

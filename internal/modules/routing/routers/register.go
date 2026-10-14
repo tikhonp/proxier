@@ -15,7 +15,7 @@ import (
 // AwaitingFor is how long a registered router is probed for its first contact.
 const AwaitingFor = 7 * 24 * time.Hour
 
-// Registration is a router the router script will set up (Phase 4).
+// Registration is a router a router script will set up.
 type Registration struct {
 	Name   string
 	ListID int64 // 0: the default list
@@ -41,8 +41,8 @@ func (s *Service) Register(ctx context.Context, r Registration, by string) (Regi
 	return out, err
 }
 
-// RegisterTx is Register inside the caller's transaction (Phase 4's
-// RouterRegistrar): by is the router's created_by and router_added's "by",
+// RegisterTx is Register inside the caller's transaction (the
+// RouterRegistrar port): by is the router's created_by and router_added's "by",
 // actor the event's actor. Its field errors come before anything is written.
 func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, r Registration, by, actor string) (Registered, error) {
 	name := strings.TrimSpace(r.Name)

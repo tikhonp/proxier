@@ -113,7 +113,7 @@ func TestGuardLeavesRefreshedNameOut(t *testing.T) {
 	other := h.Custom("other", "full:www.tikhonnnnn.com")
 	main := h.List("Main", foo, other)
 
-	// a refresh (3c) accepts a snapshot that brings tikhonnnnn.com
+	// a refresh accepts a snapshot that brings tikhonnnnn.com
 	h.Exec(`UPDATE routing_snapshots SET suffix = 'foo.com' || char(10) || 'tikhonnnnn.com', suffix_count = 2
 		WHERE service_id = ? AND status = 'accepted'`, foo)
 	v, err := h.Mod.Lists.View(context.Background(), main, nil)

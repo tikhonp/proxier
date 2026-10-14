@@ -19,8 +19,8 @@ type Member struct {
 }
 
 // View is what targets following a list get: its services in order and the
-// ownership computed over them. Every page, Shadowrocket fetch (3d) and sync
-// (3e) uses it; nothing is cached.
+// ownership computed over them. Every page, Shadowrocket fetch and sync
+// uses it; nothing is cached.
 type View struct {
 	List    List
 	Members []Member

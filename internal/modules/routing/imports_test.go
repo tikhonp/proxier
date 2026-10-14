@@ -11,7 +11,7 @@ import (
 )
 
 // TestImportsOnlyServersPorts: the module knows the servers module only by
-// its ports, the root package (build README, Phase 3). The test harness
+// its ports, the root package (ADR 0002). The test harness
 // (routingtest) may build the real servers module.
 func TestImportsOnlyServersPorts(t *testing.T) {
 	const servers = "github.com/tikhonp/proxier/internal/modules/servers"

@@ -19,7 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
-// registerRouterLife adds drift, unmanaged tags, pause and removal (3f).
+// registerRouterLife adds drift, unmanaged tags, pause and removal.
 func (h *handler) registerRouterLife(r web.Routes) {
 	r.Admin.POST(routersPath+"/:id/repair", h.routerRepair)
 	r.Admin.GET(routersPath+"/:id/unmanaged/:tag/adopt", h.adoptPage)
@@ -48,7 +48,7 @@ func tagParam(c *echo.Context) string {
 	return t
 }
 
-// ------------------------------------------------------------------ the router page's 3f parts
+// ------------------------------------------------------------------ the router page's lifecycle parts
 
 type driftBand struct {
 	Text   string
@@ -77,7 +77,7 @@ type hopRow struct {
 	Label, Result, Kind, Detail string
 }
 
-// lifeOf fills the router view's bands and areas of 3f.
+// lifeOf fills the router view's lifecycle bands and areas.
 func (h *handler) lifeOf(ctx context.Context, v *routerView) error {
 	r := v.R
 	loc := i18n.From(ctx)

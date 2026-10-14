@@ -2,7 +2,7 @@ package routing
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// routerMessages are router sync's texts (3e).
+// routerMessages are router sync's texts.
 var routerMessages = i18n.Messages{
 	// Nav, the routers page, search
 	"routers.nav":              {EN: "Routers", RU: "Роутеры"},

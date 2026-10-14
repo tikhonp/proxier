@@ -103,7 +103,7 @@ var Section = settings.Section{
 		{Key: ProxyTestTimeout, Kind: settings.Duration, Default: "15s", Min: int64(5 * time.Second), Max: int64(2 * time.Minute)},
 		{Key: ProxyTestStall, Kind: settings.Duration, Default: "5s", Min: int64(time.Second), Max: int64(time.Minute)},
 
-		// Health (1f).
+		// Health.
 		{Key: SelfcheckEvery, Kind: settings.Duration, Default: "5m0s", Min: int64(time.Minute), Max: int64(time.Hour)},
 		{Key: ExternalEvery, Kind: settings.Duration, Default: "30m0s", Min: int64(5 * time.Minute), Max: int64(24 * time.Hour)},
 		{Key: ExternalOnDemandAfter, Kind: settings.Duration, Default: "10m0s", Min: int64(time.Minute), Max: int64(6 * time.Hour)},

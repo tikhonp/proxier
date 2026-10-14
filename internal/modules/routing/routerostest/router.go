@@ -337,7 +337,7 @@ func (r *Router) Hold(n int) (release func()) {
 
 // ForgetImport makes the nth import run in full and then never end: the
 // router stops answering on that connection (no exit status, no close, the
-// client's close ignored), as Telepat did to job #3837. New connections work.
+// client's close ignored), as a real router once did. New connections work.
 func (r *Router) ForgetImport(n int) {
 	r.mu.Lock()
 	r.forget[n] = true

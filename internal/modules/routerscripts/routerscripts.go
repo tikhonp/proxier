@@ -42,7 +42,7 @@ type Module struct {
 	// Now is the module's clock; every service reads it, so a test replaces it once.
 	Now     func() time.Time
 	Scripts *scripts.Service
-	// Generations fills versions in for routers (4b).
+	// Generations fills versions in for routers.
 	Generations *generations.Service
 	// Agent hands script drafts to coding agents.
 	Agent *agent.Service

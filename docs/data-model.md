@@ -1,6 +1,6 @@
 # Data model
 
-This is the logical model: entities, their important fields and relations. The exact columns are settled in the build. Each module owns its tables. References across modules are plain IDs without foreign keys, cleaned up by events ([ADR 0002](./adr/0002-modules-talk-through-ports-and-events.md)). Fields marked 🔒 are encrypted at rest ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
+The logical model: entities, their important fields and relations. The exact columns are in each module's migrations. Each module owns its tables. References across modules are plain IDs without foreign keys, cleaned up by events ([ADR 0002](./adr/0002-modules-talk-through-ports-and-events.md)). Fields marked 🔒 are encrypted at rest ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
 
 ## Platform
 
@@ -43,10 +43,10 @@ erDiagram
 | **Template draft** | template, manifest, files, based on version, updated | At most one per template. |
 | **Template version** | template, number (1, 2, …), manifest, notes, published at | Immutable. |
 | **Template file** | version, path, content, mode, validator | Paths relative, no `..`. |
-| **Server** | country, number, name (unique forever), IP, SSH port, management hostname, proxy hostname, lifecycle state, template version, parameters, health state, health since, health detail, checks paused until, notes, created / activated / retired | The country is an ISO 3166-1 alpha-2 code (`NL`); its name and flag are derived, never stored. The name is `<prefix>-<number>`, the prefix the country's code in lower case (a server from before countries keeps its location's code, `ams-1`); the next number is one more than the highest its prefix has used ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). There is no location entity any more; the locations as they were are kept in `servers_meta` (`locations.archive`, JSON) only for a rollback of the migration. |
+| **Server** | country, number, name (unique forever), IP, SSH port, management hostname, proxy hostname, lifecycle state, template version, parameters, health state, health since, health detail, checks paused until, notes, created / activated / retired | The country is an ISO 3166-1 alpha-2 code (`NL`); its name and flag are derived, never stored. The name is `<prefix>-<number>`, the prefix the country's code in lower case (a server created when servers had locations keeps its location's code, `ams-1`); the next number is one more than the highest its prefix has used ([ADR 0015](./adr/0015-servers-have-a-country-not-a-location.md)). The old locations are kept as JSON in `servers_meta` (`locations.archive`) only so the migration can be rolled back. |
 | **Generated value** | server, key, value 🔒, pending 🔒, created, rotated | Kept for the server's life. Rotation puts the new value in `pending`; it replaces `value` only when the new ones passed the proxy test. Everything that serves a credential reads `value`. |
 | **Endpoint** | server, key (stable across versions), endpoint type, host, port, params 🔒, display name, position | Refreshed on every deployment from the manifest's `endpoints`. |
-| **Deployment** | server, kind (provision / redeploy / upgrade / params / rotate / restore / restart / images / reboot), template version, job, state, `uploaded`, started, finished | `uploaded` is 1 when the deployment uploaded files (it has deployed files). A server's **current files** are those of its latest succeeded deployment with `uploaded = 1`: a restart, an image update or a reboot uploads nothing and changes them not. |
+| **Deployment** | server, kind (provision / redeploy / upgrade / params / rotate / restore / restart / images / reboot), template version, job, state, `uploaded`, started, finished | `uploaded` is 1 when the deployment uploaded files (it has deployed files). A server's **current files** are those of its latest succeeded deployment with `uploaded = 1`: a restart, an image update or a reboot uploads nothing and leaves them as they are. |
 | **Deployed file** | deployment, path, sha256, content 🔒 | Used to diff the next deployment. A deployment also keeps, sealed, the secret parameters and generated values its files were rendered with, so the Stack tab can mask an old deployment after a rotation. |
 | **Rollout** | template, target version, state (running / done / stopped / cancelled), created / finished; items: server, position, version before, state (waiting / running / done / failed / skipped), job, parameters asked before the start (secret ones 🔒) | A rolling upgrade. One item runs at a time; an event subscriber starts the next. |
 | **DNS record** | server, provider, zone, name, type, content, provider record id | Only records Proxier created. |
@@ -89,9 +89,7 @@ erDiagram
     DISCOVERY_RUN ||--o{ DISCOVERED_HOST : finds
 ```
 
-| Entity | Important fields | Notes |
-|---|---|---|
-Tables `routing_*`; "Main" is inserted by the module's first migration as the default list.
+Tables `routing_*`. The module's first migration inserts "Main" as the default list.
 
 | Entity | Important fields | Notes |
 |---|---|---|
@@ -112,7 +110,7 @@ Tables `routing_*`; "Main" is inserted by the module's first migration as the de
 | **Shadowrocket config** | name (also the file name), routing list, rule policy (default `PROXY`), token 🔒 + HMAC, enabled, created, last fetch (time, user agent) | |
 | **Base config version** | config, number, content, note, created | |
 | **Shadowrocket fetch** | config, time, IP, user agent | Retention 90 days. |
-| **Import** | state (preview / running / done / failed), routing list, rows (JSON), ignored keys, fetched base config and its URL, Shadowrocket choice and outcome (JSON), service lists that failed (JSON, migration 00002), job, times | Never the imported file's text. |
+| **Import** | state (preview / running / done / failed), routing list, rows (JSON), ignored keys, fetched base config and its URL, Shadowrocket choice and outcome (JSON), service lists that failed (JSON), job, times | Never the imported file's text. |
 | **Discovery run** | input, URL visited, host, registrable domain, via (direct / server / auto), server (ID from servers, and its name), depth, state, job, title, suggestions (JSON), visits (JSON), capped, error, created, finished | Retention 30 days; screenshots are files under the data directory. |
 | **Discovered host** | run, hostname, registrable domain, class (first-party / CDN / tracker / third-party / IP literal), requests, failure on the direct visit, the visits that saw it | |
 
@@ -147,4 +145,4 @@ Tables `routing_*`; "Main" is inserted by the module's first migration as the de
 | Router script generations and their fetch URLs | forever (a few rows per router); a fetch URL's token is erased the moment the URL ends (used, expired, replaced), so none outlives its hour |
 | Sign-in attempts | 30 days |
 | Backups | 14 daily snapshots |
-| Deployments and deployed files of retired servers | kept (sealed, never shown); no pruning rule exists yet |
+| Deployments and deployed files of retired servers | forever (sealed, never shown) |

@@ -17,7 +17,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
-// TestRouterSetUpEndToEnd is the roadmap's Phase 4 exit short of a real
+// TestRouterSetUpEndToEnd is a new router's whole set-up short of a real
 // router: publish, generate with a new link and a new router, the router
 // fetches its file once, the probe connects with Proxier's key and the
 // initial sync installs Main's services.

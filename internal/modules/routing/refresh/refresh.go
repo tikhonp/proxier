@@ -186,7 +186,7 @@ func (s *Service) States(ctx context.Context) (map[int64]string, error) {
 	return store.States(ctx, s.d.DB.R)
 }
 
-// LastDigest is the newest refresh_digest event (the dashboard, 3f).
+// LastDigest is the newest refresh_digest event (the dashboard).
 func (s *Service) LastDigest(ctx context.Context) (events.Event, bool, error) {
 	list, err := events.List(ctx, s.d.DB.R, events.Filter{Type: "routing.refresh_digest", Limit: 1})
 	if err != nil || len(list) == 0 {

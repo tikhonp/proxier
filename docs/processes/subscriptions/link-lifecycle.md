@@ -4,7 +4,7 @@
 
 A link is what you hand to one person or device: a name and a secret URL serving one subscription. Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)), so a link's states control what its URL **serves**, not what an already-imported connection URI can do. Real revocation is the cut-off, which rotates servers.
 
-## Steps — creating and sharing
+## Steps: creating and sharing
 
 1. Links → **New link** (or **New link** on a subscription page). Fields:
    - **name** ("Mom — iPhone");
@@ -15,7 +15,7 @@ A link is what you hand to one person or device: a name and a secret URL serving
 2. Proxier generates the token and creates the link as **active**. The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
 3. The admin sends the URL, or shows the QR to be scanned in the app.
 
-## Steps — changing a link
+## Steps: changing a link
 
 | Action | Steps | Event |
 |---|---|---|
@@ -24,11 +24,11 @@ A link is what you hand to one person or device: a name and a secret URL serving
 | **Regenerate token** | A new token at once. The old URL returns `404` from now on. The link page shows a band "New URL ready: copy it and send it." with **Copy URL** holding the new one. | `link.token_regenerated` |
 | **Change subscription** | The next fetch serves the new subscription. | `link.subscription_changed{from, to}` |
 | **Set / extend / clear expiry** | Changes the expiry. Extending an expired link makes it serve the real output again. Any change re-arms the warning and the expired notification for the new expiry. | `link.expiry_changed{from, to}` |
-| **Cut off** | Disable, plus (when `subscriptions.cutoff_rotates` is on; off by default) rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps--cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers, skipped}` |
+| **Cut off** | Disable, plus (when `subscriptions.cutoff_rotates` is on; off by default) rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps-cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers, skipped}` |
 | **Delete** | The dialog explains the tombstone. Confirm → state `deleted`. The link leaves the lists, and its URL serves "⛔ Link removed" for 30 days, then `404`. | `link.deleted` |
 | **Rename, edit note, change language, format override** | Plain edits. Nothing changed records nothing. | `link.changed{fields}` |
 
-## Steps — expiry (the expiry scan, every 15 min)
+## Steps: expiry (the expiry scan, every 15 min)
 
 The scan is the job `subscriptions.expiry_scan` (queue `maintenance`, quiet, one attempt: the next scan is the retry), in three steps:
 

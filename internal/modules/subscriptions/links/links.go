@@ -50,7 +50,7 @@ type Link struct {
 	Expires        time.Time // the first moment it is expired; zero: never
 	Lang           i18n.Lang
 	Format         string // "" = the subscription's default
-	// AlertNetworks and AlertApps override the settings when not 0 (2c).
+	// AlertNetworks and AlertApps override the settings when not 0.
 	AlertNetworks, AlertApps int
 	AlertsMuted              bool
 	AlertedAt                time.Time
@@ -431,7 +431,7 @@ func (s *Service) MoveAll(ctx context.Context, fromSub, toSub int64, actor strin
 }
 
 // SetExpiry sets, extends or clears (zero) the expiry. Any change re-arms the
-// warning and the expired notification of 2c.
+// expiry warning and the expired notification.
 func (s *Service) SetExpiry(ctx context.Context, id int64, expires time.Time, actor string) error {
 	if !expires.IsZero() && !expires.After(s.d.Now()) {
 		return store.FieldErrors{"expiry": "links.err.expiry_past"}

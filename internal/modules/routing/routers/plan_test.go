@@ -93,7 +93,7 @@ func TestPlanTable(t *testing.T) {
 		t.Fatalf("counts: %+v %+v", got["g"], got["c"])
 	}
 	// removing the router removes every applied tag on it and forgets what
-	// is gone; tags Proxier never installed stay (3f)
+	// is gone; tags Proxier never installed stay
 	all := byTag(MakePlan(want, st, app, Extra{RemoveAll: true}))
 	for _, tag := range []string{"a", "d", "f"} {
 		if all[tag].Action != Remove {

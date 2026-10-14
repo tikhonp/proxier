@@ -243,7 +243,7 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 }
 
 // TestImportsOnlyServersPorts: the module knows the servers module only by its
-// ports (the root package) and the endpoint values (build README, Phase 2).
+// ports (the root package) and the endpoint values (ADR 0002).
 func TestImportsOnlyServersPorts(t *testing.T) {
 	const servers = "github.com/tikhonp/proxier/internal/modules/servers"
 	allowed := map[string]bool{servers: true, servers + "/endpoint": true}

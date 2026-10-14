@@ -25,7 +25,7 @@ type Applied struct {
 	At            time.Time
 }
 
-// Extra is what the admin asked for besides the list (3f).
+// Extra is what the admin asked for besides the list.
 type Extra struct {
 	Remove    []string // unmanaged tags to remove
 	RemoveAll bool     // removing the router: every applied tag goes, nothing is desired

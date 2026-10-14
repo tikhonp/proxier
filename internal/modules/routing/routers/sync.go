@@ -32,8 +32,8 @@ var syncBackoff = []time.Duration{5 * time.Minute, 15 * time.Minute, time.Hour}
 // readTimeout bounds one read command.
 const readTimeout = 2 * time.Minute
 
-// JobTypes are routing.sync, routing.preview and routing.test (3e), the
-// drift round and check, the probe round and probe, and routing.remove (3f).
+// JobTypes are routing.sync, routing.preview and routing.test, the
+// drift round and check, the probe round and probe, and routing.remove.
 func (s *Service) JobTypes() []jobs.Type {
 	return []jobs.Type{
 		{

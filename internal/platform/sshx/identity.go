@@ -20,7 +20,7 @@ import (
 const identityAAD = "ssh:identity"
 
 // PersonalKeysField is the admin's own public keys, one authorized_keys line
-// per line; Phase 1 installs them on every new server beside Proxier's.
+// per line; provisioning installs them on every new server beside Proxier's.
 const PersonalKeysField = "ssh.personal_keys"
 
 // Section is the "ssh" settings section.

@@ -3,7 +3,7 @@ package routing
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
 // refreshMessages are the texts of upstream refresh, the catalog, search and
-// Settings → Routing (3c).
+// Settings → Routing.
 var refreshMessages = i18n.Messages{
 	// States
 	"services.state.waiting": {EN: "waiting", RU: "ждёт решения"},

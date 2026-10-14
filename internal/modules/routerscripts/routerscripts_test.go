@@ -121,7 +121,7 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 }
 
 // TestImportsOnlyPorts: the module knows subscriptions and routing only by
-// their root packages, and servers not at all (build README, Phase 4).
+// their root packages, and servers not at all (ADR 0002).
 func TestImportsOnlyPorts(t *testing.T) {
 	const mods = "github.com/tikhonp/proxier/internal/modules/"
 	fset := token.NewFileSet()

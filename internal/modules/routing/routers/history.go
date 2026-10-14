@@ -11,12 +11,12 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
-// Sync is a sync, preview (3f: drift check, removal) of a router.
+// Sync is a sync, preview (drift check, removal) of a router.
 type Sync struct {
 	ID                                           int64
 	RouterID                                     int64
 	JobID                                        int64
-	Kind                                         string // sync, preview (3f: drift, removal)
+	Kind                                         string // sync, preview (drift, removal)
 	Trigger                                      string
 	State                                        string // running, done, failed, cancelled
 	Step                                         string

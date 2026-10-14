@@ -4,7 +4,7 @@
 
 A routing list is the set of services a target follows: "Main" for the home router and the phone, maybe "Parents" with fewer services for another router. Lists replace mtvpn's `services:` and `service_lists:`. This flow covers editing lists and the two rules that make a list's domains unambiguous and safe: ownership and the server-hostname guard.
 
-## Steps — managing lists
+## Steps: managing lists
 
 1. Routing → **Lists**. "Main" exists from the first start and is the **default**, used for new targets.
 2. **New list**: name (1–60 characters, unique, letter case counts), description. → `routing.list_created`

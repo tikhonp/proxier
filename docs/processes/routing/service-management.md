@@ -2,9 +2,9 @@
 
 **Actors**: Admin; routing module; the sources; the sync engine (reacting to changes).
 
-A service is a named set of domains from one source, and the unit that goes into routing lists and onto routers under its tag. Upstream services (v2fly, iplist, URL) are fetched. Custom services are written in Proxier and replace your own domain-list files on copyparty.
+A service is a named set of domains from one source, and the unit that goes into routing lists and onto routers under its tag. Upstream services (v2fly, iplist, URL) are fetched. Custom services are written in Proxier; they replaced the admin's own domain-list files on copyparty.
 
-## Steps — adding an upstream service
+## Steps: adding an upstream service
 
 1. Routing → Services → **Add service**, or **Add to lists…** from search or discovery. The admin enters or picks a selector:
    - `v2fly:<name>`, `iplist:<site|group>`, `iplist:<portal>:<site|group>`, `https://…`, or `<tag>=https://…`;
@@ -19,7 +19,7 @@ A service is a named set of domains from one source, and the unit that goes into
    - **URL**: an HTTP error is reported.
 5. The parsed result becomes the first snapshot (suffix and exact domains, skipped entries) and the service is created. A selector that resolves to no usable name is refused ("v2fly:x has no names RouterOS can use (3 skipped)"). If routing lists were chosen, it is added to them, which triggers sync. → `routing.service_added{selector, tag}`
 
-## Steps — custom services
+## Steps: custom services
 
 1. Routing → Services → **New custom service**: name, tag (a slug of the name: ASCII letters and digits, every other run a `-`, so "My Test Service" gives `my-test-service`; editable), description. While the tag is empty its field shows, as it is typed, the tag the name gives. The service's page headlines its name, with the tag under it. It starts with no domains (an empty snapshot installs nothing); the editor opens next.
 2. The **domain editor** is a table of domain, **suffix** or **exact**, and note. Two ways to add domains:
@@ -34,7 +34,7 @@ A service is a named set of domains from one source, and the unit that goes into
 5. **Save** writes the domains and a new snapshot, then the targets of its lists re-sync. → `routing.service_added` (first save) or `routing.service_updated{added, removed}`
 6. Saving is refused if any domain would trip the [server hostname guard](./routing-lists.md#rules) in a list the service is in.
 
-## Steps — the service page
+## Steps: the service page
 
 1. **Overview**: selector, source, portal, tag, counts, last check, last error, consecutive failures, and the lists it's in.
 2. **Domains** of the current snapshot: filterable, suffix and exact marked, the skipped entries with reasons, and which domains another service installs instead in each list ([ADR 0013](../../adr/0013-one-owner-service-per-domain.md)). A name under another service's suffix is installed and isn't listed there ([ADR 0016](../../adr/0016-every-listed-name-reaches-the-router.md)).

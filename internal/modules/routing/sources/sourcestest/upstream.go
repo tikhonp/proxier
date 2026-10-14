@@ -1,5 +1,5 @@
 // Package sourcestest is one httptest server playing every upstream of the
-// routing module: v2fly's raw files, the GitHub API and codeload (3c), the
+// routing module: v2fly's raw files, the GitHub API and codeload, the
 // three iplist portals, and any URL list.
 package sourcestest
 

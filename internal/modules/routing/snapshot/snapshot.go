@@ -1,6 +1,6 @@
 // Package snapshot is pure: a service's names (Set), their canonical text and
 // hash, and diffs between two sets. A snapshot is stored as text, never one
-// row per name (build README, Phase 3).
+// row per name.
 package snapshot
 
 import (

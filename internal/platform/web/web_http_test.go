@@ -85,8 +85,8 @@ func TestSessionCookieAttributes(t *testing.T) {
 func TestPublicRoutesIgnoreCookies(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
-	// no public route exists in Phase 0; an unknown path under /s/ must answer
-	// as a public one: plain 404, no redirect to /login, nothing set.
+	// the platform alone has no public route; an unknown path under /s/ must
+	// answer as a public one: plain 404, no redirect to /login, nothing set.
 	for _, p := range []string{"/s/abc", "/r/abc", "/f/abc"} {
 		rec := s.Do(sitetest.Req{Path: p, Cookies: []*http.Cookie{l.Cookie}})
 		if rec.Code != 404 || rec.Header().Get("Set-Cookie") != "" || rec.Header().Get("Location") != "" {

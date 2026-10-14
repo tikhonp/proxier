@@ -38,13 +38,13 @@ After each new result, Proxier evaluates the server using, for each check, the l
 | 10 | Every endpoint fails, SSH is unreachable, and there is no external data | `down` | "Unreachable from home (unconfirmed from abroad)" |
 | 11 | Anything else (every endpoint fails, the self-check is missing, no node abroad connects) | `unknown` | "Not enough data: …" |
 
-Every combination of inputs matches exactly one rule. Rule 5 requires a passing endpoint; without it, rule 6's case (all fail, stack failed) would have been caught by rule 5 first. Rules 2a, 5a, 8a and 11 close the gaps the first version of this table left.
+Every combination of inputs matches exactly one rule. Rule 5 requires a passing endpoint, so rule 6's case (all fail, stack failed) reaches rule 6.
 
 When a proxy test fails and no external result newer than 10 minutes exists, an external check is started at once and the server is marked as awaiting it. A verdict that leans on external data (rules 7, 8, 8a, 9, 10, 11) **waits** while the mark is younger than 2 minutes and no external result newer than the mark exists: it stores nothing and a delayed `servers.evaluate` looks again after 2 minutes. The external check's own evaluation, which clears the mark and cancels the delayed one, decides otherwise.
 
 **Flap protection**: the server's health state changes only when the same candidate comes out of **2 consecutive counted evaluations** (setting). An evaluation is *counted* when it is the first to see a new proxy-test round (a result newer than the one the last counted evaluation used): the self-check's evaluation, a scheduled external check's, or a second look at the same round only refresh the detail. `paused`, a changed host key and the first state after `unknown` apply at once. Each change records `server.health_changed{from, to, reason, summary}` and sets "health since". The detail of the latest evaluation (reason, per-check summary) is kept on the server for the UI, even when nothing changed.
 
-## Steps — check round
+## Steps: check round
 
 1. The scheduler queues the self-check (now) and the proxy test (150 s later) for every active, non-paused, non-retiring server. The self-check is skipped if the server's resource key is held by a job (a redeploy in progress shouldn't count against health); then the proxy test is not queued either. The proxy test holds no resource key (a delayed job holding it would block the round): when it starts it asks whether a job other than the round's own self-check is running on the server, and if so stores nothing and evaluates nothing.
 2. Results are stored as check results with their vantage point.
@@ -52,14 +52,14 @@ When a proxy test fails and no external result newer than 10 minutes exists, an 
 4. A state change to `blocked` or `down`, or from `blocked`/`down` back to `healthy`, sends a notification (defaults in [events](../../events.md#servers)); `degraded`, `unknown` and `paused` stay quiet. While a server stays `blocked` or `down`, an hourly job sends a reminder when 24 h have passed since the state began or the last reminder. → `server.still_unhealthy`
 5. Subscriptions with **hide unhealthy** read the state and "since" on every fetch ([fetch](../subscriptions/subscription-fetch.md)).
 
-## Steps — home connectivity
+## Steps: home connectivity
 
 1. The reference check runs every minute while any server is being checked.
 2. The domestic site fails → `offline`. Every server's verdict is frozen, and new results are stored marked *inconclusive*. → `health.home_offline` (no notification, since Telegram is likely unreachable; shown on the dashboard). The job does nothing while no server is being checked.
 3. Domestic works, but every foreign reference fails → `foreign-unreachable`, verdicts frozen. → `health.foreign_unreachable` (notifies: this is what a whitelist-only regime looks like)
 4. Back to `online` → `health.home_recovered{duration}` (notifies). Every server's candidate run is cleared, so evaluations from before the outage cannot confirm anything; verdicts resume with the next results. Inconclusive results never count toward the 2 consecutive evaluations.
 
-## Steps — pause and run now
+## Steps: pause and run now
 
 1. **Pause checks** (1 h, 6 h, 24 h, until resumed) → state `paused` at once, no checks, no notifications. → `server.checks_paused{until}`
 2. At the end, or on **Resume**, the state becomes `unknown` until new results arrive, and a check round is queued at once. → `server.checks_resumed`. The end of a timed pause is a delayed `servers.resume` job without a resource key. It resumes only when the stored end has passed, so the job of an earlier pause, or one after a manual **Resume** (which cancels it), does nothing to a later pause.
@@ -76,7 +76,7 @@ When a proxy test fails and no external result newer than 10 minutes exists, an 
 
 - Only active servers have health. Provisioning, failed and retired servers show their lifecycle state instead.
 - Health never changes a subscription's configuration. A subscription with **hide unhealthy** only leaves the server out of its output, and only after its grace period.
-- A changed host key makes the self-check fail with `host-key-changed`, not `unreachable`. The verdict becomes `unknown` with the reason "host key changed — accept or investigate", and the security notification is sent ([ADR 0007](../../adr/0007-agentless-ssh-with-pinned-host-keys.md)).
+- A changed host key makes the self-check fail with `host-key-changed`, not `unreachable`. The verdict becomes `unknown` with the reason "Host key changed: accept it or investigate", and the security notification is sent ([ADR 0007](../../adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 - External checks respect check-host.net's limits: per server a scheduled check is refused when the last real one is newer than 80 % of the interval (24 min of 30), an on-demand one when it is newer than 10 min, and a global cap per rolling hour (setting) applies. A refused check stores one `skipped` row. When check-host is unavailable (or skipped), there is no external data, rules 8 and 10 apply and the reasons say "unconfirmed".
 - Every threshold and interval named here is a setting.
 

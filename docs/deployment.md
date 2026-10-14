@@ -1,6 +1,6 @@
 # Deployment
 
-Proxier is deployed like the other self-hosted services: an image built by Forgejo Actions on code.tikhonnnnn.com, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI live in this repository (`Dockerfile`, `.forgejo/workflows/ci.yaml`). The compose file (`sh-blackberry/proxier.yaml`) and the gateway block (`sh-main/nginx/conf.d/proxier.conf`) live in those repositories; this document describes what they contain.
+Proxier runs like the other self-hosted services: an image built by Forgejo Actions on code.tikhonnnnn.com, a compose file in the infra repo of the node that runs it, and a server block in the sh-main gateway. The image and CI are in this repository (`Dockerfile`, `.forgejo/workflows/ci.yaml`). The compose file (`sh-blackberry/proxier.yaml`) and the gateway block (`sh-main/nginx/conf.d/proxier.conf`) are in those repositories; this document says what they hold.
 
 ## Topology
 
@@ -14,7 +14,7 @@ flowchart LR
 ```
 
 - **blackberry** (home, Russia) runs the `proxier` and `chromium` containers. Its compose file is `sh-blackberry/proxier.yaml`, with env from the `secrets/` submodule.
-- **sh-main** terminates TLS for `proxier.tikhonnnnn.com` and forwards everything through the existing SSH reverse tunnel, like `files.tikhonnnnn.com`: the sidecar `ssht-proxier` forwards `ssh-server:10005` to `proxier:8080`. nginx sends `X-Real-IP` and `X-Forwarded-For`, its body size limit fits uploads up to 10 MB (template imports), and it does not buffer responses and waits up to an hour on one, because the live job log is a server-sent event stream. Its JSON access log writes the path (`http_path`), and public link paths (`/s/`, `/r/`, `/f/`) carry their secret token, so the block leaves those requests out of the access log (`map $uri $proxier_log`, `access_log … if=$proxier_log`); Proxier's own request log masks the token instead. nginx's error log still names the path of a request that fails at the gateway (an unreachable tunnel, for example). Proxier sends its own security headers (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `Referrer-Policy` and the rest), so the block adds none: the gateway's shared headers include must stay out of it. With both, a browser gets two `Content-Security-Policy` headers and enforces both, so the gateway's would quietly tighten Proxier's (seen on 2026-10-10: a second CSP `img-src https: data:; upgrade-insecure-requests` and a second HSTS header).
+- **sh-main** terminates TLS for `proxier.tikhonnnnn.com` and forwards everything through the existing SSH reverse tunnel, like `files.tikhonnnnn.com`: the sidecar `ssht-proxier` forwards `ssh-server:10005` to `proxier:8080`. nginx sends `X-Real-IP` and `X-Forwarded-For`, its body size limit fits uploads up to 10 MB (template imports), and it does not buffer responses and waits up to an hour on one, because the live job log is a server-sent event stream. Its JSON access log writes the path (`http_path`), and public link paths (`/s/`, `/r/`, `/f/`) carry their secret token, so the block leaves those requests out of the access log (`map $uri $proxier_log`, `access_log … if=$proxier_log`); Proxier's own request log masks the token instead. nginx's error log still names the path of a request that fails at the gateway (an unreachable tunnel, for example). Proxier sends its own security headers (`Content-Security-Policy`, `Strict-Transport-Security`, `X-Frame-Options`, `Referrer-Policy` and the rest), so the block adds none: the gateway's shared headers include must stay out of it. With both, a browser gets two `Content-Security-Policy` headers and enforces both, so the gateway's would quietly tighten Proxier's.
 - **The trusted proxy.** Proxier takes the client address from `X-Real-IP` only when the TCP peer is in `PROXIER_TRUSTED_PROXIES`. The compose file gives the `proxier` network a fixed subnet (`10.89.250.0/29`); its only other member is the tunnel sidecar, so that subnet is the value. Without it every client would look like the tunnel, and the sign-in lockout and the "new IP" check would be useless.
 - **headscale** (on sh-main) gets a new node, `proxier`, joined with a pre-auth key ([ADR 0008](./adr/0008-tsnet-node-for-router-reachability.md)). headscale ACLs decide which jump hosts and routers that node may reach.
 
@@ -26,11 +26,11 @@ flowchart LR
 | `ssht-proxier` | `jnovack/autossh` | The reverse tunnel to sh-main, like every other service's. |
 | `chromium` | `chromedp/headless-shell` (pinned tag) | On its own network, `discovery`, shared only with `proxier`; no volume, no ports, memory limit 1 GB. It reaches sites directly (a direct visit goes out from home) or through Proxier's per-visit SOCKS listener (a visit through a server). Optional: without it, discovery runs the catalog lookup only. See [the Chromium sidecar](#the-chromium-sidecar). |
 
-The image bundles what the file validators need besides the Go libraries: an `nginx` binary for `nginx -t` and `bash` for `bash -n`. Both run on files in a temporary directory ([template authoring](./processes/servers/template-authoring.md#validation)).
+The image is distroless and holds only the binary: every file validator is pure Go ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md), [template authoring](./processes/servers/template-authoring.md#validation)).
 
 ## The Chromium sidecar
 
-Discovery's headless visits ([domain discovery](./processes/routing/domain-discovery.md)) run in a `chromedp/headless-shell` container that Proxier drives over the DevTools protocol (CDP). To add to `sh-blackberry/proxier.yaml` (not committed there yet):
+Discovery's headless visits ([domain discovery](./processes/routing/domain-discovery.md)) run in a `chromedp/headless-shell` container that Proxier drives over the DevTools protocol (CDP). Its part of `sh-blackberry/proxier.yaml`:
 
 ```yaml
 services:
@@ -43,7 +43,7 @@ services:
       - discovery
 
   chromium:
-    image: chromedp/headless-shell:156.0.8078.12   # pinned: the stable tag on 2026-10-09
+    image: chromedp/headless-shell:156.0.8078.12   # pinned
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
@@ -66,7 +66,6 @@ networks:
 - **Why its own network.** The `proxier` network's subnet is `PROXIER_TRUSTED_PROXIES`: any member of it may set `X-Real-IP`. Chromium visits arbitrary sites and runs their scripts, so it must not be on it; `discovery` holds only `proxier` and `chromium`. It is not `internal`: a direct visit goes out from home, as the admin's own browser would.
 - **`PROXIER_CHROMIUM_URL`** is the DevTools address. Proxier resolves its host to an IP before asking `/json/version` (DevTools refuses a `Host` header that is neither an IP nor `localhost`) and connects to the WebSocket at that IP. Empty: discovery runs the catalog lookup only, and Settings → Integrations and the Discover page say so.
 - **A visit through a server** opens a SOCKS5 listener in Proxier on its address in `discovery` (the local address that routes to the sidecar), on a random port, for that visit only. It accepts connections only from the sidecar's IP (Chrome can't authenticate to a SOCKS proxy) and relays them through the server's endpoint. Each visit is a fresh browser context (no cookies, no storage), disposed afterwards.
-- **Checked** on 2026-10-09 with `docker compose config` and by running the image with these limits on a bridge network next to a Linux build of Proxier's discovery code: `/json/version` by IP, a direct visit of a real site (6 pages, trackers and CDNs classified) and a visit through the SOCKS listener (connections relayed).
 - **Upgrades** are deliberate: change the pinned tag. Nothing else depends on the Chrome version.
 
 ## Images and CI

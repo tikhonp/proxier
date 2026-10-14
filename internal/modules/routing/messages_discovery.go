@@ -2,7 +2,7 @@ package routing
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// discoveryMessages are the texts of Discover (3g).
+// discoveryMessages are the texts of Discover.
 var discoveryMessages = i18n.Messages{
 	"discovery.nav":                     {EN: "Discover", RU: "Поиск доменов"},
 	"discovery.title":                   {EN: "Discover", RU: "Поиск доменов"},

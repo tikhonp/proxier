@@ -1,6 +1,6 @@
 # Telegram (notification channel)
 
-The first notification channel. The bot only sends. Commands are in the backlog.
+The notification channel. The bot only sends; commands are in the [backlog](../overview.md#backlog).
 
 ## Setup
 

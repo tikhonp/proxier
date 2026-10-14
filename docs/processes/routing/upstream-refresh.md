@@ -21,7 +21,7 @@ Upstream lists change: v2fly adds a domain to `anthropic`, iplist reshuffles a g
 7. **Fails** → the new snapshot is stored as **rejected** with the reason. The current one stays in force, and targets are not touched. → `routing.snapshot_rejected{reason, old_count, new_count, lost_pct, in_round}`. The same rejection again (equal to the one waiting) stores and records nothing.
 8. When the daily round is done, it records its **digest**, the event `routing.refresh_digest{changed, added, removed, rejected, failing, still_failing, services}`, after every round. It notifies only with news: a service changed, a snapshot was held back, or a service **started** failing in this round (a service failing for days is counted in `still_failing` and is news on its first day only). The failures in the digest are this round's. A rejection outside the daily round (from **Refresh now**) notifies on its own.
 
-## Steps — handling a rejection
+## Steps: handling a rejection
 
 1. The service page shows the rejected snapshot with its diff against the current one, the reason, and **Accept anyway** / **Dismiss**.
 2. **Accept anyway** makes it the accepted snapshot (as in step 6) and records who accepted it. → `routing.snapshot_accepted{added, removed, counts, forced: true}`

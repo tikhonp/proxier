@@ -26,7 +26,7 @@ func WithEnd(b []byte) []byte {
 	return join(b[:loc[1]], []byte("# END PARAMETERS\n"), b[loc[1]:])
 }
 
-// Annotated is today's script as the exit demo changes it: @fill
+// Annotated is the script with Proxier's annotations, as in use: @fill
 // subscription-link above subUrl, @fill routing-address-list above vpnList,
 // @fill routing-doh-forwarder above dohForwarder, then after dohForwarder a
 // blank line and a group of its own (Proxier's public key, @fill

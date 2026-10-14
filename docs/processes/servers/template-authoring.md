@@ -4,7 +4,7 @@
 
 A template defines a server's stack ([servers module](../../modules/servers.md#templates)). This flow covers writing it, checking it before it can reach a server, and keeping its versions. A version that fails validation can't be published. A published version can't change.
 
-## Steps — creating and editing
+## Steps: creating and editing
 
 1. Servers → Templates → **New template**: name, slug (from the name, editable until the first publish), description. An empty draft opens with a manifest skeleton. → `template.created`
 2. The editor shows a file tree (`manifest.yaml` plus files) and a code editor with syntax highlighting by file type. The editor is a vendored CodeMirror 6 bundle (`make editor` rebuilds it); without JavaScript the same page is a plain form with a text area per file. **Add file**, **Rename**, **Delete** change the tree in the browser and are saved with the next save. **Upload** adds a single file or unpacks a zip into the tree and keeps the unsaved edits. A file that is not text (binary) is kept as it is and can be renamed, deleted or replaced, but not edited.
@@ -15,20 +15,20 @@ A template defines a server's stack ([servers module](../../modules/servers.md#t
 7. **Edit** on a template with no draft creates one from the latest version (a template that never published starts again from the manifest skeleton).
 8. **Discard draft** deletes the draft after a confirmation. → `template.draft_discarded`
 
-## Steps — versions
+## Steps: versions
 
 1. The template page lists versions: number, published, notes, and the number of servers (by lifecycle state) built from each.
 2. **View** a version (read-only, highlighted, its publish warnings under the lines they name), **Diff** two versions (file by file, unified or side by side; a binary file shows its two sizes), **Export** a version as a zip (`manifest.yaml` and the files at the root, the modes from the manifest, the same bytes every time; importing it gives the same files).
 3. **Make default** sets the version used for new servers. Servers built from older versions show "update available". → `template.default_version_changed{from, to}`
 4. **New draft from this version** replaces the draft with an older version's content, for reverting. Publishing it creates a new number, so history only grows.
 
-## Steps — import
+## Steps: import
 
 1. **Import zip**: the zip must contain `manifest.yaml` at its root or in exactly one top-level folder (which is stripped). Its files become a draft (of a new template, or of an existing one after a confirmation that replaces the draft). Limits: 12 MiB uploaded, 500 entries, 10 MiB unpacked in total (counted while reading, so a zip bomb is stopped early); a path that leaves the folder, an absolute path or a symlink refuses the whole zip; `__MACOSX/`, `.DS_Store` and `.git/` are skipped.
 2. **Import from git**: a public HTTPS repository URL (no credentials), a ref (branch, tag or a full 40-character commit; empty is the default branch) and a folder inside it. Proxier fetches with git over HTTPS into memory (60 s, 100 MiB), takes the folder's contents, and makes them a draft as above, with the same limits and the same `manifest.yaml` rule applied to the folder. A branch or tag is fetched shallow; a commit is first fetched alone by its SHA, and when the host refuses that, every branch is cloned in full and the commit looked up in it. The draft records where it came from (URL, ref, the resolved commit, folder). Importing the same branch later makes a new draft with the new commit.
 3. Either way the draft is validated like any edit before it can be published.
 
-## Steps — handing the draft to an agent
+## Steps: handing the draft to an agent
 
 A coding agent on the admin's machine (Claude Code, Codex or similar) can fix a draft remotely. Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
 

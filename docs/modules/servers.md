@@ -1,13 +1,13 @@
 # Servers
 
-The servers module turns a freshly issued VPS into a working proxy server from a versioned **template**. Afterwards it keeps the server's DNS, stack and secrets, can change the server later, and watches whether the server works from Russia. It replaces `servers-templates/proxy/setup.sh`, manual DNS, `credentials.txt`, and finding out about blocks from complaints.
+The servers module turns a freshly issued VPS into a working proxy server from a versioned **template**. Afterwards it keeps the server's DNS, stack and secrets, changes the server when asked, and checks whether it works from Russia. It took over from `servers-templates/proxy/setup.sh`, hand-made DNS records and `credentials.txt`.
 
 ## Countries and names
 
 - A server's **country** is an ISO 3166-1 alpha-2 code (`NL`), chosen when the server is created and never changed. It is all the server stores of where it is: the country's name (English and Russian) and its flag (🇳🇱, the two regional-indicator letters) are derived from the code, never stored ([ADR 0015](../adr/0015-servers-have-a-country-not-a-location.md)). There is nothing to manage: no Locations page, nothing to add, rename or delete. Withdrawn codes (`UK`, `DD`, `SU`…) are not countries.
-- A new server gets the **server name** `<code in lower case>-<number>` (`nl-2`), where the number is one more than the highest number its name prefix has ever used. Numbers are **never reused**, not even after a failed provisioning or a retirement: a server is never deleted, so its row keeps its number taken. A name means one server for good. A server created before servers had a country keeps its name and its location's code as its prefix (`ams-1` in NL); new servers of that country count under the country's code.
+- A new server gets the **server name** `<code in lower case>-<number>` (`nl-2`), where the number is one more than the highest number its name prefix has ever used. Numbers are **never reused**, not even after a failed provisioning or a retirement: a server is never deleted, so its row keeps its number taken. A name means one server for good. A server created when servers had locations keeps its name and its location's code as its prefix (`ams-1` in NL); new servers of that country count under the country's code.
 - The **management hostname** comes from the hostname pattern in Settings, default `{country}-{number}.hosts.tikhonnnnn.com` → `nl-1.hosts.tikhonnnnn.com`. `{country}` is the name prefix; `{location}`, its earlier spelling, still works in a saved pattern.
-- The **proxy hostname** is the name in connection URIs and the TLS certificate. In the first version it is always the management hostname. The two are separate fields so that proxy hostnames on other domains can come later without migrating data ([DNS](#dns)).
+- The **proxy hostname** is the name in connection URIs and the TLS certificate. It is always the management hostname. The two are separate fields, so proxy hostnames on other domains would need no data migration ([DNS](#dns)).
 - When the admin pastes an IP into the new-server form, Proxier looks up the IP's country and preselects it in the country picker. It is only a suggestion.
 
 ## Templates
@@ -131,20 +131,20 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.tikhonnnnn.com` |
 | `.Params.<key>` | parameters |
 | `.Gen.<key>` | generated values |
-| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. In the first version it holds exactly one entry, the endpoint credential named `shared`. |
+| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. It holds one entry: the endpoint credential, named `shared`. |
 | `.Template.Slug`, `.Template.Version` | `vless-xhttp`, `3` |
 
 Functions: `json`, `quote`, `default`, `lower`, `upper`, `trim`, `urlquery`, `b64enc`, `sha256`, `join`, `indent`.
 
-### Future: per-link credentials
+### The client list
 
-The first version shares one credential per endpoint ([ADR 0004](../adr/0004-one-shared-credential-per-endpoint.md)). Templates still render xray's client list from `.Clients` rather than from `.Gen.client_uuid` directly:
+Proxier shares one credential per endpoint ([ADR 0004](../adr/0004-one-shared-credential-per-endpoint.md)). Templates still render xray's client list from `.Clients` rather than from `.Gen.client_uuid` directly:
 
 ```json
 "clients": [{{ range $i, $c := .Clients }}{{ if $i }},{{ end }}{ "id": {{ json $c.ID }}, "email": {{ json $c.Name }} }{{ end }}]
 ```
 
-If per-link (or per-subscription) credentials ever arrive, Proxier only has to fill `.Clients` with more entries and redeploy. Templates written this way keep working.
+Per-link or per-subscription credentials would then only mean filling `.Clients` with more entries and redeploying; templates written this way keep working.
 
 ### Import and export
 
@@ -185,7 +185,7 @@ Actions:
 | Action | Allowed when | What happens |
 |---|---|---|
 | Retry | failed | Resumes provisioning from the failed step. Asks for the root password again if it failed before Proxier's key was installed. |
-| Activate anyway | failed, only the smoke test failed | Makes the server active without a passing proxy test, after a confirmation. Health then comes from the checks, usually `blocked` ([provisioning](../processes/servers/server-provisioning.md#steps--after-a-failure)). |
+| Activate anyway | failed, only the smoke test failed | Makes the server active without a passing proxy test, after a confirmation. Health then comes from the checks, usually `blocked` ([provisioning](../processes/servers/server-provisioning.md#steps-after-a-failure)). |
 | Redeploy | active | Re-renders the current version. Shows the diff, then applies it ([redeploy](../processes/servers/server-redeploy.md)). |
 | Upgrade | active, newer version exists | Renders the chosen version. Asks for any new parameters, shows the diff, then applies it. |
 | Edit parameters | active | Changes parameters, then redeploys. |
@@ -208,19 +208,19 @@ Columns: name with flag, health badge and since when, lifecycle state (when not 
 
 ## Endpoints and connection URIs
 
-The first endpoint type is `vless-xhttp-tls`. Given an endpoint, it builds the connection URI exactly as `setup.sh` printed it ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), and it runs the proxy test.
+The one endpoint type is `vless-xhttp-tls`. Given an endpoint, it builds the connection URI exactly as `setup.sh` printed it ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), and it runs the proxy test.
 
 The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {country name} {number}`, e.g. `🇳🇱 Netherlands 1`. A server with several endpoints adds the endpoint key: `🇳🇱 Netherlands 1 · main`. The country name is the English one, in every link whatever its language (a link's language changes only its stub entries). Display names are stored with the endpoints, refreshed by every deployment. The `EndpointCatalog` port also carries each server's flag, derived from its country, and `endpoint.MaskedURI` gives a URI with the credential and the secret path shown as `••••••••` (previews).
 
 ## DNS
 
-DNS is a driver; the first one is Cloudflare ([Cloudflare integration](../integrations/cloudflare.md)).
+DNS is a driver; Cloudflare is the one there is ([Cloudflare integration](../integrations/cloudflare.md)).
 
 - Provisioning creates an **A record** for the management hostname (and for the proxy hostname, once they differ) pointing to the server's IP. It is **DNS-only, never proxied**: clients and Let's Encrypt must reach the server directly. TTL is 60 s, and the record carries the comment `proxier:<server name>`.
 - Proxier only ever changes or deletes records that carry its comment. A different record already at that name stops provisioning with a conflict, unless the admin confirms an overwrite.
 - After writing, Proxier waits until 1.1.1.1 and 8.8.8.8 both return the IP (timeout 10 min) before anything needs the name, for example the certificate. It asks them over DNS-over-HTTPS, and over plain UDP port 53 only when DoH cannot be reached, because the home router may intercept port 53.
 - Retirement deletes the records, if they still point to the server's IP.
-- **Accepted risk in the first version:** each server's certificate names its hostname, and every certificate is published in certificate-transparency logs. Anyone, including a censor, can list `*.hosts.tikhonnnnn.com` on crt.sh. The planned fix is to issue wildcard certificates centrally through Cloudflare DNS-01 and upload them to servers, optionally with proxy hostnames on unlinked cover domains ([roadmap](../roadmap.md#later)). Management and proxy hostnames are already separate fields, so no data migration is needed.
+- **Accepted risk:** each server's certificate names its hostname, and every certificate is published in certificate-transparency logs. Anyone, including a censor, can list `*.hosts.tikhonnnnn.com` on crt.sh. The fix in the [backlog](../overview.md#backlog) is wildcard certificates issued centrally through Cloudflare DNS-01 and uploaded to servers, optionally with proxy hostnames on unlinked cover domains. Management and proxy hostnames are separate fields, so it needs no data migration.
 
 ## Health and stats
 
@@ -243,4 +243,4 @@ It consumes one port from routing: `RoutingGuard` (`Covering(ctx, hostnames)`, s
 
 ## Events
 
-`template.*`, `server.*`, `health.*`: see [events](../events.md#servers). `location.*` events are no longer recorded; older ones still show in Activity.
+`template.*`, `server.*`, `health.*`: see [events](../events.md#servers). Old `location.*` events still show in Activity; nothing records them any more.

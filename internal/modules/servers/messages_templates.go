@@ -2,7 +2,7 @@ package servers
 
 import "github.com/tikhonp/proxier/internal/platform/i18n"
 
-// templateMessages are the texts of the template pages (1b). The validator's
+// templateMessages are the texts of the template pages. The validator's
 // own findings are not here: they come from the checkers in English.
 var templateMessages = i18n.Messages{
 	"templates.nav":   {EN: "Templates", RU: "Шаблоны"},

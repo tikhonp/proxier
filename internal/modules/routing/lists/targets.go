@@ -12,7 +12,7 @@ type Target struct {
 	Kind  string // router, shadowrocket
 	ID    int64
 	Name  string
-	State string // routers: their state (3e words it); configs: enabled or disabled
+	State string // routers: their state; configs: enabled or disabled
 	// LastFetch is a Shadowrocket config's last fetch; zero when it was never
 	// fetched, and for routers.
 	LastFetch time.Time
