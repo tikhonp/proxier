@@ -20,6 +20,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/pages"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -83,7 +84,7 @@ func (m *Module) Schedules() []jobs.Schedule {
 
 // SettingsPages: Settings → Subscriptions.
 func (*Module) SettingsPages() []ui.SettingsPage {
-	return []ui.SettingsPage{{Slug: "subscriptions", Title: "settings.subscriptions", Order: 36}}
+	return []ui.SettingsPage{{Slug: "subscriptions", Area: access.Settings, Title: "settings.subscriptions", Order: 36}}
 }
 
 func (*Module) EventTypes() []events.Type { return Events }
@@ -123,13 +124,13 @@ func (m *Module) pageDeps() pages.Deps {
 // Nav adds Subscriptions and Links.
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
-		{Group: "subscriptions", Label: "subs.nav", Href: "/subscriptions", GoKey: "u", Order: 10},
-		{Group: "subscriptions", Label: "links.nav", Href: "/links", GoKey: "l", Order: 20},
+		{Group: "subscriptions", Area: access.Subscriptions, Label: "subs.nav", Href: "/subscriptions", GoKey: "u", Order: 10},
+		{Group: "subscriptions", Area: access.Subscriptions, Label: "links.nav", Href: "/links", GoKey: "l", Order: 20},
 	}
 }
 
 // Search finds subscriptions by name or title, and live links by name.
-func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
 	rows, err := m.Subs.List(ctx)
 	if err != nil {
@@ -140,7 +141,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 		if q != "" && !strings.Contains(strings.ToLower(r.Name), q) && !strings.Contains(strings.ToLower(r.Title), q) {
 			continue
 		}
-		out = append(out, ui.SearchHit{
+		out = append(out, ui.SearchHit{Area: access.Subscriptions,
 			Label: r.Name, Meta: i18n.N(ctx, "subs.search", int64(len(r.Members))),
 			Href: "/subscriptions/" + strconv.FormatInt(r.ID, 10),
 		})
@@ -154,7 +155,7 @@ func (m *Module) Search(ctx context.Context, q string, limit int) ([]ui.SearchHi
 	}
 	now := m.Now()
 	for _, l := range list {
-		out = append(out, ui.SearchHit{
+		out = append(out, ui.SearchHit{Area: access.Subscriptions,
 			Label: l.Name, Meta: i18n.T(ctx, "links.search", i18n.Args{"subscription": l.Subscription, "status": i18n.T(ctx, "links.status."+l.Status(now))}),
 			Href: "/links/" + strconv.FormatInt(l.ID, 10),
 		})

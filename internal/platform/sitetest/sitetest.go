@@ -1,5 +1,5 @@
 // Package sitetest runs the whole HTTP app in tests: the platform with its
-// migrations, an admin, and requests through the real route tree. Only tests
+// migrations, the first member, and requests through the real route tree. Only tests
 // import it.
 package sitetest
 
@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/module"
@@ -179,6 +180,27 @@ func hostOf(addr string) string {
 		return ap.Addr().String()
 	}
 	return addr
+}
+
+// Join adds a member with grant g the way Settings → Members does, by member
+// 1 through a setup link, and returns them signed in from addr ("" for the
+// default). Their password is Password.
+func (s *Site) Join(username string, g access.Grant, addr string) *Login {
+	s.T.Helper()
+	ctx := context.Background()
+	_, token, err := s.App.Auth.AddMember(ctx, auth.Session{MemberID: 1}, Password, username, g)
+	if err != nil {
+		s.T.Fatalf("add %s: %v", username, err)
+	}
+	res, err := s.App.Auth.CompleteSetup(ctx, token, Password, "en", hostOf(addr), "Mozilla/5.0 (Macintosh) Chrome/120 Safari/537")
+	if err != nil {
+		s.T.Fatalf("set up %s: %v", username, err)
+	}
+	return &Login{
+		Site:   s,
+		Cookie: &http.Cookie{Name: web.CookieName(s.App.Cfg.BaseURL.Scheme == "https"), Value: res.Session.Token},
+		Token:  res.Session.Token, CSRF: res.Session.CSRF, ID: res.Session.ID,
+	}
 }
 
 // Get is a signed-in GET.

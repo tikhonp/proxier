@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -26,32 +27,33 @@ func srHref(id int64) string { return srPath + "/" + i64(id) }
 
 // registerShadowrocket adds the config pages' routes.
 func (h *handler) registerShadowrocket(r web.Routes) {
-	r.Admin.GET(srPath, h.srList)
-	r.Admin.GET(srPath+"/new", h.srNewPage)
-	r.Admin.POST(srPath, h.srCreate)
-	r.Admin.POST(srPath+"/import-base", h.srImportBase)
-	r.Admin.GET(srPath+"/:id", h.srPage)
-	r.Admin.GET(srPath+"/:id/url", h.srURL)
-	r.Admin.GET(srPath+"/:id/qr", h.srQR)
-	r.Admin.GET(srPath+"/:id/output", h.srOutput)
-	r.Admin.GET(srPath+"/:id/base", h.srBasePage)
-	r.Admin.POST(srPath+"/:id/base", h.srSaveBase)
-	r.Admin.GET(srPath+"/:id/versions/:n", h.srVersion)
-	r.Admin.GET(srPath+"/:id/versions/:n/diff", h.srDiff)
-	r.Admin.POST(srPath+"/:id/versions/:n/restore", h.srRestore)
-	r.Admin.GET(srPath+"/:id/edit", h.srEditPage)
-	r.Admin.POST(srPath+"/:id/edit", h.srEdit)
-	r.Admin.POST(srPath+"/:id/token", h.srAct(func(ctx context.Context, id int64) error {
+	rt := r.Area(access.Routing)
+	rt.View.GET(srPath, h.srList)
+	rt.Manage.GET(srPath+"/new", h.srNewPage)
+	rt.Manage.POST(srPath, h.srCreate)
+	rt.Manage.POST(srPath+"/import-base", h.srImportBase)
+	rt.View.GET(srPath+"/:id", h.srPage)
+	rt.Manage.GET(srPath+"/:id/url", h.srURL)
+	rt.Manage.GET(srPath+"/:id/qr", h.srQR)
+	rt.View.GET(srPath+"/:id/output", h.srOutput)
+	rt.Manage.GET(srPath+"/:id/base", h.srBasePage)
+	rt.Manage.POST(srPath+"/:id/base", h.srSaveBase)
+	rt.View.GET(srPath+"/:id/versions/:n", h.srVersion)
+	rt.View.GET(srPath+"/:id/versions/:n/diff", h.srDiff)
+	rt.Manage.POST(srPath+"/:id/versions/:n/restore", h.srRestore)
+	rt.Manage.GET(srPath+"/:id/edit", h.srEditPage)
+	rt.Manage.POST(srPath+"/:id/edit", h.srEdit)
+	rt.Manage.POST(srPath+"/:id/token", h.srAct(func(ctx context.Context, id int64) error {
 		return h.Shadowrocket.RegenerateToken(ctx, id, web.Actor(ctx))
 	}, "?regenerated=1"))
-	r.Admin.POST(srPath+"/:id/disable", h.srAct(func(ctx context.Context, id int64) error {
+	rt.Manage.POST(srPath+"/:id/disable", h.srAct(func(ctx context.Context, id int64) error {
 		return h.Shadowrocket.SetEnabled(ctx, id, false, web.Actor(ctx))
 	}, ""))
-	r.Admin.POST(srPath+"/:id/enable", h.srAct(func(ctx context.Context, id int64) error {
+	rt.Manage.POST(srPath+"/:id/enable", h.srAct(func(ctx context.Context, id int64) error {
 		return h.Shadowrocket.SetEnabled(ctx, id, true, web.Actor(ctx))
 	}, ""))
-	r.Admin.GET(srPath+"/:id/delete", h.srDeletePage)
-	r.Admin.POST(srPath+"/:id/delete", h.srDelete)
+	rt.Manage.GET(srPath+"/:id/delete", h.srDeletePage)
+	rt.Manage.POST(srPath+"/:id/delete", h.srDelete)
 }
 
 // loadSR reads the config of the :id parameter; 404 when there is none.

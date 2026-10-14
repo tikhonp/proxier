@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/seed"
 	"github.com/tikhonp/proxier/internal/modules/servers/validate"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/settings"
@@ -167,20 +168,20 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 
 	// a server is found by its country's name, in English or Russian
 	for _, q := range []string{"neth", "нидерл"} {
-		hits, err := mod.Search(ctx, q, 5)
+		hits, err := mod.Search(ctx, access.PresetOwner.Grant(), q, 5)
 		if err != nil || len(hits) != 1 || hits[0].Href != "/servers/7" || !strings.Contains(hits[0].Label, "nl-1") {
 			t.Errorf("search %s: %+v %v", q, hits, err)
 		}
 	}
-	if hits, _ := mod.Search(ctx, "zzz", 5); len(hits) != 0 {
+	if hits, _ := mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 5); len(hits) != 0 {
 		t.Errorf("search for nothing: %+v", hits)
 	}
 	// templates are found by name or slug, and link to their page
-	hits, err := mod.Search(ctx, "my-stack", 5)
+	hits, err := mod.Search(ctx, access.PresetOwner.Grant(), "my-stack", 5)
 	if err != nil || len(hits) != 1 || hits[0].Href != "/templates/"+idStr(tpl) || !strings.Contains(hits[0].Label, "My stack") || hits[0].Meta != "Template" {
 		t.Errorf("template search: %+v %v", hits, err)
 	}
-	if hits, _ = mod.Search(ctx, "stack", 5); len(hits) != 1 {
+	if hits, _ = mod.Search(ctx, access.PresetOwner.Grant(), "stack", 5); len(hits) != 1 {
 		t.Errorf("template search by name: %+v", hits)
 	}
 }
@@ -282,5 +283,51 @@ func TestEveryJobStepHasATitle(t *testing.T) {
 	}
 	if n < 30 {
 		t.Errorf("only %d steps found", n)
+	}
+}
+
+// A member at servers: view sees the servers in service with their country
+// and health state, finds them by name, and nothing more of servers.
+func TestAViewerOfServersSeesOnlyTheServersInService(t *testing.T) {
+	s := site(t)
+	ctx := context.Background()
+	m, _ := s.App.Module("servers")
+	mod := m.(*servers.Module)
+	tpl, _ := mod.Templates.Create(ctx, "My stack", "my-stack", "", "admin")
+	for _, q := range []string{
+		`INSERT INTO servers_servers (id, country, number, name, ip, management_hostname, proxy_hostname, state, health, template_id, template_version, created_at) VALUES (7, 'NL', 1, 'nl-1', '203.0.113.7', 'h', 'h', 'active', 'blocked', ?, 1, '2026-10-07T00:00:00.000Z')`,
+		`INSERT INTO servers_servers (id, country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at) VALUES (8, 'DE', 1, 'de-1', '203.0.113.8', 'h', 'h', 'provisioning', ?, 1, '2026-10-07T00:00:00.000Z')`,
+	} {
+		if _, err := s.App.DB.W.ExecContext(ctx, q, tpl); err != nil {
+			t.Fatal(err)
+		}
+	}
+	viewer := s.Join("viewer", access.Grant{}.With(access.Servers, access.LevelView), "")
+	list := viewer.Get("/servers").Body.String()
+	for _, want := range []string{">🇳🇱 nl-1<", ">Netherlands<", "Blocked"} {
+		if !strings.Contains(list, want) {
+			t.Errorf("the list lacks %s", want)
+		}
+	}
+	for _, hidden := range []string{"203.0.113.7", "de-1", `href="/servers/7"`, `href="/servers/new"`, `href="/templates"`} {
+		if strings.Contains(list, hidden) {
+			t.Errorf("the list shows %s", hidden)
+		}
+	}
+	for _, p := range []string{"/servers/7", "/servers/7/health", "/servers/7/stats", "/templates"} {
+		if rec := viewer.Get(p); rec.Code != 403 {
+			t.Errorf("%s: %d, want 403", p, rec.Code)
+		}
+	}
+	view := access.Grant{}.With(access.Servers, access.LevelView)
+	hits, _ := mod.Search(ctx, view, "nl", 5)
+	if len(hits) != 1 || hits[0].Href != "/servers" || strings.Contains(hits[0].Label, "203.0.113.7") {
+		t.Errorf("search at view: %+v", hits)
+	}
+	if hits, _ := mod.Search(ctx, view, "de-1", 5); len(hits) != 0 {
+		t.Errorf("search at view finds a server not in service: %+v", hits)
+	}
+	if hits, _ := mod.Search(ctx, view, "my-stack", 5); len(hits) != 0 {
+		t.Errorf("search at view finds templates: %+v", hits)
 	}
 }

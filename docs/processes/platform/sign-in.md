@@ -2,13 +2,13 @@
 
 **Actors**: Member; Proxier; `proxier manage` (the container shell).
 
-Every account is a member, and each member signs in on their own: their own password, sessions, authenticator app and passkeys. The command line makes the first member. Sign-in is a password on a public host, so the rules focus on lockout, short sessions and telling about every sign-in from a new IP. Two ways in are opt-in: an **authenticator app** whose code a password sign-in then also needs, and **passkeys**, each of which signs in alone ([ADR 0017](../../adr/0017-passkeys-sign-in-alone.md)). With neither, sign-in is the password alone.
+Every account is a member, and each member signs in on their own: their own password, sessions, authenticator app and passkeys. The command line makes the first member; the others are added on Settings → Members and choose their password at a setup link ([members](./members.md)). Sign-in is a password on a public host, so the rules focus on lockout, short sessions and telling about every sign-in from a new IP. Two ways in are opt-in: an **authenticator app** whose code a password sign-in then also needs, and **passkeys**, each of which signs in alone ([ADR 0017](../../adr/0017-passkeys-sign-in-alone.md)). With neither, sign-in is the password alone.
 
 ## Steps: the first member and the command line
 
-1. `docker exec -it proxier /bin/proxier manage create-admin` makes the first member (member 1). It asks for a username and a password, twice. The password must be at least 12 characters. → `admin.created` (actor `cli`)
+1. `docker exec -it proxier /bin/proxier manage create-admin` makes the first member (member 1), as Owner. It asks for a username and a password, twice. The password must be at least 12 characters. → `member.added{access: owner}` (actor `cli`)
 2. Running it again when any member exists refuses: "A member already exists; use reset-password <username> to get back in."
-3. `proxier manage reset-password <username>` sets a new password for that member and ends their sessions. → `auth.password_changed{via: cli}`
+3. `proxier manage reset-password <username>` sets a new password for that member and ends their sessions. → `auth.password_changed{via: cli}`. A removed member's username names nobody here.
 4. `proxier manage reset-2fa <username>` turns that member's authenticator app off, removes their passkeys and ends their sessions; the password stays. It asks nothing and needs no terminal. It records its event only when it removed or ended something. → `auth.second_factor_reset{via: cli, totp, passkeys, sessions}` (notifies)
 5. A username nobody has: "There is no member "<username>"." (or, with no members at all, "use create-admin"). Nothing is asked and nothing changes.
 
@@ -55,8 +55,8 @@ With the authenticator app on, step 5 changes:
 - An expired session redirects to `/login?ended=idle` (or `absolute`) and the page says "Signed out after 7 days idle. You'll go back to <page>."
 - A successful sign-in resets the failure count of that IP.
 
-- A member can't be created, removed or renamed from the UI.
-- Usernames are unique ignoring case, 1 to 64 characters.
+- Members are added and removed on Settings → Members ([members](./members.md)), never renamed. A removed member, or one who hasn't chosen a password at their setup link, signs in by no way at all: the same "Wrong username or password" as an unknown username.
+- Usernames are unique ignoring case among the members who aren't removed, 1 to 64 characters.
 - Everything a member does in the UI records the actor `member:<id>`. Rows from before members say `admin`, which is member 1; Activity and the Jobs page name both by username.
 - Cookies are `HttpOnly`, `Secure`, `SameSite=Lax`, and scoped to the Proxier host. Public routes (`/s/`, `/r/`, `/f/`) never read or set them.
 - Every request that changes something carries a CSRF token tied to the session.

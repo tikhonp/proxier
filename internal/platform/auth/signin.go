@@ -209,24 +209,26 @@ func (s *Service) gate(ctx context.Context, ip string, start time.Time) (lockout
 	return rules, nil
 }
 
-// credentials finds a member by username, ignoring case. member is 0 for an
-// unknown username.
+// credentials finds a member who can sign in by username, ignoring case.
+// member is 0 for an unknown username, a removed member and one who hasn't
+// finished setup: none of them has a password that signs in.
 func (s *Service) credentials(ctx context.Context, username string) (member int64, phc string, err error) {
 	var r struct {
 		ID   int64  `db:"id"`
 		Hash string `db:"password_hash"`
 	}
-	err = sqlx.GetContext(ctx, s.db.R, &r, `SELECT id, password_hash FROM members WHERE username = ?`, username)
+	err = sqlx.GetContext(ctx, s.db.R, &r, `SELECT id, password_hash FROM members WHERE username = ? AND removed_at IS NULL AND password_hash IS NOT NULL`, username)
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, "", nil
 	}
 	return r.ID, r.Hash, err
 }
 
-// passwordHash is a member's password hash, or ErrNoMember.
+// passwordHash is a member's password hash, or ErrNoMember for a member
+// without one that signs in.
 func (s *Service) passwordHash(ctx context.Context, member int64) (string, error) {
 	var phc string
-	err := sqlx.GetContext(ctx, s.db.R, &phc, `SELECT password_hash FROM members WHERE id = ?`, member)
+	err := sqlx.GetContext(ctx, s.db.R, &phc, `SELECT password_hash FROM members WHERE id = ? AND removed_at IS NULL AND password_hash IS NOT NULL`, member)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", ErrNoMember
 	}

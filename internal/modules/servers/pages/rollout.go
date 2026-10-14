@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -19,10 +20,11 @@ import (
 )
 
 func (h *handler) registerRollout(r web.Routes) {
-	r.Admin.POST("/servers/rollout/plan", h.rolloutPlan)
-	r.Admin.POST("/servers/rollout", h.rolloutStart)
-	r.Admin.GET("/servers/rollouts/:id", h.rolloutPage)
-	r.Admin.POST("/servers/rollouts/:id/stop", h.rolloutStop)
+	srv := r.Area(access.Servers)
+	srv.Manage.POST("/servers/rollout/plan", h.rolloutPlan)
+	srv.Manage.POST("/servers/rollout", h.rolloutStart)
+	srv.Manage.GET("/servers/rollouts/:id", h.rolloutPage)
+	srv.Manage.POST("/servers/rollouts/:id/stop", h.rolloutStop)
 }
 
 // ------------------------------------------------------------ the plan screen

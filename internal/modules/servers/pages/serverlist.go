@@ -14,6 +14,7 @@ import (
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -166,6 +167,9 @@ func (h *handler) serversList(c *echo.Context) error {
 	all, err := store.ListServers(ctx, h.Store.DB.R)
 	if err != nil {
 		return err
+	}
+	if !web.Can(ctx, access.Servers, access.LevelManage) {
+		return h.serversBrief(c, all)
 	}
 	samples := map[int64]store.Sample{}
 	if rows, err := store.LatestSamples(ctx, h.Store.DB.R); err == nil {
@@ -465,4 +469,28 @@ func rowState(r serverRow) string {
 		return "active"
 	}
 	return "other"
+}
+
+// briefRow is a server as a member at servers: view sees it.
+type briefRow struct {
+	Flag, Name, Country string
+	Kind, Word          string
+}
+
+// serversBrief is the list for a member at servers: view: the active
+// servers' name, country and health state, which is what they need to put
+// servers into their subscriptions. Everything else is for who manages them.
+func (h *handler) serversBrief(c *echo.Context, all []store.Server) error {
+	ctx := c.Request().Context()
+	lang := string(i18n.From(ctx).Lang)
+	var rows []briefRow
+	for _, s := range all {
+		if s.State != "active" || s.Retiring() {
+			continue
+		}
+		kind, word := stateKind(ctx, s)
+		rows = append(rows, briefRow{Flag: country.Flag(s.Country), Name: s.Name, Country: country.Name(s.Country, lang), Kind: kind, Word: word})
+	}
+	sort.SliceStable(rows, func(i, j int) bool { return rows[i].Name < rows[j].Name })
+	return web.Render(c, http.StatusOK, serversBriefPage(h.shell(c, i18n.T(ctx, "servers.title"), "/servers"), rows))
 }

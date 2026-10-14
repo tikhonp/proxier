@@ -16,7 +16,7 @@ Proxier does all of this as one always-on service: a web UI for the admin, backg
 
 ## Who uses it
 
-- **The admin** is the only person who signs in. Everything happens in the web UI, on a desktop or a phone, with Telegram notifications.
+- **Members** sign in, each on their own, with a level of access in each area ([members](./processes/platform/members.md)); the first one is the owner. Everything happens in the web UI, on a desktop or a phone, with Telegram notifications.
 - **Link holders** (family, friends, the admin's own devices) never sign in. They see only what their app gets from their link: connection URIs, a title and an expiry date.
 - **Routers** are MikroTiks that Proxier reaches over SSH, directly or through a jump host on the tailnet, to keep their domain lists in sync. A new router downloads its filled-in setup script from a fetch URL.
 - **Shadowrocket** on the phone subscribes to a hosted config URL.
@@ -27,7 +27,7 @@ Proxier is one service made of separate modules. Each can be changed or left out
 
 | Module | Purpose | Flows |
 |---|---|---|
-| **Platform** | Sign-in, settings, secrets, jobs and the scheduler, events and history, Telegram notifications, SSH, the tailnet, two languages, backups. | [sign-in](./processes/platform/sign-in.md), [jobs](./processes/platform/jobs.md), [notifications](./processes/platform/notifications.md) |
+| **Platform** | Sign-in, settings, secrets, jobs and the scheduler, events and history, Telegram notifications, SSH, the tailnet, two languages, backups. | [sign-in](./processes/platform/sign-in.md), [members](./processes/platform/members.md), [jobs](./processes/platform/jobs.md), [notifications](./processes/platform/notifications.md) |
 | **Servers** | Turns an IP and a root password into a working proxy server from a versioned template. Keeps its DNS, stack and secrets. Checks from home and from abroad whether it works or is blocked. Shows its resources. | [template authoring](./processes/servers/template-authoring.md), [provisioning](./processes/servers/server-provisioning.md), [redeploy](./processes/servers/server-redeploy.md), [rotation](./processes/servers/credential-rotation.md), [health](./processes/servers/server-health.md), [stats](./processes/servers/server-stats.md), [retirement](./processes/servers/server-retirement.md) |
 | **Subscriptions** | Groups servers into subscriptions and gives each person or device a link to one of them. Serves the connection URIs at that link, with expiry and shared-link alerts. | [subscription management](./processes/subscriptions/subscription-management.md), [link lifecycle](./processes/subscriptions/link-lifecycle.md), [fetch](./processes/subscriptions/subscription-fetch.md), [shared-link alerts](./processes/subscriptions/shared-link-alerts.md) |
 | **Routing** | What mtvpn did, always on: services from v2fly, iplist, URLs and custom lists; search; discovery of a site's domains; routing lists; router sync with drift repair; the hosted Shadowrocket config. | [catalog search](./processes/routing/catalog-search.md), [services](./processes/routing/service-management.md), [discovery](./processes/routing/domain-discovery.md), [upstream refresh](./processes/routing/upstream-refresh.md), [routing lists](./processes/routing/routing-lists.md), [router sync](./processes/routing/router-sync.md), [Shadowrocket](./processes/routing/shadowrocket-config.md), [mtvpn import](./processes/routing/mtvpn-import.md) |
@@ -58,7 +58,7 @@ flowchart LR
 
 ## Out of scope
 
-- More than one admin, roles, or anything multi-tenant. Selling access, payments, traffic accounting.
+- Roles beyond a level per area, or anything multi-tenant: one site, whose servers every member shares. Selling access, payments, traffic accounting.
 - Per-link credentials on servers. Credentials are shared per endpoint ([ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md)).
 - Ordering, paying for or cancelling VPSes through provider APIs.
 - Managing a router beyond its tunneled-domain list (DHCP, VLANs, firewall).

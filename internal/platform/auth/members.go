@@ -4,8 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -18,11 +21,12 @@ func (s *Service) HasMembers(ctx context.Context) (bool, error) {
 	return n > 0, err
 }
 
-// CreateFirstMember makes the first member, in the language of
+// CreateFirstMember makes the first member, as Owner, in the language of
 // general.language. It refuses once any member exists.
 func (s *Service) CreateFirstMember(ctx context.Context, username, password string) error {
-	if len(username) == 0 || len(username) > 64 {
-		return errors.New("auth: username must be 1 to 64 characters")
+	username, err := checkUsername(username)
+	if err != nil {
+		return err
 	}
 	if err := checkPassword(password); err != nil {
 		return err
@@ -60,8 +64,21 @@ func (s *Service) CreateFirstMember(ctx context.Context, username, password stri
 		if err != nil {
 			return err
 		}
-		return s.record(ctx, tx, "admin.created", events.ActorCLI, MemberSubject(id), map[string]any{"username": username})
+		owner := access.PresetOwner.Grant()
+		if err := writeGrant(ctx, tx, id, owner); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, "member.added", events.ActorCLI, MemberSubject(id), map[string]any{"username": username, "access": grantLabel(owner)})
 	})
+}
+
+// checkUsername trims a username and checks its length.
+func checkUsername(u string) (string, error) {
+	u = strings.TrimSpace(u)
+	if n := utf8.RuneCountInString(u); n == 0 || n > 64 {
+		return "", ErrUsernameLength
+	}
+	return u, nil
 }
 
 // ResetPassword sets a new password and ends every session of the member. A
@@ -158,17 +175,26 @@ func (s *Service) ChangePassword(ctx context.Context, sess Session, old, new str
 }
 
 type memberRow struct {
-	ID       int64   `db:"id"`
-	Username string  `db:"username"`
-	Language string  `db:"language"`
-	Created  db.Time `db:"created_at"`
-	Changed  db.Time `db:"password_changed_at"`
+	ID        int64    `db:"id"`
+	Username  string   `db:"username"`
+	Language  string   `db:"language"`
+	Created   db.Time  `db:"created_at"`
+	CreatedBy string   `db:"created_by"`
+	Changed   *db.Time `db:"password_changed_at"`
+	Removed   *db.Time `db:"removed_at"`
 }
 
-const memberCols = `id, username, language, created_at, password_changed_at`
+const memberCols = `id, username, language, created_at, created_by, password_changed_at, removed_at`
 
 func (r memberRow) member() Member {
-	return Member{ID: r.ID, Username: r.Username, Language: i18n.Lang(r.Language), CreatedAt: r.Created, PasswordChangedAt: r.Changed}
+	m := Member{ID: r.ID, Username: r.Username, Language: i18n.Lang(r.Language), CreatedAt: r.Created, CreatedBy: r.CreatedBy}
+	if r.Changed != nil {
+		m.PasswordChangedAt = *r.Changed
+	}
+	if r.Removed != nil {
+		m.RemovedAt = *r.Removed
+	}
+	return m
 }
 
 // Member returns one member, or ErrNoMember.
@@ -181,17 +207,20 @@ func (s *Service) Member(ctx context.Context, id int64) (Member, error) {
 	return r.member(), err
 }
 
-// MemberByUsername finds a member by username, ignoring case, or ErrNoMember.
+// MemberByUsername finds a member who isn't removed by username, ignoring
+// case, or ErrNoMember. A removed member's username may belong to someone
+// else now.
 func (s *Service) MemberByUsername(ctx context.Context, username string) (Member, error) {
 	var r memberRow
-	err := sqlx.GetContext(ctx, s.db.R, &r, `SELECT `+memberCols+` FROM members WHERE username = ?`, username)
+	err := sqlx.GetContext(ctx, s.db.R, &r, `SELECT `+memberCols+` FROM members WHERE username = ? AND removed_at IS NULL`, username)
 	if errors.Is(err, sql.ErrNoRows) {
 		return Member{}, ErrNoMember
 	}
 	return r.member(), err
 }
 
-// Usernames maps every member's ID to their username, to name actors.
+// Usernames maps every member's ID to their username, to name actors; a
+// removed member keeps theirs.
 func (s *Service) Usernames(ctx context.Context) (map[int64]string, error) {
 	var rows []memberRow
 	if err := sqlx.SelectContext(ctx, s.db.R, &rows, `SELECT `+memberCols+` FROM members`); err != nil {
@@ -223,6 +252,6 @@ func (s *Service) SetLanguage(ctx context.Context, memberID int64, l i18n.Lang) 
 		if _, err := tx.ExecContext(ctx, `UPDATE members SET language = ? WHERE id = ?`, string(l), memberID); err != nil {
 			return err
 		}
-		return s.record(ctx, tx, "admin.language_changed", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"from": from, "to": string(l)})
+		return s.record(ctx, tx, "member.language_changed", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"from": from, "to": string(l)})
 	})
 }

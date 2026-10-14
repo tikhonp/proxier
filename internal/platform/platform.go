@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/backup"
 	"github.com/tikhonp/proxier/internal/platform/config"
@@ -253,6 +254,7 @@ func (a *App) HTTP() *echo.Echo {
 			pd.Namers = append(pd.Namers, n)
 		}
 	}
+	mustDeclareAreas(pd)
 	r.Shell = pages.Register(r, pd)
 	r.SettingsPages = func() []ui.SettingsPage { return pd.SettingsPages }
 	for _, m := range a.Modules {
@@ -261,6 +263,22 @@ func (a *App) HTTP() *echo.Echo {
 		}
 	}
 	return e
+}
+
+// mustDeclareAreas refuses to start with a nav entry or a Settings page that
+// names no area: what declares none would be shown to nobody, or by a slip
+// to everybody.
+func mustDeclareAreas(pd pages.Deps) {
+	for _, it := range pd.Nav {
+		if it.Area != access.EveryMember && !it.Area.Valid() {
+			panic(fmt.Sprintf("platform: nav entry %s declares no area", it.Href))
+		}
+	}
+	for _, p := range pd.SettingsPages {
+		if p.Area != access.EveryMember && !p.Area.Valid() {
+			panic(fmt.Sprintf("platform: settings page %s declares no area", p.Slug))
+		}
+	}
 }
 
 // Serve runs the HTTP listener, the job workers, the scheduler and the event
@@ -313,19 +331,21 @@ func (core) Messages() i18n.Messages { return messages }
 
 func (core) Nav() []ui.NavItem {
 	return []ui.NavItem{
-		{Group: "overview", Label: "nav.dashboard", Href: "/", GoKey: "d", Order: 10},
-		{Group: "system", Label: "nav.jobs", Href: "/jobs", GoKey: "j", Order: 100},
-		{Group: "system", Label: "nav.activity", Href: "/activity", GoKey: "a", Order: 110},
-		{Group: "system", Label: "nav.settings", Href: "/settings", GoKey: ",", Order: 900},
+		{Group: "overview", Area: access.EveryMember, Label: "nav.dashboard", Href: "/", GoKey: "d", Order: 10},
+		{Group: "system", Area: access.Activity, Label: "nav.jobs", Href: "/jobs", GoKey: "j", Order: 100},
+		{Group: "system", Area: access.Activity, Label: "nav.activity", Href: "/activity", GoKey: "a", Order: 110},
+		// every member has their own General and Security
+		{Group: "system", Area: access.EveryMember, Label: "nav.settings", Href: "/settings", GoKey: ",", Order: 900},
 	}
 }
 
 func (core) SettingsPages() []ui.SettingsPage {
 	return []ui.SettingsPage{
-		{Slug: "general", Title: "settings.general", Order: 10},
-		{Slug: "security", Title: "settings.security", Order: 20},
-		{Slug: "integrations", Title: "settings.integrations", Order: 40},
-		{Slug: "notifications", Title: "settings.notifications", Order: 50},
+		{Slug: "general", Area: access.EveryMember, Title: "settings.general", Order: 10},
+		{Slug: "security", Area: access.EveryMember, Title: "settings.security", Order: 20},
+		{Slug: "members", Area: access.Settings, Title: "settings.members", Order: 25},
+		{Slug: "integrations", Area: access.Settings, Title: "settings.integrations", Order: 40},
+		{Slug: "notifications", Area: access.Settings, Title: "settings.notifications", Order: 50},
 	}
 }
 

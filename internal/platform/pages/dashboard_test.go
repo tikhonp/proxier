@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/a-h/templ"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
@@ -69,8 +70,8 @@ func (m areaModule) Dashboard(context.Context) ([]ui.DashboardArea, error) {
 		return nil, errors.New("the query failed")
 	}
 	return []ui.DashboardArea{
-		{Order: 20, Title: "Second area", Body: templ.Raw("<p>second body</p>")},
-		{Order: 10, Title: "First area", Body: templ.Raw("<p>first body</p>")},
+		{Area: access.Servers, Order: 20, Title: "Second area", Body: templ.Raw("<p>second body</p>")},
+		{Area: access.Routing, Order: 10, Title: "First area", Body: templ.Raw("<p>first body</p>")},
 	}, nil
 }
 

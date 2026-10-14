@@ -4,7 +4,9 @@ The platform is what every module builds on. It knows nothing about proxies. It 
 
 ## Members and sign-in
 
-- Every account is a **member**, with its own username (unique ignoring case), password, language, sessions, authenticator app and passkeys. The first member (member 1) is created with `proxier manage create-admin` (username + password, asked interactively), which refuses once any member exists. `proxier manage reset-password <username>` sets a member's password from the container's shell and ends their sessions.
+- Every account is a **member**, with its own username (unique ignoring case), password, language, sessions, authenticator app and passkeys. The first member (member 1) is created with `proxier manage create-admin` (username + password, asked interactively) as Owner, and the command refuses once any member exists. `proxier manage reset-password <username>` sets a member's password from the container's shell and ends their sessions.
+- Each member has a **level in each area** (servers, subscriptions, routing, router scripts, activity, settings); presets **Owner**, **Operator** and **Viewer** fill them. Settings → Members (`settings: manage`) adds a member with a single-use **setup link** (24 hours) where they choose their own password, changes levels and removes members. Flow, rules and edge cases: [members](../processes/platform/members.md).
+- **Access** is checked per route: a module registers its pages on its area's groups (`r.Area(access.Servers).View` / `.Manage` / `.At(level)`), whose middleware compares the member's grant and answers 403. Navigation, the `:` search, dashboard areas and Settings pages declare their area and show only what the grant reaches.
 - Passwords are at least 12 characters and stored as an argon2id hash.
 - Sign-in is username + password on `/login`, or a **passkey** alone. Both extras are opt-in on Settings → Security, and with neither the flow is the password alone ([ADR 0017](../adr/0017-passkeys-sign-in-alone.md)):
   - **Authenticator app** (TOTP, RFC 6238: SHA-1, 6 digits, 30 s): with it on, a right password leads to the code step, and only the code creates the session. Its secret is in the vault (AAD `member:<id>:totp`; member 1 keeps `admin:totp`, sealed before members existed, since a SQL migration can't re-seal it).
@@ -19,12 +21,13 @@ Flow and edge cases: [sign-in](../processes/platform/sign-in.md).
 
 ## Settings
 
-Settings are grouped by module. Each module declares its own section, fields, defaults and validation. Secret settings are stored encrypted. They are shown masked, with **Reveal** and **Replace** actions, and only "changed" is recorded in the event (never the value).
+Settings are grouped by module. Each module declares its own section, fields, defaults and validation. Every section needs `settings: manage`, the modules' too, except General and Security, which every member has for their own language, password, passkeys, app and sessions. Secret settings are stored encrypted. They are shown masked, with **Reveal** and **Replace** actions, and only "changed" is recorded in the event (never the value).
 
 | Section | Contents |
 |---|---|
-| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (a new member's language, and the sign-in page's when the browser asks for neither English nor Russian), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the member's own language. |
-| Security | Passkeys, the authenticator app, change password, sessions, lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m). |
+| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (a new member's language, and the sign-in page's when the browser asks for neither English nor Russian), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the member's own language. A member without `settings: manage` sees only the read-only lines and their language. |
+| Security | Passkeys, the authenticator app, change password, sessions (each the member's own), lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m; `settings: manage` only). |
+| Members | Every member with their access and state (active, waiting for setup, removed); **Add member**; a member's page with their levels, their setup link (**Copy link**, **New setup link…**) and **Remove member**. `settings: manage` only. |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
 | Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). Each is a row to its page; an unconfigured Telegram or Cloudflare row says **Set up**, as the dashboard's band does. |
 | Notifications | One toggle per event type, grouped by module ([events](../events.md)). |
@@ -93,7 +96,7 @@ Telegram is the only channel; channels are an extension point. Setup: a bot toke
 ## Languages and time
 
 - The UI is in **English and Russian**. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
-- A member's language is changed only in Settings → General → **Language** (`admin.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`, then the default language.
+- A member's language is changed only in Settings → General → **Language** (`member.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`, then the default language.
 - Each **link has a language** (default from Settings), used for its stub entry text.
 - Telegram messages use member 1's language: the one chat is theirs.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.
@@ -105,4 +108,4 @@ See [deployment](../deployment.md#backups). Backup failures notify.
 
 ## Platform events
 
-`admin.created`, `auth.*`, `settings.changed`, `ssh.host_key_changed`, `ssh.host_key_accepted`, `job.failed`, `backup.*`: see [events](../events.md#platform).
+`member.*`, `auth.*`, `settings.changed`, `ssh.host_key_changed`, `ssh.host_key_accepted`, `job.failed`, `backup.*`: see [events](../events.md#platform).

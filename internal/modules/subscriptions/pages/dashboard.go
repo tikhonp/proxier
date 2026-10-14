@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -62,5 +63,5 @@ func Dashboard(ctx context.Context, d Deps) (*ui.DashboardArea, error) {
 	if len(alerted)+len(expiring) == 0 {
 		return nil, nil
 	}
-	return &ui.DashboardArea{Order: 30, Title: loc.T("links.title"), Body: dashboardLinks(append(alerted, expiring...))}, nil
+	return &ui.DashboardArea{Area: access.Subscriptions, Order: 30, Title: loc.T("links.title"), Body: dashboardLinks(append(alerted, expiring...))}, nil
 }

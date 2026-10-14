@@ -13,17 +13,18 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/agent"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
 
 func (h *handler) registerAgent(r web.Routes) {
-	a := r.Admin
-	a.GET("/templates/:id/agent", h.agentForm)
-	a.POST("/templates/:id/agent", h.agentOpen)
-	a.POST("/templates/:id/agent/:sid/revoke", h.agentRevoke)
-	a.GET("/templates/:id/draft/revision", h.draftRevision)
+	srv := r.Area(access.Servers)
+	srv.Manage.GET("/templates/:id/agent", h.agentForm)
+	srv.Manage.POST("/templates/:id/agent", h.agentOpen)
+	srv.Manage.POST("/templates/:id/agent/:sid/revoke", h.agentRevoke)
+	srv.Manage.GET("/templates/:id/draft/revision", h.draftRevision)
 }
 
 // ---- the band ---------------------------------------------------------------

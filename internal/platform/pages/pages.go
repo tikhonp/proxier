@@ -9,6 +9,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/backup"
 	"github.com/tikhonp/proxier/internal/platform/config"
@@ -26,7 +27,7 @@ import (
 
 // Searcher is module.Searcher: things for the search pop-up's "Go to".
 type Searcher interface {
-	Search(ctx context.Context, q string, limit int) ([]ui.SearchHit, error)
+	Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error)
 }
 
 // Integrator is a module with rows on Settings → Integrations.
@@ -88,57 +89,71 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	r.Open.POST("/login/code", h.loginCode)
 	r.Open.POST("/login/passkey/options", h.loginPasskeyOptions)
 	r.Open.POST("/login/passkey", h.loginPasskey)
-	r.Admin.POST("/logout", h.logout)
+	r.Open.GET("/setup/:token", h.setupPage)
+	r.Open.POST("/setup/:token", h.setupPost)
 
-	r.Admin.GET("/", h.dashboard)
-	r.Admin.GET("/search", h.search)
+	// Every member's, whatever their grant: their own sign-in and language,
+	// and pages that show only what the grant reaches.
+	me := r.Member
+	me.POST("/logout", h.logout)
+	me.GET("/", h.dashboard)
+	me.GET("/search", h.search)
+	me.GET("/settings", func(c *echo.Context) error { return web.Redirect(c, "/settings/general") })
+	me.GET("/settings/general", h.generalPage)
+	me.POST("/settings/general/language", h.setLanguage)
+	me.GET("/settings/security", h.securityPage)
+	me.POST("/settings/security/password", h.changePassword)
+	me.POST("/settings/security/totp/setup", h.totpSetup)
+	me.POST("/settings/security/totp/enable", h.totpEnable)
+	me.POST("/settings/security/totp/disable", h.totpDisable)
+	me.POST("/settings/security/passkeys/options", h.passkeyOptions)
+	me.POST("/settings/security/passkeys", h.passkeyAdd)
+	me.POST("/settings/security/passkeys/:id/remove", h.passkeyRemove)
+	me.POST("/settings/security/sessions/:id/sign-out", h.signOutSession)
+	me.POST("/settings/security/sessions/sign-out-everywhere", h.signOutEverywhere)
 
-	r.Admin.GET("/jobs", h.jobsPage)
-	r.Admin.GET("/jobs/cell", h.jobsCell)
-	r.Admin.POST("/jobs/demo", h.runDemo)
-	r.Admin.GET("/jobs/:id", h.jobPage)
-	r.Admin.GET("/jobs/:id/stream", h.jobStream)
-	r.Admin.GET("/jobs/:id/log.txt", h.jobLogText)
-	r.Admin.POST("/jobs/:id/cancel", h.jobCancel)
-	r.Admin.POST("/jobs/:id/retry", h.jobRetry)
-	r.Admin.GET("/activity", h.activityPage)
+	// Cancel and Retry also need the job's own area (jobManage).
+	activity := r.Area(access.Activity).View
+	activity.GET("/jobs", h.jobsPage)
+	activity.GET("/jobs/cell", h.jobsCell)
+	activity.GET("/jobs/:id", h.jobPage)
+	activity.GET("/jobs/:id/stream", h.jobStream)
+	activity.GET("/jobs/:id/log.txt", h.jobLogText)
+	activity.POST("/jobs/:id/cancel", h.jobCancel)
+	activity.POST("/jobs/:id/retry", h.jobRetry)
+	activity.GET("/activity", h.activityPage)
 
-	r.Admin.GET("/settings/integrations", h.integrationsPage)
-	r.Admin.GET("/settings/integrations/tailnet", h.tailnetPage)
-	r.Admin.POST("/settings/integrations/tailnet/reauth", h.tailnetReauth)
-	r.Admin.GET("/settings/integrations/telegram", h.telegramPage)
-	r.Admin.POST("/settings/integrations/telegram/token", h.telegramToken)
-	r.Admin.POST("/settings/integrations/telegram/detect", h.telegramDetect)
-	r.Admin.POST("/settings/integrations/telegram/chat", h.telegramChat)
-	r.Admin.POST("/settings/integrations/telegram/test", h.telegramTest)
-	r.Admin.GET("/settings/ssh", h.sshPage)
-	r.Admin.POST("/settings/ssh/regenerate", h.sshRegenerate)
-	r.Admin.POST("/settings/ssh/personal-keys", h.sshPersonalKeys)
-	r.Admin.POST("/settings/ssh/hosts/:id/accept", h.sshAccept)
-	r.Admin.POST("/settings/ssh/hosts/:id/forget", h.sshForget)
-	r.Admin.GET("/settings/backups", h.backupsPage)
-	r.Admin.POST("/settings/backups", h.backupsSave)
-	r.Admin.POST("/settings/backups/run", h.backupsRun)
-	r.Admin.GET("/settings/backups/latest", h.backupsLatest)
-	r.Admin.GET("/settings/notifications", h.notificationsPage)
-	r.Admin.POST("/settings/notifications/:type", h.notificationsSet)
-	r.Admin.POST("/notifications/:id/retry", h.notificationRetry)
-
-	r.Admin.GET("/settings", func(c *echo.Context) error { return web.Redirect(c, "/settings/general") })
-	r.Admin.GET("/settings/general", h.generalPage)
-	r.Admin.POST("/settings/general", h.generalSave)
-	r.Admin.POST("/settings/general/language", h.setLanguage)
-	r.Admin.GET("/settings/security", h.securityPage)
-	r.Admin.POST("/settings/security/password", h.changePassword)
-	r.Admin.POST("/settings/security/totp/setup", h.totpSetup)
-	r.Admin.POST("/settings/security/totp/enable", h.totpEnable)
-	r.Admin.POST("/settings/security/totp/disable", h.totpDisable)
-	r.Admin.POST("/settings/security/passkeys/options", h.passkeyOptions)
-	r.Admin.POST("/settings/security/passkeys", h.passkeyAdd)
-	r.Admin.POST("/settings/security/passkeys/:id/remove", h.passkeyRemove)
-	r.Admin.POST("/settings/security/lockout", h.saveLockout)
-	r.Admin.POST("/settings/security/sessions/:id/sign-out", h.signOutSession)
-	r.Admin.POST("/settings/security/sessions/sign-out-everywhere", h.signOutEverywhere)
+	settings := r.Area(access.Settings).Manage
+	settings.POST("/jobs/demo", h.runDemo)
+	settings.POST("/settings/general", h.generalSave)
+	settings.POST("/settings/security/lockout", h.saveLockout)
+	settings.GET("/settings/members", h.membersPage)
+	settings.GET("/settings/members/new", h.memberNewPage)
+	settings.POST("/settings/members", h.memberAdd)
+	settings.GET("/settings/members/:id", h.memberPage)
+	settings.POST("/settings/members/:id/access", h.memberAccess)
+	settings.POST("/settings/members/:id/setup-link", h.memberSetupLink)
+	settings.POST("/settings/members/:id/remove", h.memberRemove)
+	settings.GET("/settings/integrations", h.integrationsPage)
+	settings.GET("/settings/integrations/tailnet", h.tailnetPage)
+	settings.POST("/settings/integrations/tailnet/reauth", h.tailnetReauth)
+	settings.GET("/settings/integrations/telegram", h.telegramPage)
+	settings.POST("/settings/integrations/telegram/token", h.telegramToken)
+	settings.POST("/settings/integrations/telegram/detect", h.telegramDetect)
+	settings.POST("/settings/integrations/telegram/chat", h.telegramChat)
+	settings.POST("/settings/integrations/telegram/test", h.telegramTest)
+	settings.GET("/settings/ssh", h.sshPage)
+	settings.POST("/settings/ssh/regenerate", h.sshRegenerate)
+	settings.POST("/settings/ssh/personal-keys", h.sshPersonalKeys)
+	settings.POST("/settings/ssh/hosts/:id/accept", h.sshAccept)
+	settings.POST("/settings/ssh/hosts/:id/forget", h.sshForget)
+	settings.GET("/settings/backups", h.backupsPage)
+	settings.POST("/settings/backups", h.backupsSave)
+	settings.POST("/settings/backups/run", h.backupsRun)
+	settings.GET("/settings/backups/latest", h.backupsLatest)
+	settings.GET("/settings/notifications", h.notificationsPage)
+	settings.POST("/settings/notifications/:type", h.notificationsSet)
+	settings.POST("/notifications/:id/retry", h.notificationRetry)
 	return h.shell
 }
 
@@ -148,16 +163,22 @@ var groupOrder = []string{"overview", "servers", "subscriptions", "routing", "ro
 func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	q := web.FromContext(c.Request().Context())
 	s := ui.Shell{
-		Title: title, Path: path, Lang: q.Loc.Lang,
-		Nav: h.navGroups(), Keys: h.keymap(), JobsCell: h.jobsCellView(c), PageKeys: "ui.hints.default",
+		Title: title, Path: path, Lang: q.Loc.Lang, Grant: q.Grant,
+		Nav: h.navGroups(q.Grant), Keys: h.keymap(q.Grant), PageKeys: "ui.hints.default",
+	}
+	if q.Grant.Sees(access.Activity) {
+		s.JobsCell = h.jobsCellView(c)
 	}
 	if q.Session != nil {
 		s.CSRF = q.Session.CSRF
 	}
-	if bad, err := h.Notify.LatestFailed(c.Request().Context()); err != nil {
-		h.Log.Error("pages: notification health", "error", err)
-	} else if bad {
-		s.Warning = &ui.HeaderWarning{Text: i18n.T(c.Request().Context(), "ui.warn.telegram_failing"), Href: "/#failed-notifications"}
+	// Telegram is Settings' to fix: only who can is warned.
+	if q.Grant.Can(access.Settings, access.LevelManage) {
+		if bad, err := h.Notify.LatestFailed(c.Request().Context()); err != nil {
+			h.Log.Error("pages: notification health", "error", err)
+		} else if bad {
+			s.Warning = &ui.HeaderWarning{Text: i18n.T(c.Request().Context(), "ui.warn.telegram_failing"), Href: "/#failed-notifications"}
+		}
 	}
 	if q.Member != nil {
 		s.Member = q.Member.Username
@@ -165,10 +186,13 @@ func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	return s
 }
 
-func (h *handler) navGroups() []ui.NavGroup {
+// navGroups is the sidebar of a member with grant g: only what they see.
+func (h *handler) navGroups(g access.Grant) []ui.NavGroup {
 	by := map[string][]ui.NavItem{}
 	for _, it := range h.Nav {
-		by[it.Group] = append(by[it.Group], it)
+		if g.Reaches(it.Area, it.Level) {
+			by[it.Group] = append(by[it.Group], it)
+		}
 	}
 	var out []ui.NavGroup
 	add := func(name string) {
@@ -195,14 +219,14 @@ func (h *handler) navGroups() []ui.NavGroup {
 }
 
 // keymap is the ? sheet. The g letters come from the nav, so only pages that
-// exist are listed.
-func (h *handler) keymap() ui.Keymap {
+// exist and the member sees are listed.
+func (h *handler) keymap(g access.Grant) ui.Keymap {
 	anywhere := ui.KeyGroup{Where: "keys.anywhere", Keys: []ui.Key{
 		{Keys: "/", What: "keys.search"}, {Keys: ":", What: "keys.actions"}, {Keys: "?", What: "keys.keys"}, {Keys: "esc", What: "keys.esc"},
 	}}
 	goTo := ui.KeyGroup{Where: "keys.goto"}
-	for _, g := range h.navGroups() {
-		for _, it := range g.Items {
+	for _, ng := range h.navGroups(g) {
+		for _, it := range ng.Items {
 			if it.GoKey != "" {
 				goTo.Keys = append(goTo.Keys, ui.Key{Keys: "g " + it.GoKey, What: it.Label})
 			}

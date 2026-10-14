@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -25,22 +26,23 @@ func routerHref(id int64) string { return routersPath + "/" + i64(id) }
 
 // registerRouters adds the routers' routes.
 func (h *handler) registerRouters(r web.Routes) {
-	r.Admin.GET(routersPath, h.routersList)
-	r.Admin.GET(routersPath+"/new", h.routerAddPage)
-	r.Admin.POST(routersPath+"/test", h.routerTest)
-	r.Admin.GET(routersPath+"/tests/:test", h.routerTestArea)
-	r.Admin.POST(routersPath+"/tests/:test/confirm", h.routerConfirm)
-	r.Admin.POST(routersPath, h.routerCreate)
-	r.Admin.GET(routersPath+"/:id", h.routerPage)
-	r.Admin.POST(routersPath+"/:id/sync", h.routerSyncNow)
-	r.Admin.POST(routersPath+"/:id/preview", h.routerPreviewStart)
-	r.Admin.GET(routersPath+"/:id/preview", h.routerPreviewArea)
-	r.Admin.GET(routersPath+"/:id/syncs/:sync", h.routerSyncPage)
-	r.Admin.GET(routersPath+"/:id/syncs/:sync/script.rsc", h.routerScript)
-	r.Admin.GET(routersPath+"/:id/edit", h.routerEditPage)
-	r.Admin.POST(routersPath+"/:id/edit", h.routerEdit)
-	r.Admin.GET(routersPath+"/:id/list", h.routerListPage)
-	r.Admin.POST(routersPath+"/:id/list", h.routerSetList)
+	rt := r.Area(access.Routing)
+	rt.View.GET(routersPath, h.routersList)
+	rt.Manage.GET(routersPath+"/new", h.routerAddPage)
+	rt.Manage.POST(routersPath+"/test", h.routerTest)
+	rt.Manage.GET(routersPath+"/tests/:test", h.routerTestArea)
+	rt.Manage.POST(routersPath+"/tests/:test/confirm", h.routerConfirm)
+	rt.Manage.POST(routersPath, h.routerCreate)
+	rt.View.GET(routersPath+"/:id", h.routerPage)
+	rt.Manage.POST(routersPath+"/:id/sync", h.routerSyncNow)
+	rt.Manage.POST(routersPath+"/:id/preview", h.routerPreviewStart)
+	rt.View.GET(routersPath+"/:id/preview", h.routerPreviewArea)
+	rt.View.GET(routersPath+"/:id/syncs/:sync", h.routerSyncPage)
+	rt.View.GET(routersPath+"/:id/syncs/:sync/script.rsc", h.routerScript)
+	rt.Manage.GET(routersPath+"/:id/edit", h.routerEditPage)
+	rt.Manage.POST(routersPath+"/:id/edit", h.routerEdit)
+	rt.Manage.GET(routersPath+"/:id/list", h.routerListPage)
+	rt.Manage.POST(routersPath+"/:id/list", h.routerSetList)
 	h.registerRouterLife(r)
 }
 

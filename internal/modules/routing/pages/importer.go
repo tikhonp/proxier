@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -23,11 +24,12 @@ func importHref(id int64) string { return importPath + "/" + i64(id) }
 
 // registerImport adds the mtvpn import's routes.
 func (h *handler) registerImport(r web.Routes) {
-	r.Admin.GET(importPath, h.importPage)
-	r.Admin.POST(importPath, h.importPreview)
-	r.Admin.GET(importPath+"/:id", h.importStep)
-	r.Admin.POST(importPath+"/:id", h.importRun)
-	r.Admin.GET(importPath+"/:id/status", h.importStatus)
+	rt := r.Area(access.Routing)
+	rt.Manage.GET(importPath, h.importPage)
+	rt.Manage.POST(importPath, h.importPreview)
+	rt.Manage.GET(importPath+"/:id", h.importStep)
+	rt.Manage.POST(importPath+"/:id", h.importRun)
+	rt.View.GET(importPath+"/:id/status", h.importStatus)
 }
 
 func (h *handler) loadImport(c *echo.Context) (mtvpn.Import, error) {

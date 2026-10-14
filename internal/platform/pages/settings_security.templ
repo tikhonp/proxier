@@ -3,6 +3,7 @@ package pages
 import (
 	"strconv"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
@@ -125,17 +126,20 @@ templ securityPage(s ui.Shell, pages []ui.SettingsPage, v securityPageView) {
 				}
 			}
 		</section>
-		<section class="set-section" aria-labelledby="lo-h">
-			<div class="pc-title"><h2 id="lo-h">{ i18n.T(ctx, "settings.lockout") }</h2></div>
-			if v.LockoutSaved {
-				<div class="form">
-					@ui.Alert("pine", "status") {
-						{ i18n.T(ctx, "ui.saved") }
-					}
-				</div>
-			}
-			@ui.SettingsForm(v.Section, v.Values, v.LockoutErrs, "/settings/security/lockout")
-		</section>
+		// the lockout is everyone's sign-in: Settings' to change
+		if s.Grant.Can(access.Settings, access.LevelManage) {
+			<section class="set-section" aria-labelledby="lo-h">
+				<div class="pc-title"><h2 id="lo-h">{ i18n.T(ctx, "settings.lockout") }</h2></div>
+				if v.LockoutSaved {
+					<div class="form">
+						@ui.Alert("pine", "status") {
+							{ i18n.T(ctx, "ui.saved") }
+						}
+					</div>
+				}
+				@ui.SettingsForm(v.Section, v.Values, v.LockoutErrs, "/settings/security/lockout")
+			</section>
+		}
 	}
 }
 

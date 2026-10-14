@@ -15,6 +15,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/agentapi"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -46,40 +47,42 @@ func ScriptHref(id int64) string { return ListPath + "/" + strconv.FormatInt(id,
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
+	rs := r.Area(access.RouterScripts)
+	rsAll := rs.At(access.LevelManageAll)
 	h := &handler{Deps: d, shell: r.Shell}
-	r.Admin.GET(ListPath, h.list)
-	r.Admin.GET(ListPath+"/new", h.newPage)
-	r.Admin.POST(ListPath, h.create)
-	r.Admin.GET(ListPath+"/:id", h.page)
-	r.Admin.GET(ListPath+"/:id/details", h.detailsPage)
-	r.Admin.POST(ListPath+"/:id/details", h.details)
-	r.Admin.POST(ListPath+"/:id/edit", h.edit)
-	r.Admin.POST(ListPath+"/:id/draft", h.saveDraft)
-	r.Admin.POST(ListPath+"/:id/draft/parameters", h.panel)
-	r.Admin.POST(ListPath+"/:id/draft/discard", h.discard)
-	r.Admin.GET(ListPath+"/:id/draft/revision", h.draftRevision)
-	r.Admin.GET(ListPath+"/:id/agent", h.agentForm)
-	r.Admin.POST(ListPath+"/:id/agent", h.agentOpen)
-	r.Admin.POST(ListPath+"/:id/agent/:sid/revoke", h.agentRevoke)
-	r.Admin.GET(ListPath+"/:id/publish", h.publishPage)
-	r.Admin.POST(ListPath+"/:id/publish", h.publish)
-	r.Admin.GET(ListPath+"/:id/versions/:n", h.version)
-	r.Admin.GET(ListPath+"/:id/versions/:n/download", h.download)
-	r.Admin.POST(ListPath+"/:id/versions/:n/current", h.makeCurrent)
-	r.Admin.GET(ListPath+"/:id/diff", h.diff)
-	r.Admin.POST(ListPath+"/:id/archive", h.archive(true))
-	r.Admin.POST(ListPath+"/:id/unarchive", h.archive(false))
-	r.Admin.GET(ListPath+"/:id/generate", h.generatePage)
-	r.Admin.POST(ListPath+"/:id/generate/summary", h.generateSummary)
-	r.Admin.POST(ListPath+"/:id/generate", h.generate)
-	r.Admin.GET(ListPath+"/generations/:gid", h.generationPage)
-	r.Admin.GET(ListPath+"/generations/:gid/download", h.generationDownload)
-	r.Admin.GET(ListPath+"/generations/:gid/changes", h.generationChanges)
-	r.Admin.POST(ListPath+"/generations/:gid/fetch-url", h.fetchURLCreate)
-	r.Admin.GET(ListPath+"/generations/:gid/fetch-url/reveal", h.fetchURLReveal)
-	r.Admin.GET(ListPath+"/generations/:gid/after", h.afterArea)
-	r.Admin.GET(ListPath+"/:id/delete", h.deletePage)
-	r.Admin.POST(ListPath+"/:id/delete", h.deletePost)
+	rs.View.GET(ListPath, h.list)
+	rsAll.GET(ListPath+"/new", h.newPage)
+	rsAll.POST(ListPath, h.create)
+	rs.View.GET(ListPath+"/:id", h.page)
+	rsAll.GET(ListPath+"/:id/details", h.detailsPage)
+	rsAll.POST(ListPath+"/:id/details", h.details)
+	rsAll.POST(ListPath+"/:id/edit", h.edit)
+	rsAll.POST(ListPath+"/:id/draft", h.saveDraft)
+	rsAll.POST(ListPath+"/:id/draft/parameters", h.panel)
+	rsAll.POST(ListPath+"/:id/draft/discard", h.discard)
+	rsAll.GET(ListPath+"/:id/draft/revision", h.draftRevision)
+	rsAll.GET(ListPath+"/:id/agent", h.agentForm)
+	rsAll.POST(ListPath+"/:id/agent", h.agentOpen)
+	rsAll.POST(ListPath+"/:id/agent/:sid/revoke", h.agentRevoke)
+	rsAll.GET(ListPath+"/:id/publish", h.publishPage)
+	rsAll.POST(ListPath+"/:id/publish", h.publish)
+	rs.View.GET(ListPath+"/:id/versions/:n", h.version)
+	rs.View.GET(ListPath+"/:id/versions/:n/download", h.download)
+	rsAll.POST(ListPath+"/:id/versions/:n/current", h.makeCurrent)
+	rs.View.GET(ListPath+"/:id/diff", h.diff)
+	rsAll.POST(ListPath+"/:id/archive", h.archive(true))
+	rsAll.POST(ListPath+"/:id/unarchive", h.archive(false))
+	rs.Manage.GET(ListPath+"/:id/generate", h.generatePage)
+	rs.Manage.POST(ListPath+"/:id/generate/summary", h.generateSummary)
+	rs.Manage.POST(ListPath+"/:id/generate", h.generate)
+	rs.View.GET(ListPath+"/generations/:gid", h.generationPage)
+	rs.View.GET(ListPath+"/generations/:gid/download", h.generationDownload)
+	rs.View.GET(ListPath+"/generations/:gid/changes", h.generationChanges)
+	rs.Manage.POST(ListPath+"/generations/:gid/fetch-url", h.fetchURLCreate)
+	rs.Manage.GET(ListPath+"/generations/:gid/fetch-url/reveal", h.fetchURLReveal)
+	rs.View.GET(ListPath+"/generations/:gid/after", h.afterArea)
+	rsAll.GET(ListPath+"/:id/delete", h.deletePage)
+	rsAll.POST(ListPath+"/:id/delete", h.deletePost)
 }
 
 func i64(n int64) string { return strconv.FormatInt(n, 10) }

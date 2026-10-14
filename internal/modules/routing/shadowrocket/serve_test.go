@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/httpx"
 )
 
@@ -144,7 +145,7 @@ func TestTokenStaysOnItsPage(t *testing.T) {
 			t.Errorf("%s holds a token", page)
 		}
 	}
-	hits, _ := h.Mod.Search(bg(), "iph", 10)
+	hits, _ := h.Mod.Search(bg(), access.PresetOwner.Grant(), "iph", 10)
 	for _, hit := range hits {
 		if strings.Contains(hit.Href+hit.Meta, cur) {
 			t.Errorf("search hit holds the token: %+v", hit)

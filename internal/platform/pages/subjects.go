@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"sort"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -84,8 +85,13 @@ func (s *subjectNames) platform(ctx context.Context, typ string, ids []string) (
 	for _, id := range ids {
 		switch typ {
 		case "member", "admin": // admin:1 is the subject of events recorded before members
-			ref := ui.SubjectRef{Label: typ + ":" + id, Href: "/settings/security"}
-			if name, ok := web.MemberName(ctx, auth.SubjectMember(events.Subject{Type: typ, ID: id})); ok {
+			mid := auth.SubjectMember(events.Subject{Type: typ, ID: id})
+			ref := ui.SubjectRef{Label: typ + ":" + id}
+			// the member's page on Members, for who may open it
+			if web.Can(ctx, access.Settings, access.LevelManage) {
+				ref.Href = memberHref(mid)
+			}
+			if name, ok := web.MemberName(ctx, mid); ok {
 				ref.Label = name
 			}
 			out[id] = ref

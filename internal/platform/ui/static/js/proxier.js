@@ -526,6 +526,26 @@
     if (out) out.textContent = String($$('input[data-pick]:checked', f).length);
   });
 
+  // ---- a preset fills the access grid of its form ([data-preset]: "servers=manage,…")
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('[data-preset]');
+    if (!b || !b.form) return;
+    b.getAttribute('data-preset').split(',').forEach(function (pair) {
+      var kv = pair.split('=');
+      var sel = b.form.querySelector('select[name="level.' + kv[0] + '"]');
+      if (sel) sel.value = kv[1];
+    });
+  });
+
+  // htmx swaps no 4xx: a refusal for the member's access (403 with
+  // .forbidden) is said in the key line instead of nothing happening
+  document.addEventListener('htmx:responseError', function (e) {
+    var x = e.detail && e.detail.xhr;
+    if (!x || x.status !== 403) return;
+    var p = new DOMParser().parseFromString(x.responseText || '', 'text/html').querySelector('.forbidden');
+    if (p) say(p.textContent);
+  });
+
   // htmx swaps leave the cursor pointing at nothing
   document.addEventListener('htmx:afterSwap', function () {
     cursor = -1;

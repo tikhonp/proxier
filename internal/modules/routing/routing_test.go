@@ -10,6 +10,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 )
@@ -148,22 +149,22 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 		t.Errorf("routing: %+v", got)
 	}
 
-	hits, err := h.Mod.Search(ctx, "anthro", 10)
+	hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), "anthro", 10)
 	if err != nil || len(hits) != 1 || hits[0].Label != "anthropic" || hits[0].Meta != "service · v2fly · 2 domains" || hits[0].Href != "/routing/services/1" {
 		t.Errorf("by tag: %+v %v", hits, err)
 	}
-	if hits, _ := h.Mod.Search(ctx, "iplist:you", 10); len(hits) != 1 || hits[0].Label != "youtube.com" || hits[0].Meta != "service · iplist · 1 domain" {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "iplist:you", 10); len(hits) != 1 || hits[0].Label != "youtube.com" || hits[0].Meta != "service · iplist · 1 domain" {
 		t.Errorf("by selector: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, "MINE", 10); len(hits) != 1 || hits[0].Label != "mine" {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "MINE", 10); len(hits) != 1 || hits[0].Label != "mine" {
 		t.Errorf("by name: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, "zzz", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 10); len(hits) != 0 {
 		t.Errorf("nothing: %+v", hits)
 	}
 	// lists by name
 	h.List("Main", 1, 3)
-	if hits, _ := h.Mod.Search(ctx, "mai", 10); len(hits) != 1 || hits[0].Label != "Main" || hits[0].Meta != "routing list · 2 services" || hits[0].Href != "/routing/lists/1" {
+	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "mai", 10); len(hits) != 1 || hits[0].Label != "Main" || hits[0].Meta != "routing list · 2 services" || hits[0].Href != "/routing/lists/1" {
 		t.Errorf("lists: %+v", hits)
 	}
 	body := h.Login.Get("/activity?subject=service:1").Body.String()

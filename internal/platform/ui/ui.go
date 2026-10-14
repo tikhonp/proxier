@@ -13,6 +13,7 @@ import (
 	"sort"
 
 	"github.com/a-h/templ"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
@@ -59,7 +60,8 @@ type Shell struct {
 	Title    string // already translated
 	Path     string // current path, for the sidebar's current row
 	CSRF     string
-	Member   string // username, for the header
+	Member   string       // username, for the header
+	Grant    access.Grant // what the member sees: Settings lists only those pages
 	Lang     i18n.Lang
 	Nav      []NavGroup
 	Keys     Keymap
@@ -78,8 +80,10 @@ type HeaderWarning struct {
 }
 
 type NavItem struct {
-	Group string // "overview" | "servers" | "subscriptions" | "routing" | "routerscripts" | "system"
-	Label string // i18n key
+	Group string       // "overview" | "servers" | "subscriptions" | "routing" | "routerscripts" | "system"
+	Area  access.Area  // shown to members who see it; EveryMember for all
+	Level access.Level // the level its page needs when higher than the area's lowest
+	Label string       // i18n key
 	Href  string
 	GoKey string // letter after g, "" for none
 	Order int
@@ -92,9 +96,10 @@ type NavGroup struct {
 }
 
 type SettingsPage struct {
-	Slug  string // "/settings/<slug>"
-	Title string // i18n key
-	Order int    // General 10, Security 20, SSH 30, Integrations 40, Notifications 50, … About 900
+	Slug  string      // "/settings/<slug>"
+	Area  access.Area // shown to members who see it; EveryMember for a member's own
+	Title string      // i18n key
+	Order int         // General 10, Security 20, SSH 30, Integrations 40, Notifications 50, … About 900
 }
 
 // IntegrationRow is one line of Settings → Integrations.
@@ -109,6 +114,8 @@ type IntegrationRow struct {
 // DashboardArea is a module's block on the dashboard. Areas are sorted by
 // Order after the platform's own.
 type DashboardArea struct {
+	Area  access.Area  // shown to members who see it
+	Level access.Level // the level it needs when higher than the area's lowest
 	Order int
 	Title string          // already translated
 	Body  templ.Component // rendered inside the area
@@ -122,6 +129,7 @@ type SubjectRef struct {
 
 type SearchHit struct {
 	Label, Meta, Href string
+	Area              access.Area // shown to members who see it
 }
 
 type ActionKind int
@@ -184,6 +192,14 @@ type SignInView struct {
 	Ended     string // "" | "idle" | "absolute"
 	Passkeys  bool   // a passkey exists: offer it
 	Pending   string // the code step: the sign-in waiting for its code
+}
+
+// SetupView is what a new member's setup link shows.
+type SetupView struct {
+	Token    string // the link's, for the form to post back
+	Username string // whom the link sets up
+	SignedIn string // set when this browser is signed in as someone: refused
+	Err      string // i18n key
 }
 
 type csrfKey struct{}

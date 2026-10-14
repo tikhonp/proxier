@@ -101,6 +101,12 @@
 .row.attr { grid-template-columns: 160px minmax(0, 1fr); }
 .row.host { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1.6fr) minmax(0, .9fr) minmax(0, .9fr) auto; }
 .row.bk { grid-template-columns: minmax(0, 1.4fr) minmax(0, .6fr) minmax(0, 1fr); }
+.row.mem, .colhead.mem { grid-template-columns: minmax(140px, 1.4fr) minmax(110px, 1fr) minmax(170px, 1.4fr) minmax(110px, .8fr); }
+.access { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.access .presets { display: flex; flex-wrap: wrap; gap: 8px; }
+.access .access-row { display: grid; grid-template-columns: minmax(140px, 180px) minmax(140px, 1fr); gap: 4px 12px; align-items: center; }
+.access .access-row label { margin: 0; }
+.access .access-row .help { grid-column: 2; margin-top: 0; }
 .colhead { display: grid; gap: 16px; padding: 12px 16px 6px; font-size: var(--fs-label); line-height: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 /* A table (.tbl: column heads and rows) never squeezes a column below its minimum:
    when the page is narrower (zoomed in, a small window) it scrolls sideways in its
@@ -309,6 +315,8 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .settings-nav a { flex: none; height: 44px; }
   .form { max-width: none; }
   .row.sess, .row.pk, .row.host, .row.bk { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .access .access-row { grid-template-columns: minmax(0, 1fr); }
+  .access .access-row .help { grid-column: 1; }
   .pw-confirm { justify-self: start; }
   .pw-confirm form .pc-inp { width: 100%; }
   .row .actions { justify-content: flex-start; }
@@ -539,6 +547,7 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .bulk { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px 16px; border-bottom: 1px solid var(--overlay); }
 .bulk .check { white-space: nowrap; }
 .srv-cards { display: none; }
+.row.srv-brief, .colhead.srv-brief { grid-template-columns: minmax(140px, 1.2fr) minmax(140px, 1fr) minmax(140px, 1fr); gap: 14px; align-items: center; }
 .row.srv-card { display: flex; flex-direction: column; align-items: stretch; gap: 4px; padding: 10px 16px; text-decoration: none; color: inherit; }
 .row.srv-card > .bold { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .newcols { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 0; }

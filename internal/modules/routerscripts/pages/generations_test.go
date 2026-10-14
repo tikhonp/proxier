@@ -16,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/rscriptstest"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routing"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
@@ -258,11 +259,11 @@ func TestGenerationsListed(t *testing.T) {
 	contains(t, "version", h.Login.Get("/router-scripts/1/versions/1").Body.String(), "Generate from this version", `/router-scripts/1/generate?version=1`)
 
 	lctx := i18n.WithLocalizer(context.Background(), h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(lctx, "DACH", 10)
+	hits, err := h.Mod.Search(lctx, access.PresetOwner.Grant(), "DACH", 10)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Dacha" || hits[0].Meta != "generation · fresh-router v1" || hits[0].Href != "/router-scripts/generations/1" {
 		t.Errorf("search: %+v %v", hits, err)
 	}
-	hits, _ = h.Mod.Search(lctx, "fresh", 10)
+	hits, _ = h.Mod.Search(lctx, access.PresetOwner.Grant(), "fresh", 10)
 	if len(hits) != 2 || hits[1].Label != "Generate for a new router · fresh-router" || hits[1].Href != "/router-scripts/1/generate" {
 		t.Errorf("the action: %+v", hits)
 	}

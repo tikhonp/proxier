@@ -16,6 +16,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -182,17 +183,17 @@ func (full) Messages() i18n.Messages {
 	return i18n.Messages{"fake.hello": {EN: "Hello", RU: "Привет"}}
 }
 func (full) Routes(r web.Routes) {
-	r.Admin.GET("/fake", func(c *echo.Context) error { routed = true; return c.String(200, "fake page") })
+	r.Area(access.Servers).View.GET("/fake", func(c *echo.Context) error { routed = true; return c.String(200, "fake page") })
 }
 func (full) Nav() []ui.NavItem {
-	return []ui.NavItem{{Group: "servers", Label: "fake.hello", Href: "/fake", GoKey: "f", Order: 1}}
+	return []ui.NavItem{{Group: "servers", Area: access.Servers, Label: "fake.hello", Href: "/fake", GoKey: "f", Order: 1}}
 }
 func (full) SettingsPages() []ui.SettingsPage {
-	return []ui.SettingsPage{{Slug: "fake", Title: "fake.hello", Order: 60}}
+	return []ui.SettingsPage{{Slug: "fake", Area: access.Settings, Title: "fake.hello", Order: 60}}
 }
-func (full) Search(_ context.Context, q string, _ int) ([]ui.SearchHit, error) {
+func (full) Search(_ context.Context, _ access.Grant, q string, _ int) ([]ui.SearchHit, error) {
 	searched = true
-	return []ui.SearchHit{{Label: "fake thing " + q, Href: "/fake"}}, nil
+	return []ui.SearchHit{{Area: access.Servers, Label: "fake thing " + q, Href: "/fake"}}, nil
 }
 
 func TestOptionalModuleInterfacesArePickedUp(t *testing.T) {

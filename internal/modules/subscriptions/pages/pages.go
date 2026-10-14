@@ -15,6 +15,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -41,47 +42,49 @@ type handler struct {
 
 // Register adds the module's routes.
 func Register(r web.Routes, d Deps) {
+	subs := r.Area(access.Subscriptions)
+	settings := r.Area(access.Settings).Manage
 	h := &handler{Deps: d, shell: r.Shell, settingsPages: r.SettingsPages}
-	r.Admin.GET("/subscriptions", h.list)
-	r.Admin.GET("/subscriptions/new", h.newPage)
-	r.Admin.POST("/subscriptions", h.create)
-	r.Admin.GET("/subscriptions/:id", h.page)
-	r.Admin.POST("/subscriptions/:id", h.save)
-	r.Admin.GET("/subscriptions/:id/servers/add", h.addPage)
-	r.Admin.POST("/subscriptions/:id/servers", h.add)
-	r.Admin.POST("/subscriptions/:id/servers/order", h.order)
-	r.Admin.POST("/subscriptions/:id/servers/:server/remove", h.remove)
-	r.Admin.POST("/subscriptions/:id/servers/:server/move", h.move)
-	r.Admin.GET("/subscriptions/:id/preview", h.preview)
-	r.Admin.GET("/subscriptions/:id/delete", h.deletePage)
-	r.Admin.POST("/subscriptions/:id/delete", h.deletePost)
-	r.Admin.POST("/subscriptions/:id/move-links", h.moveLinks)
+	subs.View.GET("/subscriptions", h.list)
+	subs.Manage.GET("/subscriptions/new", h.newPage)
+	subs.Manage.POST("/subscriptions", h.create)
+	subs.View.GET("/subscriptions/:id", h.page)
+	subs.Manage.POST("/subscriptions/:id", h.save)
+	subs.Manage.GET("/subscriptions/:id/servers/add", h.addPage)
+	subs.Manage.POST("/subscriptions/:id/servers", h.add)
+	subs.Manage.POST("/subscriptions/:id/servers/order", h.order)
+	subs.Manage.POST("/subscriptions/:id/servers/:server/remove", h.remove)
+	subs.Manage.POST("/subscriptions/:id/servers/:server/move", h.move)
+	subs.View.GET("/subscriptions/:id/preview", h.preview)
+	subs.Manage.GET("/subscriptions/:id/delete", h.deletePage)
+	subs.Manage.POST("/subscriptions/:id/delete", h.deletePost)
+	subs.Manage.POST("/subscriptions/:id/move-links", h.moveLinks)
 
-	r.Admin.GET("/links", h.linkList)
-	r.Admin.GET("/links/new", h.newLinkPage)
-	r.Admin.POST("/links", h.createLink)
-	r.Admin.GET("/links/:id", h.linkPage)
-	r.Admin.GET("/links/:id/url", h.linkURL)
-	r.Admin.GET("/links/:id/qr", h.linkQR)
-	r.Admin.POST("/links/:id/disable", h.act(h.Links.Disable, ""))
-	r.Admin.POST("/links/:id/enable", h.act(h.Links.Enable, ""))
-	r.Admin.POST("/links/:id/regenerate", h.act(h.Links.RegenerateToken, "?regenerated=1"))
-	r.Admin.GET("/links/:id/subscription", h.formPage("subscription"))
-	r.Admin.POST("/links/:id/subscription", h.changeSubscription)
-	r.Admin.GET("/links/:id/expiry", h.formPage("expiry"))
-	r.Admin.POST("/links/:id/expiry", h.setExpiry)
-	r.Admin.GET("/links/:id/edit", h.formPage("edit"))
-	r.Admin.POST("/links/:id/edit", h.editLink)
-	r.Admin.POST("/links/:id/delete", h.deleteLink)
-	r.Admin.GET("/links/:id/cutoff", h.cutoffPlan)
-	r.Admin.POST("/links/:id/cutoff", h.cutoffStart)
-	r.Admin.GET("/links/:id/cutoff/status", h.cutoffStatus)
-	r.Admin.POST("/links/:id/cutoff/:position/retry", h.cutoffRetry)
-	r.Admin.GET("/links/:id/alerts", h.alertsPage)
-	r.Admin.POST("/links/:id/alerts", h.saveAlerts)
+	subs.View.GET("/links", h.linkList)
+	subs.Manage.GET("/links/new", h.newLinkPage)
+	subs.Manage.POST("/links", h.createLink)
+	subs.View.GET("/links/:id", h.linkPage)
+	subs.Manage.GET("/links/:id/url", h.linkURL)
+	subs.Manage.GET("/links/:id/qr", h.linkQR)
+	subs.Manage.POST("/links/:id/disable", h.act(h.Links.Disable, ""))
+	subs.Manage.POST("/links/:id/enable", h.act(h.Links.Enable, ""))
+	subs.Manage.POST("/links/:id/regenerate", h.act(h.Links.RegenerateToken, "?regenerated=1"))
+	subs.Manage.GET("/links/:id/subscription", h.formPage("subscription"))
+	subs.Manage.POST("/links/:id/subscription", h.changeSubscription)
+	subs.Manage.GET("/links/:id/expiry", h.formPage("expiry"))
+	subs.Manage.POST("/links/:id/expiry", h.setExpiry)
+	subs.Manage.GET("/links/:id/edit", h.formPage("edit"))
+	subs.Manage.POST("/links/:id/edit", h.editLink)
+	subs.Manage.POST("/links/:id/delete", h.deleteLink)
+	subs.Manage.GET("/links/:id/cutoff", h.cutoffPlan)
+	subs.Manage.POST("/links/:id/cutoff", h.cutoffStart)
+	subs.View.GET("/links/:id/cutoff/status", h.cutoffStatus)
+	subs.Manage.POST("/links/:id/cutoff/:position/retry", h.cutoffRetry)
+	subs.View.GET("/links/:id/alerts", h.alertsPage)
+	subs.Manage.POST("/links/:id/alerts", h.saveAlerts)
 
-	r.Admin.GET("/settings/subscriptions", h.settingsPage)
-	r.Admin.POST("/settings/subscriptions", h.saveSettings)
+	settings.GET("/settings/subscriptions", h.settingsPage)
+	settings.POST("/settings/subscriptions", h.saveSettings)
 }
 
 func subHref(id int64) string { return "/subscriptions/" + strconv.FormatInt(id, 10) }

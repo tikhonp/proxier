@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params/paramstest"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/rscriptstest"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 const insertGeneration = `INSERT INTO rscripts_generations (script_id, version, router_name, file_name, created_at, created_by)
@@ -114,7 +115,7 @@ func TestArchiveAndDelete(t *testing.T) {
 	if n, _ := h.Mod.Scripts.ArchivedCount(ctx); n != 1 {
 		t.Errorf("archived count: %d", n)
 	}
-	if hits, _ := h.Mod.Search(context.Background(), "fresh", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(context.Background(), access.PresetOwner.Grant(), "fresh", 10); len(hits) != 0 {
 		t.Errorf("search found an archived script: %+v", hits)
 	}
 	if err := h.Mod.Scripts.Archive(ctx, id, false, "admin"); err != nil {

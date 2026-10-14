@@ -2,13 +2,17 @@
 
 Every state change records an event in the same transaction as the change ([architecture](./architecture.md#events-and-history)). Events are the activity history (the Activity page and each object's Activity tab) and the only input to notifications. The tables below are the full catalog. **Notify** is the default of each event's notification rule, which Settings → Notifications can change.
 
-The payload lists the fields beyond the subject. A member's own events (`auth.*`, `admin.*`) have the subject `member:<id>`; those recorded before members say `admin:1`, which is member 1. Notification texts are given in English; each has a Russian twin in the catalogs.
+The payload lists the fields beyond the subject. A member's events (`auth.*`, `member.*`) have the subject `member:<id>`; those recorded before members say `admin:1`, which is member 1. Before members, `member.added` by `cli` was `admin.created` and `member.language_changed` was `admin.language_changed`; migration 00008 renamed them. Notification texts are given in English; each has a Russian twin in the catalogs.
 
 ## Platform
 
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
-| `admin.created` | member | username | off | The first member, from `proxier manage create-admin` (actor `cli`). |
+| `member.added` | member | username, access (`owner` / `operator` / `viewer`, or every area's level: `servers=view,…`) | **on** | From Settings → Members, or the first member from `proxier manage create-admin` (actor `cli`, `owner`). [Members](./processes/platform/members.md). |
+| `member.setup_link_created` | member | username, expires | off | Never the link. |
+| `member.setup_completed` | member | username | off | The new member chose their password; actor is the new member. |
+| `member.access_changed` | member | username, changes (`servers: view → manage, …`), access | **on** | |
+| `member.removed` | member | username, heir (member ID), heir_username, sessions | **on** | `heir` takes over what the removed member owned. |
 | `auth.signed_in` | member | ip, user agent, new_ip, method (`password` / `password+code` / `passkey`) | **on when `new_ip`** | "Signed in from a new IP 203.0.113.7 (Chrome on macOS)" |
 | `auth.sign_in_failed` | — | ip, and username tried (password) or stage (`code` / `passkey`) | off | Never the code. |
 | `auth.locked` | — | ip, failures, minutes | **on** | "5 failed sign-ins from 203.0.113.7; locked for 15 min" |
@@ -20,7 +24,7 @@ The payload lists the fields beyond the subject. A member's own events (`auth.*`
 | `auth.second_factor_reset` | member | via (`cli`), totp, passkeys, sessions | **on** | `proxier manage reset-2fa <username>`; recorded only when it removed or ended something. |
 | `auth.signed_out` | member | session (id), by (`self` / `settings`) | off | |
 | `auth.signed_out_everywhere` | member | sessions ended | off | |
-| `admin.language_changed` | member | from, to | off | |
+| `member.language_changed` | member | from, to | off | |
 | `settings.changed` | setting group | keys changed (never values) | off | |
 | `ssh.key_generated` | ssh key (`ssh:identity`) | fingerprint, regenerated | **on when `regenerated`** | The first start generates the key silently; **Regenerate** notifies, because every server, jump host and router needs the new key. |
 | `ssh.host_key_pinned` | known host | address, fingerprint | off | First contact with an address (subject `ssh_host:<address>`). |

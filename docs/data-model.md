@@ -6,10 +6,12 @@ The logical model: entities, their important fields and relations. The exact col
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Member** | id, username (unique ignoring case), password hash, language, WebAuthn user handle (32 random bytes), jobs seen at, created, created by (an actor), password changed | Every account. IDs are never reused: actors in history name members as `member:<id>`. The admin from before members is member 1. |
+| **Member** | id, username (unique ignoring case among the members not removed), password hash (none until setup), language, WebAuthn user handle (32 random bytes), jobs seen at, created, created by (an actor), password changed, removed, removed by | Every account. IDs are never reused: actors in history name members as `member:<id>`. The admin from before members is member 1. A removed member keeps the row (so history names them) and nothing else: no sessions, passkeys, app, levels or setup link. |
+| **Member access** | member, area, level | One row per area; no row is `none`. A CHECK lists each area's levels ([members](./processes/platform/members.md)). |
+| **Setup link** | member, token lookup (HMAC, unique), token 🔒 (erased when the link ends), created, created by, expires (24 h), ended, end reason (used / replaced / removed) | At most one open per member. Works only while its member is in and has no password. |
 | **Authenticator app** (`totp`) | member, secret 🔒, created, last used step | One row per member while it is on. The last used 30 s step makes every code single-use. |
 | **Passkey** | member, credential id (unique across members), name, credential (public key, signature counter, flags, as go-webauthn's JSON), created, last used | Any number per member. |
-| **Session** | id (stored hashed), member, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change or reset, "sign out everywhere", `reset-2fa`. |
+| **Session** | id (stored hashed), member, created, last seen, idle expiry, absolute expiry, IP, user agent | Ended by sign-out, password change or reset, "sign out everywhere", `reset-2fa`, the member's removal. |
 | **Sign-in attempt** | IP, time, success, member (none for an unknown username) | Feeds the lockout (per IP) and the "new IP" notification (per member). Kept 30 days. |
 | **Setting** | key, value (🔒 when secret), updated | Typed, grouped by module. |
 | **Known host** | address (`host:port`), key type, public key, fingerprint, first seen, accepted, subject (`server:12`, `router:3`, `jump:…`) | Pinned SSH host keys. |

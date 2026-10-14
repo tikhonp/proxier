@@ -1,13 +1,14 @@
 package pages
 
 import (
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/obs"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
-// generalLang is the admin's own language on Settings → General.
+// generalLang is the member's own language on Settings → General.
 type generalLang struct {
 	Current i18n.Lang
 	Saved   bool
@@ -38,7 +39,10 @@ templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, val
 				<span class="sm muted">{ i18n.T(ctx, "settings.version.help") }</span>
 			</div>
 		</div>
-		@ui.SettingsForm(sec, vals, errs, "/settings/general")
+		// the instance's settings are Settings'; the language below is the member's own
+		if s.Grant.Can(access.Settings, access.LevelManage) {
+			@ui.SettingsForm(sec, vals, errs, "/settings/general")
+		}
 		<section class="set-section" aria-labelledby="lang-h">
 			<div class="pc-title"><h2 id="lang-h">{ i18n.T(ctx, "ui.language") }</h2></div>
 			<form method="post" action="/settings/general/language" class="form">

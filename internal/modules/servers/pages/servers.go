@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -28,20 +29,21 @@ type UsageReader interface {
 }
 
 func (h *handler) registerServers(r web.Routes) {
-	r.Admin.GET("/servers", h.serversList)
-	r.Admin.GET("/servers/new", h.newServer)
-	r.Admin.POST("/servers/new/summary", h.newSummary)
-	r.Admin.POST("/servers", h.createServer)
-	r.Admin.POST("/servers/bulk/checks", h.bulkChecks)
-	r.Admin.POST("/servers/bulk/pause", h.bulkPause)
-	r.Admin.GET("/servers/:id", h.serverPage)
-	r.Admin.GET("/servers/:id/retry", h.retryForm, h.operable)
-	r.Admin.POST("/servers/:id/retry", h.retry, h.operable)
-	r.Admin.POST("/servers/:id/activate", h.activate, h.operable)
-	r.Admin.POST("/servers/:id/cancel", h.cancelProvisioning, h.operable)
-	r.Admin.GET("/servers/:id/endpoints/:key/uri", h.endpointURI)
-	r.Admin.GET("/servers/:id/endpoints/:key/qr", h.endpointQR)
-	r.Admin.POST("/servers/:id/notes", h.saveNotes, h.operable)
+	srv := r.Area(access.Servers)
+	srv.View.GET("/servers", h.serversList)
+	srv.Manage.GET("/servers/new", h.newServer)
+	srv.Manage.POST("/servers/new/summary", h.newSummary)
+	srv.Manage.POST("/servers", h.createServer)
+	srv.Manage.POST("/servers/bulk/checks", h.bulkChecks)
+	srv.Manage.POST("/servers/bulk/pause", h.bulkPause)
+	srv.Manage.GET("/servers/:id", h.serverPage)
+	srv.Manage.GET("/servers/:id/retry", h.retryForm, h.operable)
+	srv.Manage.POST("/servers/:id/retry", h.retry, h.operable)
+	srv.Manage.POST("/servers/:id/activate", h.activate, h.operable)
+	srv.Manage.POST("/servers/:id/cancel", h.cancelProvisioning, h.operable)
+	srv.Manage.GET("/servers/:id/endpoints/:key/uri", h.endpointURI)
+	srv.Manage.GET("/servers/:id/endpoints/:key/qr", h.endpointQR)
+	srv.Manage.POST("/servers/:id/notes", h.saveNotes, h.operable)
 }
 
 func serverHref(id int64) string { return "/servers/" + i64(id) }
