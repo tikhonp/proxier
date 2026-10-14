@@ -181,7 +181,7 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 
 ## Security model (summary)
 
-- One admin, password sign-in on a public host, no second factor. Mitigations: login lockout per IP, a notification on sign-in from a new IP, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
+- One admin on a public host. Password sign-in, with an optional authenticator app code; optional passkeys sign in alone ([ADR 0017](./adr/0017-passkeys-sign-in-alone.md)). Mitigations: login lockout per IP across passwords, codes and passkeys, a notification on sign-in from a new IP and on every change to the ways in, short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
 - Secrets encrypted at rest. The root password of a new VPS is kept, encrypted, only until Proxier's key is installed, then erased ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
 - SSH host keys are pinned on first contact. A changed key stops all work with that host until the admin accepts the new key ([ADR 0007](./adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 - Proxier never gets the Docker socket of the machine it runs on ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)).

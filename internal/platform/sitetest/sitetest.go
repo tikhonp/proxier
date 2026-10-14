@@ -37,6 +37,8 @@ type Options struct {
 	TrustedProxies []netip.Prefix
 	Modules        []module.Module
 	NoAdmin        bool
+	// BaseURL replaces http(s)://proxier.test, for a site a real browser opens.
+	BaseURL *url.URL
 	// Log receives the app's log as text (the request log included); nil
 	// discards it.
 	Log io.Writer
@@ -58,10 +60,14 @@ func New(t *testing.T, o Options) *Site {
 	if o.HTTPS {
 		scheme = "https"
 	}
+	base := &url.URL{Scheme: scheme, Host: "proxier.test"}
+	if o.BaseURL != nil {
+		base = o.BaseURL
+	}
 	cfg := &config.Config{
 		DataDir:        t.TempDir() + "/data",
 		MasterKey:      bytes.Repeat([]byte{7}, config.MasterKeySize),
-		BaseURL:        &url.URL{Scheme: scheme, Host: "proxier.test"},
+		BaseURL:        base,
 		TrustedProxies: o.TrustedProxies,
 		TZ:             tz,
 	}

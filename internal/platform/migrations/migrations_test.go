@@ -34,7 +34,7 @@ func mustFail(t *testing.T, d *db.DB, what, q string, args ...any) {
 func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.Open(t)
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 6; i++ {
 		if err := db.MigrateDown(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
 			t.Fatalf("down %d: %v", i, err)
 		}
@@ -63,6 +63,45 @@ func TestAuthTablesRefuseWhatTheContractForbids(t *testing.T) {
 		t.Fatalf("sessions after deleting the admin: %d, %v", n, err)
 	}
 	mustFail(t, d, "attempt without success flag value", `INSERT INTO sign_in_attempts (ip, time, success) VALUES ('ip', ?, 2)`, now)
+}
+
+func TestSecondFactorTablesKeepOneAppAndUniquePasskeys(t *testing.T) {
+	d := dbtest.Open(t)
+	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
+	mustExec(t, d, `INSERT INTO totp (id, secret, created_at) VALUES (1, x'01', ?)`, now)
+	mustFail(t, d, "second authenticator app", `INSERT INTO totp (id, secret, created_at) VALUES (2, x'01', ?)`, now)
+	pk := `INSERT INTO passkeys (credential_id, name, credential, created_at) VALUES (?, ?, '{}', ?)`
+	mustExec(t, d, pk, []byte("c1"), "MacBook", now)
+	mustFail(t, d, "duplicate credential", pk, []byte("c1"), "Phone", now)
+	mustFail(t, d, "empty name", pk, []byte("c2"), "", now)
+	ins := `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (?, 1, ?, ?, ?, 'ip', 'ip', ?, ?)`
+	mustExec(t, d, ins, []byte("t1"), now, now, now, now, "second_factor_reset")
+}
+
+// The sessions table is copied to widen its CHECK: the rows, the user handle
+// of an existing admin and the cascade from admin all survive.
+func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
+	ctx := context.Background()
+	d := dbtest.Open(t)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
+	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
+		t.Fatal(err)
+	}
+	var n, handle int
+	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sessions WHERE token_hash = x'aa'`); err != nil || n != 1 {
+		t.Fatalf("sessions after the copy: %d, %v", n, err)
+	}
+	if err := d.R.GetContext(ctx, &handle, `SELECT length(webauthn_user_id) FROM admin`); err != nil || handle != 32 {
+		t.Fatalf("user handle of the existing admin: %d bytes, %v", handle, err)
+	}
+	mustExec(t, d, `DELETE FROM admin`)
+	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sessions`); err != nil || n != 0 {
+		t.Fatalf("sessions after deleting the admin: %d, %v", n, err)
+	}
 }
 
 func TestJobsTablesCoalesceAndCascade(t *testing.T) {
