@@ -1,6 +1,6 @@
 # Exit demos
 
-Each [roadmap](./roadmap.md) phase ends with a demo that must work end to end on the real deployment (`proxier.tikhonnnnn.com`). Every phase is built and tested against fakes; none of these demos has been run yet, because each needs real hardware, accounts or phones. When one is run, write what passed and what differed into the relevant docs (and answer the open questions it names in [open-questions.md](./open-questions.md)), then mark it done here.
+Each [roadmap](./roadmap.md) phase ends with a demo that must work end to end on the real deployment (`proxier.tikhonnnnn.com`). Every phase is built and tested against fakes. Phase 4's demo was run on 2026-10-14; the others have not been run whole yet (parts were seen on 2026-10-12, recorded in the open questions), because each needs real hardware, accounts or phones. When one is run, write what passed and what differed into the relevant docs (and answer the open questions it names in [open-questions.md](./open-questions.md)), then mark it done here.
 
 ## Phase 0: platform
 
@@ -77,6 +77,10 @@ Each [roadmap](./roadmap.md) phase ends with a demo that must work end to end on
 5. Telegram: "Dacha · fresh-router v1 was fetched from <IP>". Fetching the same URL again answers `404`.
 6. Within 10 minutes the probe pins the router's key; Dacha is active, `router_connected` and the first sync follow; the generation page's After the import shows all three steps done. On the router `/ip dns static print where comment=<a tag of Main>` lists the domains; mihomo runs with `SUB1` = the link (its fetch appears on the link page).
 7. Note `/tool fetch`'s user agent, what the key and user lines needed on 7.24.5, the DHCP-client question, timings, anything that differed.
+
+**Done 2026-10-14**, with one difference: the file was downloaded and uploaded to the router by hand, not fetched, so steps 4's fetch and 5 were not run. A spare router on 7.24.5, reached through a jump host, reset with `no-defaults=yes`; nothing was added by hand before the import, which ran through: the script's own DHCP client on the WAN port, the `proxier` group and user with the `:rndstr` password, and `/user ssh-keys add … key=$proxierKey` all worked from the imported script. The probe pinned the key and Dacha was active and synced 2–10 minutes after the import; the first sync's `/import` finished promptly (no wait for the import timeout). The generation page's After the import showed its steps done, and mihomo got the link. Pulling and starting the mihomo container after the import stays a manual step, by design.
+
+Still not seen: `/tool fetch` from a reset router (its user agent, the Telegram "was fetched" message, the `404` on a second fetch), and whether a DHCP client added by hand for the fetch clashes with the script's own (open question "to verify" 9).
 
 ## Also not seen for real yet
 

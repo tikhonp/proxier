@@ -88,7 +88,7 @@ Test connection and every sync's connect step also run one check line: the versi
 
 ## Proxier's user on the router
 
-Proxier logs in as its own user in a restricted group. The add page shows the commands, **still to verify on the first real router** ([open questions](../open-questions.md), "to verify" 5):
+Proxier logs in as its own user in a restricted group. The add page shows the commands; on 7.24.5 they work from an imported router script, and the group is enough for the sync's `/import` (seen 2026-10-14, [open questions](../open-questions.md) "to verify" 5):
 
 ```
 /user group add name=proxier policy=read,write,ftp,ssh
