@@ -563,6 +563,8 @@ func TestParameterDocsInSync(t *testing.T) {
 		t.Fatal("the Parameters section of docs/modules/router-scripts.md moved: update this test")
 	}
 	want := strings.TrimRight(doc[from:to], "\n") + "\n"
+	// The copy's links lead from its own directory to the same docs.
+	want = strings.ReplaceAll(want, "](../", "](../../../../docs/")
 	if agent.ParameterDocs != want {
 		t.Fatal("routerscripts/agent/parameters.md differs from the Parameters section of docs/modules/router-scripts.md: copy the section again")
 	}

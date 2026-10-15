@@ -490,6 +490,8 @@ func TestManifestDocsInSync(t *testing.T) {
 		t.Fatal("the manifest section of docs/modules/servers.md moved: update this test")
 	}
 	want := strings.TrimRight(doc[from:to], "\n") + "\n"
+	// The copy's links lead from its own directory to the same docs.
+	want = strings.ReplaceAll(want, "](../", "](../../../../docs/")
 	if agent.ManifestDocs != want {
 		t.Fatal("servers/agent/manifest.md differs from the manifest and rendering sections of docs/modules/servers.md: copy the section again")
 	}

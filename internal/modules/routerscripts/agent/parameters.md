@@ -1,6 +1,6 @@
 ## Parameters
 
-Parameters are **detected from the script itself**, so the file stays a valid, importable RouterOS script with no template syntax ([ADR 0011](../adr/0011-router-script-parameters-from-local-block.md)):
+Parameters are **detected from the script itself**, so the file stays a valid, importable RouterOS script with no template syntax ([ADR 0011](../../../../docs/adr/0011-router-script-parameters-from-local-block.md)):
 
 - The **PARAMETERS block** starts at the first line that is `#`, optional spaces, `PARAMETERS` (case-sensitive, nothing else on the line: the header's "Edit the PARAMETERS section" isn't one) and ends at the next `# END PARAMETERS` line. If the end marker is missing, the block ends just before the first line that is neither a comment, a blank line nor a `:local` line, and publishing warns, naming the line where it stopped and the last three names read, because such a block can run into the next section: in `fresh-router.rsc` without the marker, it runs on into the PRECHECK section and picks up `minVer` (and `ver`, `v` as computed values). Lines are read with `\r\n` or `\n` as their terminator, which is kept when the file is filled.
 - Inside it, each line `:local <name> <literal>` is a **script parameter**. The literal is a quoted string (`"10.230.1"`, with RouterOS's escapes `\" \\ \$ \? \n \r \t \_ \a \b \f \v` and `\XX` in capital hex) or a bare word (`[A-Za-z0-9._:/+-]+`: `7024005`, `true`, `ether1`). The literal's value is its default.

@@ -25,7 +25,7 @@ internal/modules/servers/        templates, provisioning, deploys, health, stats
 internal/modules/subscriptions/  subscriptions, links, the public /s/ fetch, alerts, cut-off
 internal/modules/routing/        services, lists, refresh, catalog, Shadowrocket, mtvpn import, router sync, discovery
 internal/modules/routerscripts/  script versions, generations, fetch URLs, the router script agent API
-web/editor/                  source of the CodeMirror bundle (make editor → ui/static/js/editor.bundle.js, committed)
+web/editor/                  source of the CodeMirror bundle (make editor → internal/platform/ui/static/js/editor.bundle.js, committed)
 ```
 
 Modules are enabled in this order: `servers`, `subscriptions`, `routing`, `routerscripts`; each later one may consume the ports of earlier ones. Inside a module the shape repeats:
