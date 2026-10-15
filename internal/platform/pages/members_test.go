@@ -195,13 +195,15 @@ func TestALimitedMemberSeesOnlyTheirAreas(t *testing.T) {
 		t.Error("Security shows the lockout to a member without settings")
 	}
 	hits := anna.Get("/search?q=").Body.String()
-	for _, hidden := range []string{"/jobs", "/activity", "/settings/members", "/settings/notifications"} {
+	for _, hidden := range []string{"/jobs", "/activity", "/settings/members", "/settings/integrations"} {
 		if strings.Contains(hits, `"`+hidden+`"`) {
 			t.Errorf("search offers %s", hidden)
 		}
 	}
-	if !strings.Contains(hits, `"/settings/security"`) {
-		t.Error("search lacks the member's own Security")
+	for _, own := range []string{"/settings/security", "/settings/notifications"} {
+		if !strings.Contains(hits, `"`+own+`"`) {
+			t.Errorf("search lacks the member's own %s", own)
+		}
 	}
 }
 

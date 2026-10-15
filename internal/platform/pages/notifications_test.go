@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -12,7 +13,7 @@ func TestNotificationsPageTogglesRules(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{})
 	l := s.SignIn("")
 	page := l.Get("/settings/notifications").Body.String()
-	for _, want := range []string{"job.failed", "backup.failed", `aria-checked="true"`, "default: on", "Telegram is not configured"} {
+	for _, want := range []string{"job.failed", "backup.failed", `aria-checked="true"`, "default: on", "There is no Telegram bot yet", "/settings/integrations/telegram"} {
 		if !strings.Contains(page, want) {
 			t.Errorf("the page lacks %q", want)
 		}
@@ -36,7 +37,7 @@ func TestNotificationsPageTogglesRules(t *testing.T) {
 	if !strings.Contains(l.Get("/settings/notifications").Body.String(), `id="rule-job.failed"`) || !strings.Contains(l.Get("/settings/notifications").Body.String(), "1 changed") {
 		t.Error("the rule has no anchor or its group doesn't count it as changed")
 	}
-	rules, err := s.App.Notify.Rules(t.Context())
+	rules, err := s.App.Notify.Rules(t.Context(), 1, access.PresetOwner.Grant())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,5 +55,36 @@ func TestNotificationsPageTogglesRules(t *testing.T) {
 	}
 	if rec := l.Post("/settings/notifications/job.failed", url.Values{"enabled": {"maybe"}}); rec.Code != 400 {
 		t.Errorf("bad value: %d", rec.Code)
+	}
+}
+
+// A member's page lists only the rules of what they can be told about, and
+// what they turn off is theirs alone.
+func TestNotificationRulesArePerMember(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	anna := s.Join("anna", access.Grant{}.With(access.Subscriptions, access.LevelOwn), "198.51.100.2:1")
+	page := anna.Get("/settings/notifications").Body.String()
+	for _, want := range []string{`id="rule-auth.signed_in"`, `id="rule-auth.password_changed"`} {
+		if !strings.Contains(page, want) {
+			t.Errorf("anna's page lacks %s", want)
+		}
+	}
+	for _, hidden := range []string{`id="rule-job.failed"`, `id="rule-member.added"`, `id="rule-backup.failed"`} {
+		if strings.Contains(page, hidden) {
+			t.Errorf("anna's page offers %s", hidden)
+		}
+	}
+	if rec := anna.Post("/settings/notifications/job.failed", url.Values{"enabled": {"0"}}); rec.Code != 404 {
+		t.Errorf("anna turned off a rule out of her reach: %d", rec.Code)
+	}
+	if rec := anna.Post("/settings/notifications/auth.password_changed", url.Values{"enabled": {"0"}}); rec.Code != 303 {
+		t.Fatalf("%d", rec.Code)
+	}
+	if strings.Contains(l.Get("/settings/notifications").Body.String(), "1 changed") {
+		t.Error("anna's change shows on member 1's page")
+	}
+	if !strings.Contains(anna.Get("/settings/notifications").Body.String(), "1 changed") {
+		t.Error("anna's change doesn't show on her page")
 	}
 }

@@ -111,6 +111,19 @@ func (s *Service) send(ctx context.Context, r *jobs.Run) error {
 	if ch == nil {
 		return jobs.Permanent(fmt.Errorf("no channel %q", first.Channel))
 	}
+	// The address is read now, so a chat changed while this waited applies;
+	// a member removed meanwhile gets nothing.
+	m, err := s.a.Member(ctx, first.MemberID)
+	if err != nil {
+		return jobs.Permanent(fmt.Errorf("recipient %d: %w", first.MemberID, err))
+	}
+	to := ch.Address(m)
+	switch {
+	case m.Removed():
+		return jobs.Permanent(fmt.Errorf("%s was removed", m.Username))
+	case to == "":
+		return jobs.Permanent(fmt.Errorf("%s has no %s chat", m.Username, first.Channel))
+	}
 	msg := first.Message
 	if len(todo) > 1 {
 		var err error
@@ -123,7 +136,7 @@ func (s *Service) send(ctx context.Context, r *jobs.Run) error {
 		sending[i] = n.ID
 	}
 	r.Log().Info("Sending to %s: %s", first.Channel, msg.Title)
-	err := ch.Send(ctx, msg)
+	err = ch.Send(ctx, to, msg)
 	var rl *RateLimitedError
 	if errors.As(err, &rl) {
 		// Asked to wait: not a failed try.
@@ -154,13 +167,7 @@ func (s *Service) groupMessage(ctx context.Context, p deliverPayload, ns []Notif
 	if err := s.d.R.GetContext(ctx, &lang, `SELECT lang FROM notifications WHERE id = ?`, ns[0].ID); err != nil {
 		return Message{}, err
 	}
-	tz := time.UTC
-	if name, err := s.st.Get(ctx, "general.time_zone"); err == nil {
-		if l, err := time.LoadLocation(name); err == nil {
-			tz = l
-		}
-	}
-	loc := s.cat.Localizer(i18n.Lang(lang), tz)
+	loc := s.cat.Localizer(i18n.Lang(lang), s.zone(ctx))
 	key := "notify." + p.Type + ".group." + p.Key
 	if !loc.Has(key) {
 		key = "notify.group"
@@ -201,20 +208,25 @@ func (s *Service) count(ctx context.Context, ids []int64, cause error) error {
 // does not record a job.failed for it.
 func (s *Service) giveUp(ctx context.Context, tx *sqlx.Tx, j jobs.Info, cause error) error {
 	var n struct {
-		ID      int64  `db:"id"`
-		EventID int64  `db:"event_id"`
-		Channel string `db:"channel"`
+		ID       int64  `db:"id"`
+		EventID  int64  `db:"event_id"`
+		Channel  string `db:"channel"`
+		MemberID int64  `db:"member_id"`
 	}
 	err := tx.GetContext(ctx, &n, `
-		UPDATE notifications SET state = 'failed', last_error = ? WHERE job_id = ? RETURNING id, event_id, channel`,
+		UPDATE notifications SET state = 'failed', last_error = ? WHERE job_id = ? RETURNING id, event_id, channel, member_id`,
 		cut(cause.Error(), 500), j.ID)
 	if err != nil {
 		s.log.Error("notify: giving up", "job", j.ID, "error", err)
 		return nil
 	}
+	to := events.MemberActor(n.MemberID)
+	if m, err := s.a.Member(ctx, n.MemberID); err == nil {
+		to = m.Username
+	}
 	_, err = s.ev.Record(ctx, tx, events.Event{
 		Type: FailedEvent.Name, Actor: j.Actor(), Subject: events.Subject{Type: "event", ID: fmt.Sprint(n.EventID)},
-		Payload: map[string]any{"channel": n.Channel, "error": cut(cause.Error(), 500)},
+		Payload: map[string]any{"channel": n.Channel, "to": to, "error": cut(cause.Error(), 500)},
 	})
 	return err
 }

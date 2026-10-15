@@ -59,7 +59,7 @@ func count(t *testing.T, d *db.DB, q string, args ...any) int {
 
 func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 8)
+	down(t, d, 9)
 	up(t, d)
 }
 
@@ -122,7 +122,7 @@ func TestSecondFactorTablesKeepOneAppPerMemberAndUniquePasskeys(t *testing.T) {
 func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.Open(t)
-	down(t, d, 3)
+	down(t, d, 4)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
@@ -144,7 +144,7 @@ func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 // going back keeps member 1 as the admin and drops the other members.
 func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 2)
+	down(t, d, 3)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, jobs_seen_at, webauthn_user_id) VALUES (1, 'Tikhon', 'h', 'ru', ?, ?, ?, x'0102')`, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip', ?, 'second_factor_reset')`, now, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'bb', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
@@ -185,7 +185,7 @@ func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'cc', 2, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (2, x'02', ?)`, now)
 	mustExec(t, d, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (2, x'c2', 'Phone', '{}', ?)`, now)
-	down(t, d, 2)
+	down(t, d, 3)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM admin WHERE id = 1 AND username = 'Tikhon' AND jobs_seen_at = '` + now + `'`: 1,
 		`SELECT count(*) FROM admin`:                                                          1,
@@ -246,19 +246,29 @@ func TestJobsTablesCoalesceAndCascade(t *testing.T) {
 	}
 }
 
-func TestNotificationTablesAreOnePerEventAndChannel(t *testing.T) {
+func TestNotificationTablesAreOnePerEventChannelAndMember(t *testing.T) {
 	d := dbtest.Open(t)
-	ins := `INSERT INTO notifications (event_id, channel, lang, message, state, created_at) VALUES (7, 'telegram', 'en', '{}', 'queued', ?) ON CONFLICT DO NOTHING`
-	mustExec(t, d, ins, now)
-	mustExec(t, d, ins, now)
-	var n int
-	if err := d.R.GetContext(context.Background(), &n, `SELECT count(*) FROM notifications`); err != nil || n != 1 {
-		t.Fatalf("notifications for one event and channel: %d, %v", n, err)
+	mustExec(t, d, member, "tikhon", "en", now, now)
+	ins := `INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (7, 'telegram', ?, 'en', '{}', 'queued', ?) ON CONFLICT DO NOTHING`
+	mustExec(t, d, ins, 1, now)
+	mustExec(t, d, ins, 1, now)
+	mustExec(t, d, ins, 2, now) // the same event to another member
+	if n := count(t, d, `SELECT count(*) FROM notifications`); n != 2 {
+		t.Fatalf("notifications for one event and channel to two members: %d", n)
 	}
-	mustFail(t, d, "unknown language", `INSERT INTO notifications (event_id, channel, lang, message, state, created_at) VALUES (8, 'telegram', 'de', '{}', 'queued', ?)`, now)
+	mustFail(t, d, "unknown language", `INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (8, 'telegram', 1, 'de', '{}', 'queued', ?)`, now)
+	mustFail(t, d, "no recipient", `INSERT INTO notifications (event_id, channel, lang, message, state, created_at) VALUES (8, 'telegram', 'en', '{}', 'queued', ?)`, now)
 	mustFail(t, d, "unknown state", `UPDATE notifications SET state = 'lost'`)
-	mustExec(t, d, `INSERT INTO notification_rules (event_type, enabled, updated_at) VALUES ('auth.signed_in', 0, ?)`, now)
+	rule := `INSERT INTO notification_rules (member_id, event_type, enabled, updated_at) VALUES (?, 'auth.signed_in', 0, ?)`
+	mustExec(t, d, rule, 1, now)
+	mustFail(t, d, "a rule twice for one member", rule, 1, now)
+	mustFail(t, d, "a rule of nobody", rule, 9, now)
 	mustFail(t, d, "rule enabled not 0/1", `UPDATE notification_rules SET enabled = 2`)
+	mustFail(t, d, "a chat ID too long", `UPDATE members SET telegram_chat_id = ? WHERE id = 1`, strings.Repeat("1", 65))
+	mustExec(t, d, `DELETE FROM members WHERE id = 1`)
+	if n := count(t, d, `SELECT count(*) FROM notification_rules`); n != 0 {
+		t.Fatalf("rules of a deleted member left: %d", n)
+	}
 }
 
 func TestSSHTablesKeepOneIdentityAndOneRowPerAddress(t *testing.T) {
@@ -313,7 +323,7 @@ func TestAccessTablesRefuseWhatTheContractForbids(t *testing.T) {
 // names. Going back drops removed members and those still to be set up.
 func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 1)
+	down(t, d, 2)
 	mustExec(t, d, member, "tikhon", "ru", now, now)
 	mustExec(t, d, member, "gone", "en", now, now)
 	mustExec(t, d, `DELETE FROM members WHERE username = 'gone'`)
@@ -354,13 +364,64 @@ func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
 	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'bb', 3, ?, ?, ?, 'ip', 'ip', ?, 'member_removed')`, now, now, now, now)
 	mustExec(t, d, `INSERT INTO members (username, language, webauthn_user_id, created_at, created_by) VALUES ('pending', 'en', randomblob(32), ?, 'member:4')`, now)
 	mustExec(t, d, ev, now, "member.added", "member:4")
-	down(t, d, 1)
+	down(t, d, 2)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM members`:                                      1,
 		`SELECT count(*) FROM members WHERE username = 'keep'`:              1,
 		`SELECT count(*) FROM sessions`:                                     0,
 		`SELECT count(*) FROM events WHERE type = 'admin.created'`:          1,
 		`SELECT count(*) FROM events WHERE type = 'admin.language_changed'`: 1,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("after down: %s = %d, want %d", q, n, want)
+		}
+	}
+	up(t, d)
+}
+
+// 00009 gives the one chat and the rules there were to member 1, and makes
+// every notification member 1's; going back keeps only member 1's.
+func TestMemberNotificationsMigrationGivesTheChatToMemberOne(t *testing.T) {
+	d := dbtest.Open(t)
+	down(t, d, 1)
+	mustExec(t, d, member, "tikhon", "ru", now, now)
+	mustExec(t, d, `INSERT INTO settings (key, value, updated_at) VALUES ('telegram.chat_id', '-1001', ?), ('telegram.chat_title', 'Home', ?), ('telegram.bot_username', 'bot', ?)`, now, now, now)
+	mustExec(t, d, `INSERT INTO notification_rules (event_type, enabled, updated_at) VALUES ('auth.locked', 0, ?)`, now)
+	note := `INSERT INTO notifications (id, event_id, channel, lang, message, state, created_at) VALUES (?, ?, 'telegram', 'en', '{}', 'sent', ?)`
+	mustExec(t, d, note, 40, 7, now)
+	mustExec(t, d, note, 41, 8, now)
+	mustExec(t, d, `DELETE FROM notifications WHERE id = 41`)
+	up(t, d)
+
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM members WHERE id = 1 AND telegram_chat_id = '-1001' AND telegram_chat_title = 'Home'`:  1,
+		`SELECT count(*) FROM settings WHERE key IN ('telegram.chat_id', 'telegram.chat_title')`:                     0,
+		`SELECT count(*) FROM settings WHERE key = 'telegram.bot_username'`:                                          1,
+		`SELECT count(*) FROM notification_rules WHERE member_id = 1 AND event_type = 'auth.locked' AND enabled = 0`: 1,
+		`SELECT count(*) FROM notifications WHERE id = 40 AND member_id = 1`:                                         1,
+		`SELECT count(*) FROM sqlite_master WHERE instr(sql, '_new') > 0`:                                            0,
+	} {
+		if n := count(t, d, q); n != want {
+			t.Errorf("%s = %d, want %d", q, n, want)
+		}
+	}
+	mustExec(t, d, `INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (9, 'telegram', 1, 'en', '{}', 'queued', ?)`, now)
+	if n := count(t, d, `SELECT max(id) FROM notifications`); n != 42 {
+		t.Fatalf("the next notification after the copy got ID %d, want 42", n)
+	}
+
+	mustExec(t, d, member, "anna", "en", now, now)
+	mustExec(t, d, `UPDATE members SET telegram_chat_id = '77' WHERE id = 2`)
+	mustExec(t, d, `INSERT INTO notification_rules (member_id, event_type, enabled, updated_at) VALUES (2, 'auth.locked', 1, ?)`, now)
+	mustExec(t, d, `INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (9, 'telegram', 2, 'en', '{}', 'queued', ?)`, now)
+	down(t, d, 1)
+	for q, want := range map[string]int{
+		`SELECT count(*) FROM settings WHERE key = 'telegram.chat_id' AND value = '-1001'`:   1,
+		`SELECT count(*) FROM settings WHERE key = 'telegram.chat_title' AND value = 'Home'`: 1,
+		`SELECT count(*) FROM notification_rules WHERE enabled = 0`:                          1,
+		`SELECT count(*) FROM notification_rules`:                                            1,
+		`SELECT count(*) FROM notifications`:                                                 2,
+		`SELECT count(*) FROM pragma_table_info('members') WHERE name LIKE 'telegram_%'`:     0,
 	} {
 		if n := count(t, d, q); n != want {
 			t.Errorf("after down: %s = %d, want %d", q, n, want)

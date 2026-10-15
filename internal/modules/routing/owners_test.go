@@ -93,6 +93,34 @@ func TestOwnedSubjects(t *testing.T) {
 	}
 }
 
+// The notifier asks who owns an event's subject: a member's list or custom
+// service is theirs, a shared service and a thing that is gone are nobody's.
+func TestOwnerOfSubjects(t *testing.T) {
+	h := routingtest.New(t)
+	ctx := context.Background()
+	h.Up.V2fly("anthropic", "anthropic.com\n")
+	shared := h.Upstream("v2fly:anthropic")
+	svc := h.CustomOf(anna, "annasite", "anna.example")
+	list := h.ListOf(anna, "Anna list", svc, shared)
+	id := func(n int64) string { return strconv.FormatInt(n, 10) }
+	for _, c := range []struct {
+		subject events.Subject
+		owner   int64
+		ok      bool
+	}{
+		{events.Subject{Type: "routing_list", ID: id(list)}, 2, true},
+		{events.Subject{Type: "service", ID: id(svc)}, 2, true},
+		{events.Subject{Type: "service", ID: id(shared)}, 0, false},
+		{events.Subject{Type: "routing_list", ID: "9999"}, 0, false},
+		{events.Subject{Type: "server", ID: id(list)}, 0, false},
+	} {
+		owner, ok, err := h.Mod.Owner(ctx, c.subject)
+		if err != nil || owner != c.owner || ok != c.ok {
+			t.Errorf("%s: %d %v %v, want %d %v", c.subject, owner, ok, err, c.owner, c.ok)
+		}
+	}
+}
+
 // The port offers a member only what they may use, and registers a router
 // of theirs on a list they may change: the default, member 1's Main, is
 // refused to anna.

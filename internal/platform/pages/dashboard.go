@@ -15,29 +15,30 @@ import (
 
 // dashboardView is what needs attention on the dashboard.
 type dashboardView struct {
-	NotConfigured bool
+	NotConfigured bool // no Telegram bot, shown to who sets it up
+	NoChat        bool // a bot, but the member has no chat of their own
 	Failed        []notify.Notification
 	Areas         []ui.DashboardArea
 }
 
 func (h *handler) dashboard(c *echo.Context) error {
 	ctx := c.Request().Context()
-	g := web.FromContext(ctx).Grant
+	q := web.FromContext(ctx)
+	g := q.Grant
 	var v dashboardView
-	// Telegram is Settings' to set up and fix.
-	if g.Can(access.Settings, access.LevelManage) {
-		// A failing health query must not take the dashboard down with it.
-		if ok, err := h.Notify.Configured(ctx); err != nil {
-			h.Log.Error("pages: notifications configured", "error", err)
-		} else {
-			v.NotConfigured = !ok
-		}
-		failed, err := h.Notify.Failed(ctx, time.Now().Add(-failedWindow), 20)
-		if err != nil {
-			h.Log.Error("pages: failed notifications", "error", err)
-		}
-		v.Failed = failed
+	// A failing health query must not take the dashboard down with it.
+	if ok, err := h.Notify.Configured(ctx); err != nil {
+		h.Log.Error("pages: notifications configured", "error", err)
+	} else {
+		// The bot is Settings' to set up; the chat is the member's own.
+		v.NotConfigured = !ok && g.Can(access.Settings, access.LevelManage)
+		v.NoChat = ok && q.Member.TelegramChatID == ""
 	}
+	failed, err := h.Notify.Failed(ctx, q.Member.ID, time.Now().Add(-failedWindow), 20)
+	if err != nil {
+		h.Log.Error("pages: failed notifications", "error", err)
+	}
+	v.Failed = failed
 	for _, d := range h.Dashboards {
 		// A module's failing query must not take the dashboard down with it.
 		areas, err := d.Dashboard(ctx, web.Who(ctx))
@@ -53,4 +54,9 @@ func (h *handler) dashboard(c *echo.Context) error {
 	}
 	sort.SliceStable(v.Areas, func(i, j int) bool { return v.Areas[i].Order < v.Areas[j].Order })
 	return web.Render(c, http.StatusOK, dashboardPage(h.shell(c, i18n.T(ctx, "nav.dashboard"), "/"), v))
+}
+
+// quiet: nothing needs attention.
+func (v dashboardView) quiet() bool {
+	return !v.NotConfigured && !v.NoChat && len(v.Failed) == 0 && len(v.Areas) == 0
 }

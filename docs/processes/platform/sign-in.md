@@ -54,6 +54,7 @@ With the authenticator app on, step 5 changes:
 
 - An expired session redirects to `/login?ended=idle` (or `absolute`) and the page says "Signed out after 7 days idle. You'll go back to <page>."
 - A successful sign-in resets the failure count of that IP.
+- A member's sign-in from a new IP and the changes to their ways in (password, app, passkeys, `reset-2fa`) notify that member alone, in their chat and language; a lockout, which names no member, notifies the `settings: manage` and `servers: manage` members ([recipients](./notifications.md#recipients)).
 
 - Members are added and removed on Settings → Members ([members](./members.md)), never renamed. A removed member, or one who hasn't chosen a password at their setup link, signs in by no way at all: the same "Wrong username or password" as an unknown username.
 - Usernames are unique ignoring case among the members who aren't removed, 1 to 64 characters.

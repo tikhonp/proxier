@@ -2,9 +2,7 @@ package notify
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -28,106 +26,113 @@ func (s *Service) Subscriber() events.Subscriber {
 	return events.Subscriber{Name: SubscriberName, Handle: s.handle}
 }
 
-// handle runs in the transaction that advances the notifier's cursor, so the
-// notification and its job are queued exactly once; the unique key still
-// guards a replay.
+// handle runs in the transaction that advances the notifier's cursor, so
+// each recipient's notification and its job are queued exactly once; the
+// unique key still guards a replay. Each recipient gets their own row and
+// job, so one chat failing neither holds up nor repeats another's.
 func (s *Service) handle(ctx context.Context, tx *sqlx.Tx, e events.Event) error {
 	// A notification about a failed notification would loop.
 	if strings.HasPrefix(e.Type, eventPrefix) || (e.Type == "job.failed" && e.Payload["type"] == deliverType) {
 		return nil
 	}
 	t, ok := s.ev.Lookup(e.Type)
-	if !ok {
+	if !ok || (t.NotifyIf != nil && !t.NotifyIf(e.Payload)) {
 		return nil
 	}
-	on := t.Notify
-	switch err := tx.GetContext(ctx, &on, `SELECT enabled FROM notification_rules WHERE event_type = ?`, e.Type); {
-	case errors.Is(err, sql.ErrNoRows):
-		on = t.Notify
-	case err != nil:
-		return err
-	}
-	if !on || (t.NotifyIf != nil && !t.NotifyIf(e.Payload)) {
-		return nil
-	}
-
-	var out *rendered
+	var chans []Channel
 	for _, c := range s.allChannels() {
 		// Nothing is queued while the channel is not set up, and enabling it
 		// later sends no backlog of stale alarms.
-		if ok, err := c.Configured(ctx); err != nil || !ok {
-			if err != nil {
+		ok, err := c.Configured(ctx)
+		if err != nil {
+			return err
+		}
+		if ok {
+			chans = append(chans, c)
+		}
+	}
+	if len(chans) == 0 {
+		return nil
+	}
+	to, err := s.recipients(ctx, tx, e, t)
+	if err != nil {
+		return err
+	}
+	byLang := map[i18n.Lang]Message{}
+	for _, c := range chans {
+		for _, m := range to {
+			// A member with no address there gets nothing, and nothing waits
+			// for them to choose one.
+			if c.Address(m) == "" {
+				continue
+			}
+			lang := s.language(m)
+			msg, done := byLang[lang]
+			if !done {
+				msg = s.render(ctx, e, t, lang)
+				byLang[lang] = msg
+			}
+			if err := s.queue(ctx, tx, e, t, c, m.ID, lang, msg); err != nil {
 				return err
 			}
-			continue
-		}
-		if out == nil {
-			r := s.render(ctx, e, t)
-			out = &r
-		}
-		msg, err := json.Marshal(out.msg)
-		if err != nil {
-			return err
-		}
-		res, err := tx.ExecContext(ctx, `
-			INSERT INTO notifications (event_id, channel, lang, message, state, created_at)
-			VALUES (?, ?, ?, ?, 'queued', ?)
-			ON CONFLICT (event_id, channel) DO NOTHING`, e.ID, c.Name(), string(out.lang), string(msg), db.At(s.Now()))
-		if err != nil {
-			return err
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			continue
-		}
-		id, err := res.LastInsertId()
-		if err != nil {
-			return err
-		}
-		req := jobs.Request{
-			Type: deliverType, Payload: map[string]any{"notification_id": id},
-			CreatedBy: fmt.Sprintf("event:%d", e.ID),
-		}
-		if key := groupKey(t, e); key != "" {
-			// The first of a group waits out the window; the others merge
-			// into its job while it waits.
-			req.Payload = deliverPayload{IDs: []int64{id}, Type: e.Type, Key: key}
-			req.CoalescingKey = "group:" + c.Name() + ":" + e.Type + ":" + key
-			req.Delay = GroupWindow
-		}
-		q, err := s.j.Enqueue(ctx, tx, req)
-		if err != nil {
-			return err
-		}
-		if _, err := tx.ExecContext(ctx, `UPDATE notifications SET job_id = ? WHERE id = ?`, q.ID, id); err != nil {
-			return err
 		}
 	}
 	return nil
 }
 
-type rendered struct {
-	msg  Message
-	lang i18n.Lang
+// queue stores one recipient's notification and its delivery job. A replay
+// of the event finds the row and queues nothing.
+func (s *Service) queue(ctx context.Context, tx *sqlx.Tx, e events.Event, t events.Type, c Channel, member int64, lang i18n.Lang, m Message) error {
+	msg, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	res, err := tx.ExecContext(ctx, `
+		INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at)
+		VALUES (?, ?, ?, ?, ?, 'queued', ?)
+		ON CONFLICT (event_id, channel, member_id) DO NOTHING`, e.ID, c.Name(), member, string(lang), string(msg), db.At(s.Now()))
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return nil
+	}
+	id, err := res.LastInsertId()
+	if err != nil {
+		return err
+	}
+	req := jobs.Request{
+		Type: deliverType, Payload: map[string]any{"notification_id": id},
+		CreatedBy: fmt.Sprintf("event:%d", e.ID),
+	}
+	if key := groupKey(t, e); key != "" {
+		// The first of a recipient's group waits out the window; the others
+		// merge into its job while it waits.
+		req.Payload = deliverPayload{IDs: []int64{id}, Type: e.Type, Key: key}
+		req.CoalescingKey = fmt.Sprintf("group:%s:%d:%s:%s", c.Name(), member, e.Type, key)
+		req.Delay = GroupWindow
+	}
+	q, err := s.j.Enqueue(ctx, tx, req)
+	if err != nil {
+		return err
+	}
+	_, err = tx.ExecContext(ctx, `UPDATE notifications SET job_id = ? WHERE id = ?`, q.ID, id)
+	return err
 }
 
-// render writes the message in the first member's language, with the names
-// of this moment: the one chat is theirs. A text that cannot be built falls
-// back to the event's type, so a missing translation never stalls the
-// notifier's cursor.
-func (s *Service) render(ctx context.Context, e events.Event, t events.Type) rendered {
-	lang := i18n.EN
-	if m, err := s.a.Member(ctx, 1); err == nil && m.Language.Valid() {
-		lang = m.Language
-	} else if err != nil && !errors.Is(err, auth.ErrNoMember) {
-		s.log.Error("notify: member language", "error", err)
+// language is the member's own, English when theirs isn't one there is.
+func (s *Service) language(m auth.Member) i18n.Lang {
+	if m.Language.Valid() {
+		return m.Language
 	}
-	tz := time.UTC
-	if name, err := s.st.Get(ctx, "general.time_zone"); err == nil {
-		if l, err := time.LoadLocation(name); err == nil {
-			tz = l
-		}
-	}
-	loc := s.cat.Localizer(lang, tz)
+	return i18n.EN
+}
+
+// render writes the message in a recipient's language, with the names of
+// this moment. A text that cannot be built falls back to the event's type, so
+// a missing translation never stalls the notifier's cursor.
+func (s *Service) render(ctx context.Context, e events.Event, t events.Type, lang i18n.Lang) Message {
+	loc := s.cat.Localizer(lang, s.zone(ctx))
 	ctx = i18n.WithLocalizer(ctx, loc)
 	ref := s.name(ctx, e.Subject)
 
@@ -145,7 +150,17 @@ func (s *Service) render(ctx context.Context, e events.Event, t events.Type) ren
 	if msg.URL != "" && msg.Button == "" {
 		msg.Button = loc.T("notify.open")
 	}
-	return rendered{msg: msg, lang: lang}
+	return msg
+}
+
+// zone is the display time zone, UTC when the setting can't be read.
+func (s *Service) zone(ctx context.Context) *time.Location {
+	if name, err := s.st.Get(ctx, "general.time_zone"); err == nil {
+		if l, err := time.LoadLocation(name); err == nil {
+			return l
+		}
+	}
+	return time.UTC
 }
 
 func (s *Service) compose(ctx context.Context, e events.Event, t events.Type, loc *i18n.Localizer, ref ui.SubjectRef) (Message, error) {

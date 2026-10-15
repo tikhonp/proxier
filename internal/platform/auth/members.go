@@ -182,12 +182,15 @@ type memberRow struct {
 	CreatedBy string   `db:"created_by"`
 	Changed   *db.Time `db:"password_changed_at"`
 	Removed   *db.Time `db:"removed_at"`
+	ChatID    string   `db:"telegram_chat_id"`
+	ChatTitle string   `db:"telegram_chat_title"`
 }
 
-const memberCols = `id, username, language, created_at, created_by, password_changed_at, removed_at`
+const memberCols = `id, username, language, created_at, created_by, password_changed_at, removed_at, telegram_chat_id, telegram_chat_title`
 
 func (r memberRow) member() Member {
-	m := Member{ID: r.ID, Username: r.Username, Language: i18n.Lang(r.Language), CreatedAt: r.Created, CreatedBy: r.CreatedBy}
+	m := Member{ID: r.ID, Username: r.Username, Language: i18n.Lang(r.Language), CreatedAt: r.Created, CreatedBy: r.CreatedBy,
+		TelegramChatID: r.ChatID, TelegramChatTitle: r.ChatTitle}
 	if r.Changed != nil {
 		m.PasswordChangedAt = *r.Changed
 	}
@@ -253,5 +256,36 @@ func (s *Service) SetLanguage(ctx context.Context, memberID int64, l i18n.Lang) 
 			return err
 		}
 		return s.record(ctx, tx, "member.language_changed", events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"from": from, "to": string(l)})
+	})
+}
+
+// SetTelegramChat changes where a member's notifications go; "" for
+// nowhere. The caller checks the chat ID's form, which is the channel's.
+// The same chat records nothing.
+func (s *Service) SetTelegramChat(ctx context.Context, memberID int64, chatID, title string) error {
+	if len(chatID) > 64 || len(title) > 128 {
+		return errors.New("auth: a chat ID is at most 64 bytes and its title 128")
+	}
+	if chatID == "" {
+		title = ""
+	}
+	return s.db.Write(ctx, func(tx *sqlx.Tx) error {
+		var cur struct {
+			ID    string `db:"telegram_chat_id"`
+			Title string `db:"telegram_chat_title"`
+		}
+		if err := sqlx.GetContext(ctx, tx, &cur, `SELECT telegram_chat_id, telegram_chat_title FROM members WHERE id = ? AND removed_at IS NULL`, memberID); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return ErrNoMember
+			}
+			return err
+		}
+		if cur.ID == chatID && cur.Title == title {
+			return nil
+		}
+		if _, err := tx.ExecContext(ctx, `UPDATE members SET telegram_chat_id = ?, telegram_chat_title = ? WHERE id = ?`, chatID, title, memberID); err != nil {
+			return err
+		}
+		return s.record(ctx, tx, NotificationsChangedEvent, events.MemberActor(memberID), MemberSubject(memberID), map[string]any{"keys": "telegram.chat"})
 	})
 }

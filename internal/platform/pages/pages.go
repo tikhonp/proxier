@@ -119,6 +119,12 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	me.POST("/settings/security/passkeys/:id/remove", h.passkeyRemove)
 	me.POST("/settings/security/sessions/:id/sign-out", h.signOutSession)
 	me.POST("/settings/security/sessions/sign-out-everywhere", h.signOutEverywhere)
+	me.GET("/settings/notifications", h.notificationsPage)
+	me.POST("/settings/notifications/:type", h.notificationsSet)
+	me.POST("/settings/notifications/telegram/detect", h.notificationsDetect)
+	me.POST("/settings/notifications/telegram/chat", h.notificationsChat)
+	me.POST("/settings/notifications/telegram/test", h.notificationsTest)
+	me.POST("/notifications/:id/retry", h.notificationRetry)
 
 	// Cancel and Retry also need the job's own area (jobManage).
 	activity := r.Area(access.Activity).View
@@ -147,9 +153,6 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	settings.POST("/settings/integrations/tailnet/reauth", h.tailnetReauth)
 	settings.GET("/settings/integrations/telegram", h.telegramPage)
 	settings.POST("/settings/integrations/telegram/token", h.telegramToken)
-	settings.POST("/settings/integrations/telegram/detect", h.telegramDetect)
-	settings.POST("/settings/integrations/telegram/chat", h.telegramChat)
-	settings.POST("/settings/integrations/telegram/test", h.telegramTest)
 	settings.GET("/settings/ssh", h.sshPage)
 	settings.POST("/settings/ssh/regenerate", h.sshRegenerate)
 	settings.POST("/settings/ssh/personal-keys", h.sshPersonalKeys)
@@ -159,9 +162,6 @@ func Register(r web.Routes, d Deps) func(c *echo.Context, title, path string) ui
 	settings.POST("/settings/backups", h.backupsSave)
 	settings.POST("/settings/backups/run", h.backupsRun)
 	settings.GET("/settings/backups/latest", h.backupsLatest)
-	settings.GET("/settings/notifications", h.notificationsPage)
-	settings.POST("/settings/notifications/:type", h.notificationsSet)
-	settings.POST("/notifications/:id/retry", h.notificationRetry)
 	return h.shell
 }
 
@@ -180,9 +180,9 @@ func (h *handler) shell(c *echo.Context, title, path string) ui.Shell {
 	if q.Session != nil {
 		s.CSRF = q.Session.CSRF
 	}
-	// Telegram is Settings' to fix: only who can is warned.
-	if q.Grant.Can(access.Settings, access.LevelManage) {
-		if bad, err := h.Notify.LatestFailed(c.Request().Context()); err != nil {
+	// Each member is warned of their own notifications failing.
+	if q.Member != nil {
+		if bad, err := h.Notify.LatestFailed(c.Request().Context(), q.Member.ID); err != nil {
 			h.Log.Error("pages: notification health", "error", err)
 		} else if bad {
 			s.Warning = &ui.HeaderWarning{Text: i18n.T(c.Request().Context(), "ui.warn.telegram_failing"), Href: "/#failed-notifications"}

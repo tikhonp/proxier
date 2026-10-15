@@ -155,7 +155,8 @@ type Login struct {
 	Cookie *http.Cookie
 	Token  string
 	CSRF   string
-	ID     int64
+	ID     int64 // the session
+	Member int64
 }
 
 // SignIn signs the admin in from addr ("" for the default) and returns the browser.
@@ -168,7 +169,7 @@ func (s *Site) SignIn(addr string) *Login {
 	return &Login{
 		Site:   s,
 		Cookie: &http.Cookie{Name: web.CookieName(s.App.Cfg.BaseURL.Scheme == "https"), Value: res.Session.Token},
-		Token:  res.Session.Token, CSRF: res.Session.CSRF, ID: res.Session.ID,
+		Token:  res.Session.Token, CSRF: res.Session.CSRF, ID: res.Session.ID, Member: res.Session.MemberID,
 	}
 }
 
@@ -199,7 +200,7 @@ func (s *Site) Join(username string, g access.Grant, addr string) *Login {
 	return &Login{
 		Site:   s,
 		Cookie: &http.Cookie{Name: web.CookieName(s.App.Cfg.BaseURL.Scheme == "https"), Value: res.Session.Token},
-		Token:  res.Session.Token, CSRF: res.Session.CSRF, ID: res.Session.ID,
+		Token:  res.Session.Token, CSRF: res.Session.CSRF, ID: res.Session.ID, Member: res.Session.MemberID,
 	}
 }
 

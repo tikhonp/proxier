@@ -24,7 +24,7 @@ Areas follow the module boundaries. Each area has its own ladder, lowest first; 
 - **Cut off** a link and rotating a server need `servers: manage`: a cut-off rotates servers every member's links share ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)). A member without it can disable their own link but not cut it off.
 - In `activity`, `own` shows the events and jobs the member caused, or whose subject is theirs (their own member, or a thing they own); `all` shows everything.
 - **Cancel** and **Retry** of a job need the manage level of the job's own area (a `servers.*` job: `servers: manage`; a platform job: `settings: manage`), whatever `activity` shows.
-- Every member, whatever their grant, has the dashboard, the search pop-up, Settings → General (their language) and Settings → Security (their password, passkeys, authenticator app and sessions). The instance's settings on General and the lockout on Security need `settings: manage`.
+- Every member, whatever their grant, has the dashboard, the search pop-up, Settings → General (their language), Settings → Security (their password, passkeys, authenticator app and sessions) and Settings → Notifications (their Telegram chat and their rules). The instance's settings on General and the lockout on Security need `settings: manage`.
 - **Presets** fill the grid: **Owner** is the top level everywhere; **Operator** is Owner without Settings; **Viewer** is `view`, `view_all` or `all` everywhere and no Settings.
 
 ## Ownership
@@ -37,6 +37,7 @@ Things in the owned areas have an **owner**, a member: subscriptions and links (
 - A thing of another member names its owner on its page ("owner anna").
 - Custom services are private: only their owner, or a member with `routing: manage_all`, sees them and puts them in lists. A tag stays unique across Proxier, since it is a service's identity on routers: a tag another member's private service has is refused as taken, without naming whose.
 - Names stay unique across Proxier as before (subscriptions, links, lists, routers, Shadowrocket configs): a name another member uses is refused as taken.
+- Notifications follow ownership: a thing's events go to its owner and to `manage_all` in its area, never to another member at `own` or `view_all` ([notifications](./notifications.md#recipients)).
 - When a member is removed, each module hands everything they owned to the heir in its reaction to `member.removed`, recording one `subscription.handed_over`, `routing.handed_over` or `routerscript.handed_over` (subject the removed member) when it moved anything. Nothing is deleted, so links, configs and fetch URLs keep working.
 
 ## Steps: adding a member
@@ -57,6 +58,10 @@ Things in the owned areas have an **owner**, a member: subscriptions and links (
 2. Their sessions end (`member_removed`), their passkeys, authenticator app, levels and setup link go, and the row stays, removed, so Activity still names them. → `member.removed{username, heir, heir_username, sessions}` (notifies). `heir` is the member who removed them, or for a member who removed themselves, the first member in with `settings: manage`: the member who takes over what the removed one owned.
 3. Each module hands the removed member's things to the heir. → `subscription.handed_over{from, to, subscriptions, links}`, `routing.handed_over{from, to, lists, routers, shadowrocket, services, imports, discovery}`, `routerscript.handed_over{from, to, generations}`, each only when it moved something.
 4. To bring someone back, add them again; the username is free once its member is removed.
+
+## Notifications
+
+Each member has their own Telegram chat and rules, and gets an event's notification only when it concerns them ([notifications](./notifications.md#recipients)): their own things and sign-ins, the area they manage at its top level, and, with `settings: manage`, the changes to members (`member.added`, `member.access_changed`, `member.removed`, and the setup link's two events when turned on). A removed member gets nothing.
 
 ## Rules
 
@@ -109,3 +114,8 @@ Things in the owned areas have an **owner**, a member: subscriptions and links (
 - Router scripts' "create a link" offers only the member's own subscriptions, and the new link is theirs; a forged subscription, link or router of another member → refused as a field error.
 - At `activity: own`: Activity, Jobs and the jobs cell show only the member's events and jobs; another member's job by URL → 404.
 - Custom service tag already taken by another member's private service → "tag is taken", without naming the service or its owner.
+- A notification about a member's link → that member's chat and the `subscriptions: manage_all` members with the type on, and nobody else (`TestLinkNotificationGoesToItsOwnerAndManageAll`, `TestNotificationReachesTheOwnerAndManageAll`).
+- A member added, their levels changed or removed → notified to the `settings: manage` members only (`TestMemberEventsGoToSettingsManagers`).
+- A sign-in from a new IP → notified to that member only (`TestNewIPNoticeGoesOnlyToThatMember`).
+- A removed member → no notification, even one queued before the removal (`TestRemovedMemberGetsNothing`); the owner of their things is the heir from the handover on.
+- A member without `settings: manage` → their own Settings → Notifications: their chat, **Detect chat** without other members' chats, **Send test** to theirs, and only the rules they can be told about (`TestEachMemberHasTheirOwnChat`, `TestDetectChatLeavesOutOtherMembersChats`, `TestNotificationRulesArePerMember`).

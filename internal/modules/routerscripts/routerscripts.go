@@ -165,6 +165,16 @@ func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subj
 	return out, err
 }
 
+// Owner is the member who owns a generation subject, for its notification's
+// recipients. Scripts have no owner.
+func (m *Module) Owner(ctx context.Context, s events.Subject) (int64, bool, error) {
+	id, err := strconv.ParseInt(s.ID, 10, 64)
+	if err != nil || s.Type != "generation" {
+		return 0, false, nil
+	}
+	return store.GenerationOwner(ctx, m.deps.DB.R, id)
+}
+
 // SubjectTypes are the subject types of the module's events.
 func (*Module) SubjectTypes() []string { return []string{"router_script", "generation"} }
 

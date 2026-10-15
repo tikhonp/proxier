@@ -21,7 +21,7 @@ Flow and edge cases: [sign-in](../processes/platform/sign-in.md).
 
 ## Settings
 
-Settings are grouped by module. Each module declares its own section, fields, defaults and validation. Every section needs `settings: manage`, the modules' too, except General and Security, which every member has for their own language, password, passkeys, app and sessions. Secret settings are stored encrypted. They are shown masked, with **Reveal** and **Replace** actions, and only "changed" is recorded in the event (never the value).
+Settings are grouped by module. Each module declares its own section, fields, defaults and validation. Every section needs `settings: manage`, the modules' too, except General, Security and Notifications, which every member has for their own language, password, passkeys, app, sessions, Telegram chat and notification rules. Secret settings are stored encrypted. They are shown masked, with **Reveal** and **Replace** actions, and only "changed" is recorded in the event (never the value).
 
 | Section | Contents |
 |---|---|
@@ -29,8 +29,8 @@ Settings are grouped by module. Each module declares its own section, fields, de
 | Security | Passkeys, the authenticator app, change password, sessions (each the member's own), lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m; `settings: manage` only). |
 | Members | Every member with their access and state (active, waiting for setup, removed); **Add member**; a member's page with their levels, their setup link (**Copy link**, **New setup link…**) and **Remove member**. `settings: manage` only. |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
-| Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (bot token, chat, **Detect chat**, **Send test**), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). Each is a row to its page; an unconfigured Telegram or Cloudflare row says **Set up**, as the dashboard's band does. |
-| Notifications | One toggle per event type, grouped by module ([events](../events.md)). |
+| Integrations | Cloudflare (API token, zones Proxier may use, test), Telegram (the bot token; each member's chat is on their Notifications), check-host.net (on/off, nodes in Russia, nodes abroad), tailnet (state, node name, IP, **Re-authenticate**), Chromium (CDP URL from env, state), GitHub token (optional, raises API limits). Each is a row to its page; an unconfigured Telegram or Cloudflare row says **Set up**, as the dashboard's band does. |
+| Notifications | The member's own Telegram chat (**Detect chat**, a typed chat ID, **Send test**), then one toggle per event type they can be told about, grouped by module ([events](../events.md)). Each member's own. |
 | Servers | Hostname pattern, the IP → country lookup, proxy test URL (default: Cloudflare's speed endpoint, 256 KB), check intervals and thresholds ([health](../processes/servers/server-health.md)), stats retention. |
 | Subscriptions | Default format, default update interval, expiry warning days, shared-link alert thresholds, tombstone period. |
 | Routing | Daily refresh time, safety thresholds, drift-check interval, auto-repair, default Shadowrocket rule policy. |
@@ -91,14 +91,14 @@ Events are described in [architecture](../architecture.md#events-and-history) an
 
 ## Notifications
 
-Telegram is the only channel; channels are an extension point. Setup: a bot token from BotFather, then **Detect chat** (you send `/start` to the bot, and Proxier reads the chat ID from the bot's updates), then **Send test**. Event types are toggled in Settings → Notifications. Flow and edge cases: [notifications](../processes/platform/notifications.md).
+Telegram is the only channel; channels are an extension point. One bot serves every member: a member with `settings: manage` pastes its token from BotFather. Each member then chooses their own chat on Settings → Notifications with **Detect chat** (they send `/start` to the bot, and Proxier reads the chat ID from the bot's updates) and **Send test**, and toggles their own event types there. An event goes to the members it concerns: the owner of its subject and who manages its area, a member's sign-ins to that member, changes to members to the settings managers. Each message is in its recipient's language. Flow, recipients and edge cases: [notifications](../processes/platform/notifications.md).
 
 ## Languages and time
 
 - The UI is in **English and Russian**. Every UI string, notification text and stub entry text goes through message catalogs. Modules ship their own EN and RU catalogs.
 - A member's language is changed only in Settings → General → **Language** (`member.language_changed`); the header and the `:` pop-up have no switch. The sign-in page follows the browser's `Accept-Language`, then the default language.
 - Each **link has a language** (default from Settings), used for its stub entry text.
-- Telegram messages use member 1's language: the one chat is theirs.
+- Each Telegram message is in its recipient's language.
 - Times are shown in the display time zone. A relative form ("3 min ago") is used, with the absolute time on hover. Stored times are UTC.
 - Russian strings run about 30 % longer than English, so no label or button has a fixed width.
 

@@ -147,10 +147,14 @@ type SubjectNamer interface {
 	NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error)
 }
 
-// SubjectOwner is a module whose things have owners: it lists the subjects
-// of events and jobs a member owns, for Activity and Jobs at activity: own.
+// SubjectOwner is a module whose things have owners. OwnedSubjects lists
+// the subjects of events and jobs a member owns, for Activity and Jobs at
+// activity: own; Owner is the member who owns one subject (ok false for a
+// subject type the module doesn't own, a shared thing or one that is gone),
+// for the recipients of its notification.
 type SubjectOwner interface {
 	OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error)
+	Owner(ctx context.Context, s events.Subject) (member int64, ok bool, err error)
 }
 
 // NotificationRenderer writes the notification of the module's own event

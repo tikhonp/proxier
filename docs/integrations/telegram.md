@@ -4,17 +4,20 @@ The notification channel. The bot only sends; commands are in the [backlog](../o
 
 ## Setup
 
+One bot serves every member; each member has their own chat.
+
 1. Create a bot with @BotFather and copy its token.
-2. Settings → Integrations → Telegram: paste the token. Proxier calls `getMe` and shows the bot's username.
-3. Send `/start` to the bot from the account (or group) that should receive notifications, then click **Detect chat**. Proxier calls `getUpdates`, lists the chats it finds, and stores the chosen chat ID. A chat ID can also be typed.
-4. **Send test**.
+2. Settings → Integrations → Telegram (`settings: manage`): paste the token. Proxier calls `getMe` and shows the bot's username.
+3. Each member, on their own Settings → Notifications: send `/start` to the bot from the account (or group) that should receive their notifications, then click **Detect chat**. Proxier calls `getUpdates`, lists the chats it finds except those other members already have, and stores the chosen chat ID as the member's. A chat ID can also be typed.
+4. **Send test**, to the member's chat.
 
 `getUpdates` only works while the bot has no webhook. Proxier never sets one.
 
 ## Sending
 
 - `sendMessage` with `chat_id`, `parse_mode: HTML` (every interpolated value is HTML-escaped), `disable_web_page_preview: true`, and an inline keyboard with one URL button, **Open in Proxier**, linking to the subject's page.
-- At most one message per second.
+- `chat_id` is the recipient's own chat, read when the message is sent.
+- At most one message per second, whatever the chat.
 - On `429`, Proxier waits the returned `retry_after` before trying again. Other errors are retried 3 times (10 s, 1 min, 5 min) ([notifications](../processes/platform/notifications.md)).
 
 ## Message shape

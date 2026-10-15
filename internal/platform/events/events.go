@@ -118,7 +118,26 @@ type Type struct {
 	Group func(payload map[string]any) string
 	// GroupHref is the page a grouped message opens ("" = Activity).
 	GroupHref string
+	// Audience is who may get this type's notification; each of them still
+	// needs its rule on.
+	Audience Audience
 }
+
+// Audience is who may get the notification of an event
+// (docs/processes/platform/notifications.md#recipients).
+type Audience int
+
+const (
+	// AudienceArea: the subject's owner, and the members who manage the
+	// event's area.
+	AudienceArea Audience = iota
+	// AudienceSubject: only the member who owns the subject, for a member's
+	// own sign-ins and ways in.
+	AudienceSubject
+	// AudienceSettings: only the members who manage Settings, for changes
+	// to members.
+	AudienceSettings
+)
 
 // ErrUnknownType is returned when recording a type nobody declared.
 var ErrUnknownType = errors.New("events: unknown event type")

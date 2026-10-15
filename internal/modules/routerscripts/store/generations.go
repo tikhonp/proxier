@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/platform/access"
@@ -95,6 +97,16 @@ func HandOver(ctx context.Context, x sqlx.ExtContext, from, to int64) (int64, er
 		return 0, err
 	}
 	return res.RowsAffected()
+}
+
+// GenerationOwner is the owner of a generation; ok is false for one that is
+// gone.
+func GenerationOwner(ctx context.Context, q sqlx.QueryerContext, id int64) (owner int64, ok bool, err error) {
+	err = sqlx.GetContext(ctx, q, &owner, `SELECT owner_id FROM rscripts_generations WHERE id = ?`, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	return owner, err == nil, err
 }
 
 // OwnedGenerations are the ids of owner's generations.

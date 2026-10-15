@@ -49,12 +49,6 @@ func (m *Module) handOver(ctx context.Context, tx *sqlx.Tx, e events.Event) erro
 	return err
 }
 
-// subjectTypes are the event subject types of what HandOver moves, by kind
-// (imports have no events of their own).
-var subjectTypes = map[string]string{
-	"lists": "routing_list", "routers": "router", "shadowrocket": "shadowrocket", "services": "service", "discovery": "discovery",
-}
-
 // OwnedSubjects are the subjects of what member owns, for Activity and Jobs
 // at activity: own.
 func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error) {
@@ -64,8 +58,8 @@ func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subj
 	}
 	var out []events.Subject
 	for _, k := range store.HandOverKinds() {
-		typ, ok := subjectTypes[k]
-		if !ok {
+		typ := store.SubjectType(k)
+		if typ == "" {
 			continue
 		}
 		for _, id := range owned[k] {
@@ -73,4 +67,14 @@ func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subj
 		}
 	}
 	return out, nil
+}
+
+// Owner is the member who owns the subject of an event, for its
+// notification's recipients.
+func (m *Module) Owner(ctx context.Context, s events.Subject) (int64, bool, error) {
+	id, err := strconv.ParseInt(s.ID, 10, 64)
+	if err != nil {
+		return 0, false, nil
+	}
+	return store.OwnerOf(ctx, m.deps.DB.R, s.Type, id)
 }

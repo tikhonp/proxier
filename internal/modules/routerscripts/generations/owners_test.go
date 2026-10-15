@@ -113,6 +113,13 @@ func TestRemovedMembersGenerationsGoToTheHeir(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// The notifier asks who owns a generation: anna, then her heir.
+	if owner, ok, err := m.Mod.Owner(bg, generations.Subject(gid)); err != nil || !ok || owner != 2 {
+		t.Fatalf("owner of anna's generation: %d %v %v", owner, ok, err)
+	}
+	if _, ok, _ := m.Mod.Owner(bg, events.Subject{Type: "router_script", ID: strconv.FormatInt(id, 10)}); ok {
+		t.Error("a script has an owner")
+	}
 	if _, err := m.App.Auth.RemoveMember(bg, 1, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -131,5 +138,8 @@ func TestRemovedMembersGenerationsGoToTheHeir(t *testing.T) {
 	}
 	if g, err := m.Mod.Generations.Get(bg, gid, access.Owner(1)); err != nil || g.OwnerID != 1 {
 		t.Errorf("the generation isn't the heir's: %v", err)
+	}
+	if owner, ok, _ := m.Mod.Owner(bg, generations.Subject(gid)); !ok || owner != 1 {
+		t.Errorf("the heir isn't told about the generation: %d %v", owner, ok)
 	}
 }

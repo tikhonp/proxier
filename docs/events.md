@@ -25,6 +25,7 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `auth.signed_out` | member | session (id), by (`self` / `settings`) | off | |
 | `auth.signed_out_everywhere` | member | sessions ended | off | |
 | `member.language_changed` | member | from, to | off | |
+| `member.notifications_changed` | member | keys (`telegram.chat`, or `notifications.<type>` for one rule) | off | The member's own chat or one of their rules ([notifications](./processes/platform/notifications.md)). |
 | `settings.changed` | setting group | keys changed (never values) | off | |
 | `ssh.key_generated` | ssh key (`ssh:identity`) | fingerprint, regenerated | **on when `regenerated`** | The first start generates the key silently; **Regenerate** notifies, because every server, jump host and router needs the new key. |
 | `ssh.host_key_pinned` | known host | address, fingerprint | off | First contact with an address (subject `ssh_host:<address>`). |
@@ -32,7 +33,7 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `ssh.host_key_accepted` | known host | address, old and new fingerprint | off | |
 | `ssh.host_forgotten` | known host | address, fingerprint | off | By a member, or when the servers module retires a server. |
 | `job.failed` | job | type, error | **on** for job types without their own failure event | |
-| `notification.failed` | event (`event:<id>`) | channel, error | off, and never notifiable | A delivery gave up after its last retry. Shown on the dashboard. |
+| `notification.failed` | event (`event:<id>`) | channel, to (the recipient's username), error | off, and never notifiable | A delivery gave up after its last retry. Shown on the recipient's dashboard. Those from before members have no `to`. |
 | `backup.completed` | job | file, size | off | |
 | `backup.failed` | job | error | **on** | The job's own failure event, so no `job.failed`. The message links to the job. |
 
@@ -176,12 +177,13 @@ An event without a subject (a lockout) links to Activity; any other links to its
 
 ## Notification behaviour
 
-- One event, at most one notification. Health flapping is handled before the event exists: a state changes only after consecutive confirmations ([health](./processes/servers/server-health.md)).
+- One event, at most one notification per recipient. Health flapping is handled before the event exists: a state changes only after consecutive confirmations ([health](./processes/servers/server-health.md)).
 - Messages are short: an emoji for the state, the subject's name, one sentence, and an **Open in Proxier** button to the subject's page.
-- Messages are in member 1's language: the one chat is theirs. Times use the configured time zone.
+- An event goes to the members it concerns, each with the type on and a chat of their own: the owner of its subject and the members who manage its area (`manage_all`; for platform and servers events, `settings: manage` and `servers: manage`). A member's sign-ins and ways in (`auth.*` of a member, `member.language_changed`, `member.notifications_changed`) go to that member only; `member.added`, `member.access_changed`, `member.removed` and the setup link's events to the `settings: manage` members only ([recipients](./processes/platform/notifications.md#recipients)).
+- Each message is in its recipient's language. Times use the configured time zone.
 - Delivery details (retries, Telegram rate limits, failures): [notifications process](./processes/platform/notifications.md).
 
-Subscriptions' texts (EN; each has its RU twin). The dates are the last day the link works, in member 1's language and the display time zone; the button opens the link or subscription page.
+Subscriptions' texts (EN; each has its RU twin). The dates are the last day the link works, in the recipient's language and the display time zone; the button opens the link or subscription page.
 
 | Event | Emoji | Title | Sentence |
 |---|---|---|---|

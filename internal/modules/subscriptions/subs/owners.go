@@ -50,3 +50,12 @@ func (s *Service) OwnedSubjects(ctx context.Context, member int64) ([]events.Sub
 	}
 	return out, nil
 }
+
+// Owner is the member who owns a subscription or link subject.
+func (s *Service) Owner(ctx context.Context, sub events.Subject) (int64, bool, error) {
+	id, err := strconv.ParseInt(sub.ID, 10, 64)
+	if err != nil {
+		return 0, false, nil
+	}
+	return store.OwnerOf(ctx, s.d.DB.R, sub.Type, id)
+}
