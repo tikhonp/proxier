@@ -1,8 +1,8 @@
 # Domain discovery
 
-**Actors**: Admin; the discovery job (queue `discovery`); the catalog's reverse index; the Chromium sidecar; servers (through `ProxyDialer`, for visits through a server).
+**Actors**: a member with `routing: own` or more; the discovery job (queue `discovery`); the catalog's reverse index; the Chromium sidecar; servers (through `ProxyDialer`, for visits through a server).
 
-The admin types a website, and Proxier finds the domains it uses so they can be tunneled. First it checks whether a known list already covers the site (catalog lookup). Then it opens the site in a headless browser and records every hostname the page loads (headless visit). The admin ticks what to keep, and it becomes a custom service. Nothing changes until the admin saves.
+A member types a website, and Proxier finds the domains it uses so they can be tunneled. First it checks whether a known list already covers the site (catalog lookup). Then it opens the site in a headless browser and records every hostname the page loads (headless visit). The member ticks what to keep, and it becomes a custom service. Nothing changes until the member saves.
 
 ## Steps: starting a run
 
@@ -55,7 +55,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 - The browser never signs in, never fills forms and never accepts cookie banners. It sees what an anonymous visitor sees. Logged-in app pages are out of reach (HAR import is in the [backlog](../../overview.md#backlog)).
 - Each run uses its own browser context, so nothing carries over between runs.
 - A visit through a server goes out from that server's IP, as a client of its endpoint would. A direct visit goes out from home.
-- Without Chromium configured, a run is the catalog lookup only, and the page explains that visits need a Chromium container where Proxier is deployed, in words, without an environment variable's name (the admin may be on a phone, far from the deployment).
+- Without Chromium configured, a run is the catalog lookup only, and the page explains that visits need a Chromium container where Proxier is deployed, in words, without an environment variable's name (the member may be on a phone, far from the deployment).
 - Runs and their screenshots are kept 30 days.
 - One run at a time (queue concurrency 1). Others wait in the queue.
 - A run is its starter's. A custom service saved from it is the run's owner's, and saving needs a member who may change the run; **Visit again** starts a run of the member's own ([routing: owners](../../modules/routing.md#owners)).

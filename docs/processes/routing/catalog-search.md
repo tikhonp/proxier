@@ -1,8 +1,8 @@
 # Catalog search
 
-**Actors**: Admin; the catalog refresh job (queue `refresh`, daily 04:30 and on demand); GitHub (v2fly); the iplist portals.
+**Actors**: a member with `routing: own` or more (refreshing: `manage_all`); the catalog refresh job (queue `refresh`, daily 04:30 and on demand); GitHub (v2fly); the iplist portals.
 
-The catalog lets the admin find services without knowing selectors by heart. It is mtvpn's `search`, kept locally and searched instantly. It also feeds discovery's catalog lookup through a reverse index from domains to the selectors that contain them. Source details: [domain sources](../../integrations/domain-sources.md).
+The catalog lets a member find services without knowing selectors by heart. It is mtvpn's `search`, kept locally and searched instantly. It also feeds discovery's catalog lookup through a reverse index from domains to the selectors that contain them. Source details: [domain sources](../../integrations/domain-sources.md).
 
 ## Steps: refresh
 
@@ -29,7 +29,7 @@ The catalog lets the admin find services without knowing selectors by heart. It 
 ## Rules
 
 - Search reads only the local catalog: instant, and it works when the sources are down. Preview and adding use the network.
-- iplist selectors are added the way they will resolve. An unpinned `iplist:<sel>` resolves on the first portal (in order main, beta, russia) that has it. A result from a later portal is therefore added pinned (`iplist:beta:<sel>`) when an earlier portal also has that selector, so the service gets what the admin saw.
+- iplist selectors are added the way they will resolve. An unpinned `iplist:<sel>` resolves on the first portal (in order main, beta, russia) that has it. A result from a later portal is therefore added pinned (`iplist:beta:<sel>`) when an earlier portal also has that selector, so the service gets what the member saw.
 - A site is tried before a group of the same name, so a group whose portal also has a site of that name can't be selected: its row says so and has no **Add**.
 - v2fly names are matched as written. The UI never adds a bare name: it always writes `v2fly:`.
 - **Add** of a selector no service has yet makes a shared service, so it is offered only to `routing: manage_all`; a result's lists are those the member may add it to ([routing: owners](../../modules/routing.md#owners)).

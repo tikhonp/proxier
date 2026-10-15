@@ -71,7 +71,12 @@ func List(ctx context.Context, q sqlx.QueryerContext, f Filter) ([]Event, error)
 	if f.Type != "" {
 		add("type = ?", f.Type)
 	}
-	if f.Actor != "" {
+	if id, ok := ActorMember(f.Actor); ok {
+		// member 1 is also the old "admin"
+		cond, a := (&Own{Actors: MemberActors(id)}).Where("actor")
+		where = append(where, cond)
+		args = append(args, a...)
+	} else if f.Actor != "" {
 		add("actor = ?", f.Actor)
 	}
 	if f.Subject.Type != "" {

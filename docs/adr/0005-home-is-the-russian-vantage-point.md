@@ -10,5 +10,5 @@ Proxier runs on blackberry, at home in Russia, behind the sh-main gateway. Its o
 ## Consequences
 
 - Traffic from Proxier to its servers must never enter the home router's VPN. Routing lists refuse to cover a server's hostname.
-- When home is offline, the admin UI and every link URL are unreachable. Apps keep their last list, so connections are unaffected.
+- When home is offline, the UI and every link URL are unreachable. Apps keep their last list, so connections are unaffected.
 - Blocks specific to mobile networks or other ISPs stay invisible until probe agents exist.

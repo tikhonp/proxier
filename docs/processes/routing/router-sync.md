@@ -1,6 +1,6 @@
 # Router sync
 
-**Actors**: Admin; router jobs (queue `routers`); the tailnet node; jump hosts; the MikroTik (RouterOS 7); routing module.
+**Actors**: a member with `routing: own` or more; router jobs (queue `routers`); the tailnet node; jump hosts; the MikroTik (RouterOS 7); routing module.
 
 Router sync keeps a MikroTik's tunneled domains equal to its routing list: the DNS static FWD entries and the firewall address-list entries that mtvpn used to write, under the same tags. It runs by itself after every relevant change and repairs drift. It never touches what it doesn't own. The RouterOS details are in the [RouterOS integration](../../integrations/routeros.md).
 
@@ -23,7 +23,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 
    The result lists each check. A missing forwarder or pin gives the warning "this router doesn't look set up by the router script"; Save is still allowed. **Stop** at a fingerprint ends the test and pins nothing.
 4. **Save** → the router is **active**. → `routing.router_added`. When the latest test of exactly these values passed (or warned), the router is connected → `routing.router_connected{version, board}`, and its initial sync is queued. Save also works **untested**: the router then waits ("Not connected yet: Test connection to confirm the host keys; the initial sync runs after it passes."), changes queue nothing for it, and its first passing test records `routing.router_connected` and queues the initial sync. **Sync now** on it is allowed and fails with "first contact with 10.230.1.1:22: confirm its fingerprint with Test connection".
-5. A router created by router scripts (`routers.Register`, through the `RouterRegistrar` port) starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days (`routing.probe`). A probe pins the router's own key on first contact (nobody can confirm a fresh router's key), but its jump host must already be confirmed: a probe never pins a jump host. The first success makes it active and runs the initial sync, as in step 4. A failed probe records nothing; the router page shows its error. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**, whose pass (the admin confirms both keys) activates it the same way.
+5. A router created by router scripts (`routers.Register`, through the `RouterRegistrar` port) starts **awaiting setup**: no syncs, no failure notifications. Proxier quietly tries to connect every 10 minutes for 7 days (`routing.probe`). A probe pins the router's own key on first contact (nobody can confirm a fresh router's key), but its jump host must already be confirmed: a probe never pins a jump host. The first success makes it active and runs the initial sync, as in step 4. A failed probe records nothing; the router page shows its error. After 7 days it stays awaiting setup and shows "never connected", with **Test connection**, whose pass (the member confirms both keys) activates it the same way.
 
 ## Steps: sync
 
@@ -87,13 +87,13 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 ## Rules
 
 - Proxier only touches entries in the router's address list and the DNS static FWD entries that point at it. It never touches infra pins (`mtvpn:…`), dynamic entries, other address lists or other DNS entries ([ADR 0010](../../adr/0010-router-contract-stays-mtvpn-compatible.md)).
-- A tag Proxier never installed is never removed without the admin choosing **Remove from router**.
+- A tag Proxier never installed is never removed without a member choosing **Remove from router**.
 - Untagged entries are adopted only when a desired tag includes their name. Other untagged entries are left alone and counted on the router page.
 - Names that are infra pins on the router (e.g. `dns.google`, `core.telegram.org`) are never installed as service entries. Installing `dns.google` as a FWD entry through the DoH forwarder would make the forwarder depend on itself.
 - One job per router at a time. Changes coalesce into one sync, 30 s after the last trigger.
 - Push timeouts are long (30 min per file). A client timeout in the middle of `/import` would leave a tag half-installed, and the block is idempotent, so the retry heals it.
 - Every SSH command ends within its timeout (or the cancel) plus 5 s, even when the router never ends the session: Proxier then closes the whole connection. After such an import, Proxier connects again to delete the file and re-read the router, and the attempt fails at push ("the import did not end within 30m0s"), so the retries run.
-- A cancelled sync leaves its file; the router's next sync deletes it. Cleaning up in the cancel itself would need a new connection after the admin asked the job to stop, to a router that may be the reason they did (a hung import), and it would still miss the files of a job cancelled while waiting for its retry, or of one whose last reconnect failed. The next sync connects anyway, and one job per router means no other job is importing then, so deleting every Proxier file there covers all of these at once. A leftover file holds only the names it would have installed.
+- A cancelled sync leaves its file; the router's next sync deletes it. Cleaning up in the cancel itself would need a new connection after a member asked the job to stop, to a router that may be the reason they did (a hung import), and it would still miss the files of a job cancelled while waiting for its retry, or of one whose last reconnect failed. The next sync connects anyway, and one job per router means no other job is importing then, so deleting every Proxier file there covers all of these at once. A leftover file holds only the names it would have installed.
 - A tag already matching the router is never pushed, so the first sync of a router mtvpn manages changes nothing that matches.
 - Routers in **awaiting setup** or **paused** are never synced.
 - A router is its owner's and follows a list its owner may change. `view_all` reads everyone's routers and changes only its own; another member's router at `own` is not found. Router scripts register through the port with the member's scope ([routing: owners](../../modules/routing.md#owners)).
@@ -121,8 +121,8 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - The router is offline → the sync fails at connect, retries after 5 min, 15 min and 1 h, and only the fourth (final) failure notifies. When it is back, `routing.router_recovered` notifies. A sync that fails once and then succeeds recovers without a notification.
 - The container restarts during `/import` of a block → the job resumes and re-runs that block. The tag ends correct.
 - The router runs an `/import` in full and never ends its session (no exit status, no channel close, Proxier's close ignored, as one router behind a jump host did: [open questions](../../open-questions.md#routeros-ending-a-long-import)) → after the import timeout Proxier closes the connection, connects again, deletes the file and re-reads: the tags that landed are recorded, the attempt fails at push, and the retry has nothing left to push.
-- The admin cancels a sync whose `/import` never ends → the job is cancelled at once (no failure counted); the next sync deletes its file and records what landed. A shutdown during it interrupts the job; the resume deletes the leftover file and records what landed.
-- The admin cancels a sync during an `/import` → its file stays until the next sync, which deletes it.
+- A member cancels a sync whose `/import` never ends → the job is cancelled at once (no failure counted); the next sync deletes its file and records what landed. A shutdown during it interrupts the job; the resume deletes the leftover file and records what landed.
+- A member cancels a sync during an `/import` → its file stays until the next sync, which deletes it.
 - **Preview sync** while another job holds the router → the preview says it waits for that job (with a link) and polls every 5 s; it reads the router once the job ends.
 - The router's host key changed → the sync fails with "host key changed", nothing is pushed, and the security notification is sent.
 - Switch the router from "Main" to "Parents" → the preview shows removals for tags missing from "Parents". Running it removes them.

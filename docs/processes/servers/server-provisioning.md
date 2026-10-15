@@ -1,18 +1,18 @@
 # Server provisioning
 
-**Actors**: Admin; the provisioning job (queue `provisioning`); the new VPS; Cloudflare; Let's Encrypt (through the template's steps); the proxy test client.
+**Actors**: a member with `servers: manage`; the provisioning job (queue `provisioning`); the new VPS; Cloudflare; Let's Encrypt (through the template's steps); the proxy test client.
 
-Provisioning turns a freshly issued VPS (an IP and a root password) into an **active** server built from a template version. The admin fills in one form and watches the job. There is nothing to type over SSH and nothing to do in DNS. A server only becomes active once a real proxy connection from home works through it.
+Provisioning turns a freshly issued VPS (an IP and a root password) into an **active** server built from a template version. The member fills in one form and watches the job. There is nothing to type over SSH and nothing to do in DNS. A server only becomes active once a real proxy connection from home works through it.
 
 ## Steps: the form
 
 1. Servers → **New server**. Fields:
    - **IP address** (IPv4) and **SSH port** (default 22, under "advanced").
    - **Root password**, never shown again.
-   - **Country**, a searchable picker: typing filters the list of every country by name (in the admin's language) or code, and the field takes "🇳🇱 Netherlands · NL"; a code (`nl`) or a name in English or Russian typed in full counts too. It is preselected from the IP's country. The country's lower-case code is the first half of the server name ([ADR 0015](../../adr/0015-servers-have-a-country-not-a-location.md)).
+   - **Country**, a searchable picker: typing filters the list of every country by name (in the member's language) or code, and the field takes "🇳🇱 Netherlands · NL"; a code (`nl`) or a name in English or Russian typed in full counts too. It is preselected from the IP's country. The country's lower-case code is the first half of the server name ([ADR 0015](../../adr/0015-servers-have-a-country-not-a-location.md)).
    - **Template** and **version** (default version preselected), then the version's **parameters** as form fields with labels, help and defaults.
    - **Notes**.
-2. While the admin types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names. A picker the admin hasn't chosen in (empty with nothing suggested yet, or showing what the IP suggested last) follows the IP's country as the summary updates; anything else in it (a half-typed name, an emptied field, a country they picked) is theirs, and the summary never replaces it. Until a country is picked the summary shows no name, and text that names no country is refused only on **Create**.
+2. While the member types, the form shows what will be created: the server name (`nl-2`), the management and proxy hostnames, the DNS record, and the endpoints with their display names. A picker the member hasn't chosen in (empty with nothing suggested yet, or showing what the IP suggested last) follows the IP's country as the summary updates; anything else in it (a half-typed name, an emptied field, a country they picked) is theirs, and the summary never replaces it. Until a country is picked the summary shows no name, and text that names no country is refused only on **Create**.
 3. **Create**. Proxier checks:
    - no non-retired server has this IP;
    - the country is a country (an ISO code in use today), and the template version exists and the template isn't archived;
@@ -51,7 +51,7 @@ Each step is resumable. A retried job starts at the step that didn't finish.
 10. **Smoke test.** Run the proxy test from home through every endpoint (up to 3 attempts, 20 s apart). Every endpoint must pass.
 11. **Activate.** The server becomes **active**, its health state becomes `unknown`, and the scheduler starts its checks. Subscriptions with "add new servers automatically" append it. → `server.activated{proxy_test}` (notifies "nl-2 is ready")
 
-The job makes one attempt and never retries by itself: a retry may need input, so it is the admin's. Any step failing stops the job. The server becomes **failed**, and the page shows the step, the error and the log. → `server.provisioning_failed{step, error}` (notifies). **Cancelling** the job ends the same way with the error `cancelled` and `cancelled: true` in the event, which does not notify; DNS records already made stay until retry or retirement.
+The job makes one attempt and never retries by itself: a retry may need input, so it is a member's. Any step failing stops the job. The server becomes **failed**, and the page shows the step, the error and the log. → `server.provisioning_failed{step, error}` (notifies). **Cancelling** the job ends the same way with the error `cancelled` and `cancelled: true` in the event, which does not notify; DNS records already made stay until retry or retirement.
 
 ## Steps: after a failure
 

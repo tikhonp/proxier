@@ -1,6 +1,6 @@
 # Script versions
 
-**Actors**: Admin; router scripts module.
+**Actors**: a member with `routerscripts: manage_all` (members at `own` read scripts); router scripts module.
 
 `fresh-router.rsc` changes over time (RouterOS quirks, new watchdogs, guest VLAN rules). Proxier keeps every version, shows what each changed, and detects each version's parameters from the script itself. The script stays a plain RouterOS file you could still import by hand ([ADR 0011](../../adr/0011-router-script-parameters-from-local-block.md)).
 
@@ -20,9 +20,9 @@
 
 ## Steps: handing the draft to an agent
 
-A coding agent on the admin's machine (Claude Code, Codex or similar) can change a draft remotely, as it can a [template draft](../servers/template-authoring.md#steps-handing-the-draft-to-an-agent). Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
+A coding agent on the member's machine (Claude Code, Codex or similar) can change a draft remotely, as it can a [template draft](../servers/template-authoring.md#steps-handing-the-draft-to-an-agent). Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
 
-1. Over the draft, the admin chooses **Hand off to an agent…** and fills in:
+1. Over the draft, the member chooses **Hand off to an agent…** and fills in:
    - what the problem is and what the agent should do, as free text (for example the error RouterOS printed on import);
    - whether to include the diff against the base version (offered when the draft has one, ticked by default);
    - the agent (Claude Code, Codex, other), which changes only the wording;
@@ -33,7 +33,7 @@ A coding agent on the admin's machine (Claude Code, Codex or similar) can change
 3. The agent works through the agent API. Its saves are recorded with `agent:<session>` as the actor → `routerscript.draft_saved{based_on}`.
 4. While a session is open, the script page shows a band over the draft: the agent, the first line of the problem, how many saves, when it expires, **What it changed** (the activity of this session) and **Revoke access**. The page asks every 10 seconds whether the draft is still as the editor holds it; when an agent (or another tab) saved, the band "The draft changed since you opened it (an agent or another tab saved it)" turns **Save draft** and **Publish** off and offers **Reload**. The typed text stays in the editor.
 5. The session ends on expiry, on **Revoke access**, when the draft is published or discarded, when a new hand-off replaces it (`replaced`), or after the 8-hour maximum. Deleting the script deletes its sessions. A request after that gets `401` "session ended", the same answer as an unknown token. → `routerscript.agent_session_closed{reason, saves, session}`
-6. The admin reviews the draft (the parameters panel, **Diff with its version**) and publishes as usual. Publishing is never done by the agent.
+6. The member reviews the draft (the parameters panel, **Diff with its version**) and publishes as usual. Publishing is never done by the agent.
 
 The **agent API** lives under `/agent/v1/router-script` and accepts only an agent token, never a session cookie.
 
@@ -119,7 +119,7 @@ Given this excerpt of `fresh-router.rsc`:
 - The agent renames the masked parameter, puts the mask on a plain one, or removes its quotes → `422`, the draft unchanged.
 - An empty, binary or larger than 512 KiB body → `422` with the editor's message; over 1 MiB → `413`.
 - An LF body saved over a CRLF draft → the draft keeps CRLF.
-- The admin saves while the agent edits → the agent's write with the old ETag gets `412`.
+- A member saves while the agent edits → the agent's write with the old ETag gets `412`.
 - `POST /draft/check` with a duplicate parameter → "Duplicate parameter lanNet.", nothing saved. A computed value built from a masked default shows the mask, not the value. A parameter of the base version gone → the warning.
 - The diff of a draft that changed a secret default and `lanNet` → shows `lanNet` only.
 - Publish, Discard, Revoke access → the session ends with that reason and the token gets `401`. Revoking a session through another script's page → `404`.

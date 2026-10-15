@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -292,5 +293,42 @@ func TestListFilters(t *testing.T) {
 	}
 	if got := list(events.Filter{Since: time.Now().Add(time.Hour)}); len(got) != 0 {
 		t.Fatalf("since: %d", len(got))
+	}
+}
+
+// TestListByMemberActorIncludesTheOldAdmin: member 1's rows from before
+// members say "admin", and filtering by either form finds both.
+func TestListByMemberActorIncludesTheOldAdmin(t *testing.T) {
+	f := newFixture(t)
+	for _, actor := range []string{"admin", events.MemberActor(1), events.MemberActor(2), events.ActorSystem} {
+		if err := f.d.Write(ctx, func(tx *sqlx.Tx) error {
+			_, err := f.c.Record(ctx, tx, events.Event{Type: "server.created", Actor: actor, Subject: events.Subject{Type: "server", ID: "1"}})
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	actors := func(actor string) []string {
+		t.Helper()
+		out, err := events.List(ctx, f.d.R, events.Filter{Actor: actor})
+		if err != nil {
+			t.Fatal(err)
+		}
+		var got []string
+		for _, e := range out {
+			got = append(got, e.Actor)
+		}
+		return got
+	}
+	for actor, want := range map[string]string{
+		"member:1": "member:1 admin",
+		"admin":    "member:1 admin",
+		"member:2": "member:2",
+		"system":   "system",
+		"member:9": "",
+	} {
+		if got := strings.Join(actors(actor), " "); got != want {
+			t.Errorf("actor %s: %q, want %q", actor, got, want)
+		}
 	}
 }

@@ -334,7 +334,7 @@ func (s *Service) write(c *echo.Context, p string, body []byte, remove bool) err
 			return agentapi.Fail(c, http.StatusRequestEntityTooLarge, "the draft would be over 10 MiB")
 		}
 	}
-	rev, err := s.Templates.SaveDraftIn(ctx, sess.TemplateID, d.Revision, files, "agent", s.actor(sess), func(tx *sqlx.Tx, changed bool) error {
+	rev, err := s.Templates.SaveDraftIn(ctx, sess.TemplateID, d.Revision, files, templates.ByAgent, s.actor(sess), func(tx *sqlx.Tx, changed bool) error {
 		if err := s.stillOpen(c, tx, sess); err != nil {
 			return err
 		}
@@ -383,7 +383,7 @@ type findingsJSON struct {
 func (s *Service) validateDraft(c *echo.Context) error {
 	ctx := c.Request().Context()
 	sess := session(c)
-	report, err := s.Templates.ValidateDraftIn(ctx, sess.TemplateID, "agent", s.actor(sess), func(tx *sqlx.Tx) error {
+	report, err := s.Templates.ValidateDraftIn(ctx, sess.TemplateID, templates.ByAgent, s.actor(sess), func(tx *sqlx.Tx) error {
 		if err := s.stillOpen(c, tx, sess); err != nil {
 			return err
 		}

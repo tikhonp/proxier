@@ -16,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
 	"github.com/tikhonp/proxier/internal/modules/servers/templates"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/net/html"
@@ -90,7 +91,7 @@ func (e *tplEnv) publish(id int64, change map[string]string, notes string) int {
 	for p, c := range change {
 		files[p] = []byte(c)
 	}
-	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, files, "admin", "admin")
+	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, files, "member", "admin")
 	if err != nil {
 		e.T.Fatal(err)
 	}
@@ -329,7 +330,7 @@ func TestPublishFlow(t *testing.T) {
 	pub := fmt.Sprintf("/templates/%d/publish", id)
 
 	// errors: the report shows, the button is off, nothing is created
-	if _, err := e.Svc.SaveDraft(ctx, id, 1, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin"); err != nil {
+	if _, err := e.Svc.SaveDraft(ctx, id, 1, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body := e.L.Get(pub).Body.String()
@@ -344,7 +345,7 @@ func TestPublishFlow(t *testing.T) {
 
 	// warnings: the screen says so, an unconfirmed post is refused, a confirmed one publishes
 	compose := strings.Replace(string(d.Files["compose.yaml"]), "nginx:stable-alpine", "nginx:latest", 1)
-	if _, err := e.Svc.SaveDraft(ctx, id, 2, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"], "compose.yaml": []byte(compose)}, "admin", "admin"); err != nil {
+	if _, err := e.Svc.SaveDraft(ctx, id, 2, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"], "compose.yaml": []byte(compose)}, "member", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body = e.L.Get(pub).Body.String()
@@ -369,7 +370,7 @@ func TestPublishFlow(t *testing.T) {
 		t.Errorf("based on %d", nd.BasedOn)
 	}
 	clean := strings.Replace(compose, "nginx:latest", "nginx:1.27-alpine", 1)
-	if _, err := e.Svc.SaveDraft(ctx, id, nd.Revision, map[string][]byte{"manifest.yaml": nd.Files["manifest.yaml"], "compose.yaml": []byte(clean)}, "admin", "admin"); err != nil {
+	if _, err := e.Svc.SaveDraft(ctx, id, nd.Revision, map[string][]byte{"manifest.yaml": nd.Files["manifest.yaml"], "compose.yaml": []byte(clean)}, "member", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body = e.L.Get(pub).Body.String()
@@ -703,7 +704,7 @@ func TestTemplatePagesHaveNoInlineScriptOrStyle(t *testing.T) {
 	}
 	other := e.create("bad")
 	d, _ := e.Svc.Draft(ctx, other)
-	if _, err := e.Svc.SaveDraft(ctx, other, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin"); err != nil {
+	if _, err := e.Svc.SaveDraft(ctx, other, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	pub := func(n int64) string { return fmt.Sprintf("/templates/%d/publish", n) }
@@ -728,5 +729,36 @@ func TestTemplatePagesHaveNoInlineScriptOrStyle(t *testing.T) {
 			t.Errorf("%s: empty page", name)
 		}
 		checkNoInline(t, name, body)
+	}
+}
+
+// TestDraftSavesOfMembersAndOfTheOldAdminBothRead: a save in the editor
+// records by "member"; a row from before members says "admin", and Activity
+// words both alike.
+func TestDraftSavesOfMembersAndOfTheOldAdminBothRead(t *testing.T) {
+	e := newTplEnv(t)
+	ctx := context.Background()
+	id := e.create("both")
+	if _, err := e.Site.App.DB.W.ExecContext(ctx, `INSERT INTO events (time, module, type, subject_type, subject_id, actor, payload)
+		VALUES ('2026-10-01T00:00:00.000Z', 'servers', 'template.draft_saved', 'template', ?, 'admin', '{"by":"admin","files":["compose.yaml"],"changed":1}')`, id); err != nil {
+		t.Fatal(err)
+	}
+	if rec := e.L.Post(fmt.Sprintf("/templates/%d/draft", id), e.draftForm(id, map[string]string{"compose.yaml": "services: {}\n"})); rec.Code != http.StatusSeeOther {
+		t.Fatalf("save: %d", rec.Code)
+	}
+	saved, err := events.List(ctx, e.Site.App.DB.R, events.Filter{Type: "template.draft_saved"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var by []string
+	for _, ev := range saved {
+		by = append(by, fmt.Sprint(ev.Payload["by"]))
+	}
+	if len(saved) < 2 || by[0] != templates.ByMember || saved[0].Actor != events.MemberActor(1) || by[len(by)-1] != "admin" {
+		t.Fatalf("by: %v", by)
+	}
+	body := e.L.Get(fmt.Sprintf("/activity?subject=template:%d", id)).Body.String()
+	if n := strings.Count(body, "Saved the draft of"); n != len(saved) {
+		t.Errorf("Activity words %d of %d saves", n, len(saved))
 	}
 }

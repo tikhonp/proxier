@@ -6,7 +6,7 @@ Proxier runs like the other self-hosted services: an image built by Forgejo Acti
 
 ```mermaid
 flowchart LR
-    C[Clients, admin browser] -- HTTPS proxier.tikhonnnnn.com --> N[sh-main nginx]
+    C[Clients, members' browsers] -- HTTPS proxier.tikhonnnnn.com --> N[sh-main nginx]
     N -- SSH reverse tunnel --> P[proxier container on blackberry]
     P --- V[(volume /data)]
     P -- CDP and SOCKS, network 'discovery' --> B[chromium sidecar]
@@ -63,7 +63,7 @@ networks:
         - subnet: 10.89.251.0/29
 ```
 
-- **Why its own network.** The `proxier` network's subnet is `PROXIER_TRUSTED_PROXIES`: any member of it may set `X-Real-IP`. Chromium visits arbitrary sites and runs their scripts, so it must not be on it; `discovery` holds only `proxier` and `chromium`. It is not `internal`: a direct visit goes out from home, as the admin's own browser would.
+- **Why its own network.** The `proxier` network's subnet is `PROXIER_TRUSTED_PROXIES`: any member of it may set `X-Real-IP`. Chromium visits arbitrary sites and runs their scripts, so it must not be on it; `discovery` holds only `proxier` and `chromium`. It is not `internal`: a direct visit goes out from home, as a member's own browser would.
 - **`PROXIER_CHROMIUM_URL`** is the DevTools address. Proxier resolves its host to an IP before asking `/json/version` (DevTools refuses a `Host` header that is neither an IP nor `localhost`) and connects to the WebSocket at that IP. Empty: discovery runs the catalog lookup only, and Settings → Integrations and the Discover page say so.
 - **A visit through a server** opens a SOCKS5 listener in Proxier on its address in `discovery` (the local address that routes to the sidecar), on a random port, for that visit only. It accepts connections only from the sidecar's IP (Chrome can't authenticate to a SOCKS proxy) and relays them through the server's endpoint. Each visit is a fresh browser context (no cookies, no storage), disposed afterwards.
 - **Upgrades** are deliberate: change the pinned tag. Nothing else depends on the Chrome version.
@@ -95,7 +95,7 @@ The directory is created by the image owned by uid 65532; a bind mount on the ho
 4. Sign in, then in Settings: the Cloudflare API token and zones, the Telegram bot (token + detected chat), your personal SSH public keys (installed on every new server), the hostname pattern (default `{country}-{number}.hosts.tikhonnnnn.com`), check-host nodes, and the time zone and languages.
 5. Copy Proxier's public SSH key (Settings → SSH) onto the jump hosts and routers you want to sync.
 
-What the admin does by hand, once: create the DNS record for `proxier.tikhonnnnn.com` and issue its certificate (`make proxier.tikhonnnnn.com` in sh-main); create the data directory with the right owner; put `PROXIER_MASTER_KEY` (and a headscale pre-auth key for the node `proxier`, `PROXIER_TS_AUTHKEY`) into `secrets/blackberry/proxier.env` and the master key into Vaultwarden; allow the node `proxier` to reach the jump hosts and routers in headscale's ACL (stored in its database: edit it in Headplane); commit both infra repos; push the image.
+What is done by hand, once: create the DNS record for `proxier.tikhonnnnn.com` and issue its certificate (`make proxier.tikhonnnnn.com` in sh-main); create the data directory with the right owner; put `PROXIER_MASTER_KEY` (and a headscale pre-auth key for the node `proxier`, `PROXIER_TS_AUTHKEY`) into `secrets/blackberry/proxier.env` and the master key into Vaultwarden; allow the node `proxier` to reach the jump hosts and routers in headscale's ACL (stored in its database: edit it in Headplane); commit both infra repos; push the image.
 
 ## Backups
 
@@ -105,7 +105,7 @@ What the admin does by hand, once: create the DNS record for `proxier.tikhonnnnn
 
 ## Operating notes
 
-- **Home internet down** means the admin UI and every link URL are unreachable. Client apps keep their last list, so existing connections are unaffected. Checks pause their verdicts (reference check), so coming back online doesn't raise false alarms.
+- **Home internet down** means the UI and every link URL are unreachable. Client apps keep their last list, so existing connections are unaffected. Checks pause their verdicts (reference check), so coming back online doesn't raise false alarms.
 - **Upgrades** are image updates. Migrations run on startup, and a migration failure keeps the old schema and exits. Running jobs are interrupted by the restart and resume ([jobs](./processes/platform/jobs.md)).
 - **Losing the master key** loses every secret: generated values, tokens, the Cloudflare and Telegram tokens, Proxier's SSH key. Servers keep running, but Proxier can't manage them, and link URLs would need new tokens.
 - **Moving the public host** (a new `PROXIER_BASE_URL`) changes every link URL. Keep the old name pointing at Proxier until the apps have refreshed from the new URLs. Give people the new URLs first.

@@ -26,7 +26,7 @@ func TestCreateTemplate(t *testing.T) {
 		t.Fatalf("draft: rev %d based on %d, files %v", d.Revision, d.BasedOn, d.Files)
 	}
 	// the skeleton is a manifest that validates clean
-	r, err := e.Svc.ValidateDraft(ctx, id, "admin", "admin")
+	r, err := e.Svc.ValidateDraft(ctx, id, "member", "admin")
 	if err != nil || len(r.Findings) != 0 {
 		t.Fatalf("the skeleton must validate with no findings: %v %v", r.Findings, err)
 	}
@@ -38,7 +38,7 @@ func TestCreateTemplate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r, _ := e.Svc.ValidateDraft(ctx, id2, "admin", "admin"); !r.OK() {
+	if r, _ := e.Svc.ValidateDraft(ctx, id2, "member", "admin"); !r.OK() {
 		t.Errorf("a name with YAML punctuation must still validate: %v", r.Findings)
 	}
 	// rules

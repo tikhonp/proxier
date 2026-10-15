@@ -50,7 +50,7 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `template.changed` | template | fields (which of name, slug, description changed) | off | A rename or a new description. The slug changes only before the first version. |
 | `template.draft_discarded` | template | based_on, revision | off | **Discard draft**. |
 | `template.agent_session_opened` | template | expires_at, context | **on** | "An agent can edit the nginx-xhttp draft until 18:41". Anyone holding the copied prompt can do so. |
-| `template.draft_saved` | template | by (admin / agent), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version), source (zip / git, for an import) | off | A save that changes no file records nothing. Also recorded when a draft is created from a version, from the skeleton or by an import. |
+| `template.draft_saved` | template | by (`member` / `agent`; `admin` in rows from before members), files (the changed paths, at most 50), changed (their number), from_version (when the draft was created from a version), source (zip / git, for an import) | off | A save that changes no file records nothing. Also recorded when a draft is created from a version, from the skeleton or by an import. |
 | `template.draft_validated` | template | by, errors, warnings | off | |
 | `template.agent_session_closed` | template | reason (expired / revoked / published / discarded / replaced), saves, session | off | `replaced`: a new hand-off for the same draft ended it. The actor of a save or validation by the agent is `agent:<session id>`. |
 | `server.created` | server | IP, country, template version | off | |
@@ -64,9 +64,9 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `server.cert_expiring` | server | days_left | **on** | Once per crossing of the 14-day threshold (not daily): raised again only after the certificate was renewed and runs low again. |
 | `server.disk_low` | server | free_pct | **on** | Under 10 % free, once per crossing. |
 | `server.checks_paused` | server | until | off | |
-| `server.checks_resumed` | server | — | off | |
+| `server.checks_resumed` | server | by (`member` / `timer`; `admin` in rows from before members) | off | |
 | `server.retired` | server | dns_removed (names), dns_kept (name, reason), stack_removed | off | Recorded by the retire job's last step. |
-| `server.retire_failed` | server | step, error, cancelled | **on** | "nl-2: retirement failed at …". The server stays out of service (retiring) until the admin retries; a cancelled job notifies nothing. |
+| `server.retire_failed` | server | step, error, cancelled | **on** | "nl-2: retirement failed at …". The server stays out of service (retiring) until a member with `servers: manage` retries; a cancelled job notifies nothing. |
 | `server.notes_changed` | server | — | off | Only when the notes changed. |
 | `server.rollout_started` | rollout (`rollout:<id>`) | servers (names), to_version | off | A rolling upgrade began. |
 | `server.rollout_finished` | rollout | state (`done` / `stopped` / `cancelled`), done, failed, not_started, skipped | off | Recorded once, when the rollout is no longer running and no server of it is. |
@@ -120,7 +120,7 @@ Lists in payloads are one comma-joined string.
 | `routing.shadowrocket_created` | Shadowrocket config | name, list, policy | off | Also by the mtvpn import |
 | `routing.shadowrocket_updated` | Shadowrocket config | changes: `base` (+ version), `list` (+ from, to), `policy` (+ policy_from, policy), `list, policy`, `token`, `disabled`, `enabled` | off | Never the token. An edit that changes nothing records nothing. |
 | `routing.shadowrocket_deleted` | Shadowrocket config | name, list | off | |
-| `routing.router_added` | router | list, host, by (admin / routerscripts) | off | |
+| `routing.router_added` | router | list, host, by (`routerscripts` when a router script registered it, else the actor) | off | |
 | `routing.router_updated` | router | changes (of name, connection, names, list), from, to (the old and new name on a rename, list names on a list switch) | off | |
 | `routing.router_connected` | router | version, board | off | First successful connection: a passing Test connection (saved with it, or of a saved router that never connected) or a sync's connect step; ends "awaiting setup". An awaiting router's probe records it too and queues the initial sync. |
 | `routing.router_synced` | router | added, updated, removed, recorded, trigger (change, manual, initial) | off | Only when something was pushed or recorded: a sync with nothing to do records no event. |
@@ -131,7 +131,7 @@ Lists in payloads are one comma-joined string.
 | `routing.drift_detected` | router | tags, repair | **on** only when repair is off 🟡 | "{subject} drifted from what Proxier installed" / "Tags: {tags}. Auto-repair is off: open the router to repair." With repair off, recorded only when the set of drifting tags changes. |
 | `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | "{subject} has tags Proxier didn't install" / "{tags}. They stay; adopt, remove or ignore them on the router page." (plural forms). Ignored tags never count. |
 | `routing.unmanaged_tag_ignored` | router | tag, ignored | off | |
-| `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | The admin is watching the run. |
+| `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | The member who started it is watching the run. |
 | `routing.handed_over` | the removed member | from, to (usernames), lists, routers, shadowrocket, services (custom), imports, discovery (how many of each moved) | off | The reaction to `member.removed` (actor `system`): everything the removed member owned goes to the heir. Nothing moved, nothing recorded. |
 
 ## Router scripts
@@ -150,7 +150,7 @@ Lists in payloads are one comma-joined string.
 | `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | |
 | `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `member:<id>`. |
 | `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |
-| `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor `admin`). |
+| `routerscript.fetch_url_expired` | generation | expired (its expiry time) | off | It was never used: recorded by the 5-minute scan (actor `job:<id>`), or when a new URL is made for the generation before the scan saw it (actor the member). |
 | `routerscript.agent_session_opened` | router script | expires_at, agent, context (diff: bool), session | **on** 🤖 | "An agent can edit the draft of fresh-router". Anyone holding the copied prompt can do so. |
 | `routerscript.agent_session_closed` | router script | reason (expired / revoked / published / discarded / replaced), saves, session | off | A save by the agent is `routerscript.draft_saved` with actor `agent:<session id>`. Deleting the script deletes its sessions without this event. |
 

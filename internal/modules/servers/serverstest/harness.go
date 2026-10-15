@@ -299,7 +299,7 @@ func (h *Harness) PublishVersion(change func(files map[string][]byte), makeDefau
 		files[k] = v
 	}
 	change(files)
-	rev, err := h.Mod.Templates.SaveDraft(ctx, h.TemplateID, d.Revision, files, "admin", "admin")
+	rev, err := h.Mod.Templates.SaveDraft(ctx, h.TemplateID, d.Revision, files, "member", "admin")
 	if err != nil {
 		h.T.Fatal(err)
 	}

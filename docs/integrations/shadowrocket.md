@@ -39,4 +39,4 @@ Shadowrocket → Config → add the URL, then select it. Shadowrocket refreshes 
 ## Validation of the base config
 
 - It must contain a `[Rule]` section. Otherwise saving is refused.
-- Nothing else is interpreted. Every other line is copied byte for byte, so a broken base is the admin's to fix, and **Preview** shows exactly what the phone gets.
+- Nothing else is interpreted. Every other line is copied byte for byte, so a broken base is its owner's to fix, and **Preview** shows exactly what the phone gets.

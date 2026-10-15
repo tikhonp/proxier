@@ -1,12 +1,12 @@
 # Service management
 
-**Actors**: Admin; routing module; the sources; the sync engine (reacting to changes).
+**Actors**: a member with `routing: own` or more (shared services: `manage_all`); routing module; the sources; the sync engine (reacting to changes).
 
-A service is a named set of domains from one source, and the unit that goes into routing lists and onto routers under its tag. Upstream services (v2fly, iplist, URL) are fetched. Custom services are written in Proxier; they replaced the admin's own domain-list files on copyparty.
+A service is a named set of domains from one source, and the unit that goes into routing lists and onto routers under its tag. Upstream services (v2fly, iplist, URL) are fetched. Custom services are written in Proxier; they replaced the hand-kept domain-list files on copyparty.
 
 ## Steps: adding an upstream service
 
-1. Routing → Services → **Add service**, or **Add to lists…** from search or discovery. The admin enters or picks a selector:
+1. Routing → Services → **Add service**, or **Add to lists…** from search or discovery. The member enters or picks a selector:
    - `v2fly:<name>`, `iplist:<site|group>`, `iplist:<portal>:<site|group>`, `https://…`, or `<tag>=https://…`;
    - a bare name, rewritten as `v2fly:<name>`.
 2. Proxier parses the selector and computes its **tag** without the network ([domain sources](../../integrations/domain-sources.md#tags)).
@@ -41,7 +41,7 @@ A service is a named set of domains from one source, and the unit that goes into
 3. **History**: snapshots (accepted, rejected, superseded) with counts and a diff against the previous accepted one. A **rejected** snapshot has **Accept anyway** ([upstream refresh](./upstream-refresh.md)).
 4. Actions:
    - **Refresh now**, which runs the refresh flow for this service;
-   - **Switch source** (upstream): the new source's snapshot is accepted at once, without the safety checks of the refresh (the admin chose the source);
+   - **Switch source** (upstream): the new source's snapshot is accepted at once, without the safety checks of the refresh (a member chose the source);
    - **Edit domains** (custom);
    - **Rename tag** (custom), which makes routers drop the old tag and install the new one;
    - **Remove**, only when it is in no routing list.

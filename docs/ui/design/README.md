@@ -77,7 +77,7 @@ The desktop layout, from top to bottom:
   - the search field, which stretches to fill the rest;
   - the jobs cell;
   - an optional warning cell, such as "Telegram unreachable";
-  - the admin's name in plain subtle text, then a small **Sign out** button (`.pc-btn.pc-sm`) in a cell of its own at the end. When the window is narrow, the name and the search give way (the name ends in "…"); Sign out never does. There is no account menu: Settings is in the sidebar.
+  - the member's username in plain subtle text, then a small **Sign out** button (`.pc-btn.pc-sm`) in a cell of its own at the end. When the window is narrow, the name and the search give way (the name ends in "…"); Sign out never does. There is no account menu: Settings is in the sidebar.
 - **Sidebar** (212 px), with grouped navigation. The current page is an overlay row with a `›`. Under the last group, 16 px down, the running version (`.side-ver`: 12 px, muted, one line ending in "…").
 - **Main area**:
   - the page title block: an `h1`, then one status line in words;
@@ -169,7 +169,7 @@ A laptop zoomed to 125 % and more, or a narrow window, leaves less room than the
 Under 760 px the layout changes:
 
 - The sidebar becomes a drawer behind a ☰ cell, and the key line goes away.
-- The header grows to 56 px, with flush cells: ☰, the logo (12 px sides), then at the right search as a 48 px magnifier cell, the admin's name and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
+- The header grows to 56 px, with flush cells: ☰, the logo (12 px sides), then at the right search as a 48 px magnifier cell, the member's username and Sign out. The name has the rest of the row and ends in "…" only when it doesn't fit.
 - Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
 - Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row, so they don't push the code a screen down.
@@ -191,7 +191,7 @@ The files in `screens/` are the canvas source (`.dc.html`). Use them as a refere
 
 - They need the canvas runtime (`support.js`), so they don't open on their own.
 - The markup and inline styles are exact. The `<helmet>` block carries the same classes as `tokens.css`.
-- Their header ends in an `admin ▾` menu cell, which the app doesn't have: the header ends with the admin's name and **Sign out** (Layout, above). The server page's More menu is gone too: its secondary actions are in an Actions area.
+- Their header ends in an `admin ▾` menu cell, which the app doesn't have: the header ends with the member's username and **Sign out** (Layout, above). The server page's More menu is gone too: its secondary actions are in an Actions area.
 - The sample data is in the `renderVals()` script at the bottom.
 
 | Area | File | Screen |

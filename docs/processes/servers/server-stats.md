@@ -1,6 +1,6 @@
 # Server stats
 
-**Actors**: the self-check job; Admin.
+**Actors**: the self-check job; a member with `servers: manage`.
 
 Stats show what each server is doing: load, memory, disk and traffic. No agent is installed. The numbers are read in the same SSH session as the self-check, every 5 minutes ([ADR 0007](../../adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 

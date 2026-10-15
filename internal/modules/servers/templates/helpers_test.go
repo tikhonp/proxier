@@ -47,7 +47,7 @@ func (e *env) publish(id int64, note string) int {
 		files[p] = c
 	}
 	files["compose.yaml"] = append(append([]byte(nil), files["compose.yaml"]...), []byte("# "+note+"\n")...)
-	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, files, "admin", "admin")
+	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, files, "member", "admin")
 	if err != nil {
 		e.T.Fatal(err)
 	}

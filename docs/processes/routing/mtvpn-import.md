@@ -1,6 +1,6 @@
 # mtvpn import
 
-**Actors**: Admin; routing module.
+**Actors**: a member with `routing: manage_all`; routing module.
 
 A one-time move of an mtvpn setup into Proxier: the services and hosted service lists from `mtvpn.yaml` become services in a routing list, your own domain-list files become custom services if you want, and the Shadowrocket base becomes a hosted Shadowrocket config. Routers aren't touched by the import. They are added afterwards ([router sync](./router-sync.md)), and their first sync changes nothing that already matches.
 
@@ -23,7 +23,7 @@ A one-time move of an mtvpn setup into Proxier: the services and hosted service 
 - The import never contacts a router.
 - The preview is stored (30 days) without the file's text: only the rows, the ignored keys' names, the fetched base and the failing lists. Parse errors name the line number only.
 - Every row goes into the one routing list chosen at the top (default "Main").
-- A service list must be an `http`/`https` URL; a path on the admin's computer is reported as a failing list ("paste its lines into services: instead").
+- A service list must be an `http`/`https` URL; a path on the member's computer is reported as a failing list ("paste its lines into services: instead").
 - A row whose tag already exists reuses that service as it is, even when its selector differs.
 - A row whose service would cover a server's hostname is skipped with the guard's message (the refusal is recorded); the others are added.
 - The offered config is named `iphone` (`iphone-2`, … when taken) and is unticked when a config already serves the same base.

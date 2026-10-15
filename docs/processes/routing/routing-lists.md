@@ -1,6 +1,6 @@
 # Routing lists
 
-**Actors**: Admin; routing module; servers (through `ServerHostnames`); the sync engine.
+**Actors**: a member with `routing: own` or more; routing module; servers (through `ServerHostnames`); the sync engine.
 
 A routing list is the set of services a target follows: "Main" for the home router and the phone, maybe "Parents" with fewer services for another router. Lists replace mtvpn's `services:` and `service_lists:`. This flow covers editing lists and the two rules that make a list's domains unambiguous and safe: ownership and the server-hostname guard.
 

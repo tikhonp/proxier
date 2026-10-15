@@ -219,7 +219,7 @@ func (h *handler) staleEditor(c *echo.Context, id int64, p posted) error {
 	})
 }
 
-// redirectGone sends the admin to the template page when its draft is gone.
+// redirectGone sends the member to the template page when its draft is gone.
 func redirectGone(c *echo.Context, id int64, err error) error {
 	if errors.Is(err, templates.ErrNoDraft) {
 		return web.Redirect(c, actionHref(id, ""))
@@ -237,7 +237,7 @@ func (h *handler) draftSave(c *echo.Context) error {
 	if bad != "" {
 		return h.badForm(c, id, bad)
 	}
-	_, err = h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", web.Actor(ctx))
+	_, err = h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, templates.ByMember, web.Actor(ctx))
 	switch {
 	case errors.Is(err, templates.ErrDraftChanged):
 		return h.staleEditor(c, id, p)
@@ -291,14 +291,14 @@ func (h *handler) draftValidate(c *echo.Context) error {
 	if bad != "" {
 		return web.Render(c, http.StatusOK, messageFragment(i18n.T(ctx, bad)))
 	}
-	rev, err := h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, "admin", web.Actor(ctx))
+	rev, err := h.Templates.SaveDraft(ctx, id, p.Revision, p.Files, templates.ByMember, web.Actor(ctx))
 	switch {
 	case errors.Is(err, templates.ErrDraftChanged):
 		return web.Render(c, http.StatusOK, staleFragment())
 	case err != nil:
 		return notFound(err)
 	}
-	report, err := h.Templates.ValidateDraft(ctx, id, "admin", web.Actor(ctx))
+	report, err := h.Templates.ValidateDraft(ctx, id, templates.ByMember, web.Actor(ctx))
 	if err != nil {
 		return notFound(err)
 	}

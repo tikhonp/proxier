@@ -1,12 +1,12 @@
 # Jobs
 
-**Actors**: Admin; modules (enqueue jobs from actions and event reactions); Scheduler; worker pools.
+**Actors**: a member with `activity` access (Cancel and Retry: the manage level of the job's area); modules (enqueue jobs from actions and event reactions); Scheduler; worker pools.
 
-All long or remote work is a job: provisioning, redeploys, check rounds, router syncs, refreshes, discovery, notifications, backups. Jobs are stored, so the admin can see what ran, what failed and why, retry it, or cancel it, and a restart doesn't lose work. The machinery is described in [architecture](../../architecture.md#jobs). This document is the behaviour.
+All long or remote work is a job: provisioning, redeploys, check rounds, router syncs, refreshes, discovery, notifications, backups. Jobs are stored, so a member can see what ran, what failed and why, retry it, or cancel it, and a restart doesn't lose work. The machinery is described in [architecture](../../architecture.md#jobs). This document is the behaviour.
 
 ## Steps: lifecycle
 
-1. A module enqueues a job: type, queue, payload, resource key, optional coalescing key, optional delay, created by (admin / schedule / event).
+1. A module enqueues a job: type, queue, payload, resource key, optional coalescing key, optional delay, created by (a member / schedule / event).
    - If the coalescing key matches a **queued** job, the new request merges into it: the payload is merged and the later of the two run-after times is kept. No new job is created.
    - If it matches a **running** job, or one that already started and waits for a retry, one follow-up is queued (or merged into the existing follow-up). Only a job that has never started is merged into.
    - A module may ask to skip instead (`SkipIfBusy`): when the resource key has a running, queued or interrupted job, nothing is queued and the caller records the skip.
@@ -42,7 +42,7 @@ Default retry policies:
 
 | Job type | Attempts | Backoff |
 |---|---|---|
-| provision, redeploy, upgrade, rotate, retire | 1 (the admin retries) | — |
+| provision, redeploy, upgrade, rotate, retire | 1 (a member retries) | — |
 | check rounds | 1 (the next round comes anyway) | — |
 | router sync | 4 | 5 min, 15 min, 1 h |
 | upstream refresh, catalog refresh | 3 | 10 min, 30 min |

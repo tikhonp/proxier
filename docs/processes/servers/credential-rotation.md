@@ -18,7 +18,7 @@ Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-creden
    4. Proxy test through every endpoint **with the new values**.
    5. Commit: the new values replace the old ones, and the endpoints are stored with the new credential and parameters. → `server.credentials_rotated{keys}` (notifies)
 4. If a step fails before the commit, the **restore runs inside the failing step**, before the job reports the failure: the server's current files are uploaded again (a deployment of kind `restore`), the redeploy steps run, the proxy test passes with the old values, and the new values are dropped. The old values stay in force throughout. → `server.redeploy_failed{kind: rotate, step, error, restored}`; `restored` is false when the restore failed too, and the log says what may be on the server.
-5. If the admin cancels after the new values exist, the cancellation queues a `servers.restore` job (the rotation's log says "restore queued as job #N") that does the same.
+5. If the member cancels after the new values exist, the cancellation queues a `servers.restore` job (the rotation's log says "restore queued as job #N") that does the same.
 
 ## Steps: cut-off (rotating for a link)
 

@@ -17,12 +17,12 @@ func TestStaleSaveIsRefused(t *testing.T) {
 	tabB, _ := e.Svc.Draft(ctx, id)
 	a := map[string][]byte{"manifest.yaml": tabA.Files["manifest.yaml"], "compose.yaml": []byte("a")}
 	b := map[string][]byte{"manifest.yaml": tabB.Files["manifest.yaml"], "compose.yaml": []byte("b")}
-	rev, err := e.Svc.SaveDraft(ctx, id, tabA.Revision, a, "admin", "admin")
+	rev, err := e.Svc.SaveDraft(ctx, id, tabA.Revision, a, "member", "admin")
 	if err != nil || rev != 2 {
 		t.Fatalf("first save: %d %v", rev, err)
 	}
 	events := len(e.Recorded("template.draft_saved"))
-	if _, err := e.Svc.SaveDraft(ctx, id, tabB.Revision, b, "admin", "admin"); !errors.Is(err, templates.ErrDraftChanged) {
+	if _, err := e.Svc.SaveDraft(ctx, id, tabB.Revision, b, "member", "admin"); !errors.Is(err, templates.ErrDraftChanged) {
 		t.Fatalf("the second tab's save: %v", err)
 	}
 	d, _ := e.Svc.Draft(ctx, id)
@@ -33,10 +33,10 @@ func TestStaleSaveIsRefused(t *testing.T) {
 		t.Error("a refused save recorded an event")
 	}
 	// after reloading, the save goes through
-	if rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, b, "admin", "admin"); err != nil || rev != 3 {
+	if rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, b, "member", "admin"); err != nil || rev != 3 {
 		t.Errorf("save after reload: %d %v", rev, err)
 	}
-	if _, err := e.Svc.SaveDraft(ctx, 999, 1, a, "admin", "admin"); !errors.Is(err, templates.ErrNoDraft) {
+	if _, err := e.Svc.SaveDraft(ctx, 999, 1, a, "member", "admin"); !errors.Is(err, templates.ErrNoDraft) {
 		t.Errorf("a template without draft: %v", err)
 	}
 }
@@ -47,7 +47,7 @@ func TestNoOpSaveRecordsNothing(t *testing.T) {
 	id := e.create("noop")
 	d, _ := e.Svc.Draft(ctx, id)
 	before := len(e.Recorded("template.draft_saved"))
-	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, d.Files, "admin", "admin")
+	rev, err := e.Svc.SaveDraft(ctx, id, d.Revision, d.Files, "member", "admin")
 	if err != nil || rev != d.Revision {
 		t.Fatalf("a save without changes keeps the revision: %d %v", rev, err)
 	}
@@ -68,7 +68,7 @@ func TestNoOpSaveRecordsNothing(t *testing.T) {
 	}
 	// removing a file counts as a change too
 	d, _ = e.Svc.Draft(ctx, id)
-	if rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin"); rev != d.Revision+1 {
+	if rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin"); rev != d.Revision+1 {
 		t.Errorf("deleting a file: revision %d", rev)
 	}
 }
@@ -78,7 +78,7 @@ func TestValidateDraftRecordsItsResult(t *testing.T) {
 	ctx := context.Background()
 	id := e.create("validate")
 	d, _ := e.Svc.Draft(ctx, id)
-	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin")
+	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin")
 	r, err := e.Svc.ValidateDraft(ctx, id, "agent", "admin")
 	if err != nil || r.OK() {
 		t.Fatalf("a manifest listing a missing file must have errors: %v %v", r.Findings, err)
@@ -87,7 +87,7 @@ func TestValidateDraftRecordsItsResult(t *testing.T) {
 	if len(ev) != 1 || ev[0].Payload["by"] != "agent" || ev[0].Payload["errors"] != float64(len(r.Errors())) {
 		t.Errorf("event: %+v", ev)
 	}
-	if _, err := e.Svc.ValidateDraft(ctx, 999, "admin", "admin"); !errors.Is(err, templates.ErrNoDraft) {
+	if _, err := e.Svc.ValidateDraft(ctx, 999, "member", "admin"); !errors.Is(err, templates.ErrNoDraft) {
 		t.Errorf("no draft: %v", err)
 	}
 }

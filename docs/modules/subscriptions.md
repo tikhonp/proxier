@@ -10,9 +10,9 @@ Every subscription and link has an **owner**, the member who made it ([ownership
 
 | Field | Meaning | Default |
 |---|---|---|
-| Name | Admin-facing, unique (exact match), at most 60 characters. | — |
+| Name | Shown to members only, unique (exact match), at most 60 characters. | — |
 | Title | What apps show as the subscription's name (`profile-title`), at most 60 characters. | the name |
-| Description | Admin-facing note. | — |
+| Description | A note members see. | — |
 | Servers | Ordered list of active servers. Every endpoint of each server is served, in that order. | empty |
 | Formats | Which formats links may be served in, and the default: `uri-plain`, `uri-base64` ([subscription format](../integrations/subscription-format.md)). | both allowed, `uri-plain` default |
 | Update interval | Whole hours suggested to apps between refreshes (`profile-update-interval`), 1–168. | 12 |
@@ -41,7 +41,7 @@ Flows: [subscription management](../processes/subscriptions/subscription-managem
 | Language | Language of its stub entry text. | Settings default |
 | Format override | One of the subscription's allowed formats, for an app that needs it. | none |
 | Alert thresholds | Override the shared-link alert thresholds, or mute alerts for this link. | Settings defaults |
-| Note | Admin-facing. | — |
+| Note | Members see it; the link holder doesn't. | — |
 
 ### What a link serves
 
