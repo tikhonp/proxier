@@ -30,7 +30,7 @@ templ targetsCell(ts []targetView) {
 			for _, t := range ts {
 				<span class="sm">
 					@ui.Status(t.Kind, t.Name)
-					<span class="subtle">{ t.Word }</span>
+					<span class="subtle">{ " " + t.Word }</span>
 				</span>
 			}
 		</span>
