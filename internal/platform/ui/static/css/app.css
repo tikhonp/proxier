@@ -1045,6 +1045,64 @@ a.row.rsgen { grid-template-columns: minmax(0, 1fr) auto auto; text-decoration: 
    the key line, the panel scrolls on its own instead of hiding its end. */
 .stick { position: sticky; top: 0; max-height: calc(100vh - var(--keyline-h)); overflow-y: auto; }
 
+/* The link page: what a browser gets at a link's URL. Phone first: most people open
+   it on the phone that will connect, so the recommended app's Add button is the one
+   primary button, and every tap target is a finger's size. Beside the apps on a
+   desktop, the link, Copy and the QR code for a phone to scan. */
+.lp { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+.lp h1 { font-size: var(--fs-h1); line-height: var(--lh-h1); font-weight: 600; overflow-wrap: anywhere; }
+.lp-head { display: flex; flex-direction: column; gap: 6px; }
+.lp-intro { color: var(--subtle); max-width: 640px; }
+.lp-gone { display: flex; flex-direction: column; gap: 12px; padding-top: 72px; max-width: 560px; }
+.lp-cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; align-items: start; }
+.lp-apps { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lp-tabs { display: flex; flex-wrap: wrap; }
+.lp-tab { position: relative; margin-left: -1px; padding: 6px 14px; border: 1px solid var(--muted); color: var(--subtle); text-decoration: none; white-space: nowrap; }
+.lp-tab:first-child { margin-left: 0; }
+.lp-tab:hover { border-color: var(--subtle); color: var(--text); z-index: 1; }
+.lp-js .lp-tab.lp-on { border-color: var(--text); color: var(--text); z-index: 2; }
+.lp-tab:focus-visible { outline-offset: -1px; z-index: 3; }
+.lp-plat { display: flex; flex-direction: column; gap: 12px; }
+.lp-plat[hidden] { display: none; }
+.lp-plat + .lp-plat { margin-top: 16px; }
+.lp-plat-h { font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
+/* with the tabs working, a section's tab names it */
+.lp-js .lp-plat + .lp-plat { margin-top: 0; }
+.lp-js .lp-plat-h { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.lp-app { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; border: 1px solid var(--overlay); }
+.lp-rec { border-color: var(--hl-high); background: var(--base); }
+.lp-app-h { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.lp-app-h h3 { font-size: var(--fs-dialog); line-height: 22px; font-weight: 600; }
+.lp-badge { padding: 0 6px; border: 1px solid var(--text); font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+.lp-note { color: var(--subtle); }
+/* a step's number in a column of its own, its parts stacked beside it (a flex or grid
+   li loses its marker) */
+.lp-steps { margin: 0; padding: 0; list-style: none; counter-reset: lp-step; display: flex; flex-direction: column; gap: 14px; }
+.lp-steps > li { counter-increment: lp-step; display: grid; grid-template-columns: 20px minmax(0, 1fr); gap: 8px 4px; }
+.lp-steps > li::before { content: counter(lp-step) "."; grid-row: 1; color: var(--subtle); }
+.lp-steps > li > * { grid-column: 2; }
+.lp-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.lp:not(.lp-js) .lp-copy { display: none; }
+.lp-small { font-size: var(--fs-sm); line-height: 18px; color: var(--subtle); }
+.lp-side { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px 16px; border: 1px solid var(--overlay); position: sticky; top: 16px; }
+.lp-label { font-size: var(--fs-label); line-height: 16px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
+.lp-url { padding: 8px 10px; background: var(--base); border: 1px solid var(--hl-med); overflow-wrap: anywhere; user-select: all; }
+.lp-qr summary { cursor: pointer; color: var(--subtle); }
+.lp-qr summary:hover { color: var(--text); }
+.lp-qr .qr { margin-top: 12px; max-width: 240px; }
+@media (max-width: 760px) {
+  .lp { padding-top: 20px; gap: 16px; }
+  .lp-gone { padding-top: 24px; }
+  .lp-cols { grid-template-columns: minmax(0, 1fr); }
+  .lp-side { position: static; }
+  /* six tabs in two rows of three, each a finger wide */
+  .lp-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .lp-tab { display: flex; align-items: center; justify-content: center; min-height: 48px; margin: 0 0 -1px -1px; padding: 6px; text-align: center; white-space: normal; }
+  .lp-tab:nth-child(3n + 1) { margin-left: 0; }
+  .lp-add { width: 100%; }
+  .lp-qr summary { padding: 12px 0; margin: -12px 0; }
+}
+
 /* Side-by-side page columns need room: below 1100 px (a laptop zoomed to 125 % and
    more, a narrow window) they stack, as on a phone, instead of squeezing their tables. */
 @media (max-width: 1100px) {

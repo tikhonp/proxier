@@ -20,10 +20,18 @@ import (
 // subscription.all_unhealthy.
 const allUnhealthyEvery = time.Hour
 
-// record stores the fetch, the link's last fetch, the country lookup of a
+// record writes the fetch before the answer goes out. Apps must not lose
+// their list over a log, so a failed write is only logged.
+func (s *Service) record(c *echo.Context, l links.Link, format string, resp output.Response) {
+	if err := s.write(c, l, format, resp); err != nil {
+		s.d.Log.Error("subscriptions: record fetch", "link", l.ID, "error", err)
+	}
+}
+
+// write stores the fetch, the link's last fetch, the country lookup of a
 // network not seen yet and, when hiding would have emptied the output,
 // subscription.all_unhealthy (at most hourly), in one transaction.
-func (s *Service) record(c *echo.Context, l links.Link, format string, resp output.Response) error {
+func (s *Service) write(c *echo.Context, l links.Link, format string, resp output.Response) error {
 	ctx := c.Request().Context()
 	ip := c.RealIP()
 	addr, _ := netip.ParseAddr(ip)

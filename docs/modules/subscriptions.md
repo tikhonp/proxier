@@ -1,6 +1,6 @@
 # Subscriptions
 
-The subscriptions module gives people and devices access to servers. A **subscription** is a named, ordered set of servers. A **link** is a named secret URL for one person or device that serves the connection URIs of exactly one subscription. Client apps (Happ, v2RayTun, Hiddify, Shadowrocket, Streisand, v2rayNG…) add the link's URL as a subscription and refresh it. That's all the link holder ever sees.
+The subscriptions module gives people and devices access to servers. A **subscription** is a named, ordered set of servers. A **link** is a named secret URL for one person or device that serves the connection URIs of exactly one subscription. Client apps (Happ, v2RayTun, Hiddify, Shadowrocket, Streisand, v2rayNG…) add the link's URL as a subscription and refresh it. Opened in a browser, the URL shows the link's page, which helps the person install an app and add the link to it. That's all the link holder ever sees.
 
 The module uses the servers module through its `EndpointCatalog` port and never touches servers itself.
 
@@ -54,6 +54,8 @@ Flows: [subscription management](../processes/subscriptions/subscription-managem
 | deleted, within the tombstone period (`subscriptions.tombstone`, 30 days) | One stub entry: "⛔ Link removed". |
 | deleted, after the tombstone period, or a token that never existed | `404`. |
 
+That is what an app gets. A browser that opens the URL gets the link's **page** in the link's language: the subscription's title and the expiry, tabs for iPhone & iPad, Android, macOS, Windows, Linux and TV with the suggested apps of each (download buttons, an **Add to {app}** button that imports the link, three short steps), **Copy link** and a QR code of the URL. A disabled, expired or deleted link's page shows only the stub's text and the contact. Page views are fetches with format `page`. The apps and when the page is served: [browser page](../integrations/subscription-format.md#browser-page).
+
 Headers, formats and rate limits: [fetch](../processes/subscriptions/subscription-fetch.md).
 
 ### Disabling is not revoking
@@ -82,7 +84,7 @@ Flows: [link lifecycle](../processes/subscriptions/link-lifecycle.md).
 
 ## Fetch log and shared-link alerts
 
-Every fetch of a link is recorded: time, IP, network (IPv4 /24, IPv6 /48), user agent, the app detected from it, the format, and the outcome. The link page shows the log, distinct networks and apps over 24 h and 7 d, and the last fetch.
+Every fetch of a link is recorded: time, IP, network (IPv4 /24, IPv6 /48), user agent, the app detected from it, the format (`page` for a view of the link's page in a browser, which counts like any fetch), and the outcome. The link page shows the log, distinct networks and apps over 24 h and 7 d, and the last fetch.
 
 A link fetched from more networks or apps than one person's devices explain raises a **shared-link alert** (defaults: more than 4 networks or more than 3 apps in 24 hours, at most one alert per link per day): [shared-link alerts](../processes/subscriptions/shared-link-alerts.md).
 
@@ -94,6 +96,7 @@ A link fetched from more networks or apps than one person's devices explain rais
 - **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the alert band while it has an alert, **Who fetches it** (networks with their country and apps, over 24 h or 7 d), the alert limits, the fetch log, actions, activity. **Alert limits** (a page styled as a dialog) raises the limits of one link or mutes its alerts.
 - **Dashboard → Links**: links with a shared-link alert ("Alex · alert · 6 networks, 4 apps in 24 h"), then active links expiring within 7 days ("Masha — Pixel · expiring · 9 Oct · in 4 days"), with **Links →**. Nothing to show, no area.
 - **New link**: a small dialog (name, subscription, optional expiry, language). It ends on the link page with the URL and QR ready to share.
+- **The link's own page** (public, at the link's URL in a browser): see [What a link serves](#what-a-link-serves). The fetch log shows its views with format `page` and app Browser.
 
 ## Settings
 

@@ -55,7 +55,7 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - A deleted link's page is read-only: "Deleted on 8 Oct 2026. Its URL serves “⛔ Link removed” until 7 Nov 2026." (or, after that, the day its tombstone ended). The tombstone period is the setting `subscriptions.tombstone` (30 days by default), the one in force at fetch time.
 - A disabled link keeps its expiry. Enabling an expired link still serves the "expired" stub entry.
 - Deleting is softer than it sounds and stronger than a `404`. The tombstone's stub entry makes refreshing apps drop the servers, which a `404` wouldn't (apps keep their last list on errors).
-- What the link holder sees is the stub entry's name in their app, in the link's language, with the contact from Settings → General (**Admin contact**).
+- What the link holder sees is the stub entry's name in their app, in the link's language, with the contact from Settings → General (**Admin contact**). Opened in a browser, the link's page shows the same text and the contact, and nothing to connect with.
 
 ## Edge cases (each is a test)
 

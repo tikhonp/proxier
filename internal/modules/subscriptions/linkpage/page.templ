@@ -1,0 +1,148 @@
+package linkpage
+
+import (
+	"time"
+
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// View is what the page shows.
+type View struct {
+	Outcome string // what output.Build decided
+	// Message is the stub's text without the contact, for a link that no
+	// longer works: then nothing else is shown but the contact.
+	Message string
+	Title   string    // the subscription's
+	Expires time.Time // the first moment the link is expired; zero: never
+	URL     string
+	Contact string // general.admin_contact
+	Open    Platform
+}
+
+// Works: the link serves its servers, or will once its subscription has some.
+func (v View) Works() bool { return v.Outcome == output.OK || v.Outcome == output.StubEmpty }
+
+// desktop: the QR code is beside the apps, open, for a phone to scan.
+func (v View) desktop() bool { return v.Open == MacOS || v.Open == Windows || v.Open == Linux }
+
+func (v View) heading() string {
+	if v.Works() {
+		return v.Title
+	}
+	return v.Message
+}
+
+func tabID(p Platform) string { return "lp-" + string(p) }
+
+// Page is the link's page in its language (the context's localizer).
+templ Page(v View) {
+	@ui.Standalone(v.heading(), i18n.From(ctx).Lang, []string{"js/linkpage.js"}) {
+		<main class="lp" data-open={ string(v.Open) }>
+			if !v.Works() {
+				<div class="lp-gone">
+					<h1>{ v.Message }</h1>
+					if v.Contact != "" {
+						<p>{ i18n.T(ctx, "links.page.contact", i18n.Args{"contact": v.Contact}) }</p>
+					}
+				</div>
+			} else {
+				<header class="lp-head">
+					<h1>{ v.Title }</h1>
+					if !v.Expires.IsZero() {
+						<p class="subtle">{ i18n.T(ctx, "links.page.expires", i18n.Args{"date": i18n.From(ctx).Date(v.Expires.Add(-time.Second))}) }</p>
+					}
+					<p class="lp-intro">{ i18n.T(ctx, "links.page.intro") }</p>
+				</header>
+				if v.Outcome == output.StubEmpty {
+					<div role="status" class="alert gold"><span class="st st-look" aria-hidden="true"></span>{ i18n.T(ctx, "links.page.empty") }</div>
+				}
+				<div class="lp-cols">
+					<div class="lp-apps">
+						<nav class="lp-tabs" aria-label={ i18n.T(ctx, "links.page.devices") }>
+							for _, sh := range Shelves {
+								<a href={ templ.SafeURL("#" + tabID(sh.Platform)) } class={ "lp-tab", templ.KV("lp-on", sh.Platform == v.Open) } data-lp-tab={ string(sh.Platform) }>{ i18n.T(ctx, "links.page.platform." + string(sh.Platform)) }</a>
+							}
+						</nav>
+						for _, sh := range Shelves {
+							<section class="lp-plat" id={ tabID(sh.Platform) } data-lp-plat={ string(sh.Platform) } aria-labelledby={ tabID(sh.Platform) + "-h" }>
+								<h2 class="lp-plat-h" id={ tabID(sh.Platform) + "-h" }>{ i18n.T(ctx, "links.page.platform." + string(sh.Platform)) }</h2>
+								for i, o := range sh.Offers {
+									@offer(v, sh, o, i == 0)
+								}
+							</section>
+						}
+					</div>
+					<aside class="lp-side">
+						<h2 class="lp-label">{ i18n.T(ctx, "links.page.link") }</h2>
+						<p class="lp-url">
+							@ui.URLText(v.URL)
+						</p>
+						<p class="lp-small">{ i18n.T(ctx, "links.page.link.note") }</p>
+						@copyButton(v, true)
+						<details class="lp-qr" open?={ v.desktop() }>
+							<summary>{ i18n.T(ctx, "links.page.qr") }</summary>
+							@ui.QR(v.URL, i18n.T(ctx, "links.page.qr.alt"))
+						</details>
+						<p class="lp-small">{ i18n.T(ctx, "links.page.updates") }</p>
+						if v.Contact != "" {
+							<p class="lp-small">{ i18n.T(ctx, "links.page.contact", i18n.Args{"contact": v.Contact}) }</p>
+						}
+					</aside>
+				</div>
+			}
+		</main>
+	}
+}
+
+// offer is one app's card: install, add the link, turn it on.
+templ offer(v View, sh Shelf, o Offer, recommended bool) {
+	{{ args := i18n.Args{"app": o.App.Name, "manual": i18n.T(ctx, o.Manual)} }}
+	<article class={ "lp-app", templ.KV("lp-rec", recommended) }>
+		<div class="lp-app-h">
+			<h3>{ o.App.Name }</h3>
+			if recommended {
+				<span class="lp-badge">{ i18n.T(ctx, "links.page.recommended") }</span>
+			}
+		</div>
+		if o.Note != "" {
+			<p class="lp-note">{ i18n.T(ctx, o.Note) }</p>
+		}
+		<ol class="lp-steps">
+			<li>
+				<p>{ i18n.T(ctx, "links.page.step.install", args) }</p>
+				<div class="lp-btns">
+					for _, d := range o.Downloads {
+						<a class="pc-btn" href={ templ.SafeURL(d.URL) } rel="noopener noreferrer">{ i18n.T(ctx, d.Label) }</a>
+					}
+				</div>
+			</li>
+			<li>
+				switch {
+					case sh.DeepLinks && o.App.Import != nil:
+						<div class="lp-btns">
+							<a class={ "pc-btn", "lp-add", templ.KV("pc-pri", recommended) } href={ templ.SafeURL(o.App.Import(v.URL, v.Title)) }>{ i18n.T(ctx, "links.page.add", args) }</a>
+						</div>
+						<p class="lp-small">{ i18n.T(ctx, "links.page.step.fallback", args) }</p>
+						@copyButton(v, false)
+					case sh.DeepLinks:
+						<p>{ i18n.T(ctx, "links.page.step.copy", args) }</p>
+						@copyButton(v, false)
+					default:
+						<p>{ i18n.T(ctx, "links.page.step.type", args) }</p>
+				}
+			</li>
+			<li><p>{ i18n.T(ctx, "links.page.step.on", args) }</p></li>
+		</ol>
+	</article>
+}
+
+// copyButton copies the link (linkpage.js, so without it the button is
+// hidden and the link is there to select); main is the one beside the
+// link, the others sit in an app's steps.
+templ copyButton(v View, main bool) {
+	<div class="lp-btns lp-copy">
+		<button type="button" class={ "pc-btn", templ.KV("pc-sm", !main) } data-lp-copy={ v.URL } data-copied={ i18n.T(ctx, "links.page.copied") }>{ i18n.T(ctx, "links.page.copy") }</button>
+	</div>
+}

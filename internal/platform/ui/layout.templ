@@ -10,17 +10,7 @@ templ page(title string, lang i18n.Lang) {
 	<!DOCTYPE html>
 	<html lang={ string(lang) }>
 		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<meta name="robots" content="noindex, nofollow"/>
-			<meta name="htmx-config" content={ htmxConfig }/>
-			<title>{ title } · Proxier</title>
-			<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
-			<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
-			<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
-			<link rel="stylesheet" href={ Asset("css/app.css") }/>
-			<script src={ Asset("js/htmx.min.js") } defer></script>
-			<script src={ Asset("js/proxier.js") } defer></script>
+			@head(title, true)
 		</head>
 		<body>
 			<div class="app">
@@ -30,23 +20,53 @@ templ page(title string, lang i18n.Lang) {
 	</html>
 }
 
+// Standalone is a public page of a module, for people who never sign in:
+// the logo bar and the page, without htmx and proxier.js; scripts are its
+// own, by static path.
+templ Standalone(title string, lang i18n.Lang, scripts []string) {
+	<!DOCTYPE html>
+	<html lang={ string(lang) }>
+		<head>
+			@head(title, false)
+			for _, sc := range scripts {
+				<script src={ Asset(sc) } defer></script>
+			}
+		</head>
+		<body>
+			<div class="app">
+				@signInBar()
+				{ children... }
+			</div>
+		</body>
+	</html>
+}
+
+// head is what every page's head holds; htmx adds htmx and proxier.js.
+templ head(title string, htmx bool) {
+	<meta charset="utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1"/>
+	<meta name="robots" content="noindex, nofollow"/>
+	if htmx {
+		<meta name="htmx-config" content={ htmxConfig }/>
+	}
+	<title>{ title } · Proxier</title>
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
+	<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
+	<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
+	<link rel="stylesheet" href={ Asset("css/app.css") }/>
+	if htmx {
+		<script src={ Asset("js/htmx.min.js") } defer></script>
+		<script src={ Asset("js/proxier.js") } defer></script>
+	}
+}
+
 // Layout is the signed-in shell: header, sidebar, main, key line and the
 // pop-ups. Its children are the page.
 templ Layout(s Shell) {
 	<!DOCTYPE html>
 	<html lang={ string(s.Lang) }>
 		<head>
-			<meta charset="utf-8"/>
-			<meta name="viewport" content="width=device-width, initial-scale=1"/>
-			<meta name="robots" content="noindex, nofollow"/>
-			<meta name="htmx-config" content={ htmxConfig }/>
-			<title>{ s.Title } · Proxier</title>
-			<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
-			<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
-			<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
-			<link rel="stylesheet" href={ Asset("css/app.css") }/>
-			<script src={ Asset("js/htmx.min.js") } defer></script>
-			<script src={ Asset("js/proxier.js") } defer></script>
+			@head(s.Title, true)
 			for _, m := range s.Scripts {
 				<script type="module" src={ Asset(m) }></script>
 			}

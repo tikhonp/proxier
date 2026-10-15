@@ -114,7 +114,7 @@ var messages = i18n.Messages{
 	"settings.field.general.language":           {EN: "Default language", RU: "Язык по умолчанию"},
 	"settings.field.general.language.help":      {EN: "A new member's language, and the sign-in page's when the browser asks for neither English nor Russian.", RU: "Язык нового участника, а также страницы входа, если браузер не просит ни английский, ни русский."},
 	"settings.field.general.admin_contact":      {EN: "Admin contact", RU: "Контакт администратора"},
-	"settings.field.general.admin_contact.help": {EN: "Shown to people who open a link that no longer works, e.g. @name.", RU: "Показывается тем, кто открыл нерабочую ссылку, например @name."},
+	"settings.field.general.admin_contact.help": {EN: "Shown to the people links are given to: on a link's page in a browser, and in their app once the link no longer works. E.g. @name.", RU: "Показывается тем, кому даны ссылки: на странице ссылки в браузере и в приложении, когда ссылка перестала работать. Например, @name."},
 	"settings.option.general.language.en":       {EN: "English", RU: "English"},
 	"settings.option.general.language.ru":       {EN: "Русский", RU: "Русский"},
 

@@ -17,7 +17,7 @@ Proxier does all of this as one always-on service: a web UI for its members, bac
 ## Who uses it
 
 - **Members** sign in, each on their own, with a level of access in each area ([members](./processes/platform/members.md), [ADR 0018](./adr/0018-several-members-with-per-area-access.md)); the first one has the Owner preset and adds the others. Everything happens in the web UI, on a desktop or a phone, with Telegram notifications.
-- **Link holders** (family, friends, members' own devices) never sign in. They see only what their app gets from their link: connection URIs, a title and an expiry date.
+- **Link holders** (family, friends, members' own devices) never sign in. They see only what their app gets from their link (connection URIs, a title and an expiry date) and, opened in a browser, the link's page: which app to install and a button that adds the link to it.
 - **Routers** are MikroTiks that Proxier reaches over SSH, directly or through a jump host on the tailnet, to keep their domain lists in sync. A new router downloads its filled-in setup script from a fetch URL.
 - **Shadowrocket** on the phone subscribes to a hosted config URL.
 
@@ -29,7 +29,7 @@ Proxier is one service made of separate modules. Each can be changed or left out
 |---|---|---|
 | **Platform** | Sign-in, settings, secrets, jobs and the scheduler, events and history, Telegram notifications, SSH, the tailnet, two languages, backups. | [sign-in](./processes/platform/sign-in.md), [members](./processes/platform/members.md), [jobs](./processes/platform/jobs.md), [notifications](./processes/platform/notifications.md) |
 | **Servers** | Turns an IP and a root password into a working proxy server from a versioned template. Keeps its DNS, stack and secrets. Checks from home and from abroad whether it works or is blocked. Shows its resources. | [template authoring](./processes/servers/template-authoring.md), [provisioning](./processes/servers/server-provisioning.md), [redeploy](./processes/servers/server-redeploy.md), [rotation](./processes/servers/credential-rotation.md), [health](./processes/servers/server-health.md), [stats](./processes/servers/server-stats.md), [retirement](./processes/servers/server-retirement.md) |
-| **Subscriptions** | Groups servers into subscriptions and gives each person or device a link to one of them. Serves the connection URIs at that link, with expiry and shared-link alerts. | [subscription management](./processes/subscriptions/subscription-management.md), [link lifecycle](./processes/subscriptions/link-lifecycle.md), [fetch](./processes/subscriptions/subscription-fetch.md), [shared-link alerts](./processes/subscriptions/shared-link-alerts.md) |
+| **Subscriptions** | Groups servers into subscriptions and gives each person or device a link to one of them. Serves the connection URIs at that link, or a page that gets a browser connected, with expiry and shared-link alerts. | [subscription management](./processes/subscriptions/subscription-management.md), [link lifecycle](./processes/subscriptions/link-lifecycle.md), [fetch](./processes/subscriptions/subscription-fetch.md), [shared-link alerts](./processes/subscriptions/shared-link-alerts.md) |
 | **Routing** | What mtvpn did, always on: services from v2fly, iplist, URLs and custom lists; search; discovery of a site's domains; routing lists; router sync with drift repair; the hosted Shadowrocket config. | [catalog search](./processes/routing/catalog-search.md), [services](./processes/routing/service-management.md), [discovery](./processes/routing/domain-discovery.md), [upstream refresh](./processes/routing/upstream-refresh.md), [routing lists](./processes/routing/routing-lists.md), [router sync](./processes/routing/router-sync.md), [Shadowrocket](./processes/routing/shadowrocket-config.md), [mtvpn import](./processes/routing/mtvpn-import.md) |
 | **Router scripts** | Keeps `fresh-router.rsc` in versions and fills in its parameters for a new router. Can create the router's subscription link and register it for sync in the same step. Serves the result at a one-time fetch URL. | [versions](./processes/router-scripts/script-versions.md), [generation](./processes/router-scripts/script-generation.md) |
 
@@ -68,7 +68,7 @@ flowchart LR
 
 Not built, roughly in order of value. Each needs an extension point or a new flow; nothing built so far stands in the way.
 
-- More formats: mihomo/Clash YAML (also for the router's mihomo container), sing-box JSON, a browser page with QR codes and app buttons.
+- More formats: mihomo/Clash YAML (also for the router's mihomo container), sing-box JSON.
 - Replacing a blocked server while keeping its name and credentials, with DNS repointed.
 - Adopting servers built without Proxier.
 - Probe agents on mobile networks and other ISPs.
