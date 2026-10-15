@@ -114,11 +114,11 @@ func (c *Channel) Send(ctx context.Context, chat string, m notify.Message) error
 			return err
 		}
 	}
-	var button *URLButton
+	var buttons [][]Button
 	if m.URL != "" {
-		button = &URLButton{Text: m.Button, URL: m.URL}
+		buttons = [][]Button{{{Text: m.Button, URL: m.URL}}}
 	}
-	err = c.Client(token).SendMessage(ctx, chat, Format(m), button)
+	err = c.Client(token).SendMessage(ctx, chat, Format(m), buttons)
 	c.last = c.Now()
 	var api *APIError
 	if errors.As(err, &api) && api.Code == http.StatusTooManyRequests {

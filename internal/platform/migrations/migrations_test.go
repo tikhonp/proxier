@@ -31,16 +31,6 @@ func mustFail(t *testing.T, d *db.DB, what, q string, args ...any) {
 	}
 }
 
-// down rolls the platform back n migrations.
-func down(t *testing.T, d *db.DB, n int) {
-	t.Helper()
-	for i := 0; i < n; i++ {
-		if err := db.MigrateDown(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
-			t.Fatalf("down %d: %v", i, err)
-		}
-	}
-}
-
 func up(t *testing.T, d *db.DB) {
 	t.Helper()
 	if err := db.MigrateUp(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
@@ -59,7 +49,7 @@ func count(t *testing.T, d *db.DB, q string, args ...any) int {
 
 func TestPlatformMigrationsGoDownAndUpAgain(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 9)
+	dbtest.DownTo(t, d, dbtest.Platform, 0)
 	up(t, d)
 }
 
@@ -122,7 +112,7 @@ func TestSecondFactorTablesKeepOneAppPerMemberAndUniquePasskeys(t *testing.T) {
 func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.Open(t)
-	down(t, d, 4)
+	dbtest.DownTo(t, d, dbtest.Platform, 5)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at) VALUES (1, 'a', 'h', 'en', ?, ?)`, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform); err != nil {
@@ -144,7 +134,7 @@ func TestSecondFactorMigrationKeepsSessions(t *testing.T) {
 // going back keeps member 1 as the admin and drops the other members.
 func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 3)
+	dbtest.DownTo(t, d, dbtest.Platform, 6)
 	mustExec(t, d, `INSERT INTO admin (id, username, password_hash, language, created_at, password_changed_at, jobs_seen_at, webauthn_user_id) VALUES (1, 'Tikhon', 'h', 'ru', ?, ?, ?, x'0102')`, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'aa', 1, ?, ?, ?, 'ip', 'ip', ?, 'second_factor_reset')`, now, now, now, now)
 	mustExec(t, d, `INSERT INTO sessions (token_hash, admin_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'bb', 1, ?, ?, ?, 'ip', 'ip')`, now, now, now)
@@ -185,7 +175,7 @@ func TestMembersMigrationMakesTheAdminMemberOneAndBack(t *testing.T) {
 	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip) VALUES (x'cc', 2, ?, ?, ?, 'ip', 'ip')`, now, now, now)
 	mustExec(t, d, `INSERT INTO totp (member_id, secret, created_at) VALUES (2, x'02', ?)`, now)
 	mustExec(t, d, `INSERT INTO passkeys (member_id, credential_id, name, credential, created_at) VALUES (2, x'c2', 'Phone', '{}', ?)`, now)
-	down(t, d, 3)
+	dbtest.DownTo(t, d, dbtest.Platform, 6)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM admin WHERE id = 1 AND username = 'Tikhon' AND jobs_seen_at = '` + now + `'`: 1,
 		`SELECT count(*) FROM admin`:                                                          1,
@@ -323,7 +313,7 @@ func TestAccessTablesRefuseWhatTheContractForbids(t *testing.T) {
 // names. Going back drops removed members and those still to be set up.
 func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 2)
+	dbtest.DownTo(t, d, dbtest.Platform, 7)
 	mustExec(t, d, member, "tikhon", "ru", now, now)
 	mustExec(t, d, member, "gone", "en", now, now)
 	mustExec(t, d, `DELETE FROM members WHERE username = 'gone'`)
@@ -364,7 +354,7 @@ func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
 	mustExec(t, d, `INSERT INTO sessions (token_hash, member_id, created_at, last_seen_at, expires_at, created_ip, last_ip, ended_at, end_reason) VALUES (x'bb', 3, ?, ?, ?, 'ip', 'ip', ?, 'member_removed')`, now, now, now, now)
 	mustExec(t, d, `INSERT INTO members (username, language, webauthn_user_id, created_at, created_by) VALUES ('pending', 'en', randomblob(32), ?, 'member:4')`, now)
 	mustExec(t, d, ev, now, "member.added", "member:4")
-	down(t, d, 2)
+	dbtest.DownTo(t, d, dbtest.Platform, 7)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM members`:                                      1,
 		`SELECT count(*) FROM members WHERE username = 'keep'`:              1,
@@ -383,7 +373,7 @@ func TestAccessMigrationKeepsMembersAndMakesThemOwners(t *testing.T) {
 // every notification member 1's; going back keeps only member 1's.
 func TestMemberNotificationsMigrationGivesTheChatToMemberOne(t *testing.T) {
 	d := dbtest.Open(t)
-	down(t, d, 1)
+	dbtest.DownTo(t, d, dbtest.Platform, 8)
 	mustExec(t, d, member, "tikhon", "ru", now, now)
 	mustExec(t, d, `INSERT INTO settings (key, value, updated_at) VALUES ('telegram.chat_id', '-1001', ?), ('telegram.chat_title', 'Home', ?), ('telegram.bot_username', 'bot', ?)`, now, now, now)
 	mustExec(t, d, `INSERT INTO notification_rules (event_type, enabled, updated_at) VALUES ('auth.locked', 0, ?)`, now)
@@ -414,7 +404,7 @@ func TestMemberNotificationsMigrationGivesTheChatToMemberOne(t *testing.T) {
 	mustExec(t, d, `UPDATE members SET telegram_chat_id = '77' WHERE id = 2`)
 	mustExec(t, d, `INSERT INTO notification_rules (member_id, event_type, enabled, updated_at) VALUES (2, 'auth.locked', 1, ?)`, now)
 	mustExec(t, d, `INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (9, 'telegram', 2, 'en', '{}', 'queued', ?)`, now)
-	down(t, d, 1)
+	dbtest.DownTo(t, d, dbtest.Platform, 8)
 	for q, want := range map[string]int{
 		`SELECT count(*) FROM settings WHERE key = 'telegram.chat_id' AND value = '-1001'`:   1,
 		`SELECT count(*) FROM settings WHERE key = 'telegram.chat_title' AND value = 'Home'`: 1,
@@ -428,4 +418,14 @@ func TestMemberNotificationsMigrationGivesTheChatToMemberOne(t *testing.T) {
 		}
 	}
 	up(t, d)
+}
+
+func TestTelegramChatsAreOneRowPerChat(t *testing.T) {
+	d := dbtest.Open(t)
+	mustExec(t, d, `INSERT INTO telegram_chats (chat_id, type, title, heard_at) VALUES (5, 'private', 'Tikhon', ?)`, now)
+	mustFail(t, d, "the same chat twice", `INSERT INTO telegram_chats (chat_id, type, title, heard_at) VALUES (5, 'group', 'Family', ?)`, now)
+	mustFail(t, d, "an unknown type", `INSERT INTO telegram_chats (chat_id, type, title, heard_at) VALUES (6, 'bot', 'x', ?)`, now)
+	mustFail(t, d, "a long title", `INSERT INTO telegram_chats (chat_id, type, title, heard_at) VALUES (7, 'group', ?, ?)`, strings.Repeat("x", 257), now)
+	dbtest.DownTo(t, d, dbtest.Platform, 9)
+	mustFail(t, d, "a table rolled back", `SELECT 1 FROM telegram_chats`)
 }

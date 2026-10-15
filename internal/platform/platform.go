@@ -20,6 +20,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/backup"
+	"github.com/tikhonp/proxier/internal/platform/bot"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -58,6 +59,8 @@ type App struct {
 	// Notify renders and queues notifications; Telegram is its channel.
 	Notify   *notify.Service
 	Telegram *telegram.Channel
+	// Bot answers members' commands in their own Telegram chat.
+	Bot *bot.Service
 	// SSH is the SSH client with Proxier's key and the pinned host keys;
 	// Tailnet is the node it dials routers through; Backup writes the nightly
 	// database snapshots.
@@ -109,6 +112,7 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 	a.Dispatcher = events.NewDispatcher(d, log)
 	a.Notify = notify.New(d, a.Events, a.I18n, a.Jobs, a.Auth, a.Settings, cfg.BaseURL, log)
 	a.Telegram = telegram.NewChannel(a.Settings, nil, "")
+	a.Bot = bot.New(d, a.Settings, a.Auth, a.I18n, a.Telegram, log)
 	a.Tailnet = tailnet.New(cfg, log)
 	a.SSH = sshx.New(d, v, a.Events, a.Settings, a.Tailnet.Dial, log)
 	a.Backup = backup.New(d, cfg, a.Settings, a.Events, log)
@@ -161,6 +165,9 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		}
 		if o, ok := m.(module.SubjectOwner); ok {
 			a.Notify.AddOwner(o)
+		}
+		if bd, ok := m.(module.BotCommandDeclarer); ok {
+			errs = append(errs, a.Bot.Add(bd.BotCommands()...))
 		}
 	}
 	errs = append(errs, a.Notify.AddChannel(a.Telegram), a.Jobs.Register(Name, a.Notify.JobType()),
@@ -235,7 +242,7 @@ func (a *App) HTTP() *echo.Echo {
 		PublicLimit: a.PublicLimit}, ui.StaticFS, ui.StaticHash)
 
 	pd := pages.Deps{Log: a.Log, Cfg: a.Cfg, Auth: a.Auth, Settings: a.Settings, I18n: a.I18n,
-		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Query: a.DB.R, Closing: a.closing,
+		Jobs: a.Jobs, Events: a.Events, Notify: a.Notify, Telegram: a.Telegram, Bot: a.Bot, Query: a.DB.R, Closing: a.closing,
 		SSH: a.SSH, Tailnet: a.Tailnet, Backup: a.Backup}
 	for _, m := range a.Modules {
 		if nd, ok := m.(module.NavDeclarer); ok {
@@ -287,10 +294,11 @@ func mustDeclareAreas(pd pages.Deps) {
 	}
 }
 
-// Serve runs the HTTP listener, the job workers, the scheduler and the event
-// dispatcher until ctx ends, then shuts down in order: stop HTTP intake, stop
-// the scheduler and claiming, give running steps their grace, mark what still
-// runs interrupted, stop the dispatcher. The caller closes the database.
+// Serve runs the HTTP listener, the job workers, the scheduler, the event
+// dispatcher and the Telegram bot until ctx ends, then shuts down in order:
+// stop HTTP intake and the bot, stop the scheduler and claiming, give
+// running steps their grace, mark what still runs interrupted, stop the
+// dispatcher. The caller closes the database.
 func (a *App) Serve(ctx context.Context, onListen func(net.Addr)) error {
 	jobsCtx, stopJobs := context.WithCancel(context.WithoutCancel(ctx))
 	dispCtx, stopDisp := context.WithCancel(context.WithoutCancel(ctx))
@@ -301,9 +309,12 @@ func (a *App) Serve(ctx context.Context, onListen func(net.Addr)) error {
 	a.Tailnet.Start(ctx)
 	go func() { jobsDone <- a.Jobs.Start(jobsCtx) }()
 	go func() { dispDone <- a.Dispatcher.Start(dispCtx) }()
+	botDone := make(chan struct{})
+	go func() { a.Bot.Run(ctx); close(botDone) }()
 
 	go func() { <-ctx.Done(); close(a.closing) }()
 	httpErr := httpx.Run(ctx, a.HTTP(), a.Cfg.Listen, onListen)
+	<-botDone
 
 	stopJobs()
 	jobsErr := <-jobsDone

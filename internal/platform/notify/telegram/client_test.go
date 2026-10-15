@@ -16,43 +16,37 @@ var bg = context.Background()
 
 const token = "123456:SECRET-token_value"
 
-func TestGetUpdatesFindsChats(t *testing.T) {
+func TestPollReadsUpdatesAndConfirmsThem(t *testing.T) {
 	f := telegram.NewFake(t, token)
-	f.AddUpdate(`{"update_id":1,"message":{"chat":{"id":5,"type":"private","first_name":"Tikhon","last_name":"P"}}}`)
-	f.AddUpdate(`{"update_id":2,"message":{"chat":{"id":-100,"type":"group","title":"Family"}}}`)
-	f.AddUpdate(`{"update_id":3,"channel_post":{"chat":{"id":-1007,"type":"channel","title":"Alerts","username":"alerts"}}}`)
-	f.AddUpdate(`{"update_id":4,"my_chat_member":{"chat":{"id":-200,"type":"supergroup","title":"Ops"}}}`)
-	f.AddUpdate(`{"update_id":5,"message":{"chat":{"id":5,"type":"private","first_name":"Tikhon","last_name":"P"}}}`)
-	f.AddUpdate(`{"update_id":6,"edited_message":{"chat":{"id":9,"type":"private"}}}`)
+	f.AddUpdate(`{"update_id":1,"message":{"message_id":3,"text":"/link","chat":{"id":5,"type":"private","first_name":"Tikhon","last_name":"P"},"from":{"id":5,"language_code":"ru"}}}`)
+	f.AddUpdate(`{"update_id":2,"channel_post":{"chat":{"id":-1007,"type":"channel","title":"Alerts","username":"alerts"}}}`)
+	f.AddUpdate(`{"update_id":3,"my_chat_member":{"chat":{"id":-200,"type":"supergroup","title":"Ops"},"from":{"id":5}}}`)
+	f.AddUpdate(`{"update_id":4,"callback_query":{"id":"q1","data":"c1.0","from":{"id":5},"message":{"message_id":9,"chat":{"id":5,"type":"private"}}}}`)
+	f.AddUpdate(`{"update_id":5,"edited_message":{"chat":{"id":9,"type":"private"}}}`)
 	c := &telegram.Client{BaseURL: f.URL(), Token: token}
 
-	got, err := c.GetUpdates(bg, 100)
+	got, err := c.Poll(bg, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Distinct, newest first: chat 5 is represented by its newest update.
-	want := []struct {
-		id    int64
-		typ   string
-		title string
-		upd   int64
-	}{
-		{5, "private", "Tikhon P", 5},
-		{-200, "supergroup", "Ops", 4},
-		{-1007, "channel", "Alerts", 3},
-		{-100, "group", "Family", 2},
+	want := []telegram.Incoming{
+		{ID: 1, Chat: telegram.Chat{ID: 5, Type: "private", Title: "Tikhon P"}, From: 5, Lang: "ru", Text: "/link"},
+		{ID: 2, Chat: telegram.Chat{ID: -1007, Type: "channel", Title: "Alerts", Username: "alerts"}},
+		{ID: 3, Chat: telegram.Chat{ID: -200, Type: "supergroup", Title: "Ops"}, From: 5},
+		{ID: 4, Chat: telegram.Chat{ID: 5, Type: "private"}, From: 5, Callback: "q1", Data: "c1.0", MessageID: 9},
+		{ID: 5}, // a kind not asked for still moves the offset
 	}
 	if len(got) != len(want) {
 		t.Fatalf("%+v", got)
 	}
-	for i, w := range want {
-		g := got[i]
-		if g.Chat.ID != w.id || g.Chat.Type != w.typ || g.Chat.Title != w.title || g.ID != w.upd {
-			t.Errorf("chat %d: %+v, want %+v", i, g, w)
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("update %d: %+v, want %+v", i, got[i], want[i])
 		}
 	}
-	if got[2].Chat.Username != "alerts" {
-		t.Errorf("username %q", got[2].Chat.Username)
+	// Asking after the last one confirms them all.
+	if got, err := c.Poll(bg, 6, 0); err != nil || len(got) != 0 || f.Pending() != 0 {
+		t.Fatalf("%+v %v, %d pending", got, err, f.Pending())
 	}
 }
 
@@ -63,7 +57,7 @@ func TestGetMeAndSend(t *testing.T) {
 	if err != nil || me.Username != "proxier_test_bot" {
 		t.Fatalf("%+v %v", me, err)
 	}
-	if err := c.SendMessage(bg, "5", "<b>hi</b>", &telegram.URLButton{Text: "Open", URL: "https://x.test/a"}); err != nil {
+	if err := c.SendMessage(bg, "5", "<b>hi</b>", [][]telegram.Button{{{Text: "Open", URL: "https://x.test/a"}}}); err != nil {
 		t.Fatal(err)
 	}
 	s := f.Sent()
@@ -108,7 +102,7 @@ func TestErrorsNeverContainToken(t *testing.T) {
 			c := &telegram.Client{BaseURL: base, Token: token, HTTP: &http.Client{Timeout: 3 * time.Second}}
 			var errs []error
 			_, e1 := c.GetMe(bg)
-			_, e2 := c.GetUpdates(bg, 10)
+			_, e2 := c.Poll(bg, 0, 0)
 			errs = append(errs, e1, e2, c.SendMessage(bg, "5", "x", nil))
 			for _, err := range errs {
 				if err == nil {

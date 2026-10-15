@@ -18,7 +18,7 @@ internal/platform/           the platform, itself module "platform"
   config obs db (+dbtest) vault events settings migrations httpx
   access                     areas, levels, grants, presets, scopes: what a member may do (a leaf)
   auth (+authtest) web ui pages i18n sitetest
-  jobs (+jobstest) notify (+telegram) sshx (+sshxtest) tailnet backup geoip
+  jobs (+jobstest) notify (+telegram) bot sshx (+sshxtest) tailnet backup geoip
   agentapi                   what both agent APIs share: the token, request limits, the one-time hand-off form
   module                     Module and the optional interfaces below
 internal/modules/servers/        templates, provisioning, deploys, health, stats, retirement, the agent API
@@ -67,6 +67,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 | `SubjectNamer` | names and links for `type:id` subjects in Activity and Jobs |
 | `SubjectOwner` | `OwnedSubjects(ctx, member)`: the subjects of the things a member owns, for Activity and Jobs at `activity: own`; `Owner(ctx, subject)`: the member who owns one subject (not ok for a type the module doesn't own, a shared thing or one gone), for a notification's recipients |
 | `NotificationRenderer` | the module's own notification texts |
+| `BotCommandDeclarer` | `BotCommands() []bot.Command`: commands a member gives the Telegram bot in their own chat, each with its area and level and a first step; a step's `bot.Reply` may ask for a text or offer buttons, each naming the next step ([telegram bot](./processes/platform/telegram-bot.md)) |
 | `DashboardDeclarer` | `Dashboard(ctx, who)`: dashboard areas of what `who.Scope(area)` reads, sorted by `Order`, each with its `Area` (and `Level`) |
 
 ## Rules
@@ -103,7 +104,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 **Secrets**
 
 - Only through the vault, sealed with an AAD naming where they live, found by `vault.Lookup` (HMAC). AADs: `setting:<key>`, `job:<id>:payload`, `member:<id>:totp` (member 1's is `admin:totp`), `setup_link:<id>:token`, `server:<id>:gen:<key>`, `server:<id>:params`, `server:<id>:endpoint:<key>`, `deployment:<id>:…`, `link:<id>:token`, `shadowrocket:<id>:token`, `generation:<id>:secrets`, `fetch_url:<id>:token` (servers' are all in `servers/sealed`).
-- Tokens are `vault.NewToken()` (256 bits, 43 characters); agent tokens are `pxa_` + one (`agentapi.NewToken`), for both agent APIs; each module looks its own up. A token appears only on its own page (masked, Reveal, Copy, QR), never in an event, notification, log line, job payload, list, search or the dashboard. `httpx.MaskPath` masks `/s/`, `/r/`, `/f/` in logs. Pages that show one are `no-store`.
+- Tokens are `vault.NewToken()` (256 bits, 43 characters); agent tokens are `pxa_` + one (`agentapi.NewToken`), for both agent APIs; each module looks its own up. A token appears only on its own page (masked, Reveal, Copy, QR), and a link's in the bot's answer to `/link` ([ADR 0019](./adr/0019-members-give-the-bot-commands-in-their-own-chat.md)); never in an event, notification, log line, job payload, list, search or the dashboard. `httpx.MaskPath` masks `/s/`, `/r/`, `/f/` in logs. Pages that show one are `no-store`.
 - A job that renders registers every generated value and secret parameter with `Logger.Redact` before its first remote call.
 
 **Jobs**
@@ -144,7 +145,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 ## Tests
 
 - Test names are CamelCase sentences (`TestRolledBackChangeLeavesNoEvent`). No test touches the network or sleeps longer than 100 ms; clocks are fake. SQLite in temp files (`dbtest.Open`); a set of migrations runs once per test binary and every test gets a copy of the migrated file (`dbtest.Seed`, which `sitetest.New` uses too), since migrating takes most of a second under `-race`.
-- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock; `Join` adds a member with a grant through a setup link and signs them in), `authtest.Authenticator` (a software passkey: `Create` and `Get` answer the server's options; its fields misbehave on purpose), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake`, `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only; external checks go to its `CH`, a `checkhosttest` fake, and the reference check to a local site that always answers), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
+- Harnesses: `sitetest` (the whole app over HTTP, fake auth clock; `Join` adds a member with a grant through a setup link and signs them in), `authtest.Authenticator` (a software passkey: `Create` and `Get` answer the server's options; its fields misbehave on purpose), `jobstest` (fake clock, `Drain`), `sshxtest.Server` (`Freeze`, and `Session.Freeze` for one connection: a host that stops answering), `telegram.Fake` (`Message`, `GroupMessage`, `Tap` queue updates; a test runs the bot with `App.Bot.Poll`), `serverstest` (fake VPS answering `remote`'s commands, `NewHarness(t, serverstest.StubProxy())`, one VPS per test, 127.0.0.1 only; external checks go to its `CH`, a `checkhosttest` fake, and the reference check to a local site that always answers), `proxytest` (in-process xray XHTTP server), `cloudflaretest`, `checkhosttest`, `substest` (`New` on a fake catalog, `WithServers`, `NoRotator`), `routingtest` (`New`, `WithServers`, `WithBrowser`; `h.Router`, `h.Settle`, `h.Advance`), `sourcestest`, `routerostest` (fake RouterOS and jump host; `Hold`, `ForgetImport`), `discoverytest`, `rscriptstest` (`New` on fake ports, `WithModules` with the real ones).
 - Test files that use a module harness are external test packages (`package links_test`): the harness imports the module root, which imports every service.
 - xray's XHTTP client has a data race (`splithttp.WaitReadCloser.Set`), so packages that push XHTTP traffic (`servers/proxy`, `provision`, `deploy`) run without `-race` (`XRAY_TESTS` in the Makefile). Everything else uses `StubProxy()` and runs under `-race`, with SQLite (modernc, C translated to Go) left uninstrumented (`RACEFLAGS` in the Makefile): instrumenting it made every test several times slower and checked only the C library. The two runs of `make test` go side by side. This xray has no `allowInsecure`: tests pin the self-signed certificate.
 - Never assert the absence of a bare word in a page (CSRF tokens are random): use `>Name<`.

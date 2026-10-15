@@ -7,7 +7,7 @@ Notifications tell members about events that need attention: a server down or bl
 ## Steps: setup
 
 1. Settings → Integrations → Telegram (`settings: manage`): paste a bot token from BotFather. Proxier calls `getMe` and shows the bot's name. A wrong token is refused on the spot. → `settings.changed{keys: telegram}`
-2. Each member, on their own Settings → Notifications: **Detect chat**. The member sends `/start` to the bot; Proxier reads the bot's recent updates, shows the chats found (name, type) other than those other members already have, and the member picks one. The member can also type a chat ID, or empty it to get nothing.
+2. Each member, on their own Settings → Notifications: **Detect chat**. The member sends `/start` to the bot; Proxier shows the chats the bot heard from lately (name, type: the newest 100 the [bot](./telegram-bot.md) kept) other than those other members already have, and the member picks one. The member can also type a chat ID, or empty it to get nothing. A private chat chosen here is also where the member gives the bot [commands](./telegram-bot.md).
 3. The chat is saved when it is picked or typed, as the member's own. → `member.notifications_changed{keys: telegram.chat}`
 4. **Send test** is a separate button: a test message goes to the member's chat and its result (sent, or the error) is shown. The chat stays saved whatever the result.
 5. The same page has one toggle per event type the member can be told about, grouped by module, initially the defaults from [events](../../events.md). Each member's toggles are their own. → `member.notifications_changed{keys: notifications.<type>}`

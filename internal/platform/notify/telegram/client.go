@@ -1,6 +1,6 @@
 // Package telegram is the Telegram notification channel
-// (docs/integrations/telegram.md): a small Bot API client for the three
-// methods Proxier needs, and the channel that sends notifications with it.
+// (docs/integrations/telegram.md): a small Bot API client for the methods
+// Proxier needs, and the channel that sends notifications with it.
 package telegram
 
 import (
@@ -44,12 +44,6 @@ type Chat struct {
 	Username string
 }
 
-// Update is the newest update of one chat.
-type Update struct {
-	ID   int64
-	Chat Chat
-}
-
 // APIError is a Bot API refusal. Description is Telegram's, never the token.
 type APIError struct {
 	Code        int
@@ -64,7 +58,9 @@ func (e *APIError) Error() string {
 	return fmt.Sprintf("telegram: %d %s", e.Code, e.Description)
 }
 
-type URLButton struct{ Text, URL string }
+// Button is an inline keyboard button: it opens URL, or sends Data back
+// as a callback query.
+type Button struct{ Text, URL, Data string }
 
 type response struct {
 	OK          bool            `json:"ok"`
@@ -77,7 +73,11 @@ type response struct {
 }
 
 func (c *Client) call(ctx context.Context, method string, params any, result any) error {
-	ctx, cancel := context.WithTimeout(ctx, requestTimeout)
+	return c.callWithin(ctx, requestTimeout, method, params, result)
+}
+
+func (c *Client) callWithin(ctx context.Context, timeout time.Duration, method string, params any, result any) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	base := c.BaseURL
 	if base == "" {
@@ -186,62 +186,139 @@ func (r rawChat) chat() Chat {
 	return Chat{ID: r.ID, Type: r.Type, Title: title, Username: r.Username}
 }
 
-// GetUpdates lists the chats the bot has heard from, newest first, one entry
-// per chat. Updates are not confirmed, so asking twice gives the same answer.
-// It works only while the bot has no webhook, and Proxier never sets one.
-func (c *Client) GetUpdates(ctx context.Context, limit int) ([]Update, error) {
-	var raw []struct {
-		ID      int64 `json:"update_id"`
-		Message *struct {
-			Chat rawChat `json:"chat"`
-		} `json:"message"`
-		ChannelPost *struct {
-			Chat rawChat `json:"chat"`
-		} `json:"channel_post"`
-		MyChat *struct {
-			Chat rawChat `json:"chat"`
-		} `json:"my_chat_member"`
+// Incoming is one update the bot acts on: a message, or a tap on one of its
+// buttons (Callback set).
+type Incoming struct {
+	ID   int64
+	Chat Chat
+	// From is who wrote or tapped; Lang is their Telegram language ("ru").
+	From int64
+	Lang string
+	// Text is a message's text.
+	Text string
+	// Callback is a tap's query ID, Data the button's data and MessageID the
+	// message the button is on.
+	Callback, Data string
+	MessageID      int64
+}
+
+// Poll returns the updates after offset, waiting up to wait for the first
+// one. Asking with an offset confirms every update before it: Telegram
+// drops them. It works only while the bot has no webhook, and Proxier never
+// sets one.
+func (c *Client) Poll(ctx context.Context, offset int64, wait time.Duration) ([]Incoming, error) {
+	type from struct {
+		ID   int64  `json:"id"`
+		Lang string `json:"language_code"`
 	}
-	err := c.call(ctx, "getUpdates", map[string]any{
-		"limit": limit, "timeout": 0,
-		"allowed_updates": []string{"message", "channel_post", "my_chat_member"},
+	type message struct {
+		ID   int64   `json:"message_id"`
+		Chat rawChat `json:"chat"`
+		From *from   `json:"from"`
+		Text string  `json:"text"`
+	}
+	var raw []struct {
+		ID          int64    `json:"update_id"`
+		Message     *message `json:"message"`
+		ChannelPost *message `json:"channel_post"`
+		MyChat      *struct {
+			Chat rawChat `json:"chat"`
+			From from    `json:"from"`
+		} `json:"my_chat_member"`
+		Callback *struct {
+			ID      string   `json:"id"`
+			From    from     `json:"from"`
+			Data    string   `json:"data"`
+			Message *message `json:"message"`
+		} `json:"callback_query"`
+	}
+	err := c.callWithin(ctx, wait+requestTimeout, "getUpdates", map[string]any{
+		"offset": offset, "timeout": int(wait / time.Second),
+		"allowed_updates": []string{"message", "channel_post", "my_chat_member", "callback_query"},
 	}, &raw)
 	if err != nil {
 		return nil, err
 	}
-	seen := map[int64]bool{}
-	var out []Update
-	for i := len(raw) - 1; i >= 0; i-- {
-		u := raw[i]
-		var chat *rawChat
+	out := make([]Incoming, 0, len(raw))
+	for _, u := range raw {
+		in := Incoming{ID: u.ID}
 		switch {
-		case u.Message != nil:
-			chat = &u.Message.Chat
-		case u.ChannelPost != nil:
-			chat = &u.ChannelPost.Chat
+		case u.Message != nil, u.ChannelPost != nil:
+			m := u.Message
+			if m == nil {
+				m = u.ChannelPost
+			}
+			in.Chat, in.Text = m.Chat.chat(), m.Text
+			if m.From != nil {
+				in.From, in.Lang = m.From.ID, m.From.Lang
+			}
 		case u.MyChat != nil:
-			chat = &u.MyChat.Chat
-		default:
-			continue
+			in.Chat, in.From, in.Lang = u.MyChat.Chat.chat(), u.MyChat.From.ID, u.MyChat.From.Lang
+		case u.Callback != nil && u.Callback.Message != nil:
+			in.Chat, in.From, in.Lang = u.Callback.Message.Chat.chat(), u.Callback.From.ID, u.Callback.From.Lang
+			in.Callback, in.Data, in.MessageID = u.Callback.ID, u.Callback.Data, u.Callback.Message.ID
 		}
-		if seen[chat.ID] {
-			continue
-		}
-		seen[chat.ID] = true
-		out = append(out, Update{ID: u.ID, Chat: chat.chat()})
+		// An update of a kind not asked for still moves the offset.
+		out = append(out, in)
 	}
 	return out, nil
 }
 
+func keyboard(rows [][]Button) map[string]any {
+	kb := make([][]map[string]string, 0, len(rows))
+	for _, row := range rows {
+		r := make([]map[string]string, 0, len(row))
+		for _, b := range row {
+			if b.URL != "" {
+				r = append(r, map[string]string{"text": b.Text, "url": b.URL})
+			} else {
+				r = append(r, map[string]string{"text": b.Text, "callback_data": b.Data})
+			}
+		}
+		kb = append(kb, r)
+	}
+	return map[string]any{"inline_keyboard": kb}
+}
+
 // SendMessage sends HTML text to chatID (an integer, or @channel) with
-// previews off and an optional URL button.
-func (c *Client) SendMessage(ctx context.Context, chatID, html string, button *URLButton) error {
+// previews off and an optional inline keyboard.
+func (c *Client) SendMessage(ctx context.Context, chatID, html string, buttons [][]Button) error {
 	p := map[string]any{
 		"chat_id": chatID, "text": html, "parse_mode": "HTML",
 		"link_preview_options": map[string]any{"is_disabled": true},
 	}
-	if button != nil {
-		p["reply_markup"] = map[string]any{"inline_keyboard": [][]map[string]string{{{"text": button.Text, "url": button.URL}}}}
+	if len(buttons) > 0 {
+		p["reply_markup"] = keyboard(buttons)
 	}
 	return c.call(ctx, "sendMessage", p, nil)
+}
+
+// EditMessage replaces the text and the keyboard of one of the bot's
+// messages; no buttons takes the keyboard away.
+func (c *Client) EditMessage(ctx context.Context, chatID string, messageID int64, html string, buttons [][]Button) error {
+	return c.call(ctx, "editMessageText", map[string]any{
+		"chat_id": chatID, "message_id": messageID, "text": html, "parse_mode": "HTML",
+		"link_preview_options": map[string]any{"is_disabled": true}, "reply_markup": keyboard(buttons),
+	}, nil)
+}
+
+// AnswerCallback ends a button's spinner, showing text as a toast when set.
+func (c *Client) AnswerCallback(ctx context.Context, id, text string) error {
+	return c.call(ctx, "answerCallbackQuery", map[string]any{"callback_query_id": id, "text": text}, nil)
+}
+
+// BotCommand is an entry of the bot's command menu.
+type BotCommand struct {
+	Command     string `json:"command"`
+	Description string `json:"description"`
+}
+
+// SetCommands sets the command menu shown to users whose Telegram is in
+// lang ("" for every other language).
+func (c *Client) SetCommands(ctx context.Context, lang string, cmds []BotCommand) error {
+	p := map[string]any{"commands": cmds}
+	if lang != "" {
+		p["language_code"] = lang
+	}
+	return c.call(ctx, "setMyCommands", p, nil)
 }

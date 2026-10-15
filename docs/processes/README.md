@@ -16,6 +16,7 @@ Read a flow's document before changing it. When the behaviour changes, the docum
 - [Members](./platform/members.md): areas and levels, adding a member with a setup link, changing levels, removing.
 - [Jobs](./platform/jobs.md): queueing, running, steps, retries, cancellation, resume after restart.
 - [Notifications](./platform/notifications.md): Telegram setup, rules, delivery.
+- [Telegram bot](./platform/telegram-bot.md): commands in a member's own chat, conversations, polling.
 
 ## Servers
 

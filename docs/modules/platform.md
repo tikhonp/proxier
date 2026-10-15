@@ -91,7 +91,7 @@ Events are described in [architecture](../architecture.md#events-and-history) an
 
 ## Notifications
 
-Telegram is the only channel; channels are an extension point. One bot serves every member: a member with `settings: manage` pastes its token from BotFather. Each member then chooses their own chat on Settings → Notifications with **Detect chat** (they send `/start` to the bot, and Proxier reads the chat ID from the bot's updates) and **Send test**, and toggles their own event types there. An event goes to the members it concerns: the owner of its subject and who manages its area, a member's sign-ins to that member, changes to members to the settings managers. Each message is in its recipient's language. Flow, recipients and edge cases: [notifications](../processes/platform/notifications.md).
+Telegram is the only channel; channels are an extension point. One bot serves every member: a member with `settings: manage` pastes its token from BotFather. Each member then chooses their own chat on Settings → Notifications with **Detect chat** (they send `/start` to the bot, and Proxier offers the chats the bot heard from) and **Send test**, and toggles their own event types there. In that chat, when it is a private one, the member also gives the bot commands (`/link`), run with their own levels: [telegram bot](../processes/platform/telegram-bot.md). An event goes to the members it concerns: the owner of its subject and who manages its area, a member's sign-ins to that member, changes to members to the settings managers. Each message is in its recipient's language. Flow, recipients and edge cases: [notifications](../processes/platform/notifications.md).
 
 ## Languages and time
 

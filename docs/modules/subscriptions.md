@@ -96,6 +96,7 @@ A link fetched from more networks or apps than one person's devices explain rais
 - **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the alert band while it has an alert, **Who fetches it** (networks with their country and apps, over 24 h or 7 d), the alert limits, the fetch log, actions, activity. **Alert limits** (a page styled as a dialog) raises the limits of one link or mutes its alerts.
 - **Dashboard → Links**: links with a shared-link alert ("Alex · alert · 6 networks, 4 apps in 24 h"), then active links expiring within 7 days ("Masha — Pixel · expiring · 9 Oct · in 4 days"), with **Links →**. Nothing to show, no area.
 - **New link**: a small dialog (name, subscription, optional expiry, language). It ends on the link page with the URL and QR ready to share.
+- **`/link` in Telegram** (`bot.go`, the module's `BotCommands`): the same from the member's own chat, asking the name, then offering the subscriptions they may change; the answer holds the URL and a button to the link page ([steps](../processes/subscriptions/link-lifecycle.md#steps-from-telegram)).
 - **The link's own page** (public, at the link's URL in a browser): see [What a link serves](#what-a-link-serves). The fetch log shows its views with format `page` and app Browser.
 
 ## Settings

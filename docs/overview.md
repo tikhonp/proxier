@@ -77,7 +77,7 @@ Not built, roughly in order of value. Each needs an extension point or a new flo
 - VPS billing and renewal reminders.
 - IP ranges in services (Telegram, voice calls). Routing targets: a plain list URL, a mihomo rule-provider, a sing-box rule-set.
 - Discovery by HAR import and subdomain search.
-- Telegram bot commands (status, pause checks, create a link). The bot only sends.
+- More Telegram bot commands (status, pause checks). The bot has `/link` ([telegram bot](./processes/platform/telegram-bot.md)).
 - More notification channels: ntfy, email, webhook.
 
 ## Assumptions

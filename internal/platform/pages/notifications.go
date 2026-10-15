@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/access"
+	"github.com/tikhonp/proxier/internal/platform/bot"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/notify/telegram"
@@ -129,23 +130,19 @@ func (h *handler) notificationsSet(c *echo.Context) error {
 
 // detectView is the "Detect chat" fragment.
 type detectView struct {
-	Chats    []telegram.Chat
+	Chats    []bot.Chat
 	Username string
 	Err      string // translated
 }
 
-// notificationsDetect lists the chats that wrote to the bot lately. Another
+// notificationsDetect lists the chats the bot heard from lately. Another
 // member's chat is left out: it is theirs, and naming it would tell who
 // else gets what.
 func (h *handler) notificationsDetect(c *echo.Context) error {
 	ctx := c.Request().Context()
-	bot := h.telegramBot(ctx)
-	if !bot.TokenSet {
+	tg := h.telegramBot(ctx)
+	if !tg.TokenSet {
 		return web.Render(c, http.StatusOK, detectFragment(detectView{Err: i18n.T(ctx, "telegram.detect.no_token")}))
-	}
-	token, err := h.Settings.Get(ctx, "telegram.bot_token")
-	if err != nil {
-		return err
 	}
 	roster, err := h.Auth.Roster(ctx)
 	if err != nil {
@@ -158,16 +155,15 @@ func (h *handler) notificationsDetect(c *echo.Context) error {
 			taken[m.TelegramChatID] = true
 		}
 	}
-	updates, err := h.Telegram.Client(token).GetUpdates(ctx, 100)
+	chats, err := h.Bot.Chats(ctx)
 	if err != nil {
-		h.Log.Warn("pages: telegram getUpdates", "error", err)
-		return web.Render(c, http.StatusOK, detectFragment(detectView{Err: i18n.T(ctx, "telegram.unreachable")}))
+		return err
 	}
-	v := detectView{Username: bot.Username}
-	for _, u := range updates {
-		takenByName := u.Chat.Username != "" && taken["@"+u.Chat.Username]
-		if !taken[chatIDString(u.Chat.ID)] && !takenByName {
-			v.Chats = append(v.Chats, u.Chat)
+	v := detectView{Username: tg.Username}
+	for _, ch := range chats {
+		takenByName := ch.Username != "" && taken["@"+ch.Username]
+		if !taken[chatIDString(ch.ID)] && !takenByName {
+			v.Chats = append(v.Chats, ch)
 		}
 	}
 	return web.Render(c, http.StatusOK, detectFragment(v))
