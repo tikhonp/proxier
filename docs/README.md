@@ -8,7 +8,7 @@ Every module is built and runs on the real deployment. The facts that only real 
 
 | Path | What it holds |
 |---|---|
-| [`../CONTEXT.md`](../CONTEXT.md) | The glossary. Use its words, not the ones it lists under _Avoid_. |
+| [`../CLAUDE.md#glossary`](../CLAUDE.md#glossary) | The glossary. Use its words, not the ones it lists under _Avoid_. |
 | [overview.md](./overview.md) | Why Proxier exists, who uses it, the modules, what is out of scope, and the backlog. |
 | [architecture.md](./architecture.md) | Runtime shape, the module system, jobs, events, data, HTTP surfaces, security, configuration, tech stack. |
 | [development.md](./development.md) | Code layout, module interfaces, the rules every change follows, test harnesses, checking pages in a real browser. |
