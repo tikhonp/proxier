@@ -59,8 +59,9 @@ type Server struct {
 	handlers   map[string]Handler
 	matchers   []matcher
 	forwarding bool
-	refusing   bool          // new connections are closed at once
-	noUploads  bool          // SFTP writes fail
+	refusing   bool // new connections are closed at once
+	noUploads  bool // SFTP writes fail
+	onUpload   func(path string)
 	thaw       chan struct{} // non-nil while frozen; closed by Freeze(false)
 	closed     chan struct{}
 	conns      map[net.Conn]struct{}
@@ -250,6 +251,22 @@ func (s *Server) RefuseUploads(refuse bool) {
 	s.mu.Lock()
 	s.noUploads = refuse
 	s.mu.Unlock()
+}
+
+// OnUpload calls fn as each SFTP write starts, with the path asked for.
+func (s *Server) OnUpload(fn func(path string)) {
+	s.mu.Lock()
+	s.onUpload = fn
+	s.mu.Unlock()
+}
+
+func (s *Server) uploadStarted(path string) {
+	s.mu.Lock()
+	fn := s.onUpload
+	s.mu.Unlock()
+	if fn != nil {
+		fn(path)
+	}
 }
 
 func (s *Server) uploadsRefused() bool {
@@ -473,7 +490,7 @@ func (s *Server) session(nc ssh.NewChannel, user string, freeze func()) {
 				continue
 			}
 			_ = req.Reply(true, nil)
-			srv := sftp.NewRequestServer(ch, (&rootFS{root: s.dir, refuse: s.uploadsRefused}).handlers())
+			srv := sftp.NewRequestServer(ch, (&rootFS{root: s.dir, refuse: s.uploadsRefused, onWrite: s.uploadStarted}).handlers())
 			_ = srv.Serve()
 			return
 		default:

@@ -100,6 +100,12 @@ func (h *Harness) Router(name string, listID int64, opts ...RouterOption) (*rout
 		h.fakes = map[int64]*routerostest.Router{}
 	}
 	h.fakes[id] = r
+	if jump != nil {
+		if h.jumps == nil {
+			h.jumps = map[int64]*sshxtest.Server{}
+		}
+		h.jumps[id] = jump
+	}
 	h.mu.Unlock()
 	return r, id
 }
@@ -109,6 +115,14 @@ func (h *Harness) RouterFake(id int64) *routerostest.Router {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.fakes[id]
+}
+
+// JumpFake is the fake jump host in front of a router Router added with
+// ViaJump; nil without it.
+func (h *Harness) JumpFake(id int64) *sshxtest.Server {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.jumps[id]
 }
 
 // Clock reads the module's clock.

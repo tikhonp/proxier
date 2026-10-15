@@ -243,7 +243,7 @@ func TestUploadReplacesAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if err := c.Upload(context.Background(), path, []byte("new content"), 0o640); err != nil {
+	if err := c.Upload(context.Background(), path, []byte("new content"), 0o640, TransferOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	got, err := os.ReadFile(path)
@@ -258,10 +258,10 @@ func TestUploadReplacesAtomically(t *testing.T) {
 	}
 
 	// A new file works too, and parent directories are not created.
-	if err := c.Upload(context.Background(), filepath.Join(srv.Dir(), "fresh"), []byte("x"), 0o600); err != nil {
+	if err := c.Upload(context.Background(), filepath.Join(srv.Dir(), "fresh"), []byte("x"), 0o600, TransferOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	err = c.Upload(context.Background(), filepath.Join(srv.Dir(), "missing", "dir", "f"), []byte("x"), 0o600)
+	err = c.Upload(context.Background(), filepath.Join(srv.Dir(), "missing", "dir", "f"), []byte("x"), 0o600, TransferOptions{})
 	if err == nil {
 		t.Fatal("a missing parent directory must fail")
 	}
@@ -368,10 +368,10 @@ func TestPutAndSetSubject(t *testing.T) {
 	ctx := context.Background()
 
 	// A relative path lands at the file root, written in place.
-	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("first\n")); err != nil {
+	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("first\n"), TransferOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("second\n")); err != nil {
+	if err := c.Put(ctx, "proxier-sync-12-1.rsc", []byte("second\n"), TransferOptions{}); err != nil {
 		t.Fatal(err)
 	}
 	entries, err := os.ReadDir(srv.Dir())
@@ -386,7 +386,7 @@ func TestPutAndSetSubject(t *testing.T) {
 	}
 	// A server that refuses writes (a group without ftp) fails the Put.
 	srv.RefuseUploads(true)
-	if err := c.Put(ctx, "x.rsc", []byte("x")); err == nil {
+	if err := c.Put(ctx, "x.rsc", []byte("x"), TransferOptions{}); err == nil {
 		t.Fatal("a refused write must fail")
 	}
 

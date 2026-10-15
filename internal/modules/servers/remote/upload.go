@@ -7,6 +7,8 @@ import (
 	"path"
 	"sort"
 	"strings"
+
+	"github.com/tikhonp/proxier/internal/platform/sshx"
 )
 
 // File is a rendered file to put on a server.
@@ -61,7 +63,7 @@ func UploadFiles(ctx context.Context, env Env, c Conn, dir string, files []File,
 		return nil, err
 	}
 	for _, f := range files {
-		if err := c.Upload(ctx, path.Join(dir, f.Path), f.Content, f.Mode); err != nil {
+		if err := c.Upload(ctx, path.Join(dir, f.Path), f.Content, f.Mode, sshx.TransferOptions{}); err != nil {
 			return nil, fmt.Errorf("upload %s: %w", f.Path, err)
 		}
 		env.info("Uploaded %s (%04o)", f.Path, f.Mode.Perm())

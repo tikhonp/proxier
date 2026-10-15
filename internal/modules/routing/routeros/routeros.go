@@ -36,6 +36,13 @@ const (
 	ImportTimeout = 30 * time.Minute
 )
 
+// UploadTimeout bounds the upload of a file of size bytes: a minute, and a
+// second per KiB on top, so a slow link behind a jump host still carries a
+// full file (MaxDomains names, about 530 KiB) while a dead one is given up on.
+func UploadTimeout(size int) time.Duration {
+	return time.Minute + time.Duration(size/1024)*time.Second
+}
+
 // name is what a list, a forwarder or a file may be called.
 var name = regexp.MustCompile(`^[A-Za-z0-9._-]{1,63}$`)
 
