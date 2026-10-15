@@ -27,7 +27,8 @@ templ linkPage(s ui.Shell, v linkView) {
 			if !v.Deleted {
 				<div class="actions">
 					<button type="button" class="pc-btn pc-pri" data-copy={ v.URL } data-action="links.copy" data-key="y">{ i18n.T(ctx, "links.copy") }</button>
-					if v.L.State == "disabled" {
+					if !v.CanChange {
+					} else if v.L.State == "disabled" {
 						@ui.ActionButton(ui.Action{ID: "links.enable", Label: "links.enable", Method: "POST", Href: linkHref(v.L.ID) + "/enable"})
 					} else {
 						@ui.ActionButton(ui.Action{
@@ -151,7 +152,7 @@ templ linkPage(s ui.Shell, v linkView) {
 						}
 					}
 				}
-				if !v.Deleted {
+				if v.CanChange {
 					@ui.Area(i18n.T(ctx, "links.area.actions"), "") {
 						<div class="act-rows">
 							@actionRow(ui.Action{
@@ -197,9 +198,11 @@ templ actionRow(a ui.Action, what string) {
 templ urlField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="link-url">
 		if revealed {
-			<code>@ui.URLText(full)</code>
+			<code>@ui.URLText(full)
+</code>
 		} else {
-			<code class="masked">@ui.URLText(masked)</code>
+			<code class="masked">@ui.URLText(masked)
+</code>
 		}
 		<span class="url-btns">
 			if revealed {
@@ -240,41 +243,49 @@ templ alertBand(v linkView) {
 			<p>{ v.Who.AlertText }</p>
 			<p class="subtle">{ i18n.T(ctx, "alerts.band.why") }</p>
 		</div>
-		<div class="ab-actions">
-			@ui.ActionButton(ui.Action{
-				ID: "alerts.regenerate", Label: "alerts.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate",
-				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
-			})
-			if v.L.State == "active" {
-				@ui.ActionButton(ui.Action{
-					ID: "alerts.disable", Label: "alerts.disable", Method: "POST", Href: linkHref(v.L.ID) + "/disable",
-					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.disable.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.disable.body")},
-				})
-			}
-			if v.CanCutOff {
-				<a href={ templ.SafeURL(linkHref(v.L.ID) + "/cutoff") } class="pc-btn pc-dng" data-action="cutoff.band.what">{ i18n.T(ctx, "cutoff.band", i18n.Args{"name": v.L.Name}) }</a>
-			}
-			<span class="flex1"></span>
-			@ui.ActionButton(ui.Action{ID: "alerts.raise", Label: "alerts.raise", Method: "GET", Href: linkHref(v.L.ID) + "/alerts"})
-			@ui.ActionButton(ui.Action{ID: "alerts.mute", Label: "alerts.mute", Method: "POST", Href: linkHref(v.L.ID) + "/alerts", Fields: map[string]string{"action": "mute"}})
-		</div>
-		<dl class="ab-what">
-			<dt>{ i18n.T(ctx, "alerts.what.regenerate") }</dt>
-			<dd>{ i18n.T(ctx, "alerts.what.regenerate.text", i18n.Args{"name": v.L.Name}) }</dd>
-			if v.L.State == "active" {
-				<dt>{ i18n.T(ctx, "alerts.what.disable") }</dt>
-				<dd>{ i18n.T(ctx, "alerts.what.disable.text") }</dd>
-			}
-			if v.CanCutOff {
-				<dt>{ i18n.T(ctx, "cutoff.band.what") }</dt>
-				<dd>{ v.CutOffBand }</dd>
-			}
-			<dt>{ i18n.T(ctx, "alerts.what.raise") }</dt>
-			<dd>{ i18n.T(ctx, "alerts.what.raise.text") }</dd>
-			<dt>{ i18n.T(ctx, "alerts.what.mute") }</dt>
-			<dd>{ i18n.T(ctx, "alerts.what.mute.text") }</dd>
-		</dl>
+		if v.CanChange {
+			@alertActions(v)
+		}
 	</section>
+}
+
+// alertActions are what the alert band offers a member who may change the
+// link.
+templ alertActions(v linkView) {
+	<div class="ab-actions">
+		@ui.ActionButton(ui.Action{
+			ID: "alerts.regenerate", Label: "alerts.regenerate", Method: "POST", Href: linkHref(v.L.ID) + "/regenerate",
+			Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.regenerate.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.regenerate.body", i18n.Args{"name": v.L.Name})},
+		})
+		if v.L.State == "active" {
+			@ui.ActionButton(ui.Action{
+				ID: "alerts.disable", Label: "alerts.disable", Method: "POST", Href: linkHref(v.L.ID) + "/disable",
+				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.disable.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.disable.body")},
+			})
+		}
+		if v.CanCutOff {
+			<a href={ templ.SafeURL(linkHref(v.L.ID) + "/cutoff") } class="pc-btn pc-dng" data-action="cutoff.band.what">{ i18n.T(ctx, "cutoff.band", i18n.Args{"name": v.L.Name}) }</a>
+		}
+		<span class="flex1"></span>
+		@ui.ActionButton(ui.Action{ID: "alerts.raise", Label: "alerts.raise", Method: "GET", Href: linkHref(v.L.ID) + "/alerts"})
+		@ui.ActionButton(ui.Action{ID: "alerts.mute", Label: "alerts.mute", Method: "POST", Href: linkHref(v.L.ID) + "/alerts", Fields: map[string]string{"action": "mute"}})
+	</div>
+	<dl class="ab-what">
+		<dt>{ i18n.T(ctx, "alerts.what.regenerate") }</dt>
+		<dd>{ i18n.T(ctx, "alerts.what.regenerate.text", i18n.Args{"name": v.L.Name}) }</dd>
+		if v.L.State == "active" {
+			<dt>{ i18n.T(ctx, "alerts.what.disable") }</dt>
+			<dd>{ i18n.T(ctx, "alerts.what.disable.text") }</dd>
+		}
+		if v.CanCutOff {
+			<dt>{ i18n.T(ctx, "cutoff.band.what") }</dt>
+			<dd>{ v.CutOffBand }</dd>
+		}
+		<dt>{ i18n.T(ctx, "alerts.what.raise") }</dt>
+		<dd>{ i18n.T(ctx, "alerts.what.raise.text") }</dd>
+		<dt>{ i18n.T(ctx, "alerts.what.mute") }</dt>
+		<dd>{ i18n.T(ctx, "alerts.what.mute.text") }</dd>
+	</dl>
 }
 
 // whoFetches is the networks (with country) and apps of the link's fetches

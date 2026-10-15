@@ -12,8 +12,8 @@ import (
 // Dashboard is the Routing area, after Links: routers that need a look
 // first, the snapshots waiting for a decision, the last daily refresh.
 // Nothing configured yet, no area.
-func (m *Module) Dashboard(ctx context.Context) ([]ui.DashboardArea, error) {
-	v, err := pages.Dashboard(ctx, m.pageDeps())
+func (m *Module) Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardArea, error) {
+	v, err := pages.Dashboard(ctx, m.pageDeps(), w)
 	if err != nil || v == nil {
 		return nil, err
 	}

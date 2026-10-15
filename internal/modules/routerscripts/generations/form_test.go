@@ -24,7 +24,7 @@ func keyLine(t *testing.T, h *rscriptstest.Harness) (line, fp string) {
 // form is the first view of a script's generate form.
 func form(t *testing.T, h *rscriptstest.Harness, id int64) generations.View {
 	t.Helper()
-	v, err := h.Mod.Generations.Form(bg, id, 0, 0)
+	v, err := h.Mod.Generations.Form(bg, rscriptstest.Owner, id, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,16 +101,16 @@ func TestHostDefaultFromLanNet(t *testing.T) {
 	}
 	f := v.Form
 	f.Values["lanNet"] = "10.40.1"
-	c, err := h.Mod.Generations.Check(bg, id, f)
+	c, err := h.Mod.Generations.Check(bg, rscriptstest.Owner, id, f)
 	if err != nil || c.Plan.Host != "10.40.1.1" {
 		t.Fatalf("following lanNet: %q %v", c.Plan.Host, err)
 	}
 	f.Router.Host = "192.168.5.1"
-	if c, _ := h.Mod.Generations.Check(bg, id, f); c.Plan.Host != "192.168.5.1" || c.Plan.HostAuto != "10.40.1.1" {
+	if c, _ := h.Mod.Generations.Check(bg, rscriptstest.Owner, id, f); c.Plan.Host != "192.168.5.1" || c.Plan.HostAuto != "10.40.1.1" {
 		t.Fatalf("a typed host wins: %q", c.Plan.Host)
 	}
 	f.Router.Host, f.Values["lanNet"] = "", "lan"
-	if c, _ := h.Mod.Generations.Check(bg, id, f); c.Plan.Host != "" || c.Plan.Errors["router.host"] != "generations.err.host" {
+	if c, _ := h.Mod.Generations.Check(bg, rscriptstest.Owner, id, f); c.Plan.Host != "" || c.Plan.Errors["router.host"] != "generations.err.host" {
 		t.Fatalf("no usable lanNet: %q %+v", c.Plan.Host, c.Plan.Errors)
 	}
 

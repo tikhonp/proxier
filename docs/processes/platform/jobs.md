@@ -36,6 +36,7 @@ A step may also return `Defer(d)`: the job is queued again after `d` without cou
 - Logs are capped at 10,000 lines per job. Beyond that the middle is dropped, and a line says how many were dropped.
 - Scheduled jobs never overlap themselves: a schedule whose previous job is still queued or running skips its turn and records the skip.
 - Retention: jobs and their logs for 30 days, failed ones for 90 days.
+- A member at `activity: own` sees only their own jobs on the Jobs page and in the header's cell: those they started (`created_by` is them), or whose subject is theirs. Another member's job by URL, its log or its stream is a 404 ([members](./members.md#ownership)).
 
 Default retry policies:
 
@@ -63,3 +64,4 @@ Default retry policies:
 - A job writing 15,000 lines → 10,000 kept, with a marker line.
 - A daily schedule whose previous run is still going → skip recorded, no second job.
 - A job failed 31 days ago → still listed (failed jobs are kept 90 days). One that succeeded 31 days ago → gone.
+- A member at `activity: own` → the Jobs page lists the jobs they started and those of their things, not another member's; that job's page and log by URL → 404 (`TestActivityAndJobsAtOwnShowOnlyTheMembers`).

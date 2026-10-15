@@ -104,7 +104,8 @@ type Filter struct {
 	Type       string
 	Subject    events.Subject
 	HideChecks bool
-	Before     int64 // id cursor: jobs older than this id
+	Own        *events.Own // nil: everyone's; the actor is created_by
+	Before     int64       // id cursor: jobs older than this id
 	Limit      int
 }
 
@@ -134,6 +135,11 @@ func (s *System) List(ctx context.Context, f Filter) ([]Job, error) {
 	if f.Before > 0 {
 		where = append(where, "id < ?")
 		args = append(args, f.Before)
+	}
+	if f.Own != nil {
+		cond, a := f.Own.Where("created_by")
+		where = append(where, cond)
+		args = append(args, a...)
 	}
 	limit := f.Limit
 	if limit <= 0 {
@@ -244,13 +250,15 @@ func toLines(rows []logRow) []LogLine {
 }
 
 // HeaderCounts feeds the header jobs cell: jobs running now, and jobs that
-// failed after seenAt (every failed one when seenAt is zero).
-func (s *System) HeaderCounts(ctx context.Context, seenAt db.Time) (running, failedSince int, err error) {
-	if err = s.d.R.GetContext(ctx, &running, `SELECT count(*) FROM jobs WHERE state = 'running'`); err != nil {
+// failed after seenAt (every failed one when seenAt is zero), of own's jobs
+// (nil: everyone's).
+func (s *System) HeaderCounts(ctx context.Context, seenAt db.Time, own *events.Own) (running, failedSince int, err error) {
+	cond, args := own.Where("created_by")
+	if err = s.d.R.GetContext(ctx, &running, `SELECT count(*) FROM jobs WHERE state = 'running' AND `+cond, args...); err != nil {
 		return
 	}
 	err = s.d.R.GetContext(ctx, &failedSince, `
-		SELECT count(*) FROM jobs WHERE state = 'failed' AND (? IS NULL OR finished_at > ?)`, seenAt, seenAt)
+		SELECT count(*) FROM jobs WHERE state = 'failed' AND (? IS NULL OR finished_at > ?) AND `+cond, append([]any{seenAt, seenAt}, args...)...)
 	return
 }
 

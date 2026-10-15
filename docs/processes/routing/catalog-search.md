@@ -32,6 +32,7 @@ The catalog lets the admin find services without knowing selectors by heart. It 
 - iplist selectors are added the way they will resolve. An unpinned `iplist:<sel>` resolves on the first portal (in order main, beta, russia) that has it. A result from a later portal is therefore added pinned (`iplist:beta:<sel>`) when an earlier portal also has that selector, so the service gets what the admin saw.
 - A site is tried before a group of the same name, so a group whose portal also has a site of that name can't be selected: its row says so and has no **Add**.
 - v2fly names are matched as written. The UI never adds a bare name: it always writes `v2fly:`.
+- **Add** of a selector no service has yet makes a shared service, so it is offered only to `routing: manage_all`; a result's lists are those the member may add it to ([routing: owners](../../modules/routing.md#owners)).
 - An unauthenticated GitHub API allows 60 requests an hour, which is enough for a daily refresh. An optional GitHub token in Settings raises the limit.
 
 ## Edge cases (each is a test)

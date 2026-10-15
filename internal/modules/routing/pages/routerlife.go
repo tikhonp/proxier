@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -151,7 +152,7 @@ func (h *handler) lifeOf(ctx context.Context, v *routerView) error {
 			v.Band.Hops = hopRows(ctx, routers.Hops(r, f, h.Routers.TailnetStatus(ctx)))
 		}
 	}
-	us, err := h.Routers.Unmanaged(ctx, r.ID)
+	us, err := h.Routers.Unmanaged(ctx, r.ID, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -230,7 +231,7 @@ func watchOf(ctx context.Context, h *handler, r routers.Router) (string, bool, e
 	if len(r.Drift) > 0 {
 		return i18n.T(ctx, "routers.watch.drift", i18n.Args{"tags": strings.Join(r.Drift, ", ")}), true, nil
 	}
-	us, err := h.Routers.Unmanaged(ctx, r.ID)
+	us, err := h.Routers.Unmanaged(ctx, r.ID, scope(ctx))
 	if err != nil {
 		return "", false, err
 	}
@@ -268,11 +269,11 @@ func sortRouters(rows []routerRow) {
 // ------------------------------------------------------------------ actions
 
 func (h *handler) routerRepair(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Repair(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.Repair(c.Request().Context(), r.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -281,11 +282,11 @@ func (h *handler) routerRepair(c *echo.Context) error {
 }
 
 func (h *handler) routerPause(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if err := h.Routers.Pause(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
+	if err := h.Routers.Pause(c.Request().Context(), r.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "only an active router can be paused")
 	} else if err != nil {
 		return err
@@ -294,11 +295,11 @@ func (h *handler) routerPause(c *echo.Context) error {
 }
 
 func (h *handler) routerResume(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if err := h.Routers.Resume(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
+	if err := h.Routers.Resume(c.Request().Context(), r.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "only a paused router can be resumed")
 	} else if err != nil {
 		return err
@@ -307,11 +308,11 @@ func (h *handler) routerResume(c *echo.Context) error {
 }
 
 func (h *handler) loadUnmanaged(c *echo.Context) (routers.Router, routers.UnmanagedTag, error) {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return r, routers.UnmanagedTag{}, err
 	}
-	u, err := h.Routers.UnmanagedOne(c.Request().Context(), r.ID, tagParam(c))
+	u, err := h.Routers.UnmanagedOne(c.Request().Context(), r.ID, scope(c.Request().Context()), tagParam(c))
 	if errors.Is(err, routers.ErrNoSuchTag) {
 		return r, u, echo.ErrNotFound
 	}
@@ -323,7 +324,7 @@ func (h *handler) unmanagedRemove(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.RemoveUnmanaged(c.Request().Context(), r.ID, u.Tag, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.RemoveUnmanaged(c.Request().Context(), r.ID, scope(c.Request().Context()), u.Tag, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -337,7 +338,7 @@ func (h *handler) unmanagedIgnore(ignore bool) echo.HandlerFunc {
 		if err != nil {
 			return err
 		}
-		if err := h.Routers.Ignore(c.Request().Context(), r.ID, u.Tag, ignore, web.Actor(c.Request().Context())); err != nil {
+		if err := h.Routers.Ignore(c.Request().Context(), r.ID, scope(c.Request().Context()), u.Tag, ignore, web.Actor(c.Request().Context())); err != nil {
 			return err
 		}
 		return web.Redirect(c, routerHref(r.ID)+"#unmanaged")
@@ -368,6 +369,9 @@ func (h *handler) adoptViewOf(ctx context.Context, r routers.Router, u routers.U
 		return v
 	}
 	for _, sel := range u.Catalog {
+		if u.Existing == nil && !writesAll(ctx) {
+			break // a new v2fly or iplist service is shared: manage_all adds it
+		}
 		how, _, _ := strings.Cut(sel, ":")
 		v.Offers = append(v.Offers, adoptOffer{How: how, Label: i18n.T(ctx, "routers.adopt.as", i18n.Args{"selector": sel}),
 			What: i18n.T(ctx, "routers.adopt.as.what", i18n.Args{"list": r.List})})
@@ -398,15 +402,24 @@ func (h *handler) adoptPost(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	how := c.FormValue("how")
-	_, err = h.Routers.Adopt(ctx, r.ID, u.Tag, how, web.Actor(ctx))
+	_, err = h.Routers.Adopt(ctx, r.ID, scope(ctx), u.Tag, how, web.Actor(ctx))
 	var ge *lists.GuardError
 	var taken *services.TagTakenError
+	var fe store.FieldErrors
 	switch {
 	case err == nil:
 		return web.Redirect(c, routerHref(r.ID)+"?adopted="+url.QueryEscape(u.Tag))
 	case errors.As(err, &ge):
 		v := h.adoptViewOf(ctx, r, u)
 		v.Error = ge.Error()
+		return web.Render(c, http.StatusConflict, adoptPage(h.shell(c, i18n.T(ctx, "routers.adopt.title", i18n.Args{"tag": u.Tag}), routersPath), v))
+	case errors.As(err, &fe):
+		// another member's private service has the tag: taken, and nothing names it
+		v := h.adoptViewOf(ctx, r, u)
+		for _, key := range fe {
+			v.Error = i18n.T(ctx, key)
+			break
+		}
 		return web.Render(c, http.StatusConflict, adoptPage(h.shell(c, i18n.T(ctx, "routers.adopt.title", i18n.Args{"tag": u.Tag}), routersPath), v))
 	case errors.Is(err, routers.ErrInvalidTag), errors.Is(err, routers.ErrNoOffer), errors.As(err, &taken):
 		return echo.NewHTTPError(http.StatusConflict, "that way of adopting isn't offered")
@@ -422,7 +435,7 @@ type rtRemoveView struct {
 }
 
 func (h *handler) routerRemovePage(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
@@ -436,12 +449,12 @@ func (h *handler) routerRemovePage(c *echo.Context) error {
 }
 
 func (h *handler) routerRemovePost(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
 	clean := c.FormValue("clean") == "1"
-	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, clean, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
+	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, scope(c.Request().Context()), clean, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrState) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is being removed")
 	} else if err != nil {
 		return err
@@ -454,18 +467,18 @@ func (h *handler) routerRemovePost(c *echo.Context) error {
 
 // routerRemoveKeep removes a removing router without cleaning.
 func (h *handler) routerRemoveKeep(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, false, web.Actor(c.Request().Context())); err != nil {
+	if _, err := h.Routers.Remove(c.Request().Context(), r.ID, scope(c.Request().Context()), false, web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, routersPath+"?removed="+url.QueryEscape(r.Name))
 }
 
 func (h *handler) routerRemoveRetry(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
@@ -509,17 +522,21 @@ type DashView struct {
 // Dashboard is the Routing area: routers to look at first (failing, drift,
 // unmanaged tags), else every router with its last sync; the snapshots
 // waiting for a decision; the last daily refresh. Nil with no routers and
-// no services.
-func Dashboard(ctx context.Context, d Deps) (*DashView, error) {
+// no services. The routers are those w reads; the snapshots, of shared
+// services, only for w at manage_all, who decides on them.
+func Dashboard(ctx context.Context, d Deps, w access.Who) (*DashView, error) {
 	h := &handler{Deps: d}
 	loc := i18n.From(ctx)
-	rs, err := d.Routers.List(ctx)
+	sc := w.Scope(access.Routing)
+	rs, err := d.Routers.List(ctx, sc)
 	if err != nil {
 		return nil, err
 	}
-	rows, err := d.Services.List(ctx, services.Filter{State: "waiting"})
-	if err != nil {
-		return nil, err
+	var rows []services.Row
+	if lists.WritesAll(sc) {
+		if rows, err = d.Services.List(ctx, sc, services.Filter{State: "waiting"}); err != nil {
+			return nil, err
+		}
 	}
 	ev, digested, err := d.Refresh.LastDigest(ctx)
 	if err != nil {

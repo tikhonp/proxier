@@ -36,6 +36,7 @@ type sourceView struct {
 // rejectedView is the band of a waiting snapshot.
 type rejectedView struct {
 	SnapID                 int64
+	CanDecide              bool // manage_all: the service is shared
 	Title, Line            string
 	RemovedHead, AddedHead string
 	Removed, Added         []diffLine
@@ -62,7 +63,7 @@ func stateKind(state string) string {
 
 func (h *handler) sourceOf(ctx context.Context, it services.Item, acc services.Snapshot) (sourceView, error) {
 	loc := i18n.From(ctx)
-	ms, err := h.Lists.Memberships(ctx, it.ID)
+	ms, err := h.Lists.Memberships(ctx, it.ID, scope(ctx))
 	if err != nil {
 		return sourceView{}, err
 	}
@@ -119,7 +120,7 @@ func (h *handler) rejectedOf(ctx context.Context, it services.Item, acc services
 	v.Added, v.MoreAdded = bandLines(ctx, d.AddedSuffix, d.AddedExact)
 	v.Keep = loc.N("refresh.band.keep", old)
 	v.Footer = loc.N("refresh.band.footer", old)
-	names, err := h.Services.ListsOf(ctx, it.ID)
+	names, err := h.Services.ListsOf(ctx, it.ID, scope(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +163,7 @@ func (h *handler) likelyCause(ctx context.Context, it services.Item, removed []s
 	}
 	loc := i18n.From(ctx)
 	top := holders[0]
-	ms, err := h.Lists.Memberships(ctx, it.ID)
+	ms, err := h.Lists.Memberships(ctx, it.ID, scope(ctx))
 	if err != nil {
 		return err
 	}

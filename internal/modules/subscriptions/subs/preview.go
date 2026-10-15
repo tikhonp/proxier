@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
 // Preview builds what an active link without expiry gets now, in the
 // language and zone of ctx. Records nothing.
-func (s *Service) Preview(ctx context.Context, id int64, format string, masked bool) (output.Response, []Member, error) {
-	sub, err := s.Get(ctx, id)
+func (s *Service) Preview(ctx context.Context, id int64, scope access.Scope, format string, masked bool) (output.Response, []Member, error) {
+	sub, err := s.Get(ctx, id, scope)
 	if err != nil {
 		return output.Response{}, nil, err
 	}
@@ -18,7 +19,7 @@ func (s *Service) Preview(ctx context.Context, id int64, format string, masked b
 	if err != nil {
 		return output.Response{}, nil, err
 	}
-	members, err := s.Members(ctx, id)
+	members, err := s.Members(ctx, id, scope)
 	if err != nil {
 		return output.Response{}, nil, err
 	}

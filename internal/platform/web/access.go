@@ -2,10 +2,11 @@ package web
 
 import (
 	"context"
-	"net/http"
+	"strconv"
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/platform/access"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
 // AreaRoutes are the route groups of one area. A module registers what reads
@@ -43,27 +44,40 @@ func Require(area access.Area, min access.Level) echo.MiddlewareFunc {
 			if current(c).Grant.Can(area, min) {
 				return next(c)
 			}
-			return Forbidden(area)
+			return access.Forbidden(area)
 		}
 	}
 }
-
-// ForbiddenError is a member's grant not reaching what they asked for in
-// Area. The error handler answers it with a page naming the area, or for
-// htmx (which swaps no 4xx) with a fragment the key line shows.
-type ForbiddenError struct{ Area access.Area }
-
-func (e *ForbiddenError) Error() string {
-	return "web: access to " + string(e.Area) + " doesn't reach this"
-}
-func (e *ForbiddenError) StatusCode() int { return http.StatusForbidden }
-
-// Forbidden is the error of a request the member's grant doesn't reach in
-// area. Being an error, it stops a handler that checks more than its route.
-func Forbidden(area access.Area) error { return &ForbiddenError{Area: area} }
 
 // Can reports whether the signed-in member's grant reaches min in area: for
 // pages that show more to a higher level.
 func Can(ctx context.Context, area access.Area, min access.Level) bool {
 	return FromContext(ctx).Grant.Can(area, min)
 }
+
+// Who is the signed-in member and their grant. It panics outside a signed-in
+// request, like Actor.
+func Who(ctx context.Context) access.Who {
+	r := FromContext(ctx)
+	if r.Member == nil {
+		panic("web: Who outside a signed-in request")
+	}
+	return access.Who{Member: r.Member.ID, Grant: r.Grant}
+}
+
+// OwnerNote is " · owner anna" for a thing of another member, shown on the
+// thing's page to whoever reads everyone's; "" for the member's own.
+func OwnerNote(ctx context.Context, owner int64) string {
+	if owner == Who(ctx).Member {
+		return ""
+	}
+	name, ok := MemberName(ctx, owner)
+	if !ok {
+		name = "#" + strconv.FormatInt(owner, 10)
+	}
+	return " · " + i18n.T(ctx, "members.owner", i18n.Args{"name": name})
+}
+
+// Scope is whose things the signed-in member reaches in area: what every
+// query of owned things in a handler takes.
+func Scope(ctx context.Context, area access.Area) access.Scope { return Who(ctx).Scope(area) }

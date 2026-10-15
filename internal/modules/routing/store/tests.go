@@ -10,6 +10,7 @@ import (
 // Test is a row of routing_tests.
 type Test struct {
 	ID             int64   `db:"id"`
+	OwnerID        int64   `db:"owner_id"`  // who started it
 	RouterID       int64   `db:"router_id"` // 0: the add form
 	Form           string  `db:"form"`
 	JobID          int64   `db:"job_id"`
@@ -26,16 +27,16 @@ type Test struct {
 	FinishedAt     db.Time `db:"finished_at"`
 }
 
-const testSelect = `SELECT id, coalesce(router_id, 0) AS router_id, form, coalesce(job_id, 0) AS job_id, state, checks, confirm_hop,
+const testSelect = `SELECT id, owner_id, coalesce(router_id, 0) AS router_id, form, coalesce(job_id, 0) AS job_id, state, checks, confirm_hop,
 	confirm_address, confirm_key, confirm_fp, version, board, error, created_at, finished_at FROM routing_tests`
 
-// InsertTest starts a test in state running.
-func InsertTest(ctx context.Context, x sqlx.ExtContext, routerID int64, form string, at db.Time) (int64, error) {
+// InsertTest starts a test of owner in state running.
+func InsertTest(ctx context.Context, x sqlx.ExtContext, owner, routerID int64, form string, at db.Time) (int64, error) {
 	var rid any
 	if routerID != 0 {
 		rid = routerID
 	}
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_tests (router_id, form, state, created_at) VALUES (?, ?, 'running', ?)`, rid, form, at)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_tests (owner_id, router_id, form, state, created_at) VALUES (?, ?, ?, 'running', ?)`, owner, rid, form, at)
 	if err != nil {
 		return 0, err
 	}

@@ -130,7 +130,7 @@ func (h *handler) generatePage(c *echo.Context) error {
 	ctx := c.Request().Context()
 	version, _ := strconv.Atoi(c.QueryParam("version"))
 	from, _ := strconv.ParseInt(c.QueryParam("from"), 10, 64)
-	v, err := h.Generations.Form(ctx, s.ID, version, from)
+	v, err := h.Generations.Form(ctx, web.Who(ctx), s.ID, version, from)
 	if err != nil {
 		return h.cantGenerate(c, s, err)
 	}
@@ -144,7 +144,7 @@ func (h *handler) generateSummary(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	f := genForm(c)
-	v, err := h.Generations.Check(ctx, s.ID, f)
+	v, err := h.Generations.Check(ctx, web.Who(ctx), s.ID, f)
 	if err != nil {
 		return h.cantGenerate(c, s, err)
 	}
@@ -171,11 +171,11 @@ func (h *handler) generate(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	f := genForm(c)
-	id, err := h.Generations.Generate(ctx, s.ID, f, web.Actor(ctx))
+	id, err := h.Generations.Generate(ctx, web.Who(ctx), s.ID, f, web.Actor(ctx))
 	var fe store.FieldErrors
 	switch {
 	case errors.As(err, &fe):
-		v, cerr := h.Generations.Check(ctx, s.ID, f)
+		v, cerr := h.Generations.Check(ctx, web.Who(ctx), s.ID, f)
 		if cerr != nil {
 			return h.cantGenerate(c, s, cerr)
 		}

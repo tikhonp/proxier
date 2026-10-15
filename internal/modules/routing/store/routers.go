@@ -5,12 +5,14 @@ import (
 	"strings"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
 // Router is a row of routing_routers with its list's name.
 type Router struct {
 	ID                int64   `db:"id"`
+	OwnerID           int64   `db:"owner_id"`
 	Name              string  `db:"name"`
 	ListID            int64   `db:"list_id"`
 	List              string  `db:"list"`
@@ -44,16 +46,16 @@ type Router struct {
 	CreatedAt         db.Time `db:"created_at"`
 }
 
-const routerSelect = `SELECT r.id, r.name, r.list_id, l.name AS list, r.state, r.host, r.port, r.ssh_user, r.jump_host, r.jump_port,
+const routerSelect = `SELECT r.id, r.owner_id, r.name, r.list_id, l.name AS list, r.state, r.host, r.port, r.ssh_user, r.jump_host, r.jump_port,
 	r.jump_user, r.tailnet, r.address_list, r.doh_forwarder, r.version, r.board, r.connected_at, r.last_seen_at, r.last_sync_at,
 	r.last_sync_result, r.last_sync_error, r.failures, r.failure_notified, r.untagged, r.infra_pins, r.read_at,
 	r.drift, r.drift_checked_at, r.unmanaged_notified, r.awaiting_until, r.created_by, r.created_at
 	FROM routing_routers r JOIN routing_lists l ON l.id = r.list_id`
 
-// Routers reads every router by name.
-func Routers(ctx context.Context, q sqlx.QueryerContext) ([]Router, error) {
+// Routers reads every router within scope by name.
+func Routers(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) ([]Router, error) {
 	var out []Router
-	err := sqlx.SelectContext(ctx, q, &out, routerSelect+` ORDER BY r.name`)
+	err := sqlx.SelectContext(ctx, q, &out, routerSelect+` WHERE ? IN (0, r.owner_id) ORDER BY r.name`, scope)
 	return out, err
 }
 
@@ -64,10 +66,10 @@ func RoutersOfList(ctx context.Context, q sqlx.QueryerContext, listID int64) ([]
 	return out, err
 }
 
-// GetRouter reads one router.
-func GetRouter(ctx context.Context, q sqlx.QueryerContext, id int64) (Router, error) {
+// GetRouter reads one router within scope.
+func GetRouter(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Router, error) {
 	var r Router
-	err := sqlx.GetContext(ctx, q, &r, routerSelect+` WHERE r.id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &r, routerSelect+` WHERE r.id = ? AND ? IN (0, r.owner_id)`, id, scope)
 	return r, notFound(err)
 }
 
@@ -81,10 +83,10 @@ func RouterNameTaken(ctx context.Context, q sqlx.QueryerContext, name string, ex
 // InsertRouter adds a router; the state, connection, names, version and
 // connection times come from r.
 func InsertRouter(ctx context.Context, x sqlx.ExtContext, r Router) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_routers (name, list_id, state, host, port, ssh_user, jump_host, jump_port,
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_routers (owner_id, name, list_id, state, host, port, ssh_user, jump_host, jump_port,
 		jump_user, tailnet, address_list, doh_forwarder, version, board, connected_at, last_seen_at, awaiting_until, created_by, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.Name, r.ListID, r.State, r.Host, r.Port, r.User, r.JumpHost, r.JumpPort, r.JumpUser, r.Tailnet,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.OwnerID, r.Name, r.ListID, r.State, r.Host, r.Port, r.User, r.JumpHost, r.JumpPort, r.JumpUser, r.Tailnet,
 		r.AddressList, r.Forwarder, r.Version, r.Board, r.ConnectedAt, r.LastSeenAt, r.AwaitingUntil, r.CreatedBy, r.CreatedAt)
 	if err != nil {
 		return 0, err

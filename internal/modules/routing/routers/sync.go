@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx"
@@ -227,7 +228,7 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		now := s.now()
-		cur, err := store.GetRouter(ctx, tx, rt.ID)
+		cur, err := store.GetRouter(ctx, tx, rt.ID, access.All)
 		if err != nil {
 			return err
 		}
@@ -271,7 +272,7 @@ func (s *Service) loadSync(ctx context.Context, r *jobs.Run) (syncPayload, store
 	if err := r.Payload(&p); err != nil {
 		return p, store.Router{}, false, jobs.Permanent(err)
 	}
-	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID)
+	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		r.Log().Info("Router %d no longer exists: nothing to sync.", p.RouterID)
 		return p, rt, false, nil
@@ -415,7 +416,7 @@ func (s *Service) fail(ctx context.Context, r *jobs.Run, rt store.Router, syncID
 	r.Log().Error("%s failed: %s", f.step, f.text)
 	werr := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		now := s.now()
-		cur, err := store.GetRouter(ctx, tx, rt.ID)
+		cur, err := store.GetRouter(ctx, tx, rt.ID, access.All)
 		if err != nil {
 			return err
 		}

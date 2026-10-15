@@ -41,6 +41,7 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 - The inserted block always comes before `FINAL`. Rules after `FINAL` would never match.
 - The base config may hold `[Proxy]` or `[Proxy Group]` sections. Proxier copies them, but proxies normally come from the phone's link subscription, not from here.
 - The server hostname guard applies, because the list is the same as for routers.
+- A config is its owner's and follows a list its owner may change. Its public URL serves whoever owns it, and after its owner is removed ([routing: owners](../../modules/routing.md#owners)).
 
 ## Edge cases (each is a test)
 
@@ -54,3 +55,4 @@ The phone, away from home, should tunnel the same domains as the home router. Pr
 - Regenerate the token → the old URL `404`s, and the new one serves.
 - A disabled config → `404`.
 - Restore base version 2 while version 4 is current → version 5 is created with version 2's content.
+- A member at `routing: own` creates a config on member 1's list → refused on the list field; on their own list → theirs, and another member doesn't find it.

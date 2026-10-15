@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/web"
@@ -49,7 +50,10 @@ type linkView struct {
 	OlderHref  string
 	Activity   []eventLine
 	Deleted    bool
-	Who        whoView
+	// CanChange: the link is live and the member may change it (their own,
+	// or manage_all).
+	CanChange bool
+	Who       whoView
 	// CanCutOff: the servers module rotates; CutOffBand is the alert band's
 	// line about it, CutOff the latest cut-off (HasCutOff).
 	CanCutOff  bool
@@ -74,12 +78,12 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 		v.LastFetch = loc.Ago(l.LastFetchAt) + " · " + appName(loc, l.LastFetchApp, "") + " · " + l.LastFetchNetwork
 	}
 	if l.SubscriptionID != 0 {
-		sub, err := h.Subs.Get(ctx, l.SubscriptionID)
+		sub, err := h.Subs.Get(ctx, l.SubscriptionID, access.All)
 		if err != nil {
 			return v, err
 		}
 		v.SubName = sub.Name
-		members, err := h.Subs.Members(ctx, sub.ID)
+		members, err := h.Subs.Members(ctx, sub.ID, access.All)
 		if err != nil {
 			return v, err
 		}
@@ -93,7 +97,8 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 			v.Format = l.Format
 		}
 	}
-	v.Line = v.SubName + " · " + v.Expiry + " · " + v.Lang + " · " + loc.T("links.created_on", i18n.Args{"date": v.Created})
+	v.Line = v.SubName + " · " + v.Expiry + " · " + v.Lang + " · " + loc.T("links.created_on", i18n.Args{"date": v.Created}) + web.OwnerNote(ctx, l.OwnerID)
+	v.CanChange = !v.Deleted && scope(ctx).Writes(l.OwnerID)
 
 	period, err := h.Links.Tombstone(ctx)
 	if err != nil {
@@ -118,7 +123,7 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 		v.Band, v.BandText = "expired", loc.T("links.band.expired", i18n.Args{"date": lastDay(loc, l.Expires, true)})
 	}
 	if !v.Deleted {
-		token, err := h.Links.Token(ctx, l.ID)
+		token, err := h.Links.Token(ctx, l.ID, scope(ctx))
 		if err != nil {
 			return v, err
 		}
@@ -138,7 +143,8 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 	if v.Deleted {
 		v.Who.Alert = false
 	}
-	v.CanCutOff = h.Links.CanCutOff() && !v.Deleted
+	// A cut-off rotates shared servers, so it needs servers: manage too.
+	v.CanCutOff = h.Links.CanCutOff() && v.CanChange && web.Can(ctx, access.Servers, access.LevelManage)
 	if v.CanCutOff {
 		on, err := h.Links.Rotates(ctx)
 		if err != nil {
@@ -240,7 +246,7 @@ func (h *handler) linkURL(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	token, err := h.Links.Token(c.Request().Context(), l.ID)
+	token, err := h.Links.Token(c.Request().Context(), l.ID, scope(c.Request().Context()))
 	if err != nil {
 		return actionErr(err)
 	}
@@ -254,7 +260,7 @@ func (h *handler) linkQR(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	token, err := h.Links.Token(c.Request().Context(), l.ID)
+	token, err := h.Links.Token(c.Request().Context(), l.ID, scope(c.Request().Context()))
 	if err != nil {
 		return actionErr(err)
 	}
@@ -263,13 +269,13 @@ func (h *handler) linkQR(c *echo.Context) error {
 }
 
 // act runs a one-click action and goes back to the link page.
-func (h *handler) act(fn func(ctx context.Context, id int64, actor string) error, query string) echo.HandlerFunc {
+func (h *handler) act(fn func(ctx context.Context, id int64, scope access.Scope, actor string) error, query string) echo.HandlerFunc {
 	return func(c *echo.Context) error {
 		l, err := h.loadLink(c)
 		if err != nil {
 			return err
 		}
-		if err := fn(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
+		if err := fn(c.Request().Context(), l.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 			return actionErr(err)
 		}
 		return web.Redirect(c, linkHref(l.ID)+query)
@@ -281,7 +287,7 @@ func (h *handler) deleteLink(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.Links.Delete(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
+	if err := h.Links.Delete(c.Request().Context(), l.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return actionErr(err)
 	}
 	return web.Redirect(c, "/links")
@@ -307,7 +313,7 @@ type linkFormView struct {
 
 func (h *handler) linkForm(c *echo.Context, kind string) (linkFormView, error) {
 	ctx := c.Request().Context()
-	l, err := h.loadLink(c)
+	l, err := h.loadLinkToChange(c)
 	if err != nil {
 		return linkFormView{}, err
 	}
@@ -327,16 +333,21 @@ func (h *handler) linkForm(c *echo.Context, kind string) (linkFormView, error) {
 		}
 		v.Hint = loc.T("links.expiry.works_until", i18n.Args{"date": lastDay(loc, l.Expires, true), "zone": v.Expiry.Zone})
 	}
-	list, err := h.Subs.List(ctx)
+	// The link's own subscription may be another member's; it can move only
+	// to one the member may change.
+	cur, err := h.Subs.Get(ctx, l.SubscriptionID, access.All)
+	if err != nil {
+		return v, err
+	}
+	v.Formats, v.Default = cur.Formats, cur.DefaultFormat
+	list, err := h.Subs.List(ctx, scope(ctx).Writable())
 	if err != nil {
 		return v, err
 	}
 	for _, s := range list {
-		if s.ID == l.SubscriptionID {
-			v.Formats, v.Default = s.Formats, s.DefaultFormat
-			continue
+		if s.ID != l.SubscriptionID {
+			v.Subs = append(v.Subs, s)
 		}
-		v.Subs = append(v.Subs, s)
 	}
 	return v, nil
 }
@@ -362,7 +373,7 @@ func (h *handler) changeSubscription(c *echo.Context) error {
 		return err
 	}
 	to, _ := strconv.ParseInt(c.FormValue("subscription"), 10, 64)
-	err = h.Links.ChangeSubscription(c.Request().Context(), v.L.ID, to, web.Actor(c.Request().Context()))
+	err = h.Links.ChangeSubscription(c.Request().Context(), v.L.ID, scope(c.Request().Context()), to, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrNotFound) {
 		v.Errs = map[string]string{"subscription": i18n.T(c.Request().Context(), "links.err.subscription")}
 		return h.renderLinkForm(c, http.StatusUnprocessableEntity, v)
@@ -382,7 +393,7 @@ func (h *handler) setExpiry(c *echo.Context) error {
 	v.Expiry = expiryForm{Mode: c.FormValue("expiry"), Date: c.FormValue("expiry_date"), Clock: c.FormValue("expiry_time"), Zone: v.Expiry.Zone}
 	expires, err := links.ParseExpiry(v.Expiry.Mode, v.Expiry.Date, v.Expiry.Clock, h.Links.Zone(ctx), h.Now())
 	if err == nil {
-		err = h.Links.SetExpiry(ctx, v.L.ID, expires, web.Actor(ctx))
+		err = h.Links.SetExpiry(ctx, v.L.ID, scope(ctx), expires, web.Actor(ctx))
 	}
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
@@ -402,7 +413,7 @@ func (h *handler) editLink(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	v.Name, v.Note, v.Lang, v.Format = c.FormValue("name"), c.FormValue("note"), c.FormValue("language"), c.FormValue("format")
-	err = h.Links.Edit(ctx, v.L.ID, links.Edit{Name: v.Name, Note: v.Note, Lang: i18n.Lang(v.Lang), Format: v.Format}, web.Actor(ctx))
+	err = h.Links.Edit(ctx, v.L.ID, scope(ctx), links.Edit{Name: v.Name, Note: v.Note, Lang: i18n.Lang(v.Lang), Format: v.Format}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -423,7 +434,7 @@ func (h *handler) moveLinks(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	to, _ := strconv.ParseInt(c.FormValue("to"), 10, 64)
-	if _, err := h.Links.MoveAll(ctx, s.ID, to, web.Actor(ctx)); errors.Is(err, subs.ErrNotFound) {
+	if _, err := h.Links.MoveAll(ctx, s.ID, to, scope(ctx), web.Actor(ctx)); errors.Is(err, subs.ErrNotFound) {
 		v, verr := h.deleteView(ctx, s)
 		if verr != nil {
 			return verr
@@ -445,7 +456,7 @@ type subLinkRow struct {
 }
 
 func (h *handler) subLinks(ctx context.Context, subID int64) ([]subLinkRow, error) {
-	list, err := h.Links.OfSubscription(ctx, subID)
+	list, err := h.Links.OfSubscription(ctx, subID, scope(ctx))
 	if err != nil {
 		return nil, err
 	}

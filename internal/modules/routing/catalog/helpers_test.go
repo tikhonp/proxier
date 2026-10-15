@@ -8,6 +8,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/catalog"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 var bg = context.Background()
@@ -28,6 +29,9 @@ func refreshCatalog(t *testing.T, h *routingtest.Harness) {
 
 func search(t *testing.T, h *routingtest.Harness, q catalog.Query) []catalog.Result {
 	t.Helper()
+	if q.Scope == (access.Scope{}) {
+		q.Scope = access.All
+	}
 	res, _, err := h.Mod.Catalog.Search(bg, q)
 	if err != nil {
 		t.Fatal(err)

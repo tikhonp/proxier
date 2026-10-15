@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // guard is the first name of the set (suffix names first, each sorted) that
@@ -35,7 +36,7 @@ func guard(suffix, exact []string, srv []own.Server) *GuardError {
 // service, inside the custom save's transaction. A service in no list is
 // never refused.
 func (s *Service) CheckService(ctx context.Context, tx *sqlx.Tx, serviceID int64, set snapshot.Set) error {
-	ms, err := store.MembershipsOf(ctx, tx, serviceID)
+	ms, err := store.MembershipsOf(ctx, tx, serviceID, access.All)
 	if err != nil || len(ms) == 0 {
 		return err
 	}
@@ -47,7 +48,7 @@ func (s *Service) CheckService(ctx context.Context, tx *sqlx.Tx, serviceID int64
 	if ge == nil {
 		return nil
 	}
-	svc, err := store.GetService(ctx, tx, serviceID)
+	svc, err := store.GetService(ctx, tx, serviceID, access.All)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (s *Service) CheckSet(ctx context.Context, tag string, set snapshot.Set, li
 	if ge == nil {
 		return nil
 	}
-	l, err := s.Get(ctx, listIDs[0])
+	l, err := s.Get(ctx, listIDs[0], access.All)
 	if err != nil {
 		return err
 	}
@@ -81,7 +82,7 @@ func (s *Service) CheckSet(ctx context.Context, tag string, set snapshot.Set, li
 
 // AddNew prepares a new upstream service, checks the guard and, in one Write,
 // creates it and adds it to the lists. A refusal is recorded.
-func (s *Service) AddNew(ctx context.Context, sel string, listIDs []int64, actor string) (int64, error) {
+func (s *Service) AddNew(ctx context.Context, sel string, listIDs []int64, scope access.Scope, actor string) (int64, error) {
 	p, err := s.d.Services.Prepare(ctx, sel)
 	if err != nil {
 		return 0, err
@@ -97,7 +98,7 @@ func (s *Service) AddNew(ctx context.Context, sel string, listIDs []int64, actor
 			return err
 		}
 		for _, l := range listIDs {
-			if err := s.AddTx(ctx, tx, l, []int64{id}, actor); err != nil {
+			if err := s.AddTx(ctx, tx, l, scope, []int64{id}, actor); err != nil {
 				return err
 			}
 		}
@@ -145,7 +146,7 @@ func (s *Service) Covering(ctx context.Context, hostnames []string) ([]servers.R
 	if len(hostnames) == 0 {
 		return nil, nil
 	}
-	all, err := s.All(ctx)
+	all, err := s.All(ctx, access.All)
 	if err != nil {
 		return nil, err
 	}

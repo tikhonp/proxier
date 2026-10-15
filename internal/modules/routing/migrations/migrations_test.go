@@ -53,8 +53,10 @@ func count(t *testing.T, d *db.DB, q string, args ...any) int {
 	return n
 }
 
-// insertService: id, tag, source, selector.
-const insertService = `INSERT INTO routing_services (id, tag, source, selector, created_at) VALUES (?, ?, ?, ?, '` + now + `')`
+// insertService: id, tag, source, selector; a custom one is member 1's, an
+// upstream one shared (owner 0).
+const insertService = `INSERT INTO routing_services (id, tag, source, selector, created_at, owner_id)
+	VALUES (?1, ?2, ?3, ?4, '` + now + `', CASE ?3 WHEN 'custom' THEN 1 ELSE 0 END)`
 
 // insertSnapshot: service, status, reason, accepted_at.
 const insertSnapshot = `INSERT INTO routing_snapshots (service_id, status, suffix_count, exact_count, hash, reason, fetched_at, accepted_at)
@@ -79,6 +81,15 @@ func TestRoutingMigrationsRoundTrip(t *testing.T) {
 	}
 	if n := count(t, d, `SELECT count(*) FROM pragma_table_info('routing_imports') WHERE name = 'list_failures'`); n != 1 {
 		t.Fatalf("00002: list_failures %d", n)
+	}
+	if n := count(t, d, `SELECT count(*) FROM sqlite_master m, pragma_table_info(m.name) p WHERE m.type = 'table' AND p.name = 'owner_id'`); n != 7 {
+		t.Fatalf("00003: %d tables with an owner", n)
+	}
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatalf("down 00003: %v", err)
+	}
+	if n := count(t, d, `SELECT count(*) FROM sqlite_master m, pragma_table_info(m.name) p WHERE m.type = 'table' AND p.name = 'owner_id'`); n != 0 {
+		t.Fatalf("owners after down: %d", n)
 	}
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 		t.Fatalf("down 00002: %v", err)
@@ -138,6 +149,45 @@ func TestDeletesFollowOwnership(t *testing.T) {
 		count(t, d, `SELECT count(*) FROM routing_custom_domains WHERE service_id = 2`); n != 0 {
 		t.Fatalf("rows of a deleted service: %d", n)
 	}
+}
+
+func TestThingsFromBeforeMembersBelongToMemberOne(t *testing.T) {
+	ctx := context.Background()
+	d := open(t)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, `INSERT INTO routing_services (id, tag, source, selector, created_at) VALUES (2, 'mine', 'custom', '', ?)`, now)
+	mustExec(t, d, `INSERT INTO routing_shadowrocket (name, list_id, token, token_lookup, created_at) VALUES ('phone', 1, X'00', X'01', ?)`, now)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, d, `SELECT owner_id FROM routing_services WHERE tag = 'anthropic'`); n != 0 {
+		t.Errorf("an upstream service has owner %d, want shared (0)", n)
+	}
+	if n := count(t, d, `SELECT owner_id FROM routing_services WHERE tag = 'mine'`); n != 1 {
+		t.Errorf("a custom service has owner %d, want 1", n)
+	}
+	if n := count(t, d, `SELECT count(*) FROM routing_lists WHERE owner_id = 1`) + count(t, d, `SELECT count(*) FROM routing_shadowrocket WHERE owner_id = 1`); n != 2 {
+		t.Errorf("%d of Main and the config are member 1's", n)
+	}
+}
+
+func TestOwnerChecks(t *testing.T) {
+	d := open(t)
+	mustFail(t, d, "a custom service without an owner", `INSERT INTO routing_services (id, tag, source, selector, created_at, owner_id) VALUES (2, 'mine', 'custom', '', ?, 0)`, now)
+	mustFail(t, d, "an upstream service with an owner", `INSERT INTO routing_services (id, tag, source, selector, created_at, owner_id) VALUES (2, 'yt', 'v2fly', 'v2fly:yt', ?, 3)`, now)
+	mustFail(t, d, "a shared service given an owner", `UPDATE routing_services SET owner_id = 2 WHERE id = 1`)
+	mustExec(t, d, `INSERT INTO routing_services (id, tag, source, selector, created_at, owner_id) VALUES (2, 'mine', 'custom', '', ?, 2)`, now)
+	mustExec(t, d, `UPDATE routing_services SET owner_id = 3 WHERE id = 2`)
+	mustFail(t, d, "a custom service losing its owner", `UPDATE routing_services SET owner_id = 0 WHERE id = 2`)
+	for _, table := range []string{"routing_lists", "routing_routers", "routing_shadowrocket", "routing_imports", "routing_discovery_runs"} {
+		if n := count(t, d, `SELECT count(*) FROM sqlite_master WHERE name = ? AND sql LIKE '%owner_id INTEGER NOT NULL DEFAULT 1 CHECK (owner_id > 0)%'`, table); n != 1 {
+			t.Errorf("%s doesn't check its owner", table)
+		}
+	}
+	mustFail(t, d, "Main of no member", `UPDATE routing_lists SET owner_id = 0`)
+	mustFail(t, d, "a list of no member", `INSERT INTO routing_lists (name, created_at, owner_id) VALUES ('Parents', ?, 0)`, now)
 }
 
 func TestServiceChecks(t *testing.T) {

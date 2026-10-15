@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
@@ -82,7 +83,7 @@ func (s *Service) warnings(ctx context.Context, v View) ([]Warning, error) {
 // refreshWarning is a member's waiting snapshot ("Rejected snapshot · …") or
 // its failing refresh, nil when neither.
 func (s *Service) refreshWarning(ctx context.Context, serviceID int64) (*Warning, error) {
-	svc, err := store.GetService(ctx, s.d.DB.R, serviceID)
+	svc, err := store.GetService(ctx, s.d.DB.R, serviceID, access.All)
 	if err != nil || svc.Source == "custom" {
 		return nil, err
 	}

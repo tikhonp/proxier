@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Member is a service of a list with what it installs there.
@@ -31,7 +32,7 @@ type View struct {
 // the hostnames port once, and computes ownership. exclude maps names to
 // leave out (a router's infra pins) to their reason.
 func (s *Service) View(ctx context.Context, id int64, exclude map[string]string) (View, error) {
-	l, err := s.Get(ctx, id)
+	l, err := s.Get(ctx, id, access.All)
 	if err != nil {
 		return View{}, err
 	}
@@ -42,7 +43,7 @@ func (s *Service) View(ctx context.Context, id int64, exclude map[string]string)
 	v := View{List: l}
 	members := make([]own.Member, 0, len(rows))
 	for _, r := range rows {
-		it, err := s.d.Services.Get(ctx, r.ServiceID)
+		it, err := s.d.Services.Get(ctx, r.ServiceID, access.All)
 		if err != nil {
 			return View{}, err
 		}
@@ -90,7 +91,7 @@ func members(ctx context.Context, q sqlx.QueryerContext, listID int64) ([]own.Me
 	}
 	out := make([]own.Member, 0, len(rows))
 	for _, r := range rows {
-		svc, err := store.GetService(ctx, q, r.ServiceID)
+		svc, err := store.GetService(ctx, q, r.ServiceID, access.All)
 		if err != nil {
 			return nil, err
 		}

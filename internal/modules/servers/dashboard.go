@@ -21,7 +21,7 @@ import (
 // servers that need a look (with their reason and since), servers with an
 // update available, the top three by disk and by traffic today, and the
 // first-run items that belong to servers.
-func (m *Module) Dashboard(ctx context.Context) ([]ui.DashboardArea, error) {
+func (m *Module) Dashboard(ctx context.Context, _ access.Who) ([]ui.DashboardArea, error) {
 	loc := i18n.From(ctx)
 	counts, err := store.CountByState(ctx, m.deps.DB.R)
 	if err != nil {

@@ -27,7 +27,7 @@ import (
 
 // Searcher is module.Searcher: things for the search pop-up's "Go to".
 type Searcher interface {
-	Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error)
+	Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error)
 }
 
 // Integrator is a module with rows on Settings → Integrations.
@@ -35,9 +35,14 @@ type Integrator interface {
 	Integrations(ctx context.Context) []ui.IntegrationRow
 }
 
+// SubjectOwner is module.SubjectOwner: the subjects a member owns.
+type SubjectOwner interface {
+	OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error)
+}
+
 // Dashboarder is a module with areas on the dashboard.
 type Dashboarder interface {
-	Dashboard(ctx context.Context) ([]ui.DashboardArea, error)
+	Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardArea, error)
 }
 
 // Deps is what the handlers need. Nav, SettingsPages and Searchers are
@@ -64,6 +69,9 @@ type Deps struct {
 	Tailnet    *tailnet.Node
 	Backup     *backup.Service
 	Namers     []Namer
+	// Owners list what each member owns, for Activity and Jobs at
+	// activity: own.
+	Owners []SubjectOwner
 	// Closing is closed when the server starts shutting down; live streams
 	// end then.
 	Closing <-chan struct{}

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Serve builds what the link gets now with ?format=query: the stub texts in
@@ -11,7 +12,8 @@ import (
 // serves at this moment. Nothing is cached. It also returns the format
 // picked; output.ErrBadFormat for a query the subscription doesn't allow.
 func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) (output.Response, string, error) {
-	sub, err := s.d.Subs.Get(ctx, l.SubscriptionID)
+	// The link is already found; its subscription may be another member's.
+	sub, err := s.d.Subs.Get(ctx, l.SubscriptionID, access.All)
 	if err != nil {
 		return output.Response{}, "", err
 	}
@@ -19,7 +21,7 @@ func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) 
 	if err != nil {
 		return output.Response{}, "", err
 	}
-	members, err := s.d.Subs.Members(ctx, sub.ID)
+	members, err := s.d.Subs.Members(ctx, sub.ID, access.All)
 	if err != nil {
 		return output.Response{}, "", err
 	}

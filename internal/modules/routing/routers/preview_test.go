@@ -6,12 +6,13 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func preview(t *testing.T, h *routingtest.Harness, id int64) routers.Sync {
 	t.Helper()
 	h.StartJobs()
-	sid, err := h.Mod.Routers.Preview(bg, id, "admin")
+	sid, err := h.Mod.Routers.Preview(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +33,7 @@ func TestSwitchListPreviewAndSync(t *testing.T) {
 	parents := h.List("Parents", openai)
 	r, id := h.Router("Home", 0)
 	syncNow(t, h, id)
-	if err := h.Mod.Routers.SetList(bg, id, parents, "admin"); err != nil {
+	if err := h.Mod.Routers.SetList(bg, id, access.All, parents, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if ev := h.Events("routing.router_updated"); len(ev) != 1 || ev[0].Payload["changes"] != "list" || ev[0].Payload["to"] != "Parents" {

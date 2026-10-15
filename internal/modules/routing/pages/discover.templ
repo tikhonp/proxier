@@ -200,7 +200,7 @@ templ runAreas(v runView) {
 				</div>
 			}
 		}
-		if !v.Active && len(v.Groups)+len(v.Run.IPs) > 0 {
+		if !v.Active && len(v.Groups)+len(v.Run.IPs) > 0 && v.CanChange {
 			@runPicks(v)
 		}
 	</div>

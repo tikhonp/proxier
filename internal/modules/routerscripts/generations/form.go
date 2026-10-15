@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/tailnet"
 )
 
@@ -101,6 +102,7 @@ type View struct {
 
 	// what Generate uses of the check
 	values  map[string]string
+	who     access.Who                 // who generates
 	link    *subscriptions.IssuedLink  // existing
 	router  *routing.RegisteredRouter  // existing
 	reg     routing.RouterRegistration // new
@@ -133,10 +135,15 @@ func (s *Service) script(ctx context.Context, scriptID int64, version int) (scri
 // Form is the generate page's first view: the version's defaults, or, with
 // from, that generation's router name and values with its link and router
 // chosen while they still exist.
-func (s *Service) Form(ctx context.Context, scriptID int64, version int, from int64) (View, error) {
+//
+// w is who generates: the generation will be theirs, and the links,
+// subscriptions, lists and routers offered are those they may change. A
+// generation to start from must be one they may change, since its secrets
+// carry over.
+func (s *Service) Form(ctx context.Context, w access.Who, scriptID int64, version int, from int64) (View, error) {
 	var prev *store.Generation
 	if from != 0 {
-		g, err := s.row(ctx, from)
+		g, err := s.toChange(ctx, from, w.Scope(access.RouterScripts))
 		if err != nil {
 			return View{}, err
 		}
@@ -170,7 +177,7 @@ func (s *Service) Form(ctx context.Context, scriptID int64, version int, from in
 			}
 		}
 		if prev.LinkID != 0 && s.d.Links != nil {
-			if l, err := s.d.Links.Link(ctx, prev.LinkID); err == nil && l.State != "deleted" {
+			if l, err := s.d.Links.Link(ctx, prev.LinkID, linkScope(w)); err == nil && l.State != "deleted" {
 				f.Link = LinkChoice{Mode: LinkExisting, LinkID: l.ID}
 			} else if err != nil && !errors.Is(err, subscriptions.ErrLinkNotFound) {
 				return View{}, err
@@ -182,36 +189,44 @@ func (s *Service) Form(ctx context.Context, scriptID int64, version int, from in
 		case prev.RouterID == 0:
 			f.Router.Mode = RouterNone
 		case s.d.Routers != nil:
-			if _, err := s.d.Routers.Router(ctx, prev.RouterID); err == nil {
+			if _, err := s.d.Routers.Router(ctx, prev.RouterID, routerScope(w)); err == nil {
 				f.Router = RouterChoice{Mode: RouterExisting, RouterID: prev.RouterID}
 			} else if !errors.Is(err, routing.ErrRouterNotFound) {
 				return View{}, err
 			}
 		}
 	}
-	return s.view(ctx, sc, ver, parsed, f, prev)
+	return s.view(ctx, w, sc, ver, parsed, f, prev)
 }
 
-// Check builds the view of a posted form and its plan, with every problem
-// found; it writes nothing.
-func (s *Service) Check(ctx context.Context, scriptID int64, f Form) (View, error) {
+// linkScope is the links and subscriptions w may use in a generation: the
+// ones they may change.
+func linkScope(w access.Who) access.Scope { return w.Scope(access.Subscriptions).Writable() }
+
+// routerScope is the lists and routers w may use in a generation.
+func routerScope(w access.Who) access.Scope { return w.Scope(access.Routing).Writable() }
+
+// Check builds the view of a posted form of w and its plan, with every
+// problem found; it writes nothing.
+func (s *Service) Check(ctx context.Context, w access.Who, scriptID int64, f Form) (View, error) {
 	sc, ver, err := s.script(ctx, scriptID, f.Version)
 	if err != nil {
 		return View{}, err
 	}
 	var prev *store.Generation
 	if f.From != 0 {
-		g, err := s.row(ctx, f.From)
+		g, err := s.toChange(ctx, f.From, w.Scope(access.RouterScripts))
+		var forbidden *access.ForbiddenError
 		switch {
 		case err == nil && g.ScriptID == scriptID:
 			prev = &g
-		case err != nil && !errors.Is(err, ErrNotFound):
+		case err != nil && !errors.Is(err, ErrNotFound) && !errors.As(err, &forbidden):
 			return View{}, err
 		default:
 			f.From = 0
 		}
 	}
-	return s.view(ctx, sc, ver, params.Parse([]byte(ver.Body)), f, prev)
+	return s.view(ctx, w, sc, ver, params.Parse([]byte(ver.Body)), f, prev)
 }
 
 func (s *Service) tailnetUp(ctx context.Context) bool {
@@ -219,8 +234,8 @@ func (s *Service) tailnetUp(ctx context.Context) bool {
 }
 
 // view reads the ports' choices and makes the plan.
-func (s *Service) view(ctx context.Context, sc scripts.Script, ver scripts.Version, parsed params.Script, f Form, prev *store.Generation) (View, error) {
-	v := View{Script: sc, Parsed: parsed, Form: f, TailnetUp: s.tailnetUp(ctx)}
+func (s *Service) view(ctx context.Context, w access.Who, sc scripts.Script, ver scripts.Version, parsed params.Script, f Form, prev *store.Generation) (View, error) {
+	v := View{Script: sc, Parsed: parsed, Form: f, TailnetUp: s.tailnetUp(ctx), who: w}
 	if v.Form.Values == nil {
 		v.Form.Values = map[string]string{}
 	}
@@ -237,10 +252,10 @@ func (s *Service) view(ctx context.Context, sc scripts.Script, ver scripts.Versi
 		}
 	}
 	if s.d.Links != nil && v.HasLinkParam {
-		if v.Subscriptions, err = s.d.Links.Subscriptions(ctx); err != nil {
+		if v.Subscriptions, err = s.d.Links.Subscriptions(ctx, linkScope(w)); err != nil {
 			return View{}, err
 		}
-		if v.Links, err = s.d.Links.Links(ctx); err != nil {
+		if v.Links, err = s.d.Links.Links(ctx, linkScope(w)); err != nil {
 			return View{}, err
 		}
 		switch v.Form.Link.Mode {
@@ -252,13 +267,13 @@ func (s *Service) view(ctx context.Context, sc scripts.Script, ver scripts.Versi
 		v.Form.Link = LinkChoice{}
 	}
 	if s.d.Routers != nil {
-		if v.Lists, err = s.d.Routers.Lists(ctx); err != nil {
+		if v.Lists, err = s.d.Routers.Lists(ctx, routerScope(w)); err != nil {
 			return View{}, err
 		}
-		if v.Routers, err = s.d.Routers.Routers(ctx); err != nil {
+		if v.Routers, err = s.d.Routers.Routers(ctx, routerScope(w)); err != nil {
 			return View{}, err
 		}
-		if v.JumpHosts, err = s.d.Routers.JumpHosts(ctx); err != nil {
+		if v.JumpHosts, err = s.d.Routers.JumpHosts(ctx, routerScope(w)); err != nil {
 			return View{}, err
 		}
 		switch v.Form.Router.Mode {

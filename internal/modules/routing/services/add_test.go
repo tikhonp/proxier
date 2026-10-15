@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func count(t *testing.T, h *routingtest.Harness, q string, args ...any) int {
@@ -29,7 +30,7 @@ func TestAddBareName(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	it, _ := h.Mod.Services.Get(ctx, id)
+	it, _ := h.Mod.Services.Get(ctx, id, access.All)
 	if it.Selector != "v2fly:anthropic" || it.Tag != "anthropic" || it.Source != "v2fly" {
 		t.Errorf("%+v", it)
 	}
@@ -51,7 +52,7 @@ func TestAddSeparateTag(t *testing.T) {
 	h.Up.Site("main", "ai", "claude.ai", "claude.ai")
 	a := h.Upstream("v2fly:anthropic")
 	b := h.Upstream("iplist:claude.ai")
-	it, _ := h.Mod.Services.Get(context.Background(), b)
+	it, _ := h.Mod.Services.Get(context.Background(), b, access.All)
 	if a == b || it.Tag != "claude.ai" || it.Selector != "iplist:claude.ai" {
 		t.Errorf("%d %d %+v", a, b, it)
 	}
@@ -85,8 +86,8 @@ func TestIplistStoredAsItResolves(t *testing.T) {
 	ctx := context.Background()
 	yt := h.Upstream("iplist:youtube.com")
 	ap := h.Upstream("iplist:apple.com")
-	a, _ := h.Mod.Services.Get(ctx, yt)
-	b, _ := h.Mod.Services.Get(ctx, ap)
+	a, _ := h.Mod.Services.Get(ctx, yt, access.All)
+	b, _ := h.Mod.Services.Get(ctx, ap, access.All)
 	if a.Selector != "iplist:youtube.com" || b.Selector != "iplist:beta:apple.com" || b.Tag != "apple.com" {
 		t.Errorf("%s %s %s", a.Selector, b.Selector, b.Tag)
 	}
@@ -134,12 +135,12 @@ func TestAddURLServices(t *testing.T) {
 	u := h.Up.File("share/x/tunneled-domains.txt", "example.com\n")
 	l := h.Up.File("share/x/list.txt", "mine.example\n")
 	id := h.Upstream(u)
-	it, _ := h.Mod.Services.Get(ctx, id)
+	it, _ := h.Mod.Services.Get(ctx, id, access.All)
 	if it.Tag != "tunneled-domains" || it.Selector != u || it.Source != "url" {
 		t.Errorf("%+v", it)
 	}
 	mine := h.Upstream("mine=" + l)
-	it, _ = h.Mod.Services.Get(ctx, mine)
+	it, _ = h.Mod.Services.Get(ctx, mine, access.All)
 	if it.Tag != "mine" || it.Selector != "mine="+l {
 		t.Errorf("%+v", it)
 	}
@@ -174,10 +175,10 @@ func TestSwitchSource(t *testing.T) {
 	h.Up.Site("main", "apple", "apple", "apple.com")
 	h.Up.Site("beta", "apple", "apple", "apple.com", "icloud.com")
 	id := h.Upstream("iplist:apple")
-	if err := h.Mod.Services.Switch(ctx, id, "iplist:beta:apple", "admin"); err != nil {
+	if err := h.Mod.Services.Switch(ctx, id, access.All, "iplist:beta:apple", "admin"); err != nil {
 		t.Fatal(err)
 	}
-	it, _ := h.Mod.Services.Get(ctx, id)
+	it, _ := h.Mod.Services.Get(ctx, id, access.All)
 	acc, _ := h.Mod.Services.Accepted(ctx, id)
 	if it.Selector != "iplist:beta:apple" || acc.Portal != "beta" || acc.Count() != 2 || acc.Added != 1 {
 		t.Errorf("%+v %+v", it, acc)
@@ -197,22 +198,22 @@ func TestSwitchSource(t *testing.T) {
 
 	h.Up.V2fly("anthropic", "anthropic.com\n")
 	an := h.Upstream("anthropic")
-	err := h.Mod.Services.Switch(ctx, an, "iplist:claude.ai", "admin")
+	err := h.Mod.Services.Switch(ctx, an, access.All, "iplist:claude.ai", "admin")
 	var st *services.SwitchTagError
 	if !errors.As(err, &st) || st.Want != "anthropic" || st.Got != "claude.ai" {
 		t.Errorf("another tag: %v", err)
 	}
-	if err := h.Mod.Services.Switch(ctx, an, "v2fly:anthropic", "admin"); err != nil {
+	if err := h.Mod.Services.Switch(ctx, an, access.All, "v2fly:anthropic", "admin"); err != nil {
 		t.Error(err)
 	}
-	if err := h.Mod.Services.Switch(ctx, id, "iplist:beta:apple", "admin"); err != nil {
+	if err := h.Mod.Services.Switch(ctx, id, access.All, "iplist:beta:apple", "admin"); err != nil {
 		t.Error(err)
 	}
 	if len(h.Events("routing.service_updated")) != 1 || len(h.Marks.Changes()) != 1 {
 		t.Error("switching to the same selector recorded something")
 	}
 	cu := h.Custom("mine", "example.com")
-	if err := h.Mod.Services.Switch(ctx, cu, "mine=https://x/y", "admin"); !errors.Is(err, services.ErrCustom) {
+	if err := h.Mod.Services.Switch(ctx, cu, access.All, "mine=https://x/y", "admin"); !errors.Is(err, services.ErrCustom) {
 		t.Errorf("custom: %v", err)
 	}
 }

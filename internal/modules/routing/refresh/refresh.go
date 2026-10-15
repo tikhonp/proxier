@@ -18,6 +18,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -88,7 +89,7 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, subject e
 // error is an outcome, not an error: the error is the database's, or the
 // context's when the caller gave up (nothing is recorded then).
 func (s *Service) Refresh(ctx context.Context, serviceID int64, inRound bool, actor string) (Outcome, error) {
-	it, err := s.d.Services.Get(ctx, serviceID)
+	it, err := s.d.Services.Get(ctx, serviceID, access.All)
 	if err != nil {
 		return Outcome{}, err
 	}
@@ -125,7 +126,7 @@ func (s *Service) Refresh(ctx context.Context, serviceID int64, inRound bool, ac
 		return out, err
 	}
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetService(ctx, tx, it.ID)
+		cur, err := store.GetService(ctx, tx, it.ID, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return services.ErrNotFound
 		}

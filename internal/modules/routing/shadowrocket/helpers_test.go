@@ -9,6 +9,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -24,7 +25,7 @@ func setup(t *testing.T, opts ...routingtest.Option) (*routingtest.Harness, int6
 	h := routingtest.New(t, opts...)
 	h.Up.V2fly("anthropic", "anthropic.com\nclaude.ai\n")
 	h.List("Main", h.Upstream("anthropic"))
-	id, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: base}, "admin")
+	id, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: base}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -39,7 +40,7 @@ func fetch(h *routingtest.Harness, method, path string) *httptest.ResponseRecord
 // pathOf is the URL's path.
 func pathOf(t *testing.T, h *routingtest.Harness, id int64) string {
 	t.Helper()
-	u, err := h.Mod.Shadowrocket.URL(bg(), id)
+	u, err := h.Mod.Shadowrocket.URL(bg(), id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}

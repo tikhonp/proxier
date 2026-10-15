@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
 
@@ -58,7 +59,7 @@ func TestSubscriptionList(t *testing.T) {
 	noInline(t, body)
 
 	family := h.Subscription("Family", 1, 2)
-	if _, err := h.Mod.Subs.Update(t.Context(), family, settings(h, family, func(v url.Values) { v.Set("title", "Семья"); v.Set("hide", "1") }), "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(t.Context(), family, access.All, settings(h, family, func(v url.Values) { v.Set("title", "Семья"); v.Set("hide", "1") }), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Subscription("Friends", 1)
@@ -167,7 +168,7 @@ func TestPreviewSitsInsideThePadding(t *testing.T) {
 	mustContain(t, body, `<pre class="preview-out">`)
 	// a hidden server: the notes say so in gold, revealed too; masked base64
 	// adds its two notes
-	if _, err := h.Mod.Subs.Update(t.Context(), 1, settings(h, 1, func(v url.Values) { v.Set("hide", "1") }), "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(t.Context(), 1, access.All, settings(h, 1, func(v url.Values) { v.Set("hide", "1") }), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Catalog.SetHealth(2, "blocked", h.Now.Add(-time.Hour))
@@ -293,7 +294,7 @@ func TestCreateAndDeletePages(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != "/subscriptions/1" {
 		t.Fatalf("create: %d %s", rec.Code, rec.Header().Get("Location"))
 	}
-	if err := h.Mod.Subs.AddServers(t.Context(), 1, []int64{1, 2}, "admin"); err != nil {
+	if err := h.Mod.Subs.AddServers(t.Context(), 1, access.All, []int64{1, 2}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 

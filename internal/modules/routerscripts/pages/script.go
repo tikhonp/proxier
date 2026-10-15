@@ -183,7 +183,7 @@ func (h *handler) renderPage(c *echo.Context, code int, v scriptView) error {
 	if v.Generations, err = h.Scripts.Generations(ctx, s.ID); err != nil {
 		return err
 	}
-	rows, err := h.Generations.OfScript(ctx, s.ID)
+	rows, err := h.Generations.OfScript(ctx, s.ID, scope(ctx))
 	if err != nil {
 		return err
 	}

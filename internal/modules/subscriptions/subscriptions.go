@@ -103,9 +103,10 @@ func (*Module) Messages() i18n.Messages {
 }
 
 // Subscribers: subscriptions follow servers being activated and retired;
-// cut-offs follow their rotations.
+// a removed member's things go to their heir; cut-offs follow their
+// rotations.
 func (m *Module) Subscribers() []events.Subscriber {
-	out := []events.Subscriber{m.Subs.Subscriber()}
+	out := []events.Subscriber{m.Subs.Subscriber(), m.Subs.HandOverSubscriber()}
 	if m.ports.Rotator != nil {
 		out = append(out, m.Links.CutOffSubscriber())
 	}
@@ -130,9 +131,10 @@ func (*Module) Nav() []ui.NavItem {
 }
 
 // Search finds subscriptions by name or title, and live links by name.
-func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
-	rows, err := m.Subs.List(ctx)
+	scope := w.Scope(access.Subscriptions)
+	rows, err := m.Subs.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +151,7 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			return out, nil
 		}
 	}
-	list, err := m.Links.List(ctx, links.Filter{Name: q})
+	list, err := m.Links.List(ctx, scope, links.Filter{Name: q})
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +171,14 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 // SubjectTypes are the subject types of the module's events.
 func (*Module) SubjectTypes() []string { return []string{"subscription", "link"} }
 
+// OwnedSubjects are the subscriptions and links member owns, for Activity
+// and Jobs at activity: own.
+func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error) {
+	return m.Subs.OwnedSubjects(ctx, member)
+}
+
 // NameSubjects names subscriptions for Activity, Jobs and notifications.
+// Activity shows only what the member may see, so every one is named.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
 	out := map[string]ui.SubjectRef{}
 	for _, id := range ids {
@@ -179,11 +188,11 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 		}
 		switch typ {
 		case "subscription":
-			if s, err := m.Subs.Get(ctx, n); err == nil {
+			if s, err := m.Subs.Get(ctx, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: s.Name, Href: "/subscriptions/" + id}
 			}
 		case "link": // deleted links keep their names
-			if l, err := m.Links.Get(ctx, n); err == nil {
+			if l, err := m.Links.Get(ctx, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: l.Name, Href: "/links/" + id}
 			}
 		}
@@ -201,6 +210,7 @@ var (
 	_ module.NavDeclarer          = (*Module)(nil)
 	_ module.SubscriberDeclarer   = (*Module)(nil)
 	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.SubjectOwner         = (*Module)(nil)
 	_ module.Searcher             = (*Module)(nil)
 	_ module.JobDeclarer          = (*Module)(nil)
 	_ module.DashboardDeclarer    = (*Module)(nil)

@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 var bg = context.Background()
@@ -46,15 +47,15 @@ func TestCreateLink(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1, 2)
 	exp := time.Date(2026, 12, 1, 21, 0, 0, 0, time.UTC)
-	id, err := h.Mod.Links.Create(bg, links.New{Name: "  Mom — iPhone ", SubscriptionID: sub, Expires: exp, Lang: "ru", Note: "her phone"}, "admin")
+	id, err := h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "  Mom — iPhone ", SubscriptionID: sub, Expires: exp, Lang: "ru", Note: "her phone"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	l, err := h.Mod.Links.Get(bg, id)
+	l, err := h.Mod.Links.Get(bg, id, access.All)
 	if err != nil || l.State != "active" || l.Name != "Mom — iPhone" || l.Lang != "ru" || !l.Expires.Equal(exp) || l.SubscriptionID != sub {
 		t.Fatalf("link %+v %v", l, err)
 	}
-	token, err := h.Mod.Links.Token(bg, id)
+	token, err := h.Mod.Links.Token(bg, id, access.All)
 	if err != nil || len(token) != 43 {
 		t.Fatalf("token %q %v", token, err)
 	}
@@ -85,7 +86,7 @@ func TestCreateLink(t *testing.T) {
 		t.Error("the token is stored in clear")
 	}
 	// bad input writes nothing
-	_, err = h.Mod.Links.Create(bg, links.New{Name: "", SubscriptionID: 99, Lang: "de", Expires: h.Now.Add(-time.Hour)}, "admin")
+	_, err = h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "", SubscriptionID: 99, Lang: "de", Expires: h.Now.Add(-time.Hour)}, "admin")
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) || fe["name"] == "" || fe["subscription"] == "" || fe["language"] == "" || fe["expiry"] == "" {
 		t.Errorf("errors %v", err)
@@ -96,15 +97,15 @@ func TestLinkNamesAreUnique(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1)
 	id, _ := h.Link(sub, "Mom")
-	_, err := h.Mod.Links.Create(bg, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
+	_, err := h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
 	fieldErr(t, err, "name", "links.err.name_taken")
-	if _, err := h.Mod.Links.Create(bg, links.New{Name: "mom", SubscriptionID: sub, Lang: "en"}, "admin"); err != nil {
+	if _, err := h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "mom", SubscriptionID: sub, Lang: "en"}, "admin"); err != nil {
 		t.Errorf("letter case counts: %v", err)
 	}
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Links.Create(bg, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin"); err != nil {
+	if _, err := h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin"); err != nil {
 		t.Errorf("a deleted link's name: %v", err)
 	}
 }
@@ -113,10 +114,10 @@ func TestRegenerateToken(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1)
 	id, old := h.Link(sub, "Mom")
-	if err := h.Mod.Links.RegenerateToken(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.RegenerateToken(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	fresh, err := h.Mod.Links.Token(bg, id)
+	fresh, err := h.Mod.Links.Token(bg, id, access.All)
 	if err != nil || fresh == old {
 		t.Fatalf("token %v", err)
 	}
@@ -138,7 +139,7 @@ func TestChangeSubscription(t *testing.T) {
 	family := h.Subscription("Family", 1)
 	friends := h.Subscription("Friends", 2)
 	id, token := h.Link(family, "Alex")
-	if err := h.Mod.Links.ChangeSubscription(bg, id, friends, "admin"); err != nil {
+	if err := h.Mod.Links.ChangeSubscription(bg, id, access.All, friends, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body := h.Fetch("GET", "/s/"+token, "", "").Body.String()
@@ -150,7 +151,7 @@ func TestChangeSubscription(t *testing.T) {
 		t.Errorf("events %+v", ev)
 	}
 	// the same subscription again changes nothing
-	if err := h.Mod.Links.ChangeSubscription(bg, id, friends, "admin"); err != nil || len(h.Events("link.subscription_changed")) != 1 {
+	if err := h.Mod.Links.ChangeSubscription(bg, id, access.All, friends, "admin"); err != nil || len(h.Events("link.subscription_changed")) != 1 {
 		t.Errorf("no-op: %v", err)
 	}
 }
@@ -166,7 +167,7 @@ func TestExpiryRules(t *testing.T) {
 	// in the past: refused by the form and by the service
 	_, err := links.ParseExpiry("on", "2026-10-01", "", zone, h.Now)
 	fieldErr(t, err, "expiry", "links.err.expiry_past")
-	fieldErr(t, h.Mod.Links.SetExpiry(bg, id, h.Now.Add(-time.Minute), "admin"), "expiry", "links.err.expiry_past")
+	fieldErr(t, h.Mod.Links.SetExpiry(bg, id, access.All, h.Now.Add(-time.Minute), "admin"), "expiry", "links.err.expiry_past")
 	_, err = links.ParseExpiry("on", "1 Dec", "", zone, h.Now)
 	fieldErr(t, err, "expiry", "links.err.expiry_date")
 	_, err = links.ParseExpiry("on", "2026-12-01", "25:00", zone, h.Now)
@@ -183,12 +184,12 @@ func TestExpiryRules(t *testing.T) {
 	if !day.Equal(time.Date(2026, 12, 1, 21, 0, 0, 0, time.UTC)) || !links.DateOnly(day, zone) || links.DateOnly(at, zone) {
 		t.Errorf("date only: %v", day)
 	}
-	if err := h.Mod.Links.SetExpiry(bg, id, at, "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, at, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	// any change clears the warning marks
 	h.Exec(`UPDATE subs_links SET expiry_warned_at = '2026-11-28T15:00:00.000Z', expired_at = '2026-12-01T15:00:00.000Z' WHERE id = ?`, id)
-	if err := h.Mod.Links.SetExpiry(bg, id, day, "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, day, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	var marks int
@@ -196,7 +197,7 @@ func TestExpiryRules(t *testing.T) {
 	if marks != 1 {
 		t.Error("the warning marks were kept")
 	}
-	if err := h.Mod.Links.SetExpiry(bg, id, time.Time{}, "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, time.Time{}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	ev := h.Events("link.expiry_changed")
@@ -205,7 +206,7 @@ func TestExpiryRules(t *testing.T) {
 		t.Errorf("events %+v", ev)
 	}
 	// clearing again changes nothing
-	if err := h.Mod.Links.SetExpiry(bg, id, time.Time{}, "admin"); err != nil || len(h.Events("link.expiry_changed")) != 3 {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, time.Time{}, "admin"); err != nil || len(h.Events("link.expiry_changed")) != 3 {
 		t.Errorf("no-op: %v", err)
 	}
 }
@@ -215,26 +216,26 @@ func TestEditLink(t *testing.T) {
 	sub := h.Subscription("Family", 1)
 	id, _ := h.Link(sub, "Mom")
 	h.Link(sub, "Dad")
-	if err := h.Mod.Links.Edit(bg, id, links.Edit{Name: "Mom — iPhone", Lang: "en", Format: "uri-base64"}, "admin"); err != nil {
+	if err := h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Mom — iPhone", Lang: "en", Format: "uri-base64"}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	ev := h.Events("link.changed")
 	if len(ev) != 1 || ev[0].Payload["fields"] != "name, format" {
 		t.Fatalf("events %+v", ev)
 	}
-	if err := h.Mod.Links.Edit(bg, id, links.Edit{Name: "Mom — iPhone", Lang: "en", Format: "uri-base64"}, "admin"); err != nil || len(h.Events("link.changed")) != 1 {
+	if err := h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Mom — iPhone", Lang: "en", Format: "uri-base64"}, "admin"); err != nil || len(h.Events("link.changed")) != 1 {
 		t.Errorf("no change recorded something: %v", err)
 	}
-	if err := h.Mod.Links.Edit(bg, id, links.Edit{Name: "Mom — iPhone", Lang: "ru", Note: "new phone", Format: "uri-base64"}, "admin"); err != nil {
+	if err := h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Mom — iPhone", Lang: "ru", Note: "new phone", Format: "uri-base64"}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if ev := h.Events("link.changed"); len(ev) != 2 || ev[1].Payload["fields"] != "note, language" {
 		t.Errorf("events %+v", ev)
 	}
-	fieldErr(t, h.Mod.Links.Edit(bg, id, links.Edit{Name: "Dad", Lang: "en"}, "admin"), "name", "links.err.name_taken")
-	fieldErr(t, h.Mod.Links.Edit(bg, id, links.Edit{Name: "Mom", Lang: "en", Format: "mihomo"}, "admin"), "format", "links.err.format")
-	fieldErr(t, h.Mod.Links.Edit(bg, id, links.Edit{Name: strings.Repeat("x", 81), Lang: "en"}, "admin"), "name", "links.err.name_long")
-	l, _ := h.Mod.Links.Get(bg, id)
+	fieldErr(t, h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Dad", Lang: "en"}, "admin"), "name", "links.err.name_taken")
+	fieldErr(t, h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Mom", Lang: "en", Format: "mihomo"}, "admin"), "format", "links.err.format")
+	fieldErr(t, h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: strings.Repeat("x", 81), Lang: "en"}, "admin"), "name", "links.err.name_long")
+	l, _ := h.Mod.Links.Get(bg, id, access.All)
 	if l.Name != "Mom — iPhone" || l.Lang != "ru" || l.Format != "uri-base64" || l.Note != "new phone" {
 		t.Errorf("link %+v", l)
 	}
@@ -245,32 +246,32 @@ func TestDeletedLinkIsReadOnly(t *testing.T) {
 	sub := h.Subscription("Family", 1)
 	other := h.Subscription("Friends", 2)
 	id, _ := h.Link(sub, "Mom")
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(h.Events("link.disabled")); n != 1 {
 		t.Errorf("disabling a disabled link recorded %d events", n)
 	}
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	for name, err := range map[string]error{
-		"disable":      h.Mod.Links.Disable(bg, id, "admin"),
-		"enable":       h.Mod.Links.Enable(bg, id, "admin"),
-		"regenerate":   h.Mod.Links.RegenerateToken(bg, id, "admin"),
-		"subscription": h.Mod.Links.ChangeSubscription(bg, id, other, "admin"),
-		"expiry":       h.Mod.Links.SetExpiry(bg, id, h.Now.Add(time.Hour), "admin"),
-		"edit":         h.Mod.Links.Edit(bg, id, links.Edit{Name: "Mom", Lang: "en"}, "admin"),
-		"delete":       h.Mod.Links.Delete(bg, id, "admin"),
+		"disable":      h.Mod.Links.Disable(bg, id, access.All, "admin"),
+		"enable":       h.Mod.Links.Enable(bg, id, access.All, "admin"),
+		"regenerate":   h.Mod.Links.RegenerateToken(bg, id, access.All, "admin"),
+		"subscription": h.Mod.Links.ChangeSubscription(bg, id, access.All, other, "admin"),
+		"expiry":       h.Mod.Links.SetExpiry(bg, id, access.All, h.Now.Add(time.Hour), "admin"),
+		"edit":         h.Mod.Links.Edit(bg, id, access.All, links.Edit{Name: "Mom", Lang: "en"}, "admin"),
+		"delete":       h.Mod.Links.Delete(bg, id, access.All, "admin"),
 	} {
 		if !errors.Is(err, links.ErrDeleted) {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
-	if _, err := h.Mod.Links.Token(bg, id); !errors.Is(err, links.ErrDeleted) {
+	if _, err := h.Mod.Links.Token(bg, id, access.All); !errors.Is(err, links.ErrDeleted) {
 		t.Errorf("token: %v", err)
 	}
 	if n := len(h.Events("link.deleted")); n != 1 {
@@ -299,13 +300,13 @@ func TestDeleteWithLinksNeedsMove(t *testing.T) {
 	if ev := h.Events("link.subscription_changed"); len(ev) != 3 || ev[0].Payload["to"] != "Family" {
 		t.Errorf("events %+v", ev)
 	}
-	if list, _ := h.Mod.Links.OfSubscription(bg, family); len(list) != 3 {
+	if list, _ := h.Mod.Links.OfSubscription(bg, family, access.All); len(list) != 3 {
 		t.Errorf("Family holds %d links", len(list))
 	}
 	if rec := h.Login.Post("/subscriptions/1/delete", nil); rec.Code != 303 {
 		t.Errorf("delete after the move: %d", rec.Code)
 	}
-	if _, err := h.Mod.Subs.Get(bg, friends); err == nil {
+	if _, err := h.Mod.Subs.Get(bg, friends, access.All); err == nil {
 		t.Error("Friends is still there")
 	}
 }
@@ -314,7 +315,7 @@ func TestTombstoneSettingApplies(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1)
 	id, token := h.Link(sub, "Mom")
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(8 * 24 * time.Hour)
@@ -336,13 +337,13 @@ func TestTombstoneSettingApplies(t *testing.T) {
 	}
 	// past the tombstone the subscription can go; the link has none left
 	h.Advance(23 * 24 * time.Hour)
-	if err := h.Mod.Subs.Delete(bg, sub, "admin"); err != nil {
+	if err := h.Mod.Subs.Delete(bg, sub, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if err := h.App.Settings.Set(bg, "admin", "subscriptions", map[string]string{"subscriptions.tombstone": "8760h0m0s"}); err != nil {
 		t.Fatal(err)
 	}
-	if l, _ := h.Mod.Links.Get(bg, id); l.SubscriptionID != 0 {
+	if l, _ := h.Mod.Links.Get(bg, id, access.All); l.SubscriptionID != 0 {
 		t.Fatalf("subscription %d", l.SubscriptionID)
 	}
 	if rec := h.Fetch("GET", "/s/"+token, "", ""); rec.Code != 404 {

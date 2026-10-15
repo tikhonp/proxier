@@ -24,12 +24,14 @@ func importHref(id int64) string { return importPath + "/" + i64(id) }
 
 // registerImport adds the mtvpn import's routes.
 func (h *handler) registerImport(r web.Routes) {
-	rt := r.Area(access.Routing)
-	rt.Manage.GET(importPath, h.importPage)
-	rt.Manage.POST(importPath, h.importPreview)
-	rt.Manage.GET(importPath+"/:id", h.importStep)
-	rt.Manage.POST(importPath+"/:id", h.importRun)
-	rt.View.GET(importPath+"/:id/status", h.importStatus)
+	// The import adds v2fly, iplist and URL services, which are shared:
+	// manage_all, as Add service.
+	rtAll := r.Area(access.Routing).At(access.LevelManageAll)
+	rtAll.GET(importPath, h.importPage)
+	rtAll.POST(importPath, h.importPreview)
+	rtAll.GET(importPath+"/:id", h.importStep)
+	rtAll.POST(importPath+"/:id", h.importRun)
+	rtAll.GET(importPath+"/:id/status", h.importStatus)
 }
 
 func (h *handler) loadImport(c *echo.Context) (mtvpn.Import, error) {
@@ -37,7 +39,7 @@ func (h *handler) loadImport(c *echo.Context) (mtvpn.Import, error) {
 	if err != nil {
 		return mtvpn.Import{}, echo.ErrNotFound
 	}
-	im, err := h.Import.Get(c.Request().Context(), id)
+	im, err := h.Import.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, mtvpn.ErrNotFound) {
 		return im, echo.ErrNotFound
 	}
@@ -79,7 +81,7 @@ func (h *handler) importPreview(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	id, err := h.Import.Preview(ctx, text, web.Actor(ctx))
+	id, err := h.Import.Preview(ctx, web.Who(ctx).Member, text, web.Actor(ctx))
 	var fe store.FieldErrors
 	var pe *mtvpn.ParseError
 	switch {
@@ -128,7 +130,7 @@ type importFailure struct{ URL, Error string }
 func (h *handler) importView(ctx context.Context, im mtvpn.Import) (importView, error) {
 	loc := i18n.From(ctx)
 	v := importView{Im: im}
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return v, err
 	}
@@ -271,7 +273,7 @@ func (h *handler) importRun(c *echo.Context) error {
 			ch.Convert[i] = true
 		}
 	}
-	_, err = h.Import.Run(ctx, im.ID, ch, web.Actor(ctx))
+	_, err = h.Import.Run(ctx, im.ID, scope(ctx), ch, web.Actor(ctx))
 	var fe store.FieldErrors
 	switch {
 	case errors.As(err, &fe):

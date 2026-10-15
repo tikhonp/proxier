@@ -10,6 +10,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/alerts"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -76,7 +77,7 @@ func TestFiveNetworksAlert(t *testing.T) {
 	if strings.Contains(fmt.Sprint(e.Payload), "198.51.") {
 		t.Errorf("the event names an IP: %v", e.Payload)
 	}
-	l, _ := h.Mod.Links.Get(bg, id)
+	l, _ := h.Mod.Links.Get(bg, id, access.All)
 	if !h.Mod.Alerts.HasAlert(l, h.Now) {
 		t.Error("the link has no alert")
 	}
@@ -125,7 +126,7 @@ func TestOneAlertPerDay(t *testing.T) {
 func TestPerLinkOverride(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	if err := h.Mod.Alerts.SetLimits(bg, id, 10, 0, false, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(bg, id, access.All, 10, 0, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 6 {
@@ -135,7 +136,7 @@ func TestPerLinkOverride(t *testing.T) {
 	if n := len(alertsOf(h)); n != 0 {
 		t.Errorf("6 networks under an override of 10: %d alerts", n)
 	}
-	l, _ := h.Mod.Links.Get(bg, id)
+	l, _ := h.Mod.Links.Get(bg, id, access.All)
 	lim, err := h.Mod.Alerts.Limits(bg, l)
 	if err != nil || lim.Networks != 10 || lim.Apps != 3 || lim.Default {
 		t.Errorf("limits: %+v %v", lim, err)
@@ -145,7 +146,7 @@ func TestPerLinkOverride(t *testing.T) {
 func TestMutedLinkNoAlert(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	if err := h.Mod.Alerts.SetLimits(bg, id, 0, 0, true, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(bg, id, access.All, 0, 0, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 20 {
@@ -196,7 +197,7 @@ func TestWindowIsTwentyFourHours(t *testing.T) {
 func TestDisabledLinkAlerts(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	for i := range 6 {

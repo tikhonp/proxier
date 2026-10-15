@@ -9,6 +9,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
@@ -19,7 +20,7 @@ func TestNotificationTexts(t *testing.T) {
 	moscow, _ := time.LoadLocation("Europe/Moscow")
 	// 01:30 on 10 Oct in Moscow is still 9 Oct in UTC
 	expires := time.Date(2026, 10, 10, 1, 30, 0, 0, moscow)
-	id, err := h.Mod.Links.Create(ctx, links.New{Name: "Mom", SubscriptionID: sub, Expires: expires, Lang: i18n.EN}, "admin")
+	id, err := h.Mod.Links.Create(ctx, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Expires: expires, Lang: i18n.EN}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,7 +62,7 @@ func TestNotificationTexts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.SetExpiry(ctx, id, dateOnly, "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(ctx, id, access.All, dateOnly, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Now = dateOnly.Add(-24 * time.Hour)

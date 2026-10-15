@@ -29,6 +29,7 @@ A one-time move of an mtvpn setup into Proxier: the services and hosted service 
 - The offered config is named `iphone` (`iphone-2`, … when taken) and is unticked when a config already serves the same base.
 - Selectors are deduplicated by tag, and the first spelling wins (mtvpn's rule).
 - Credentials in the file are never stored, not even temporarily in a job payload.
+- The import adds v2fly, iplist and URL services, which are shared, so it needs `routing: manage_all`. What it creates (a converted custom service, the Shadowrocket config) is its starter's; the job reads the owner from the import ([routing: owners](../../modules/routing.md#owners)).
 - Running the import again is harmless: existing services are reused, and a service already in the list isn't added twice.
 
 ## Edge cases (each is a test)
@@ -41,3 +42,5 @@ A one-time move of an mtvpn setup into Proxier: the services and hosted service 
 - **Convert to custom service** for `tunneled-domains` → a custom service with the file's domains, normalised. The URL isn't used again.
 - Importing twice → the second import reuses everything and adds nothing.
 - A file with an unknown key `foo: bar` → ignored, mentioned in the preview.
+- A member at `routing: own` opens or posts the import → 403.
+- An import started by member 2 → another member doesn't find it; its converted service and config are member 2's.

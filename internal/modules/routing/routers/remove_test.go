@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestRemoveCleansRouter(t *testing.T) {
@@ -22,7 +23,7 @@ func TestRemoveCleansRouter(t *testing.T) {
 	}
 
 	h.StartJobs()
-	job, err := h.Mod.Routers.Remove(bg, id, true, "admin")
+	job, err := h.Mod.Routers.Remove(bg, id, access.All, true, "admin")
 	if err != nil || job == 0 {
 		t.Fatalf("remove: %d %v", job, err)
 	}
@@ -36,7 +37,7 @@ func TestRemoveCleansRouter(t *testing.T) {
 	if len(r.Names("netflix")) != 1 || r.Untagged() != 2 || !r.Holds("old.example") {
 		t.Fatalf("unmanaged and untagged entries stay: %v, %d", r.Tags(), r.Untagged())
 	}
-	if _, err := h.Mod.Routers.Get(bg, id); !errors.Is(err, routers.ErrNotFound) {
+	if _, err := h.Mod.Routers.Get(bg, id, access.All); !errors.Is(err, routers.ErrNotFound) {
 		t.Fatalf("the router is removed: %v", err)
 	}
 	ev := h.Events("routing.router_removed")
@@ -53,10 +54,10 @@ func TestRemoveKeepAndFailure(t *testing.T) {
 	imports := len(r.Imports())
 
 	// Keep everything: removed at once, the router untouched
-	if job, err := h.Mod.Routers.Remove(bg, id, false, "admin"); err != nil || job != 0 {
+	if job, err := h.Mod.Routers.Remove(bg, id, access.All, false, "admin"); err != nil || job != 0 {
 		t.Fatalf("keep: %d %v", job, err)
 	}
-	if _, err := h.Mod.Routers.Get(bg, id); !errors.Is(err, routers.ErrNotFound) {
+	if _, err := h.Mod.Routers.Get(bg, id, access.All); !errors.Is(err, routers.ErrNotFound) {
 		t.Fatal("removed at once")
 	}
 	h.Settle()
@@ -72,7 +73,7 @@ func TestRemoveKeepAndFailure(t *testing.T) {
 		r, id := h.Router("Office", 0)
 		syncNow(t, h, id)
 		r.Offline(true)
-		job, err := h.Mod.Routers.Remove(bg, id, true, "admin")
+		job, err := h.Mod.Routers.Remove(bg, id, access.All, true, "admin")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -95,7 +96,7 @@ func TestRemoveKeepAndFailure(t *testing.T) {
 		if got, err := h.Mod.Routers.RemovalJob(bg, id); err != nil || got != job {
 			t.Fatalf("Retry's job: %d %v", got, err)
 		}
-		if _, err := h.Mod.Routers.SyncNow(bg, id, "admin"); !errors.Is(err, routers.ErrNotActive) {
+		if _, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin"); !errors.Is(err, routers.ErrNotActive) {
 			t.Fatalf("no syncs while removing: %v", err)
 		}
 		if retry {
@@ -107,10 +108,10 @@ func TestRemoveKeepAndFailure(t *testing.T) {
 			if len(r.Names("mine")) != 0 {
 				t.Fatal("Retry cleans it")
 			}
-		} else if _, err := h.Mod.Routers.Remove(bg, id, false, "admin"); err != nil {
+		} else if _, err := h.Mod.Routers.Remove(bg, id, access.All, false, "admin"); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := h.Mod.Routers.Get(bg, id); !errors.Is(err, routers.ErrNotFound) {
+		if _, err := h.Mod.Routers.Get(bg, id, access.All); !errors.Is(err, routers.ErrNotFound) {
 			t.Fatalf("removed (retry %v): %v", retry, err)
 		}
 		ev := h.Events("routing.router_removed")

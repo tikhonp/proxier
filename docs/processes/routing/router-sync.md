@@ -96,11 +96,16 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - A cancelled sync leaves its file; the router's next sync deletes it. Cleaning up in the cancel itself would need a new connection after the admin asked the job to stop, to a router that may be the reason they did (a hung import), and it would still miss the files of a job cancelled while waiting for its retry, or of one whose last reconnect failed. The next sync connects anyway, and one job per router means no other job is importing then, so deleting every Proxier file there covers all of these at once. A leftover file holds only the names it would have installed.
 - A tag already matching the router is never pushed, so the first sync of a router mtvpn manages changes nothing that matches.
 - Routers in **awaiting setup** or **paused** are never synced.
+- A router is its owner's and follows a list its owner may change. `view_all` reads everyone's routers and changes only its own; another member's router at `own` is not found. Router scripts register through the port with the member's scope ([routing: owners](../../modules/routing.md#owners)).
+- Adopting a tag as a custom service makes it the router's owner's. Adopting it as a new v2fly or iplist service makes a shared service, so it needs `manage_all`; a tag another member's private service has is offered neither as that service nor as a new custom one ("Another service has this tag.").
 
 ## Edge cases (each is a test)
 
 - Add a router behind a jump host, confirm both fingerprints → the test shows RouterOS version and board with no warnings. Save → initial sync.
 - Decline the jump host's fingerprint → the test stops and nothing is pinned.
+- A member at `routing: own` opens, edits or syncs another member's router → 404; saves a router following another member's list → refused on the list field. A Viewer opens it → no controls, and Sync now or Pause → 403.
+- The router port with a member's scope → only their lists and routers; another member's router → not found; registering on the default list of member 1 → refused on the list field, on their own list → theirs; a member without `routing` → refused.
+- A member at `own` adopts an unmanaged tag: as a new v2fly service → refused; as a custom service → theirs; a tag member 1's private service has → not offered as existing, and refused as taken.
 - A router without a `vpn-doh` forwarder → the "not set up by the router script" warning. Save is still allowed.
 - First sync of the mtvpn-managed home router, with "Main" imported from `mtvpn.yaml` → every matching tag recorded (plan **record**), no push.
 - Add `v2fly:openai` to "Main" → one sync about 30 s later with one update block for `openai`.
@@ -127,3 +132,4 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - A router saved untested → no `router_connected`, no initial sync, and changes queue nothing for it; its first passing test connects it and queues the initial sync.
 - A router user whose group lacks `ftp` → Test connection's upload check fails.
 - A preview changes nothing on the router and records no event; a failed preview counts no failure.
+- Another member's Test connection from the add form by URL, at `routing: own` → 404, and confirming its fingerprint → 404, nothing pinned (`TestAnotherMembersConnectionTestIsNotFound`).

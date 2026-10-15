@@ -168,20 +168,20 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 
 	// a server is found by its country's name, in English or Russian
 	for _, q := range []string{"neth", "нидерл"} {
-		hits, err := mod.Search(ctx, access.PresetOwner.Grant(), q, 5)
+		hits, err := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, q, 5)
 		if err != nil || len(hits) != 1 || hits[0].Href != "/servers/7" || !strings.Contains(hits[0].Label, "nl-1") {
 			t.Errorf("search %s: %+v %v", q, hits, err)
 		}
 	}
-	if hits, _ := mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 5); len(hits) != 0 {
+	if hits, _ := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "zzz", 5); len(hits) != 0 {
 		t.Errorf("search for nothing: %+v", hits)
 	}
 	// templates are found by name or slug, and link to their page
-	hits, err := mod.Search(ctx, access.PresetOwner.Grant(), "my-stack", 5)
+	hits, err := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "my-stack", 5)
 	if err != nil || len(hits) != 1 || hits[0].Href != "/templates/"+idStr(tpl) || !strings.Contains(hits[0].Label, "My stack") || hits[0].Meta != "Template" {
 		t.Errorf("template search: %+v %v", hits, err)
 	}
-	if hits, _ = mod.Search(ctx, access.PresetOwner.Grant(), "stack", 5); len(hits) != 1 {
+	if hits, _ = mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "stack", 5); len(hits) != 1 {
 		t.Errorf("template search by name: %+v", hits)
 	}
 }
@@ -319,7 +319,7 @@ func TestAViewerOfServersSeesOnlyTheServersInService(t *testing.T) {
 			t.Errorf("%s: %d, want 403", p, rec.Code)
 		}
 	}
-	view := access.Grant{}.With(access.Servers, access.LevelView)
+	view := access.Who{Member: 2, Grant: access.Grant{}.With(access.Servers, access.LevelView)}
 	hits, _ := mod.Search(ctx, view, "nl", 5)
 	if len(hits) != 1 || hits[0].Href != "/servers" || strings.Contains(hits[0].Label, "203.0.113.7") {
 		t.Errorf("search at view: %+v", hits)

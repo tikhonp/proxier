@@ -124,14 +124,14 @@ func TestGenerateFormPage(t *testing.T) {
 func dacha(t *testing.T, h *rscriptstest.Harness) int64 {
 	t.Helper()
 	id := h.Script("fresh-router", paramstest.Annotate(paramstest.Annotated(), "image", "@secret"))
-	v, err := h.Mod.Generations.Form(ctx, id, 0, 0)
+	v, err := h.Mod.Generations.Form(ctx, rscriptstest.Owner, id, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := v.Form
 	f.RouterName, f.Values["lanNet"], f.Values["image"] = "Dacha", "10.40.1", "s3cr3t-image"
 	f.Link.SubscriptionID = 1
-	gid, err := h.Mod.Generations.Generate(ctx, id, f, "admin")
+	gid, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, id, f, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -210,7 +210,7 @@ func TestDownloadNeedsASession(t *testing.T) {
 	}
 	before := len(h.Events(""))
 	res = h.Login.Get("/router-scripts/generations/1/download")
-	want, err := h.Mod.Generations.Body(ctx, gid)
+	want, err := h.Mod.Generations.Body(ctx, gid, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -231,17 +231,17 @@ func TestDownloadNeedsASession(t *testing.T) {
 func TestGenerationsListed(t *testing.T) {
 	h := rscriptstest.New(t)
 	dacha(t, h)
-	v, err := h.Mod.Generations.Form(ctx, 1, 0, 0)
+	v, err := h.Mod.Generations.Form(ctx, rscriptstest.Owner, 1, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := v.Form
 	f.RouterName, f.Router.Mode, f.Link.Mode = "Parents", generations.RouterNone, generations.LinkType
-	if _, err := h.Mod.Generations.Generate(ctx, 1, f, "admin"); err != nil {
+	if _, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, 1, f, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	f.RouterName, f.Router.Mode = "Office", generations.RouterNew
-	if _, err := h.Mod.Generations.Generate(ctx, 1, f, "admin"); err != nil {
+	if _, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, 1, f, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Routers().SetState(2, "active", time.Now())
@@ -259,11 +259,11 @@ func TestGenerationsListed(t *testing.T) {
 	contains(t, "version", h.Login.Get("/router-scripts/1/versions/1").Body.String(), "Generate from this version", `/router-scripts/1/generate?version=1`)
 
 	lctx := i18n.WithLocalizer(context.Background(), h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(lctx, access.PresetOwner.Grant(), "DACH", 10)
+	hits, err := h.Mod.Search(lctx, rscriptstest.Owner, "DACH", 10)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Dacha" || hits[0].Meta != "generation · fresh-router v1" || hits[0].Href != "/router-scripts/generations/1" {
 		t.Errorf("search: %+v %v", hits, err)
 	}
-	hits, _ = h.Mod.Search(lctx, access.PresetOwner.Grant(), "fresh", 10)
+	hits, _ = h.Mod.Search(lctx, rscriptstest.Owner, "fresh", 10)
 	if len(hits) != 2 || hits[1].Label != "Generate for a new router · fresh-router" || hits[1].Href != "/router-scripts/1/generate" {
 		t.Errorf("the action: %+v", hits)
 	}
@@ -361,13 +361,13 @@ func TestFetchURLArea(t *testing.T) {
 func keyless(t *testing.T, h *rscriptstest.Harness) int64 {
 	t.Helper()
 	id := h.Script("plain", paramstest.WithEnd(paramstest.Today()))
-	v, err := h.Mod.Generations.Form(ctx, id, 0, 0)
+	v, err := h.Mod.Generations.Form(ctx, rscriptstest.Owner, id, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := v.Form
 	f.RouterName, f.Link.Mode = "Office", generations.LinkType
-	gid, err := h.Mod.Generations.Generate(ctx, id, f, "admin")
+	gid, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, id, f, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -387,7 +387,7 @@ func TestAfterTheImport(t *testing.T) {
 		t.Error("the page swaps out of band")
 	}
 
-	if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, "admin"); err != nil {
+	if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Routers().Update(1, func(r *routing.RegisteredRouter) { r.Jump = "dacha-pi:22" })
@@ -429,13 +429,13 @@ func TestAfterTheImport(t *testing.T) {
 	keyless(t, h)
 	contains(t, "keyless", h.Login.Get("/router-scripts/generations/2/after").Body.String(), "Add Proxier's key to the router",
 		`data-copy="`+rscriptstest.FakeKeyCommands+`"`)
-	v, err := h.Mod.Generations.Form(ctx, 2, 0, 0)
+	v, err := h.Mod.Generations.Form(ctx, rscriptstest.Owner, 2, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := v.Form
 	f.RouterName, f.Link.Mode, f.Router.Mode = "Nobody", generations.LinkType, generations.RouterNone
-	if _, err := h.Mod.Generations.Generate(ctx, 2, f, "admin"); err != nil {
+	if _, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, 2, f, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	contains(t, "no router", h.Login.Get("/router-scripts/generations/3/after").Body.String(), "Not needed: the router isn't registered for routing.",
@@ -447,7 +447,7 @@ func TestFetchHistory(t *testing.T) {
 	gid := dacha(t, h)
 	contains(t, "none", h.Login.Get("/router-scripts/generations/1").Body.String(), "Fetch history", "No fetch URLs yet.")
 	create := func() {
-		if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, "admin"); err != nil {
+		if _, _, err := h.Mod.Generations.CreateFetchURL(ctx, gid, access.All, "admin"); err != nil {
 			t.Fatal(err)
 		}
 	}

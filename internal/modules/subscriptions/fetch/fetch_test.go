@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -83,14 +84,14 @@ func mustServe(t *testing.T, h *substest.Harness, token string, names ...string)
 
 func settings(t *testing.T, h *substest.Harness, id int64, change func(*subs.Settings)) {
 	t.Helper()
-	s, err := h.Mod.Subs.Get(bg, id)
+	s, err := h.Mod.Subs.Get(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
 	st := subs.Settings{Name: s.Name, Title: s.Title, Description: s.Description, Formats: s.Formats, DefaultFormat: s.DefaultFormat,
 		UpdateHours: s.UpdateHours, HideOn: s.Hide.On, HideStates: s.Hide.States, GraceMinutes: int(s.Hide.Grace / time.Minute), AutoAdd: s.AutoAdd}
 	change(&st)
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -178,7 +179,7 @@ func TestUnknownTokenIs404(t *testing.T) {
 
 func TestDisableAndEnable(t *testing.T) {
 	h, _, id, token := family(t)
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	mustStub(t, h, token, "⛔ Link disabled · contact @tikhonp")
@@ -186,7 +187,7 @@ func TestDisableAndEnable(t *testing.T) {
 		t.Fatal(err)
 	}
 	mustStub(t, h, token, "⛔ Link disabled")
-	if err := h.Mod.Links.Enable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Enable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	mustServe(t, h, token, "🇳🇱 Netherlands 1", "🇩🇪 Germany 1")
@@ -204,14 +205,14 @@ func expire(t *testing.T, h *substest.Harness, id int64, date, clock string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.SetExpiry(bg, id, at, "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, at, "admin"); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestExpiredStubInRussian(t *testing.T) {
 	h, _, id, token := family(t)
-	if err := h.Mod.Links.Edit(bg, id, editOf(h, id, func(e *editForm) { e.Lang = "ru" }), "admin"); err != nil {
+	if err := h.Mod.Links.Edit(bg, id, access.All, editOf(h, id, func(e *editForm) { e.Lang = "ru" }), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	expire(t, h, id, "2026-12-01", "")
@@ -245,7 +246,7 @@ func TestExtendExpiredLink(t *testing.T) {
 func TestDisabledWinsOverExpired(t *testing.T) {
 	h, _, id, token := family(t)
 	expire(t, h, id, "2026-10-10", "")
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Now = time.Date(2026, 10, 20, 12, 0, 0, 0, time.UTC)
@@ -254,7 +255,7 @@ func TestDisabledWinsOverExpired(t *testing.T) {
 
 func TestDeletedLinkTombstone(t *testing.T) {
 	h, _, id, token := family(t)
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(10 * 24 * time.Hour)
@@ -336,7 +337,7 @@ func TestFetchAfterRotation(t *testing.T) {
 
 func TestFetchFollowsServerOrder(t *testing.T) {
 	h, sub, _, token := family(t)
-	if err := h.Mod.Subs.Move(bg, sub, 2, false, "admin"); err != nil {
+	if err := h.Mod.Subs.Move(bg, sub, access.All, 2, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	mustServe(t, h, token, "🇩🇪 Germany 1", "🇳🇱 Netherlands 1")
@@ -477,7 +478,7 @@ func TestFetchUpdatesLastFetch(t *testing.T) {
 	if rec := h.Fetch("GET", "/s/"+token, "[2001:db8:4f2:1::7]:5000", "v2RayTun/2.1 (iOS)"); rec.Code != 200 {
 		t.Fatalf("status %d", rec.Code)
 	}
-	l, err := h.Mod.Links.Get(bg, id)
+	l, err := h.Mod.Links.Get(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -491,7 +492,7 @@ type editForm = links.Edit
 // editOf is the link's Edit form after change.
 func editOf(h *substest.Harness, id int64, change func(*links.Edit)) links.Edit {
 	h.T.Helper()
-	l, err := h.Mod.Links.Get(bg, id)
+	l, err := h.Mod.Links.Get(bg, id, access.All)
 	if err != nil {
 		h.T.Fatal(err)
 	}

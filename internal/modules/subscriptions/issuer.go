@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // The port router scripts use (docs/modules/subscriptions.md#ports-for-other-modules). A module
@@ -38,16 +39,22 @@ type IssuedLink struct {
 }
 
 // LinkIssuer is how router scripts give a new router its subscription link.
+// Every call takes the scope of the subscriptions area it reaches: a member
+// offering links to choose passes theirs (web.Scope(ctx,
+// access.Subscriptions).Writable()), so they get only what they may use.
 type LinkIssuer interface {
-	// Subscriptions lists every subscription by name.
-	Subscriptions(ctx context.Context) ([]IssuerSubscription, error)
-	// Links lists every link that isn't deleted, by name, without URLs.
-	Links(ctx context.Context) ([]IssuedLink, error)
-	// Link reads one link with its URL; ErrLinkNotFound for no such row.
-	Link(ctx context.Context, id int64) (IssuedLink, error)
-	// Issue creates an active link without expiry inside tx; FieldErrors
-	// (name, subscription) before anything is written.
-	Issue(ctx context.Context, tx *sqlx.Tx, name string, subscriptionID int64, actor string) (IssuedLink, error)
+	// Subscriptions lists the subscriptions within scope by name.
+	Subscriptions(ctx context.Context, scope access.Scope) ([]IssuerSubscription, error)
+	// Links lists the links within scope that aren't deleted, by name,
+	// without URLs.
+	Links(ctx context.Context, scope access.Scope) ([]IssuedLink, error)
+	// Link reads one link within scope with its URL; ErrLinkNotFound for no
+	// such row, or one outside scope.
+	Link(ctx context.Context, id int64, scope access.Scope) (IssuedLink, error)
+	// Issue creates an active link of w without expiry inside tx, in a
+	// subscription w may change; FieldErrors (name, subscription) before
+	// anything is written.
+	Issue(ctx context.Context, tx *sqlx.Tx, w access.Who, name string, subscriptionID int64, actor string) (IssuedLink, error)
 }
 
 // LinkIssuer returns the module's link port. It reads the services when
@@ -56,8 +63,8 @@ func (m *Module) LinkIssuer() LinkIssuer { return issuer{m} }
 
 type issuer struct{ m *Module }
 
-func (i issuer) Subscriptions(ctx context.Context) ([]IssuerSubscription, error) {
-	rows, err := i.m.Subs.List(ctx)
+func (i issuer) Subscriptions(ctx context.Context, scope access.Scope) ([]IssuerSubscription, error) {
+	rows, err := i.m.Subs.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -69,8 +76,8 @@ func (i issuer) Subscriptions(ctx context.Context) ([]IssuerSubscription, error)
 	return out, nil
 }
 
-func (i issuer) Links(ctx context.Context) ([]IssuedLink, error) {
-	rows, err := i.m.Links.List(ctx, links.Filter{})
+func (i issuer) Links(ctx context.Context, scope access.Scope) ([]IssuedLink, error) {
+	rows, err := i.m.Links.List(ctx, scope, links.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -83,8 +90,8 @@ func (i issuer) Links(ctx context.Context) ([]IssuedLink, error) {
 	return out, nil
 }
 
-func (i issuer) Link(ctx context.Context, id int64) (IssuedLink, error) {
-	l, err := i.m.Links.Get(ctx, id)
+func (i issuer) Link(ctx context.Context, id int64, scope access.Scope) (IssuedLink, error) {
+	l, err := i.m.Links.Get(ctx, id, scope)
 	if errors.Is(err, links.ErrNotFound) {
 		return IssuedLink{}, ErrLinkNotFound
 	}
@@ -93,7 +100,7 @@ func (i issuer) Link(ctx context.Context, id int64) (IssuedLink, error) {
 	}
 	out := IssuedLink{ID: l.ID, Name: l.Name, State: l.Status(i.m.Now())}
 	if l.SubscriptionID != 0 {
-		if sub, err := store.GetSubscription(ctx, i.m.deps.DB.R, l.SubscriptionID); err == nil {
+		if sub, err := store.GetSubscription(ctx, i.m.deps.DB.R, l.SubscriptionID, access.All); err == nil {
 			out.Subscription = sub.Name
 		} else if !errors.Is(err, store.ErrNotFound) {
 			return IssuedLink{}, err
@@ -102,7 +109,7 @@ func (i issuer) Link(ctx context.Context, id int64) (IssuedLink, error) {
 	if l.State == "deleted" {
 		return out, nil
 	}
-	token, err := i.m.Links.Token(ctx, id)
+	token, err := i.m.Links.Token(ctx, id, scope)
 	if err != nil {
 		return IssuedLink{}, err
 	}
@@ -110,16 +117,16 @@ func (i issuer) Link(ctx context.Context, id int64) (IssuedLink, error) {
 	return out, nil
 }
 
-func (i issuer) Issue(ctx context.Context, tx *sqlx.Tx, name string, subscriptionID int64, actor string) (IssuedLink, error) {
-	id, token, err := i.m.Links.CreateTx(ctx, tx, links.New{Name: name, SubscriptionID: subscriptionID, Lang: i.m.Links.DefaultLang(ctx)}, actor)
+func (i issuer) Issue(ctx context.Context, tx *sqlx.Tx, w access.Who, name string, subscriptionID int64, actor string) (IssuedLink, error) {
+	id, token, err := i.m.Links.CreateTx(ctx, tx, w, links.New{Name: name, SubscriptionID: subscriptionID, Lang: i.m.Links.DefaultLang(ctx)}, actor)
 	if err != nil {
 		return IssuedLink{}, err
 	}
-	sub, err := store.GetSubscription(ctx, tx, subscriptionID)
+	sub, err := store.GetSubscription(ctx, tx, subscriptionID, access.All)
 	if err != nil {
 		return IssuedLink{}, err
 	}
-	l, err := store.GetLink(ctx, tx, id)
+	l, err := store.GetLink(ctx, tx, id, access.All)
 	if err != nil {
 		return IssuedLink{}, err
 	}

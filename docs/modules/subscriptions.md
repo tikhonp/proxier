@@ -4,6 +4,8 @@ The subscriptions module gives people and devices access to servers. A **subscri
 
 The module uses the servers module through its `EndpointCatalog` port and never touches servers itself.
 
+Every subscription and link has an **owner**, the member who made it ([ownership](../processes/platform/members.md#ownership)): at `subscriptions: own` a member sees and changes only their own, `view_all` reads everyone's, `manage_all` changes everyone's. Servers are shared: whoever may add servers adds any active one.
+
 ## Subscriptions
 
 | Field | Meaning | Default |
@@ -112,7 +114,7 @@ Section `subscriptions`, on **Settings → Subscriptions**:
 
 | Port | Used by | Contract |
 |---|---|---|
-| `LinkIssuer` (`Module.LinkIssuer()`, `issuer.go`) | router scripts | `Subscriptions` (by name, with their server counts), `Links` (every link not deleted, by name, with its subscription and state, no URL), `Link` (one as it is now, with its URL unless deleted; `ErrLinkNotFound` for no such row), and `Issue(ctx, tx, name, subscription, actor)`: `links.Service.CreateTx` inside the caller's transaction, an active link without expiry in `subscriptions.link_language`, `link.created` recorded with the admin as actor; its field errors (`subscriptions.FieldErrors`: `name`, `subscription`) come before anything is written. Used for a new router's mihomo subscription. |
+| `LinkIssuer` (`Module.LinkIssuer()`, `issuer.go`) | router scripts | Each call takes an `access.Scope` of the subscriptions area: `Subscriptions` (those in scope, by name, with their server counts), `Links` (those in scope not deleted, by name, with subscription and state, no URL), `Link` (one in scope as it is now, with its URL unless deleted; `ErrLinkNotFound` for no such row or one outside scope), and `Issue(ctx, tx, who, name, subscription, actor)`: `links.Service.CreateTx` inside the caller's transaction, an active link of `who` without expiry in `subscriptions.link_language`, in a subscription `who` may change, `link.created` recorded with the member as actor; its field errors (`subscriptions.FieldErrors`: `name`, `subscription`) come before anything is written. Router scripts pass the member's writable scope when offering, and `access.All` to show a generation's own link. Used for a new router's mihomo subscription. |
 
 ## Events
 

@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
@@ -14,10 +15,13 @@ import (
 // about it; the router is untouched. Cleaned: the router is removing and
 // routing.remove removes every tag Proxier installed, then deletes the row;
 // its job id is returned. Pinned host keys stay (Settings → SSH forgets them).
-func (s *Service) Remove(ctx context.Context, id int64, clean bool, actor string) (int64, error) {
+func (s *Service) Remove(ctx context.Context, id int64, scope access.Scope, clean bool, actor string) (int64, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return 0, err
+	}
 	var jobID int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		rt, err := store.GetRouter(ctx, tx, id)
+		rt, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
@@ -58,7 +62,7 @@ func (s *Service) stepDelete(ctx context.Context, r *jobs.Run) error {
 		return jobs.Permanent(err)
 	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		rt, err := store.GetRouter(ctx, tx, p.RouterID)
+		rt, err := store.GetRouter(ctx, tx, p.RouterID, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return nil
 		} else if err != nil {

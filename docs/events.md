@@ -82,6 +82,7 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `subscription.created` / `.deleted` | subscription | name | off | |
 | `subscription.updated` | subscription | changes (the changed settings, comma-joined: name, title, description, formats, default format, update interval, hide unhealthy, hidden states, grace, auto add) | off | Nothing is recorded when nothing changed. |
 | `subscription.servers_changed` | subscription | added, removed (names, comma-joined, `""` for none), reordered (bool); `auto: true` for the automatic add; `reason: "retired"` | off | Includes removals caused by retirement, one event per subscription. |
+| `subscription.handed_over` | member (the removed one) | from, to (usernames), subscriptions, links (counts) | off | The reaction to `member.removed` gave the removed member's subscriptions and links to the heir (actor `system`). Recorded only when something moved. |
 | `subscription.all_unhealthy` | subscription | servers (names, comma-joined), count | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). Raised by a fetch (actor `system`), at most hourly per subscription. |
 | `link.created` | link | subscription (name), expiry | off | |
 | `link.changed` | link | fields (of name, note, language, format, alert limits, alerts muted) | off | The plain edits of a link. |
@@ -130,6 +131,7 @@ Lists in payloads are one comma-joined string.
 | `routing.unmanaged_tags_found` | router | tags (the new ones) | **on** once per new set 🟡 | "{subject} has tags Proxier didn't install" / "{tags}. They stay; adopt, remove or ignore them on the router page." (plural forms). Ignored tags never count. |
 | `routing.unmanaged_tag_ignored` | router | tag, ignored | off | |
 | `routing.discovery_completed` / `.failed` | discovery run | website, hosts, suggestions / website, error | off | The admin is watching the run. |
+| `routing.handed_over` | the removed member | from, to (usernames), lists, routers, shadowrocket, services (custom), imports, discovery (how many of each moved) | off | The reaction to `member.removed` (actor `system`): everything the removed member owned goes to the heir. Nothing moved, nothing recorded. |
 
 ## Router scripts
 
@@ -143,6 +145,7 @@ Lists in payloads are one comma-joined string.
 | `routerscript.current_changed` | router script | from, to (numbers) | off | Making the current version current again records nothing. |
 | `routerscript.archived` | router script | archived (bool) | off | |
 | `routerscript.deleted` | router script | name | off | Only a script no generation was made from. |
+| `routerscript.handed_over` | member (the removed one) | from, to (usernames), generations (count) | off | The reaction to `member.removed` gave the removed member's generations, with their fetch URLs, to the heir (actor `system`). Recorded only when something moved. |
 | `routerscript.generated` | generation | script, version, router, link (names, "" for none), registered, link_created (bools); recorded in one transaction with the `link.created` and `routing.router_added` it caused | off | |
 | `routerscript.fetch_url_created` | generation | expires (time), replaced (bool: a URL that still worked was ended) | off | Actor `member:<id>`. |
 | `routerscript.fetched` | generation | ip (through the trusted proxy), user_agent (at most 256 characters, "" for none) | **on** 📥 | Actor `system`. The module's own text: EN "Dacha · fresh-router v4 was fetched from 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Its fetch URL is used up." (without a user agent only "Its fetch URL is used up."); RU "Dacha · fresh-router v4: файл скачан с 198.51.100.4" / "Mikrotik/7.24.5 Fetch. Ссылка для скачивания больше не работает." (without: "Ссылка для скачивания больше не работает."). |

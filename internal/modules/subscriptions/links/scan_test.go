@@ -9,6 +9,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -21,11 +22,11 @@ const day = 24 * time.Hour
 func expiring(t *testing.T, h *substest.Harness, d time.Duration) (int64, string) {
 	t.Helper()
 	sub := h.Subscription("Family", 1)
-	id, err := h.Mod.Links.Create(bg, links.New{Name: "Mom", SubscriptionID: sub, Expires: h.Now.Add(d), Lang: i18n.EN}, "admin")
+	id, err := h.Mod.Links.Create(bg, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Expires: h.Now.Add(d), Lang: i18n.EN}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, err := h.Mod.Links.Token(bg, id)
+	token, err := h.Mod.Links.Token(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,7 +102,7 @@ func TestExtendingWarnsAgain(t *testing.T) {
 	id, _ := expiring(t, h, 2*day)
 	scan(t, h)
 	h.Advance(time.Hour)
-	if err := h.Mod.Links.SetExpiry(bg, id, h.Now.Add(60*time.Hour), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, h.Now.Add(60*time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	scan(t, h)
@@ -109,7 +110,7 @@ func TestExtendingWarnsAgain(t *testing.T) {
 		t.Errorf("a new expiry within 3 days: %d warnings", n)
 	}
 	// extended far away: nothing until it comes within 3 days again
-	if err := h.Mod.Links.SetExpiry(bg, id, h.Now.Add(10*day), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, id, access.All, h.Now.Add(10*day), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	scan(t, h)
@@ -126,7 +127,7 @@ func TestExtendingWarnsAgain(t *testing.T) {
 func TestDisabledLinkExpiresQuietly(t *testing.T) {
 	h := substest.New(t)
 	id, _ := expiring(t, h, time.Hour)
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	scan(t, h)
@@ -135,7 +136,7 @@ func TestDisabledLinkExpiresQuietly(t *testing.T) {
 	if n := count(h, "link.expired") + count(h, "link.expiring_soon"); n != 0 {
 		t.Fatalf("a disabled link notified: %d", n)
 	}
-	if err := h.Mod.Links.Enable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Enable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	scan(t, h)
@@ -148,7 +149,7 @@ func TestTombstoneTokenErased(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1)
 	id, token := h.Link(sub, "Alex")
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	// inside the tombstone the token stays

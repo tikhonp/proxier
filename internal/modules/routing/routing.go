@@ -210,12 +210,14 @@ func (*Module) Nav() []ui.NavItem {
 	}
 }
 
-// Search finds routing lists by name, services by tag, selector or name,
-// routers by name or host, and Shadowrocket configs by name.
-func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
+// Search finds, within w's scope, routing lists by name, services by tag,
+// selector or name (shared ones and the custom ones w may change), routers
+// by name or host, and Shadowrocket configs by name.
+func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
+	scope := w.Scope(access.Routing)
 	var out []ui.SearchHit
-	all, err := m.Lists.All(ctx)
+	all, err := m.Lists.All(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +234,7 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			return out, nil
 		}
 	}
-	rows, err := m.Services.List(ctx, services.Filter{})
+	rows, err := m.Services.List(ctx, scope, services.Filter{})
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +251,7 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			return out, nil
 		}
 	}
-	rts, err := m.Routers.List(ctx)
+	rts, err := m.Routers.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -265,7 +267,7 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			return out, nil
 		}
 	}
-	configs, err := m.Shadowrocket.List(ctx)
+	configs, err := m.Shadowrocket.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -290,6 +292,7 @@ func (*Module) SubjectTypes() []string {
 }
 
 // NameSubjects names subjects for Activity, Jobs and notifications.
+// Activity shows only what the member may see, so every one is named.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {
 	out := map[string]ui.SubjectRef{}
 	for _, id := range ids {
@@ -308,19 +311,19 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 		}
 		switch typ {
 		case "service":
-			if s, err := m.Services.Get(ctx, n); err == nil {
+			if s, err := m.Services.Get(ctx, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: s.Tag, Href: "/routing/services/" + id}
 			}
 		case "shadowrocket":
-			if c, err := store.GetShadowrocket(ctx, m.deps.DB.R, n); err == nil {
+			if c, err := store.GetShadowrocket(ctx, m.deps.DB.R, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: c.Name, Href: "/routing/shadowrocket/" + id}
 			}
 		case "router":
-			if r, err := m.Routers.Get(ctx, n); err == nil {
+			if r, err := m.Routers.Get(ctx, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: r.Name, Href: "/routing/routers/" + id}
 			}
 		case "discovery":
-			if r, err := store.GetRun(ctx, m.deps.DB.R, n); err == nil {
+			if r, err := store.GetRun(ctx, m.deps.DB.R, n, access.All); err == nil {
 				out[id] = ui.SubjectRef{Label: i18n.T(ctx, "discovery.subject", i18n.Args{"id": n, "host": r.Host}), Href: "/routing/discover/" + id}
 			}
 		case "routing_list":
@@ -342,6 +345,8 @@ var (
 	_ module.NavDeclarer          = (*Module)(nil)
 	_ module.Searcher             = (*Module)(nil)
 	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.SubjectOwner         = (*Module)(nil)
+	_ module.SubscriberDeclarer   = (*Module)(nil)
 	_ module.JobDeclarer          = (*Module)(nil)
 	_ module.SettingsPageDeclarer = (*Module)(nil)
 	_ module.NotificationRenderer = (*Module)(nil)

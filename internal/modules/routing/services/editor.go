@@ -8,7 +8,11 @@ import (
 )
 
 // Custom is a new custom service.
-type Custom struct{ Name, Tag, Description, Origin string }
+// Owner is the member it belongs to: a custom service is private to them.
+type Custom struct {
+	Name, Tag, Description, Origin string
+	Owner                          int64
+}
 
 // DomainRow is one row of the domain editor.
 type DomainRow struct {

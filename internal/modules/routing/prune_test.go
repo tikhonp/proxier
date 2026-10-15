@@ -96,7 +96,7 @@ func TestPruneSnapshotsAndGenerations(t *testing.T) {
 func TestPruneShadowrocketFetchesAndImports(t *testing.T) {
 	h := routingtest.New(t)
 	ctx := context.Background()
-	id, err := h.Mod.Shadowrocket.Create(ctx, shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: "[Rule]\n"}, "admin")
+	id, err := h.Mod.Shadowrocket.Create(ctx, routingtest.Owner, shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: "[Rule]\n"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

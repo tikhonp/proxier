@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
 // Service is a row of routing_services.
 type Service struct {
 	ID              int64   `db:"id"`
+	OwnerID         int64   `db:"owner_id"` // a member for a custom service, 0 (shared) for the others
 	Tag             string  `db:"tag"`
 	Source          string  `db:"source"`
 	Selector        string  `db:"selector"`
@@ -23,30 +25,35 @@ type Service struct {
 	CreatedAt       db.Time `db:"created_at"`
 }
 
-const serviceCols = `id, tag, source, selector, name, description, origin, last_checked_at, last_error, failures,
+const serviceCols = `id, owner_id, tag, source, selector, name, description, origin, last_checked_at, last_error, failures,
 	failing_notified, created_at`
 
 // InsertService adds a service and returns its id.
 func InsertService(ctx context.Context, x sqlx.ExtContext, s Service) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_services (tag, source, selector, name, description, origin, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`, s.Tag, s.Source, s.Selector, s.Name, s.Description, s.Origin, s.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_services (owner_id, tag, source, selector, name, description, origin, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, s.OwnerID, s.Tag, s.Source, s.Selector, s.Name, s.Description, s.Origin, s.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
 }
 
-// GetService reads one by id.
-func GetService(ctx context.Context, q sqlx.QueryerContext, id int64) (Service, error) {
+// sharedOr keeps a shared service and the custom ones within the scope
+// passed as its argument.
+const sharedOr = `(owner_id = 0 OR ? IN (0, owner_id))`
+
+// GetService reads one by id: a shared one, or a custom one within scope.
+func GetService(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Service, error) {
 	var s Service
-	err := sqlx.GetContext(ctx, q, &s, `SELECT `+serviceCols+` FROM routing_services WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &s, `SELECT `+serviceCols+` FROM routing_services WHERE id = ? AND `+sharedOr, id, scope)
 	return s, notFound(err)
 }
 
-// ServiceByTag reads one by tag.
-func ServiceByTag(ctx context.Context, q sqlx.QueryerContext, tag string) (Service, error) {
+// ServiceByTag reads one by tag: a shared one, or a custom one within
+// scope.
+func ServiceByTag(ctx context.Context, q sqlx.QueryerContext, tag string, scope access.Scope) (Service, error) {
 	var s Service
-	err := sqlx.GetContext(ctx, q, &s, `SELECT `+serviceCols+` FROM routing_services WHERE tag = ?`, tag)
+	err := sqlx.GetContext(ctx, q, &s, `SELECT `+serviceCols+` FROM routing_services WHERE tag = ? AND `+sharedOr, tag, scope)
 	return s, notFound(err)
 }
 
@@ -58,18 +65,18 @@ type ServiceRow struct {
 	AcceptedAt  db.Time `db:"accepted_at"`
 }
 
-// ListServices reads every service with its accepted counts, by tag; source
-// "" means any.
-func ListServices(ctx context.Context, q sqlx.QueryerContext, source string) ([]ServiceRow, error) {
+// ListServices reads the shared services and the custom ones within scope
+// with their accepted counts, by tag; source "" means any.
+func ListServices(ctx context.Context, q sqlx.QueryerContext, source string, scope access.Scope) ([]ServiceRow, error) {
 	var out []ServiceRow
 	err := sqlx.SelectContext(ctx, q, &out, `
-		SELECT s.id, s.tag, s.source, s.selector, s.name, s.description, s.origin, s.last_checked_at, s.last_error,
+		SELECT s.id, s.owner_id, s.tag, s.source, s.selector, s.name, s.description, s.origin, s.last_checked_at, s.last_error,
 			s.failures, s.failing_notified, s.created_at,
 			coalesce(a.suffix_count, 0) AS suffix_count, coalesce(a.exact_count, 0) AS exact_count, a.accepted_at
 		FROM routing_services s
 		LEFT JOIN routing_snapshots a ON a.service_id = s.id AND a.status = 'accepted'
-		WHERE ? = '' OR s.source = ?
-		ORDER BY s.tag`, source, source)
+		WHERE (? = '' OR s.source = ?) AND (s.owner_id = 0 OR ? IN (0, s.owner_id))
+		ORDER BY s.tag`, source, source, scope)
 	return out, err
 }
 
@@ -92,7 +99,8 @@ func DeleteService(ctx context.Context, x sqlx.ExtContext, id int64) error {
 	return err
 }
 
-// TagTaken reports whether a service other than except has the tag.
+// TagTaken reports whether a service other than except has the tag, of any
+// member: a tag is a service's identity on routers.
 func TagTaken(ctx context.Context, q sqlx.QueryerContext, tag string, except int64) (bool, error) {
 	var n int
 	err := sqlx.GetContext(ctx, q, &n, `SELECT count(*) FROM routing_services WHERE tag = ? AND id <> ?`, tag, except)
@@ -106,13 +114,14 @@ func CustomNameTaken(ctx context.Context, q sqlx.QueryerContext, name string, ex
 	return n > 0, err
 }
 
-// CountServices counts every service and the custom ones.
-func CountServices(ctx context.Context, q sqlx.QueryerContext) (all, custom int, err error) {
+// CountServices counts the shared services and the custom ones within
+// scope, and of those the custom ones.
+func CountServices(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) (all, custom int, err error) {
 	var c struct {
 		All    int `db:"a"`
 		Custom int `db:"c"`
 	}
-	err = sqlx.GetContext(ctx, q, &c, `SELECT count(*) AS a, coalesce(sum(source = 'custom'), 0) AS c FROM routing_services`)
+	err = sqlx.GetContext(ctx, q, &c, `SELECT count(*) AS a, coalesce(sum(source = 'custom'), 0) AS c FROM routing_services WHERE `+sharedOr, scope)
 	return c.All, c.Custom, err
 }
 

@@ -17,6 +17,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -241,12 +242,12 @@ func (s *Service) Get(ctx context.Context, id int64) (Script, error) {
 
 // List reads the scripts that aren't archived, or with archived only the
 // archived ones, by name.
-func (s *Service) List(ctx context.Context, archived bool) ([]Summary, error) {
+func (s *Service) List(ctx context.Context, scope access.Scope, archived bool) ([]Summary, error) {
 	rows, err := store.Scripts(ctx, s.d.DB.R, archived)
 	if err != nil {
 		return nil, err
 	}
-	gens, err := store.GenerationCounts(ctx, s.d.DB.R)
+	gens, err := store.GenerationCounts(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}

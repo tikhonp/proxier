@@ -5,17 +5,19 @@ import (
 	"regexp"
 	"testing"
 
+	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestCreateConfig(t *testing.T) {
 	h, id := setup(t)
-	c, err := h.Mod.Shadowrocket.Get(bg(), id)
+	c, err := h.Mod.Shadowrocket.Get(bg(), id, access.All)
 	if err != nil || c.Name != "iphone" || c.List != "Main" || c.Policy != "PROXY" || !c.Enabled || c.Version != 1 || c.Rules != 2 {
 		t.Fatalf("config: %+v %v", c, err)
 	}
-	u, _ := h.Mod.Shadowrocket.URL(bg(), id)
+	u, _ := h.Mod.Shadowrocket.URL(bg(), id, access.All)
 	if !regexp.MustCompile(`^http://proxier\.test/r/[A-Za-z0-9_-]{43}/iphone\.conf$`).MatchString(u) {
 		t.Errorf("url %q", u)
 	}
@@ -28,14 +30,14 @@ func TestCreateConfig(t *testing.T) {
 		t.Errorf("events: %+v", ev)
 	}
 	// the name is cleaned: trimmed, lower case
-	id2, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: " iPad ", ListID: 1, Policy: "Proxy-Group-A", Base: base}, "admin")
-	if c, _ := h.Mod.Shadowrocket.Get(bg(), id2); err != nil || c.Name != "ipad" {
+	id2, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, shadowrocket.New{Name: " iPad ", ListID: 1, Policy: "Proxy-Group-A", Base: base}, "admin")
+	if c, _ := h.Mod.Shadowrocket.Get(bg(), id2, access.All); err != nil || c.Name != "ipad" {
 		t.Errorf("ipad: %+v %v", c, err)
 	}
 	// a name that isn't a file name yet is made one, as a custom service's tag
 	// is, not refused (the form shows "File name: iphone-mom.conf" as it's typed)
-	id3, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: "iPhone Mom", ListID: 1, Policy: "PROXY", Base: base}, "admin")
-	if c, _ := h.Mod.Shadowrocket.Get(bg(), id3); err != nil || c.Name != "iphone-mom" {
+	id3, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, shadowrocket.New{Name: "iPhone Mom", ListID: 1, Policy: "PROXY", Base: base}, "admin")
+	if c, _ := h.Mod.Shadowrocket.Get(bg(), id3, access.All); err != nil || c.Name != "iphone-mom" {
 		t.Errorf("iPhone Mom: %+v %v", c, err)
 	}
 	for _, tc := range []struct {
@@ -52,7 +54,7 @@ func TestCreateConfig(t *testing.T) {
 		{shadowrocket.New{Name: "x", ListID: 1, Policy: "PROXY", Base: "[General]\n"}, "base", "shadowrocket.err.no_rule"},
 		{shadowrocket.New{Name: "x", ListID: 9, Policy: "PROXY", Base: base}, "list", "shadowrocket.err.list"},
 	} {
-		_, err := h.Mod.Shadowrocket.Create(bg(), tc.n, "admin")
+		_, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, tc.n, "admin")
 		var fe store.FieldErrors
 		if !errors.As(err, &fe) || fe[tc.field] != tc.key {
 			t.Errorf("%+v: %v", tc.n, err)
@@ -69,7 +71,7 @@ func TestRegenerateToken(t *testing.T) {
 	if rec := fetch(h, "GET", old); rec.Code != 200 {
 		t.Fatalf("before: %d", rec.Code)
 	}
-	if err := h.Mod.Shadowrocket.RegenerateToken(bg(), id, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.RegenerateToken(bg(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	cur := pathOf(t, h, id)
@@ -91,7 +93,7 @@ func TestRegenerateToken(t *testing.T) {
 func TestDisabledConfig(t *testing.T) {
 	h, id := setup(t)
 	p := pathOf(t, h, id)
-	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, false, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, access.All, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if rec := fetch(h, "GET", p); rec.Code != 404 {
@@ -101,10 +103,10 @@ func TestDisabledConfig(t *testing.T) {
 		t.Errorf("disabled HEAD: %d", rec.Code)
 	}
 	// disabling again records nothing
-	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, false, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, access.All, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, true, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, access.All, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if rec := fetch(h, "GET", p); rec.Code != 200 {
@@ -119,10 +121,10 @@ func TestDisabledConfig(t *testing.T) {
 	}
 	// Edit: another list and policy from the next fetch; an edit that changes nothing records nothing
 	parents := h.List("Parents")
-	if ch, err := h.Mod.Shadowrocket.Edit(bg(), id, parents, "Proxy-Group-A", "admin"); err != nil || !ch {
+	if ch, err := h.Mod.Shadowrocket.Edit(bg(), id, access.All, parents, "Proxy-Group-A", "admin"); err != nil || !ch {
 		t.Fatalf("edit: %v %v", ch, err)
 	}
-	if ch, err := h.Mod.Shadowrocket.Edit(bg(), id, parents, " Proxy-Group-A ", "admin"); err != nil || ch {
+	if ch, err := h.Mod.Shadowrocket.Edit(bg(), id, access.All, parents, " Proxy-Group-A ", "admin"); err != nil || ch {
 		t.Errorf("edit again: %v %v", ch, err)
 	}
 	ev = h.Events("routing.shadowrocket_updated")
@@ -133,7 +135,7 @@ func TestDisabledConfig(t *testing.T) {
 		t.Errorf("after the edit:\n%s", body)
 	}
 	// delete: the URL 404s, versions and fetches go
-	if err := h.Mod.Shadowrocket.Delete(bg(), id, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.Delete(bg(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if rec := fetch(h, "GET", p); rec.Code != 404 {
@@ -145,7 +147,7 @@ func TestDisabledConfig(t *testing.T) {
 	if ev := h.Events("routing.shadowrocket_deleted"); len(ev) != 1 || ev[0].Payload["name"] != "iphone" {
 		t.Errorf("deleted: %+v", ev)
 	}
-	if _, err := h.Mod.Shadowrocket.Get(bg(), id); !errors.Is(err, shadowrocket.ErrNotFound) {
+	if _, err := h.Mod.Shadowrocket.Get(bg(), id, access.All); !errors.Is(err, shadowrocket.ErrNotFound) {
 		t.Errorf("get deleted: %v", err)
 	}
 }
@@ -153,7 +155,7 @@ func TestDisabledConfig(t *testing.T) {
 func TestListDeleteMovesConfigs(t *testing.T) {
 	h, _ := setup(t)
 	parents := h.List("Parents")
-	ipad, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: "ipad", ListID: parents, Policy: "PROXY", Base: base}, "admin")
+	ipad, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, shadowrocket.New{Name: "ipad", ListID: parents, Policy: "PROXY", Base: base}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -161,10 +163,10 @@ func TestListDeleteMovesConfigs(t *testing.T) {
 	if err != nil || len(ts) != 1 || ts[0].Kind != "shadowrocket" || ts[0].Name != "ipad" || ts[0].State != "enabled" || !ts[0].LastFetch.IsZero() {
 		t.Fatalf("targets: %+v %v", ts, err)
 	}
-	if err := h.Mod.Lists.Delete(bg(), parents, 1, "admin"); err != nil {
+	if err := h.Mod.Lists.Delete(bg(), parents, 1, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	c, err := h.Mod.Shadowrocket.Get(bg(), ipad)
+	c, err := h.Mod.Shadowrocket.Get(bg(), ipad, access.All)
 	if err != nil || c.ListID != 1 || c.List != "Main" {
 		t.Errorf("moved: %+v %v", c, err)
 	}
@@ -175,5 +177,27 @@ func TestListDeleteMovesConfigs(t *testing.T) {
 	cs, _ := h.Mod.Shadowrocket.ByList(bg(), 1)
 	if len(cs) != 2 {
 		t.Errorf("Main's configs: %+v", cs)
+	}
+}
+
+// A config follows a list its owner may change: member 1's Main is refused
+// to anna at own, her own list is not, and the config is hers.
+func TestConfigFollowsAListOfItsOwner(t *testing.T) {
+	h := routingtest.New(t)
+	anna := access.Who{Member: 2, Grant: access.Grant{}.With(access.Routing, access.LevelOwn)}
+	_, err := h.Mod.Shadowrocket.Create(bg(), anna, shadowrocket.New{Name: "anna", ListID: 1, Policy: "PROXY", Base: base}, "member:2")
+	var fe store.FieldErrors
+	if !errors.As(err, &fe) || fe["list"] == "" {
+		t.Fatalf("on member 1's list: %v", err)
+	}
+	id, err := h.Mod.Shadowrocket.Create(bg(), anna, shadowrocket.New{Name: "anna", ListID: h.ListOf(anna, "Anna list"), Policy: "PROXY", Base: base}, "member:2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c, err := h.Mod.Shadowrocket.Get(bg(), id, anna.Scope(access.Routing)); err != nil || c.OwnerID != 2 {
+		t.Fatalf("anna's config: %+v %v", c, err)
+	}
+	if _, err := h.Mod.Shadowrocket.Get(bg(), id, access.Owner(3)); !errors.Is(err, shadowrocket.ErrNotFound) {
+		t.Fatalf("another member's config: %v", err)
 	}
 }

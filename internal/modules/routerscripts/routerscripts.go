@@ -113,9 +113,10 @@ func (*Module) Nav() []ui.NavItem {
 // Search finds scripts that aren't archived by name or slug (with the
 // action Generate for a new router when they have a version), and
 // generations by router name.
-func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
-	rows, err := m.Scripts.List(ctx, false)
+	scope := w.Scope(access.RouterScripts)
+	rows, err := m.Scripts.List(ctx, scope, false)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +138,7 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			return out[:limit], nil
 		}
 	}
-	gens, err := m.Generations.Search(ctx, q, limit-len(out))
+	gens, err := m.Generations.Search(ctx, scope, q, limit-len(out))
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +147,22 @@ func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int
 			Meta: i18n.T(ctx, "rscripts.search.generation", i18n.Args{"script": g.Script, "version": g.Version})})
 	}
 	return out, nil
+}
+
+// Subscribers: a removed member's generations go to their heir.
+func (m *Module) Subscribers() []events.Subscriber {
+	return []events.Subscriber{m.Generations.HandOverSubscriber()}
+}
+
+// OwnedSubjects are the generations member owns, for Activity and Jobs at
+// activity: own.
+func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error) {
+	ids, err := store.OwnedGenerations(ctx, m.deps.DB.R, member)
+	out := make([]events.Subject, len(ids))
+	for i, id := range ids {
+		out[i] = generations.Subject(id)
+	}
+	return out, err
 }
 
 // SubjectTypes are the subject types of the module's events.
@@ -167,7 +184,7 @@ func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (ma
 				out[id] = ui.SubjectRef{Label: s.Name, Href: pages.ScriptHref(n)}
 			}
 		case "generation":
-			g, err := store.GetGeneration(ctx, m.deps.DB.R, n)
+			g, err := store.GetGeneration(ctx, m.deps.DB.R, n, access.All)
 			if err != nil {
 				continue
 			}
@@ -190,6 +207,8 @@ var (
 	_ module.NavDeclarer          = (*Module)(nil)
 	_ module.Searcher             = (*Module)(nil)
 	_ module.SubjectNamer         = (*Module)(nil)
+	_ module.SubjectOwner         = (*Module)(nil)
+	_ module.SubscriberDeclarer   = (*Module)(nil)
 	_ module.JobDeclarer          = (*Module)(nil)
 	_ module.NotificationRenderer = (*Module)(nil)
 )

@@ -8,6 +8,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/vault"
@@ -65,8 +66,8 @@ func (s *Service) base() string {
 // FetchURLLifetime, and ends the one that waited: replaced while it still
 // worked, expired (with its event) when its hour had passed unseen by the
 // scan. It returns the URL.
-func (s *Service) CreateFetchURL(ctx context.Context, generationID int64, actor string) (FetchURL, string, error) {
-	if _, err := s.row(ctx, generationID); err != nil {
+func (s *Service) CreateFetchURL(ctx context.Context, generationID int64, scope access.Scope, actor string) (FetchURL, string, error) {
+	if _, err := s.toChange(ctx, generationID, scope); err != nil {
 		return FetchURL{}, "", err
 	}
 	now := db.At(s.d.Now())

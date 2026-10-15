@@ -191,7 +191,7 @@ func (full) Nav() []ui.NavItem {
 func (full) SettingsPages() []ui.SettingsPage {
 	return []ui.SettingsPage{{Slug: "fake", Area: access.Settings, Title: "fake.hello", Order: 60}}
 }
-func (full) Search(_ context.Context, _ access.Grant, q string, _ int) ([]ui.SearchHit, error) {
+func (full) Search(_ context.Context, _ access.Who, q string, _ int) ([]ui.SearchHit, error) {
 	searched = true
 	return []ui.SearchHit{{Area: access.Servers, Label: "fake thing " + q, Href: "/fake"}}, nil
 }

@@ -105,17 +105,17 @@ func TestArchiveAndDelete(t *testing.T) {
 	if err := h.Mod.Scripts.Archive(ctx, id, true, "admin"); err != nil || len(h.Events("routerscript.archived")) != 1 {
 		t.Errorf("archive twice: %v", err)
 	}
-	list, _ := h.Mod.Scripts.List(ctx, false)
+	list, _ := h.Mod.Scripts.List(ctx, access.All, false)
 	if len(list) != 1 || list[0].ID != other {
 		t.Errorf("list: %+v", list)
 	}
-	if arch, _ := h.Mod.Scripts.List(ctx, true); len(arch) != 1 || arch[0].ID != id {
+	if arch, _ := h.Mod.Scripts.List(ctx, access.All, true); len(arch) != 1 || arch[0].ID != id {
 		t.Errorf("archived: %+v", arch)
 	}
 	if n, _ := h.Mod.Scripts.ArchivedCount(ctx); n != 1 {
 		t.Errorf("archived count: %d", n)
 	}
-	if hits, _ := h.Mod.Search(context.Background(), access.PresetOwner.Grant(), "fresh", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(context.Background(), access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "fresh", 10); len(hits) != 0 {
 		t.Errorf("search found an archived script: %+v", hits)
 	}
 	if err := h.Mod.Scripts.Archive(ctx, id, false, "admin"); err != nil {
@@ -132,7 +132,7 @@ func TestArchiveAndDelete(t *testing.T) {
 	if err := h.Mod.Scripts.Delete(ctx, id, "admin"); !errors.Is(err, scripts.ErrHasGenerations) {
 		t.Fatalf("with a generation: %v", err)
 	}
-	if list, _ := h.Mod.Scripts.List(ctx, false); len(list) != 2 || list[0].Generations != 1 {
+	if list, _ := h.Mod.Scripts.List(ctx, access.All, false); len(list) != 2 || list[0].Generations != 1 {
 		t.Errorf("generation counted: %+v", list)
 	}
 	if vs, _ := h.Mod.Scripts.Versions(ctx, id); vs[0].Generations != 1 {

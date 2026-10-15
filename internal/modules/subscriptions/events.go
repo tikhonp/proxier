@@ -11,6 +11,7 @@ var Events = []events.Type{
 	{Name: "subscription.deleted", Description: "A subscription no link pointed to was deleted."},
 	{Name: "subscription.servers_changed", Description: "Servers were added to a subscription, removed or reordered."},
 	{Name: "subscription.all_unhealthy", Notify: true, Emoji: "🟡", Description: "Hiding unhealthy servers would have left a subscription empty, so every server is served."},
+	{Name: "subscription.handed_over", Description: "A removed member's subscriptions and links went to their heir (subject: the removed member)."},
 	{Name: "link.created", Description: "A link was created."},
 	{Name: "link.disabled", Description: "A link was disabled: it serves its stub entry."},
 	{Name: "link.enabled", Description: "A disabled link was enabled again."},

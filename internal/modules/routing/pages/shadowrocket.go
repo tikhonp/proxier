@@ -44,16 +44,26 @@ func (h *handler) registerShadowrocket(r web.Routes) {
 	rt.Manage.GET(srPath+"/:id/edit", h.srEditPage)
 	rt.Manage.POST(srPath+"/:id/edit", h.srEdit)
 	rt.Manage.POST(srPath+"/:id/token", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.RegenerateToken(ctx, id, web.Actor(ctx))
+		return h.Shadowrocket.RegenerateToken(ctx, id, scope(ctx), web.Actor(ctx))
 	}, "?regenerated=1"))
 	rt.Manage.POST(srPath+"/:id/disable", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.SetEnabled(ctx, id, false, web.Actor(ctx))
+		return h.Shadowrocket.SetEnabled(ctx, id, scope(ctx), false, web.Actor(ctx))
 	}, ""))
 	rt.Manage.POST(srPath+"/:id/enable", h.srAct(func(ctx context.Context, id int64) error {
-		return h.Shadowrocket.SetEnabled(ctx, id, true, web.Actor(ctx))
+		return h.Shadowrocket.SetEnabled(ctx, id, scope(ctx), true, web.Actor(ctx))
 	}, ""))
 	rt.Manage.GET(srPath+"/:id/delete", h.srDeletePage)
 	rt.Manage.POST(srPath+"/:id/delete", h.srDelete)
+}
+
+// loadSRToChange is loadSR for a page or action that changes the config:
+// Forbidden for one the member reads but may not change.
+func (h *handler) loadSRToChange(c *echo.Context) (shadowrocket.Config, error) {
+	cfg, err := h.loadSR(c)
+	if err != nil {
+		return cfg, err
+	}
+	return cfg, mayChange(c.Request().Context(), cfg.OwnerID)
 }
 
 // loadSR reads the config of the :id parameter; 404 when there is none.
@@ -62,7 +72,7 @@ func (h *handler) loadSR(c *echo.Context) (shadowrocket.Config, error) {
 	if err != nil {
 		return shadowrocket.Config{}, echo.ErrNotFound
 	}
-	cfg, err := h.Shadowrocket.Get(c.Request().Context(), id)
+	cfg, err := h.Shadowrocket.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, shadowrocket.ErrNotFound) {
 		return cfg, echo.ErrNotFound
 	}
@@ -103,7 +113,7 @@ type srRow struct {
 func (h *handler) srList(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	cs, err := h.Shadowrocket.List(ctx)
+	cs, err := h.Shadowrocket.List(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -134,11 +144,14 @@ type srFormView struct {
 
 func (h *handler) renderSRForm(c *echo.Context, status int, v srFormView) error {
 	ctx := c.Request().Context()
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
 	v.Lists = all
+	if v.ListID == 0 && len(all) > 0 {
+		v.ListID = all[0].ID
+	}
 	title := i18n.T(ctx, "shadowrocket.new.title")
 	if v.C.ID != 0 {
 		title = i18n.T(ctx, "shadowrocket.base.title", i18n.Args{"name": v.C.Name})
@@ -151,11 +164,16 @@ func (h *handler) renderSRForm(c *echo.Context, status int, v srFormView) error 
 }
 
 func (h *handler) srNewPage(c *echo.Context) error {
-	def, err := h.Lists.Default(c.Request().Context())
+	ctx := c.Request().Context()
+	def, err := h.Lists.Default(ctx)
 	if err != nil {
 		return err
 	}
-	return h.renderSRForm(c, http.StatusOK, srFormView{ListID: def.ID, Policy: shadowrocket.DefaultPolicy})
+	listID := def.ID
+	if !scope(ctx).Writable().Reads(def.OwnerID) {
+		listID = 0 // the default is another member's: the first list of the member's is picked
+	}
+	return h.renderSRForm(c, http.StatusOK, srFormView{ListID: listID, Policy: shadowrocket.DefaultPolicy})
 }
 
 // formBase is the posted base config: an uploaded file wins over the field.
@@ -188,7 +206,7 @@ func (h *handler) srCreate(c *echo.Context) error {
 		Name: c.FormValue("name"), ListID: formID(c.FormValue("list")), Policy: c.FormValue("policy"),
 		Base: base, Note: c.FormValue("note"), ImportURL: c.FormValue("import_url"),
 	}
-	id, err := h.Shadowrocket.Create(ctx, shadowrocket.New{Name: v.Name, ListID: v.ListID, Policy: v.Policy, Base: v.Base, Note: v.Note}, web.Actor(ctx))
+	id, err := h.Shadowrocket.Create(ctx, web.Who(ctx), shadowrocket.New{Name: v.Name, ListID: v.ListID, Policy: v.Policy, Base: v.Base, Note: v.Note}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -209,7 +227,7 @@ func (h *handler) srImportBase(c *echo.Context) error {
 		Base: c.FormValue("base"), Note: c.FormValue("note"), ImportURL: strings.TrimSpace(c.FormValue("import_url")),
 	}
 	if id := formID(c.FormValue("config")); id != 0 {
-		cfg, err := h.Shadowrocket.Get(ctx, id)
+		cfg, err := h.Shadowrocket.Get(ctx, id, scope(ctx))
 		if errors.Is(err, shadowrocket.ErrNotFound) {
 			return echo.ErrNotFound
 		}
@@ -246,7 +264,7 @@ func importBaseError(ctx context.Context, err error) string {
 }
 
 func (h *handler) srBasePage(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
@@ -258,7 +276,7 @@ func (h *handler) srBasePage(c *echo.Context) error {
 }
 
 func (h *handler) srSaveBase(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
@@ -268,7 +286,7 @@ func (h *handler) srSaveBase(c *echo.Context) error {
 		return err
 	}
 	v := srFormView{C: cfg, Base: base, Note: c.FormValue("note"), ImportURL: c.FormValue("import_url")}
-	n, changed, err := h.Shadowrocket.SaveBase(ctx, cfg.ID, v.Base, v.Note, web.Actor(ctx))
+	n, changed, err := h.Shadowrocket.SaveBase(ctx, cfg.ID, scope(ctx), v.Base, v.Note, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -300,6 +318,9 @@ type srVersionRow struct {
 type srFetchRow struct{ Time, IP, UA string }
 
 type srView struct {
+	// CanChange: the member may change the config (theirs, or manage_all);
+	// a reader sees no controls.
+	CanChange      bool
 	C              shadowrocket.Config
 	Line           string
 	Band, BandKind string
@@ -353,8 +374,8 @@ func (h *handler) srPage(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	v := srView{C: cfg, Masked: h.Shadowrocket.MaskedURL(cfg.Name)}
-	if v.URL, err = h.Shadowrocket.URL(ctx, cfg.ID); err != nil {
+	v := srView{C: cfg, CanChange: scope(ctx).Writes(cfg.OwnerID), Masked: h.Shadowrocket.MaskedURL(cfg.Name)}
+	if v.URL, err = h.Shadowrocket.URL(ctx, cfg.ID, scope(ctx)); err != nil {
 		return err
 	}
 	fetched := i18n.T(ctx, "shadowrocket.never_fetched")
@@ -364,7 +385,7 @@ func (h *handler) srPage(c *echo.Context) error {
 	if !cfg.Enabled {
 		fetched = i18n.T(ctx, "shadowrocket.disabled")
 	}
-	v.Line = i18n.T(ctx, "shadowrocket.line", i18n.Args{"list": cfg.List, "policy": cfg.Policy, "version": cfg.Version, "fetched": fetched})
+	v.Line = i18n.T(ctx, "shadowrocket.line", i18n.Args{"list": cfg.List, "policy": cfg.Policy, "version": cfg.Version, "fetched": fetched}) + ownerNote(ctx, cfg.OwnerID)
 	switch {
 	case c.QueryParam("created") == "1":
 		v.Band, v.BandKind = i18n.T(ctx, "shadowrocket.band.created"), "pine"
@@ -381,7 +402,7 @@ func (h *handler) srPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	out, err := h.Shadowrocket.Output(ctx, cfg.ID)
+	out, err := h.Shadowrocket.Output(ctx, cfg.ID, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -446,7 +467,7 @@ func (h *handler) srURL(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	u, err := h.Shadowrocket.URL(c.Request().Context(), cfg.ID)
+	u, err := h.Shadowrocket.URL(c.Request().Context(), cfg.ID, scope(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -460,7 +481,7 @@ func (h *handler) srQR(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	u, err := h.Shadowrocket.URL(c.Request().Context(), cfg.ID)
+	u, err := h.Shadowrocket.URL(c.Request().Context(), cfg.ID, scope(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -474,7 +495,7 @@ func (h *handler) srOutput(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	out, err := h.Shadowrocket.Output(c.Request().Context(), cfg.ID)
+	out, err := h.Shadowrocket.Output(c.Request().Context(), cfg.ID, scope(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -538,7 +559,7 @@ func (h *handler) srDiff(c *echo.Context) error {
 }
 
 func (h *handler) srRestore(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
@@ -547,7 +568,7 @@ func (h *handler) srRestore(c *echo.Context) error {
 		return err
 	}
 	before := cfg.Version
-	n, err := h.Shadowrocket.Restore(c.Request().Context(), cfg.ID, ver.Number, web.Actor(c.Request().Context()))
+	n, err := h.Shadowrocket.Restore(c.Request().Context(), cfg.ID, scope(c.Request().Context()), ver.Number, web.Actor(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -569,7 +590,7 @@ type srEditView struct {
 
 func (h *handler) renderSREdit(c *echo.Context, status int, v srEditView) error {
 	ctx := c.Request().Context()
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
@@ -579,7 +600,7 @@ func (h *handler) renderSREdit(c *echo.Context, status int, v srEditView) error 
 }
 
 func (h *handler) srEditPage(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
@@ -587,13 +608,13 @@ func (h *handler) srEditPage(c *echo.Context) error {
 }
 
 func (h *handler) srEdit(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 	v := srEditView{C: cfg, ListID: formID(c.FormValue("list")), Policy: c.FormValue("policy")}
-	_, err = h.Shadowrocket.Edit(ctx, cfg.ID, v.ListID, v.Policy, web.Actor(ctx))
+	_, err = h.Shadowrocket.Edit(ctx, cfg.ID, scope(ctx), v.ListID, v.Policy, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -608,7 +629,7 @@ func (h *handler) srEdit(c *echo.Context) error {
 // srAct runs a one-click action and goes back to the config page.
 func (h *handler) srAct(fn func(ctx context.Context, id int64) error, query string) echo.HandlerFunc {
 	return func(c *echo.Context) error {
-		cfg, err := h.loadSR(c)
+		cfg, err := h.loadSRToChange(c)
 		if err != nil {
 			return err
 		}
@@ -620,7 +641,7 @@ func (h *handler) srAct(fn func(ctx context.Context, id int64) error, query stri
 }
 
 func (h *handler) srDeletePage(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
@@ -630,11 +651,11 @@ func (h *handler) srDeletePage(c *echo.Context) error {
 }
 
 func (h *handler) srDelete(c *echo.Context) error {
-	cfg, err := h.loadSR(c)
+	cfg, err := h.loadSRToChange(c)
 	if err != nil {
 		return err
 	}
-	if err := h.Shadowrocket.Delete(c.Request().Context(), cfg.ID, web.Actor(c.Request().Context())); err != nil {
+	if err := h.Shadowrocket.Delete(c.Request().Context(), cfg.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, srPath)

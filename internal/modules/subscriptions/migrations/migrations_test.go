@@ -60,8 +60,10 @@ func TestSubscriptionsMigrationsRoundTrip(t *testing.T) {
 	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'subs\_%' ESCAPE '\'`); err != nil || n != 7 {
 		t.Fatalf("%d tables after up: %v", n, err)
 	}
-	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
-		t.Fatalf("down: %v", err)
+	for i := 0; i < 2; i++ {
+		if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+			t.Fatalf("down: %v", err)
+		}
 	}
 	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sqlite_master WHERE name LIKE 'subs\_%' ESCAPE '\'`); err != nil || n != 0 {
 		t.Fatalf("tables left after down: %d %v", n, err)
@@ -69,6 +71,28 @@ func TestSubscriptionsMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatalf("up again: %v", err)
 	}
+}
+
+func TestThingsFromBeforeMembersBelongToMemberOne(t *testing.T) {
+	ctx := context.Background()
+	d := open(t)
+	mustExec(t, d, insertLink, 1, "Mom", []byte("a"), []byte("la"), "active", nil)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, insertLink, 1, "Dad", []byte("b"), []byte("lb"), "active", nil)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	var owners []int64
+	if err := d.R.SelectContext(ctx, &owners, `SELECT owner_id FROM subs_subscriptions UNION ALL SELECT owner_id FROM subs_links`); err != nil {
+		t.Fatal(err)
+	}
+	if len(owners) != 3 || owners[0] != 1 || owners[1] != 1 || owners[2] != 1 {
+		t.Fatalf("owners after the upgrade: %v", owners)
+	}
+	mustFail(t, d, "a link of no member", `UPDATE subs_links SET owner_id = 0`)
+	mustFail(t, d, "a subscription of no member", `UPDATE subs_subscriptions SET owner_id = -1`)
 }
 
 func TestLiveLinkNamesAreUnique(t *testing.T) {

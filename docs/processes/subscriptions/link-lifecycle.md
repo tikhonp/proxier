@@ -1,6 +1,6 @@
 # Link lifecycle
 
-**Actors**: Admin; the link holder's app (only through [fetch](./subscription-fetch.md)); the expiry scan (queue `maintenance`); the notifier.
+**Actors**: a member with `subscriptions` access; the link holder's app (only through [fetch](./subscription-fetch.md)); the expiry scan (queue `maintenance`); the notifier.
 
 A link is what you hand to one person or device: a name and a secret URL serving one subscription. Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)), so a link's states control what its URL **serves**, not what an already-imported connection URI can do. Real revocation is the cut-off, which rotates servers.
 
@@ -12,7 +12,8 @@ A link is what you hand to one person or device: a name and a secret URL serving
    - optional **expiry** (a date, meaning the end of that day in the display time zone, or a date and time);
    - **language** of the stub texts;
    - **note**.
-2. Proxier generates the token and creates the link as **active**. The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
+   The subscriptions offered are those the member may change: their own, or every one at `subscriptions: manage_all`.
+2. Proxier generates the token and creates the link as **active**, owned by the member who made it ([ownership](../platform/members.md#ownership)). The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
 3. The admin sends the URL, or shows the QR to be scanned in the app.
 
 ## Steps: changing a link
@@ -24,7 +25,7 @@ A link is what you hand to one person or device: a name and a secret URL serving
 | **Regenerate token** | A new token at once. The old URL returns `404` from now on. The link page shows a band "New URL ready: copy it and send it." with **Copy URL** holding the new one. | `link.token_regenerated` |
 | **Change subscription** | The next fetch serves the new subscription. | `link.subscription_changed{from, to}` |
 | **Set / extend / clear expiry** | Changes the expiry. Extending an expired link makes it serve the real output again. Any change re-arms the warning and the expired notification for the new expiry. | `link.expiry_changed{from, to}` |
-| **Cut off** | Disable, plus (when `subscriptions.cutoff_rotates` is on; off by default) rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps-cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers, skipped}` |
+| **Cut off** (needs `servers: manage` too) | Disable, plus (when `subscriptions.cutoff_rotates` is on; off by default) rotate every server of its subscription ([credential rotation](../servers/credential-rotation.md#steps-cut-off-rotating-for-a-link)). | `link.disabled`, `link.cut_off{servers, skipped}` |
 | **Delete** | The dialog explains the tombstone. Confirm → state `deleted`. The link leaves the lists, and its URL serves "⛔ Link removed" for 30 days, then `404`. | `link.deleted` |
 | **Rename, edit note, change language, format override** | Plain edits. Nothing changed records nothing. | `link.changed{fields}` |
 
@@ -44,7 +45,9 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 
 ## Rules
 
-- Names are unique among non-deleted links.
+- A link belongs to a member. At `own` a member sees and changes only their own links; `view_all` reads everyone's and changes their own; `manage_all` changes every link. Another member's link outside what the member reads is a 404; one they read but may not change shows its URL, state and fetches without the actions, and a forged action is refused with 403.
+- **Cut off** rotates servers every member's links share, so it needs `servers: manage` as well as the right to change the link. Without it the action isn't shown and its page and POST answer 403; **Disable** still works.
+- Names are unique among non-deleted links, whoever owns them.
 - A token is shown only on the link page. It is never in a notification, an event or a log.
 - Exactly one subscription per link.
 - "Expired" isn't a separate state: it is an active link past its expiry. Clearing or extending the expiry is enough to bring it back.
@@ -69,3 +72,7 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - Cut off → disabled at once, the first rotation is queued at once and the others follow one at a time.
 - Change the subscription from "Family" to "Friends" → the next fetch serves Friends' servers.
 - The link's language is Russian → the stub entry names are in Russian.
+- Two members at `own` → each lists, searches and opens only their own links; the other's link by URL, its edit page and its actions → 404, nothing changed.
+- `view_all` on another member's link → shown with "owner …" and no actions; disable, delete, edit or alert limits forged → 403, nothing changed.
+- New link with another member's subscription forged in the form → refused, no link created.
+- Cut off without `servers: manage` → not offered; the cut-off page and POST → 403, the link stays active.

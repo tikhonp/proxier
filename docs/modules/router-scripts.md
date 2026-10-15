@@ -59,13 +59,15 @@ A **generation** is a version filled in with one router's values (`generations` 
 5. The live summary says what generating will do: create the link, register the router, write `<slug>-<router>-v<n>.rsc` with how many lines differ from the version, then every problem by field and the warnings.
 6. Generating checks every value again, then creates the link (`LinkIssuer.Issue`), registers the router (`RouterRegistrar.Register`) and saves the generation **in one transaction**: both ports are asked even when one refuses, their refusals show on the form together, and nothing is created unless everything is. The router's names, the link's URL and Proxier's key then fill their parameters, and `routerscript.generated` is recorded.
 
+The generation, the link it creates and the router it registers belong to the member who generates ([ownership](../processes/platform/members.md#ownership)). The subscriptions, links, routing lists, routers and jump hosts offered are those the member may change (their own; everyone's at `manage_all` of that area), and a forged one is refused as a field error. **Generate again** starts from a generation the member may change, since its secrets carry over.
+
 A generation stores its values, never its file: the plain values as JSON, the `@secret` ones and the link URL sealed (`generation:<id>:secrets`), the changed parameters, the link and the router by id and name, and the key's fingerprint. The file is `params.Fill(the version's body, the values)` whenever it is downloaded or fetched: byte-identical to the version except the literals of the changed parameters.
 
 The **generation page** shows the script and version (and when a newer one is current), the router and the link as they are now (linked; "removed", "deleted" or "not registered"), the file with **View changes** (the version against the file, every secret literal shown as `•••`), the values (changed first, all in a fold, secrets `•••`), and its activity. A band says when the link's URL (token regenerated, link deleted) or Proxier's SSH key changed after the generation, since the file still holds the old one. **Generate again** opens the form with the same version, router name and values, the existing link and router chosen (so nothing is created twice), and the secrets kept unless retyped.
 
 Then:
 
-- **Download** gives `fresh-router-<router>-v<version>.rsc`. It needs a signed-in admin.
+- **Download** gives `fresh-router-<router>-v<version>.rsc`. It needs a signed-in member who reads the generation: their own, or everyone's from `routerscripts: view_all`. Another member's generation outside that is a 404.
 - **Create fetch URL** gives a URL that works **once** and for **1 hour**, plus the commands to paste into the new router:
 
   ```

@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -35,7 +36,7 @@ func (s *Service) Scan(ctx context.Context, now time.Time, actor string) error {
 	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		for _, c := range counts {
-			l, err := store.GetLink(ctx, tx, c.LinkID)
+			l, err := store.GetLink(ctx, tx, c.LinkID, access.All)
 			if errors.Is(err, store.ErrNotFound) {
 				continue
 			}

@@ -419,6 +419,7 @@ var messages = i18n.Messages{
 	"event.link.expired":                 {EN: "Link {subject} expired", RU: "Срок ссылки {subject} истёк"},
 	"event.link.shared_suspected":        {EN: "Link {subject} may be shared", RU: "Ссылкой {subject}, похоже, поделились"},
 	"event.link.cut_off":                 {EN: "Cut off link {subject}", RU: "Ссылка {subject} отрезана"},
+	"event.subscription.handed_over":     {EN: "Handed over the subscriptions ({subscriptions}) and links ({links}) of removed {subject} to {to}", RU: "Подписки ({subscriptions}) и ссылки ({links}) удалённого участника {subject} переданы {to}"},
 
 	// Notifications
 	"notify.subscription.all_unhealthy":      {EN: "Every server of {subject} is unhealthy", RU: "Все серверы подписки {subject} нерабочие"},

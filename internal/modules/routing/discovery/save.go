@@ -15,14 +15,19 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // picked keeps the picks the run offers: groups' registrable domains and
-// tickable hosts. Anything else is dropped.
-func (s *Service) picked(ctx context.Context, id int64, p Pick) (Run, snapshot.Set, error) {
-	run, err := s.Get(ctx, id)
+// tickable hosts. Anything else is dropped. Saving from a run changes it, so
+// it must be one scope may change.
+func (s *Service) picked(ctx context.Context, id int64, scope access.Scope, p Pick) (Run, snapshot.Set, error) {
+	run, err := s.Get(ctx, id, scope)
 	if err != nil {
 		return run, snapshot.Set{}, err
+	}
+	if !scope.Writes(run.OwnerID) {
+		return run, snapshot.Set{}, access.Forbidden(access.Routing)
 	}
 	if run.Active() {
 		return run, snapshot.Set{}, ErrNotDone
@@ -60,13 +65,14 @@ func DefaultName(run Run) string {
 // Create makes a custom service (origin discovery) of the picks and adds it
 // to the lists, in one transaction past the server-hostname guard (a
 // refusal is a *lists.GuardError, recorded after the rollback, nothing
-// created). Field errors are the services' (name, tag).
-func (s *Service) Create(ctx context.Context, id int64, c services.Custom, p Pick, listIDs []int64, actor string) (int64, error) {
-	_, set, err := s.picked(ctx, id, p)
+// created). Field errors are the services' (name, tag). The service is the
+// run's owner's; the lists must be ones scope may change.
+func (s *Service) Create(ctx context.Context, id int64, scope access.Scope, c services.Custom, p Pick, listIDs []int64, actor string) (int64, error) {
+	run, set, err := s.picked(ctx, id, scope, p)
 	if err != nil {
 		return 0, err
 	}
-	c.Origin = "discovery"
+	c.Origin, c.Owner = "discovery", run.OwnerID
 	tag := strings.ToLower(strings.TrimSpace(c.Tag))
 	if tag == "" {
 		tag = selector.Slug(c.Name)
@@ -82,7 +88,7 @@ func (s *Service) Create(ctx context.Context, id int64, c services.Custom, p Pic
 			return err
 		}
 		for _, l := range listIDs {
-			if err := s.d.Lists.AddTx(ctx, tx, l, []int64{sid}, actor); err != nil {
+			if err := s.d.Lists.AddTx(ctx, tx, l, scope, []int64{sid}, actor); err != nil {
 				return err
 			}
 		}
@@ -97,12 +103,12 @@ func (s *Service) Create(ctx context.Context, id int64, c services.Custom, p Pic
 
 // AddTo merges the picks into an existing custom service through the
 // editor's save: its normalisation, absorption and guard.
-func (s *Service) AddTo(ctx context.Context, id, serviceID int64, p Pick, actor string) error {
-	_, set, err := s.picked(ctx, id, p)
+func (s *Service) AddTo(ctx context.Context, id int64, scope access.Scope, serviceID int64, p Pick, actor string) error {
+	_, set, err := s.picked(ctx, id, scope, p)
 	if err != nil {
 		return err
 	}
-	it, err := s.d.Services.Get(ctx, serviceID)
+	it, err := s.d.Services.Get(ctx, serviceID, scope)
 	if err != nil {
 		return err
 	}
@@ -119,7 +125,7 @@ func (s *Service) AddTo(ctx context.Context, id, serviceID int64, p Pick, actor 
 	for _, n := range set.Exact {
 		rows = append(rows, services.DomainRow{Domain: n, Exact: true, Note: "discovery"})
 	}
-	_, err = s.d.Services.SaveCustom(ctx, serviceID, services.Edit{Name: it.Name, Tag: it.Tag, Description: it.Description, Rows: rows}, actor)
+	_, err = s.d.Services.SaveCustom(ctx, serviceID, scope, services.Edit{Name: it.Name, Tag: it.Tag, Description: it.Description, Rows: rows}, actor)
 	return err
 }
 

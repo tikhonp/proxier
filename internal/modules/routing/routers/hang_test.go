@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // An /import the router runs in full and then never ends (no exit status, no
@@ -70,7 +71,7 @@ func TestImportThatNeverEndsFailsTheAttemptAndTheRetryRecordsIt(t *testing.T) {
 func TestCancelDuringImportThatNeverEndsCancelsTheJob(t *testing.T) {
 	h, r, id := forgottenImport(t)
 	h.StartJobs()
-	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,7 +111,7 @@ func TestCancelDuringImportThatNeverEndsCancelsTheJob(t *testing.T) {
 func TestRestartDuringImportThatNeverEndsResumesAndRemovesTheFile(t *testing.T) {
 	h, r, id := forgottenImport(t)
 	h.StartJobs()
-	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

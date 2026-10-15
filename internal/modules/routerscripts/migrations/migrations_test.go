@@ -73,6 +73,12 @@ func TestRouterScriptsMigrationsRoundTrip(t *testing.T) {
 		t.Fatalf("%d tables after up", n)
 	}
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatalf("down 00003: %v", err)
+	}
+	if n := count(t, d, `SELECT count(*) FROM pragma_table_info('rscripts_generations') WHERE name = 'owner_id'`); n != 0 {
+		t.Fatal("down 00003 kept owner_id")
+	}
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 		t.Fatalf("down 00002: %v", err)
 	}
 	if n := count(t, d, tables); n != 5 {
@@ -181,4 +187,20 @@ func TestOneOpenAgentSessionPerScript(t *testing.T) {
 	if n := count(t, d, `SELECT count(*) FROM rscripts_agent_sessions`); n != 0 {
 		t.Errorf("sessions of a deleted script: %d", n)
 	}
+}
+
+func TestGenerationsFromBeforeMembersBelongToMemberOne(t *testing.T) {
+	ctx := context.Background()
+	d := open(t)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, insertGeneration, 1, 1, 1)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	if n := count(t, d, `SELECT owner_id FROM rscripts_generations WHERE id = 1`); n != 1 {
+		t.Fatalf("owner after the upgrade: %d", n)
+	}
+	mustFail(t, d, "a generation of no member", `UPDATE rscripts_generations SET owner_id = 0`)
 }

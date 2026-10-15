@@ -24,13 +24,13 @@ type dashRow struct {
 }
 
 // Dashboard is the Links area: links with an alert (and their counts now),
-// then active links expiring within a week, soonest first. Nil when there is
-// nothing to show.
-func Dashboard(ctx context.Context, d Deps) (*ui.DashboardArea, error) {
+// then active links expiring within a week, soonest first, of the links w
+// reads. Nil when there is nothing to show.
+func Dashboard(ctx context.Context, d Deps, w access.Who) (*ui.DashboardArea, error) {
 	h := &handler{Deps: d}
 	loc := h.loc(ctx)
 	now := d.Now()
-	list, err := d.Links.List(ctx, links.Filter{})
+	list, err := d.Links.List(ctx, w.Scope(access.Subscriptions), links.Filter{})
 	if err != nil {
 		return nil, err
 	}

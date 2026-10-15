@@ -11,6 +11,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -24,12 +25,15 @@ func (h *handler) loadGeneration(c *echo.Context) (generations.Generation, error
 	if err != nil {
 		return generations.Generation{}, echo.ErrNotFound
 	}
-	g, err := h.Generations.Get(c.Request().Context(), id)
+	g, err := h.Generations.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, generations.ErrNotFound) {
 		return g, echo.ErrNotFound
 	}
 	return g, err
 }
+
+// scope is whose generations the signed-in member reaches.
+func scope(ctx context.Context) access.Scope { return web.Scope(ctx, access.RouterScripts) }
 
 type valueRow struct {
 	Name, Value, Note string
@@ -83,9 +87,12 @@ func (h *handler) generationPage(c *echo.Context) error {
 		}
 		v.All = append(v.All, r)
 	}
+	// generating again starts from this one's secrets: only for whoever may
+	// change it
 	if sc, err := h.Scripts.Get(ctx, g.ScriptID); err == nil {
-		v.CanGenerate = !sc.Archived && sc.Current > 0
+		v.CanGenerate = !sc.Archived && sc.Current > 0 && scope(ctx).Writes(g.OwnerID)
 	}
+	v.Line += web.OwnerNote(ctx, g.OwnerID)
 	if v.Activity, err = h.generationActivity(ctx, g); err != nil {
 		return err
 	}
@@ -136,7 +143,7 @@ func (h *handler) generationDownload(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	body, err := h.Generations.Body(c.Request().Context(), g.ID)
+	body, err := h.Generations.Body(c.Request().Context(), g.ID, scope(c.Request().Context()))
 	if err != nil {
 		return err
 	}
@@ -161,7 +168,7 @@ func (h *handler) generationChanges(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	unified, err := h.Generations.Changes(ctx, g.ID)
+	unified, err := h.Generations.Changes(ctx, g.ID, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -187,6 +194,7 @@ type fetchView struct {
 	State         string // the state line
 	StateClass    string
 	Expired       bool
+	CanChange     bool // the member may make a new fetch URL
 }
 
 // afterView is the After the import area.
@@ -216,7 +224,7 @@ func hm(loc *i18n.Localizer, t time.Time) string { return t.In(loc.TZ).Format("1
 // newest first.
 func (h *handler) fetchState(ctx context.Context, g generations.Generation, revealed bool) (fetchView, []generations.FetchURL, error) {
 	loc := i18n.From(ctx)
-	v := fetchView{GID: g.ID, Revealed: revealed, Masked: h.Generations.MaskedURL()}
+	v := fetchView{GID: g.ID, Revealed: revealed, Masked: h.Generations.MaskedURL(), CanChange: scope(ctx).Writes(g.OwnerID)}
 	u, link, live, err := h.Generations.Live(ctx, g.ID)
 	if err != nil {
 		return v, nil, err
@@ -357,7 +365,7 @@ func (h *handler) fetchURLCreate(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, _, err := h.Generations.CreateFetchURL(c.Request().Context(), g.ID, web.Actor(c.Request().Context())); err != nil {
+	if _, _, err := h.Generations.CreateFetchURL(c.Request().Context(), g.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, GenerationHref(g.ID)+"#fetch-url")

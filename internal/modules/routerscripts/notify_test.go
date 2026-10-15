@@ -15,13 +15,13 @@ func TestFetchedNotificationText(t *testing.T) {
 	h := rscriptstest.New(t)
 	ctx := context.Background()
 	id := h.Script("fresh-router", paramstest.Annotated())
-	v, err := h.Mod.Generations.Form(ctx, id, 0, 0)
+	v, err := h.Mod.Generations.Form(ctx, rscriptstest.Owner, id, 0, 0)
 	if err != nil {
 		t.Fatal(err)
 	}
 	f := v.Form
 	f.RouterName, f.Router.Mode, f.Link.Mode = "Dacha", generations.RouterNone, generations.LinkType
-	gid, err := h.Mod.Generations.Generate(ctx, id, f, "admin")
+	gid, err := h.Mod.Generations.Generate(ctx, rscriptstest.Owner, id, f, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

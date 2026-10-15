@@ -43,7 +43,7 @@ func TestModuleIsWired(t *testing.T) {
 			}
 		}
 	}
-	if n != len(routerscripts.Events) || n != 14 {
+	if n != len(routerscripts.Events) || n != 15 {
 		t.Errorf("%d events declared, module has %d", n, len(routerscripts.Events))
 	}
 
@@ -63,19 +63,19 @@ func TestModuleIsWired(t *testing.T) {
 		t.Errorf("subjects: %+v %v", got, err)
 	}
 	for _, q := range []string{"FRESH", "fr-boot", ""} {
-		hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), q, 10)
+		hits, err := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, q, 10)
 		if err != nil || len(hits) != 2 || hits[0].Label != "fresh-router" || hits[0].Meta != "router script · v1 · 0 generations" || hits[0].Href != "/router-scripts/1" ||
 			hits[1].Label != "Generate for a new router · fresh-router" || hits[1].Href != "/router-scripts/1/generate" {
 			t.Errorf("search %q: %+v %v", q, hits, err)
 		}
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "zzz", 10); len(hits) != 0 {
 		t.Errorf("nothing: %+v", hits)
 	}
 	if err := h.Mod.Scripts.Archive(ctx, id, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "fresh", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "fresh", 10); len(hits) != 0 {
 		t.Errorf("archived: %+v", hits)
 	}
 	if body := h.Login.Get("/activity?subject=router_script:1").Body.String(); !strings.Contains(body, `href="/router-scripts/1"`) {

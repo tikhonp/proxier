@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -63,6 +64,7 @@ func (e *HasTargetsError) Error() string {
 // List is a routing list.
 type List struct {
 	ID          int64
+	OwnerID     int64 // a member
 	Name        string
 	Description string
 	Default     bool
@@ -123,20 +125,34 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, subject e
 }
 
 func toList(l store.List) List {
-	return List{ID: l.ID, Name: l.Name, Description: l.Description, Default: l.IsDefault, CreatedAt: l.CreatedAt.Time}
+	return List{ID: l.ID, OwnerID: l.OwnerID, Name: l.Name, Description: l.Description, Default: l.IsDefault, CreatedAt: l.CreatedAt.Time}
 }
 
-func getList(ctx context.Context, q sqlx.QueryerContext, id int64) (store.List, error) {
-	l, err := store.GetList(ctx, q, id)
+func getList(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (store.List, error) {
+	l, err := store.GetList(ctx, q, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return l, ErrNotFound
 	}
 	return l, err
 }
 
-// Get reads a list.
-func (s *Service) Get(ctx context.Context, id int64) (List, error) {
-	l, err := getList(ctx, s.d.DB.R, id)
+// toChange loads a list to change it: ErrNotFound outside what scope reads,
+// so IDs don't tell what exists, and Forbidden for one it reads but may not
+// change.
+func toChange(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (store.List, error) {
+	l, err := getList(ctx, q, id, scope)
+	if err != nil {
+		return l, err
+	}
+	if !scope.Writes(l.OwnerID) {
+		return l, access.Forbidden(access.Routing)
+	}
+	return l, nil
+}
+
+// Get reads a list within scope.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (List, error) {
+	l, err := getList(ctx, s.d.DB.R, id, scope)
 	return toList(l), err
 }
 
@@ -149,9 +165,9 @@ func (s *Service) Default(ctx context.Context) (List, error) {
 	return toList(l), err
 }
 
-// All reads every list: the default first, then by name.
-func (s *Service) All(ctx context.Context) ([]List, error) {
-	rows, err := store.Lists(ctx, s.d.DB.R)
+// All reads every list within scope: the default first, then by name.
+func (s *Service) All(ctx context.Context, scope access.Scope) ([]List, error) {
+	rows, err := store.Lists(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -162,9 +178,10 @@ func (s *Service) All(ctx context.Context) ([]List, error) {
 	return out, nil
 }
 
-// List reads the lists page: each list with its counts, targets and warnings.
-func (s *Service) List(ctx context.Context) ([]Row, error) {
-	all, err := s.All(ctx)
+// List reads the lists page: each list within scope with its counts,
+// targets and warnings.
+func (s *Service) List(ctx context.Context, scope access.Scope) ([]Row, error) {
+	all, err := s.All(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +220,8 @@ func fields(ctx context.Context, q sqlx.QueryerContext, id int64, name, descript
 	return fe, nil
 }
 
-// Create makes an empty list (store.FieldErrors when refused).
-func (s *Service) Create(ctx context.Context, name, description, actor string) (int64, error) {
+// Create makes an empty list of owner (store.FieldErrors when refused).
+func (s *Service) Create(ctx context.Context, owner int64, name, description, actor string) (int64, error) {
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 	var id int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
@@ -215,7 +232,7 @@ func (s *Service) Create(ctx context.Context, name, description, actor string) (
 		if len(fe) > 0 {
 			return fe
 		}
-		if id, err = store.InsertList(ctx, tx, store.List{Name: name, Description: description, CreatedAt: db.At(s.d.Now())}); err != nil {
+		if id, err = store.InsertList(ctx, tx, store.List{OwnerID: owner, Name: name, Description: description, CreatedAt: db.At(s.d.Now())}); err != nil {
 			return err
 		}
 		return s.record(ctx, tx, "routing.list_created", Subject(id), actor, map[string]any{"name": name})
@@ -225,11 +242,11 @@ func (s *Service) Create(ctx context.Context, name, description, actor string) (
 
 // Edit renames and describes a list; unchanged records nothing. A name
 // changes nothing targets get, so nothing is marked.
-func (s *Service) Edit(ctx context.Context, id int64, name, description, actor string) (bool, error) {
+func (s *Service) Edit(ctx context.Context, id int64, scope access.Scope, name, description, actor string) (bool, error) {
 	name, description = strings.TrimSpace(name), strings.TrimSpace(description)
 	changed := false
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := getList(ctx, tx, id)
+		cur, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
@@ -262,12 +279,17 @@ func (s *Service) Edit(ctx context.Context, id int64, name, description, actor s
 	return changed, err
 }
 
-// MakeDefault moves the default mark to the list; on the default it changes nothing.
-func (s *Service) MakeDefault(ctx context.Context, id int64, actor string) error {
+// MakeDefault moves the default mark to the list; on the default it changes
+// nothing. The default is every member's (new targets start on it), so only
+// a scope that changes everyone's things moves it.
+func (s *Service) MakeDefault(ctx context.Context, id int64, scope access.Scope, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := getList(ctx, tx, id)
+		cur, err := toChange(ctx, tx, id, scope)
 		if err != nil || cur.IsDefault {
 			return err
+		}
+		if !WritesAll(scope) {
+			return access.Forbidden(access.Routing)
 		}
 		if err := store.MakeDefault(ctx, tx, id); err != nil {
 			return err
@@ -276,9 +298,14 @@ func (s *Service) MakeDefault(ctx context.Context, id int64, actor string) error
 	})
 }
 
-// ListsOf reads the lists that hold a service, by name.
-func (s *Service) ListsOf(ctx context.Context, serviceID int64) ([]List, error) {
-	ms, err := s.Memberships(ctx, serviceID)
+// WritesAll reports whether scope changes everyone's things (routing:
+// manage_all): what the default list and shared services need. A shared
+// service's owner is 0, which only such a scope writes.
+func WritesAll(scope access.Scope) bool { return scope.Writes(0) }
+
+// ListsOf reads the lists within scope that hold a service, by name.
+func (s *Service) ListsOf(ctx context.Context, serviceID int64, scope access.Scope) ([]List, error) {
+	ms, err := s.Memberships(ctx, serviceID, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -289,15 +316,16 @@ func (s *Service) ListsOf(ctx context.Context, serviceID int64) ([]List, error) 
 	return out, nil
 }
 
-// Memberships reads the lists that hold a service with its position in each, by name.
-func (s *Service) Memberships(ctx context.Context, serviceID int64) ([]Membership, error) {
-	rows, err := store.MembershipsOf(ctx, s.d.DB.R, serviceID)
+// Memberships reads the lists within scope that hold a service with its
+// position in each, by name.
+func (s *Service) Memberships(ctx context.Context, serviceID int64, scope access.Scope) ([]Membership, error) {
+	rows, err := store.MembershipsOf(ctx, s.d.DB.R, serviceID, scope)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]Membership, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, Membership{List: List{ID: r.ListID, Name: r.Name, Default: r.IsDefault}, Position: r.Position})
+		out = append(out, Membership{List: List{ID: r.ListID, OwnerID: r.OwnerID, Name: r.Name, Default: r.IsDefault}, Position: r.Position})
 	}
 	return out, nil
 }

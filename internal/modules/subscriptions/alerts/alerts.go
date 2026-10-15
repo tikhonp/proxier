@@ -8,7 +8,6 @@ package alerts
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"log/slog"
 	"strings"
 	"time"
@@ -17,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -97,7 +97,7 @@ func (s *Service) HasAlert(l links.Link, now time.Time) bool {
 // SetLimits saves a link's limits (0 = the setting, else 1–1000) and mute;
 // link.changed names "alert limits" and/or "alerts muted". Raising the limits
 // leaves a raised alert as it is. Errors are store.FieldErrors.
-func (s *Service) SetLimits(ctx context.Context, linkID int64, networks, apps int, muted bool, actor string) error {
+func (s *Service) SetLimits(ctx context.Context, linkID int64, scope access.Scope, networks, apps int, muted bool, actor string) error {
 	fe := store.FieldErrors{}
 	if networks < 0 || networks > MaxLimit {
 		fe["networks"] = "alerts.err.limit"
@@ -109,15 +109,9 @@ func (s *Service) SetLimits(ctx context.Context, linkID int64, networks, apps in
 		return fe
 	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		l, err := store.GetLink(ctx, tx, linkID)
-		if errors.Is(err, store.ErrNotFound) {
-			return links.ErrNotFound
-		}
+		l, err := links.ToChange(ctx, tx, linkID, scope)
 		if err != nil {
 			return err
-		}
-		if l.State == "deleted" {
-			return links.ErrDeleted
 		}
 		n, a := nullInt(networks), nullInt(apps)
 		var fields []string

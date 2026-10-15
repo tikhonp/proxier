@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/crypto/ssh"
 )
@@ -217,7 +218,7 @@ func TestRoutersListAndTargets(t *testing.T) {
 	_, home := h.Router("Home", 0)
 	_, parents := h.Router("Parents", 0, routingtest.ViaJump())
 	h.StartJobs()
-	if _, err := h.Mod.Routers.SyncNow(bg(), home, "admin"); err != nil {
+	if _, err := h.Mod.Routers.SyncNow(bg(), home, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -284,7 +285,7 @@ func TestRouterLifecyclePages(t *testing.T) {
 	unm.SeedUntagged("hand.example", false)
 	h.StartJobs()
 	for _, id := range []int64{home, drift, unmID, paused} {
-		if _, err := h.Mod.Routers.SyncNow(bg(), id, "admin"); err != nil {
+		if _, err := h.Mod.Routers.SyncNow(bg(), id, access.All, "admin"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -379,7 +380,7 @@ func TestAdoptAndRemovePages(t *testing.T) {
 	r, id := h.Router("Home", 0)
 	r.Seed("netflix", names("nf", 26)...)
 	r.Seed("my stuff", entries("stuff.example")...)
-	if _, err := h.Mod.Routers.SyncNow(bg(), id, "admin"); err != nil {
+	if _, err := h.Mod.Routers.SyncNow(bg(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -439,7 +440,7 @@ func TestPreviewWaitingBehindASyncSaysSo(t *testing.T) {
 	release := r.Hold(1)
 	h.StartJobs()
 	path := "/routing/routers/" + strconv.FormatInt(id, 10)
-	job, err := h.Mod.Routers.SyncNow(context.Background(), id, "admin")
+	job, err := h.Mod.Routers.SyncNow(context.Background(), id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

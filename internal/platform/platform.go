@@ -253,6 +253,9 @@ func (a *App) HTTP() *echo.Echo {
 		if n, ok := m.(module.SubjectNamer); ok {
 			pd.Namers = append(pd.Namers, n)
 		}
+		if o, ok := m.(module.SubjectOwner); ok {
+			pd.Owners = append(pd.Owners, o)
+		}
 	}
 	mustDeclareAreas(pd)
 	r.Shell = pages.Register(r, pd)

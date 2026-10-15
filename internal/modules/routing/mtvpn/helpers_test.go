@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
@@ -32,11 +33,11 @@ func today(h *routingtest.Harness) string {
 
 func preview(t *testing.T, h *routingtest.Harness, text string) mtvpn.Import {
 	t.Helper()
-	id, err := h.Mod.Import.Preview(bg(), text, "admin")
+	id, err := h.Mod.Import.Preview(bg(), 1, text, "admin")
 	if err != nil {
 		t.Fatalf("preview: %v", err)
 	}
-	im, err := h.Mod.Import.Get(bg(), id)
+	im, err := h.Mod.Import.Get(bg(), id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,12 +58,12 @@ func all(im mtvpn.Import) mtvpn.Choices {
 // run imports with the choices and waits for the job.
 func run(t *testing.T, h *routingtest.Harness, im mtvpn.Import, c mtvpn.Choices) mtvpn.Import {
 	t.Helper()
-	if _, err := h.Mod.Import.Run(bg(), im.ID, c, "admin"); err != nil {
+	if _, err := h.Mod.Import.Run(bg(), im.ID, access.All, c, "admin"); err != nil {
 		t.Fatalf("run: %v", err)
 	}
 	h.StartJobs()
 	h.Drain()
-	out, err := h.Mod.Import.Get(bg(), im.ID)
+	out, err := h.Mod.Import.Get(bg(), im.ID, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}

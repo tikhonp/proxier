@@ -12,31 +12,34 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
-// Add appends services to a list (in tag order, skipping those already in
-// it). A *GuardError writes nothing and records the refusal.
-func (s *Service) Add(ctx context.Context, id int64, serviceIDs []int64, actor string) error {
-	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error { return s.AddTx(ctx, tx, id, serviceIDs, actor) })
+// Add appends services to a list scope may change (in tag order, skipping
+// those already in it). A service must be one scope may use: shared, or a
+// custom one scope may change (else services.ErrNotFound). A *GuardError
+// writes nothing and records the refusal.
+func (s *Service) Add(ctx context.Context, id int64, scope access.Scope, serviceIDs []int64, actor string) error {
+	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error { return s.AddTx(ctx, tx, id, scope, serviceIDs, actor) })
 	s.Refused(ctx, err, actor)
 	return err
 }
 
 // AddTx is Add in the caller's transaction (Add service with lists,
 // discovery). The caller records a refusal after its transaction rolled back.
-func (s *Service) AddTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, actor string) error {
-	return s.addTx(ctx, tx, id, serviceIDs, true, actor)
+func (s *Service) AddTx(ctx context.Context, tx *sqlx.Tx, id int64, scope access.Scope, serviceIDs []int64, actor string) error {
+	return s.addTx(ctx, tx, id, scope, serviceIDs, true, actor)
 }
 
 // AppendTx is AddTx keeping the order of serviceIDs instead of sorting by
 // tag (the import adds in its preview's order).
-func (s *Service) AppendTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, actor string) error {
-	return s.addTx(ctx, tx, id, serviceIDs, false, actor)
+func (s *Service) AppendTx(ctx context.Context, tx *sqlx.Tx, id int64, scope access.Scope, serviceIDs []int64, actor string) error {
+	return s.addTx(ctx, tx, id, scope, serviceIDs, false, actor)
 }
 
-func (s *Service) addTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs []int64, byTag bool, actor string) error {
-	l, err := getList(ctx, tx, id)
+func (s *Service) addTx(ctx context.Context, tx *sqlx.Tx, id int64, scope access.Scope, serviceIDs []int64, byTag bool, actor string) error {
+	l, err := toChange(ctx, tx, id, scope)
 	if err != nil {
 		return err
 	}
@@ -54,7 +57,8 @@ func (s *Service) addTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs [
 			continue
 		}
 		in[sid] = true
-		svc, err := store.GetService(ctx, tx, sid)
+		// another member's custom service is private: not found
+		svc, err := store.GetService(ctx, tx, sid, scope.Writable())
 		if errors.Is(err, store.ErrNotFound) {
 			return services.ErrNotFound
 		}
@@ -99,13 +103,13 @@ func (s *Service) addTx(ctx context.Context, tx *sqlx.Tx, id int64, serviceIDs [
 }
 
 // Remove takes a service out of a list; the rest close up.
-func (s *Service) Remove(ctx context.Context, id, serviceID int64, actor string) error {
+func (s *Service) Remove(ctx context.Context, id int64, scope access.Scope, serviceID int64, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		l, err := getList(ctx, tx, id)
+		l, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
-		svc, err := store.GetService(ctx, tx, serviceID)
+		svc, err := store.GetService(ctx, tx, serviceID, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotMember
 		}
@@ -144,8 +148,8 @@ func ids(ms []store.Member) []int64 {
 // Move swaps a service with its neighbour below (down) or above; at an end
 // nothing changes and nothing is recorded. It returns the ownership before
 // and after, for the band.
-func (s *Service) Move(ctx context.Context, id, serviceID int64, down bool, actor string) (before, after own.Result, err error) {
-	return s.reorder(ctx, id, actor, func(cur []int64) ([]int64, error) {
+func (s *Service) Move(ctx context.Context, id int64, scope access.Scope, serviceID int64, down bool, actor string) (before, after own.Result, err error) {
+	return s.reorder(ctx, id, scope, actor, func(cur []int64) ([]int64, error) {
 		i := slices.Index(cur, serviceID)
 		if i < 0 {
 			return nil, ErrStaleOrder
@@ -164,8 +168,8 @@ func (s *Service) Move(ctx context.Context, id, serviceID int64, down bool, acto
 
 // SetOrder writes the whole order: a permutation of the members, else
 // ErrStaleOrder. With expect (Undo), the current order must be exactly that.
-func (s *Service) SetOrder(ctx context.Context, id int64, serviceIDs, expect []int64, actor string) (own.Result, own.Result, error) {
-	return s.reorder(ctx, id, actor, func(cur []int64) ([]int64, error) {
+func (s *Service) SetOrder(ctx context.Context, id int64, scope access.Scope, serviceIDs, expect []int64, actor string) (own.Result, own.Result, error) {
+	return s.reorder(ctx, id, scope, actor, func(cur []int64) ([]int64, error) {
 		if expect != nil && !slices.Equal(cur, expect) {
 			return nil, ErrStaleOrder
 		}
@@ -179,13 +183,13 @@ func (s *Service) SetOrder(ctx context.Context, id int64, serviceIDs, expect []i
 	})
 }
 
-func (s *Service) reorder(ctx context.Context, id int64, actor string, next func(cur []int64) ([]int64, error)) (before, after own.Result, err error) {
+func (s *Service) reorder(ctx context.Context, id int64, scope access.Scope, actor string, next func(cur []int64) ([]int64, error)) (before, after own.Result, err error) {
 	srv, err := s.servers(ctx)
 	if err != nil {
 		return before, after, err
 	}
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		l, err := getList(ctx, tx, id)
+		l, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}

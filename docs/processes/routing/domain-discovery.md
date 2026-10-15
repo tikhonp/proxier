@@ -58,6 +58,7 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 - Without Chromium configured, a run is the catalog lookup only, and the page explains that visits need a Chromium container where Proxier is deployed, in words, without an environment variable's name (the admin may be on a phone, far from the deployment).
 - Runs and their screenshots are kept 30 days.
 - One run at a time (queue concurrency 1). Others wait in the queue.
+- A run is its starter's. A custom service saved from it is the run's owner's, and saving needs a member who may change the run; **Visit again** starts a run of the member's own ([routing: owners](../../modules/routing.md#owners)).
 
 ## Edge cases (each is a test)
 
@@ -75,3 +76,4 @@ The admin types a website, and Proxier finds the domains it uses so they can be 
 - **Create custom service** with a ticked `tikhonnnnn.com` (covers a server hostname) → refused by the guard, naming the server.
 - Two runs started together → the second waits until the first finishes.
 - A run 31 days old → deleted with its screenshots.
+- Another member's run at `routing: own` → not found, and not among the recent runs; a Viewer saving from it → refused; its owner saving → the service is theirs.

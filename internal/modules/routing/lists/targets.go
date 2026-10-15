@@ -9,10 +9,11 @@ import (
 
 // Target is a router or a Shadowrocket config following a list.
 type Target struct {
-	Kind  string // router, shadowrocket
-	ID    int64
-	Name  string
-	State string // routers: their state; configs: enabled or disabled
+	Kind    string // router, shadowrocket
+	ID      int64
+	OwnerID int64 // a member: a list may have targets of other members
+	Name    string
+	State   string // routers: their state; configs: enabled or disabled
 	// LastFetch is a Shadowrocket config's last fetch; zero when it was never
 	// fetched, and for routers.
 	LastFetch time.Time
@@ -27,7 +28,7 @@ func (s *Service) Targets(ctx context.Context, id int64) ([]Target, error) {
 	}
 	out := make([]Target, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, Target{Kind: r.Kind, ID: r.ID, Name: r.Name, State: r.State, LastFetch: r.LastFetch.Time})
+		out = append(out, Target{Kind: r.Kind, ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, State: r.State, LastFetch: r.LastFetch.Time})
 	}
 	return out, nil
 }

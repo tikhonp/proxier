@@ -56,6 +56,7 @@ A service is a named set of domains from one source, and the unit that goes into
 - Upstream services never change between refreshes, except through **Refresh now** or **Switch source**. A custom service changes only when saved.
 - Removing a service from a list doesn't delete it. Deleting needs it out of every list.
 - Changing a service never touches a router directly: it marks the affected targets for sync.
+- A custom service is private to its owner: only they and `routing: manage_all` see it and change it. v2fly, iplist and URL services are shared: every routing member sees them and puts them in their lists, and adding, switching, refreshing, accepting or dismissing a snapshot and removing one need `manage_all` ([routing: owners](../../modules/routing.md#owners)).
 
 ## Edge cases (each is a test)
 
@@ -75,4 +76,7 @@ A service is a named set of domains from one source, and the unit that goes into
 - Rename custom tag `mine` to `personal` → routers drop `mine` and install `personal` on the next sync.
 - **Remove** a service that is in "Main" → refused until it is taken out of "Main".
 - **Switch source** of `iplist:apple` to `iplist:beta:apple` → allowed (same tag `apple`). The next snapshot comes from beta.
+- A member at `routing: own` opens another member's custom service, or lists the services → 404, and it isn't listed; the shared ones are.
+- A member at `routing: own` names a new custom service with the tag another member's private service has → "Another service has this tag.", naming neither.
+- A member at `routing: own` removes, refreshes or switches a shared service → 403; its page offers none of these. A member at `manage_all` refreshes it.
 - **Switch source** of `anthropic` to `iplist:claude.ai` → refused: that selector's tag is `claude.ai`. A switch keeps the tag, so it only accepts selectors with the same tag, such as `https://…/anthropic.txt` or `anthropic=https://…`.

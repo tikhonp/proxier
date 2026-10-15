@@ -26,7 +26,7 @@ func TestPublicFetch(t *testing.T) {
 	if len(rec.Result().Cookies()) != 0 {
 		t.Error("a public answer sets a cookie")
 	}
-	out, _ := h.Mod.Shadowrocket.Output(bg(), id)
+	out, _ := h.Mod.Shadowrocket.Output(bg(), id, access.All)
 	if string(out) != want {
 		t.Error("Output differs from what the phone gets")
 	}
@@ -36,7 +36,7 @@ func TestPublicFetch(t *testing.T) {
 	if err := h.App.DB.R.QueryRow(`SELECT ip, user_agent FROM routing_shadowrocket_fetches`).Scan(&f.IP, &f.UA); err != nil || f.IP != "198.51.100.23" || f.UA != phoneUA {
 		t.Errorf("fetch: %+v %v", f, err)
 	}
-	c, _ := h.Mod.Shadowrocket.Get(bg(), id)
+	c, _ := h.Mod.Shadowrocket.Get(bg(), id, access.All)
 	if c.LastFetchUA != phoneUA || !c.LastFetchAt.Equal(h.Now) {
 		t.Errorf("last fetch: %+v", c)
 	}
@@ -114,10 +114,10 @@ func TestTokenStaysOnItsPage(t *testing.T) {
 	token := strings.Split(p, "/")[2]
 	fetch(h, "GET", p)
 	fetch(h, "GET", "/r/"+token+"/wrong.conf")
-	if err := h.Mod.Shadowrocket.RegenerateToken(bg(), id, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.RegenerateToken(bg(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, false, "admin"); err != nil {
+	if err := h.Mod.Shadowrocket.SetEnabled(bg(), id, access.All, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	var payloads []string
@@ -145,7 +145,7 @@ func TestTokenStaysOnItsPage(t *testing.T) {
 			t.Errorf("%s holds a token", page)
 		}
 	}
-	hits, _ := h.Mod.Search(bg(), access.PresetOwner.Grant(), "iph", 10)
+	hits, _ := h.Mod.Search(bg(), routingtest.Owner, "iph", 10)
 	for _, hit := range hits {
 		if strings.Contains(hit.Href+hit.Meta, cur) {
 			t.Errorf("search hit holds the token: %+v", hit)

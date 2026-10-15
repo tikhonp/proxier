@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Ways to adopt an unmanaged tag.
@@ -35,13 +36,15 @@ func Adoptable(tag string) bool { return selector.ValidTag(tag) == nil }
 // catalog's v2fly or iplist selector, an existing service with the tag, or a
 // custom service made from the router's names) is added to the router's
 // list, past the guard, and a sync is queued at once, which records or
-// updates the tag.
-func (s *Service) Adopt(ctx context.Context, id int64, tag, how, actor string) (int64, error) {
-	rt, err := s.Get(ctx, id)
+// updates the tag. A custom service made here is the router's owner's; a
+// new v2fly or iplist service is shared, so only routing: manage_all adopts
+// that way.
+func (s *Service) Adopt(ctx context.Context, id int64, scope access.Scope, tag, how, actor string) (int64, error) {
+	rt, err := s.toChange(ctx, id, scope)
 	if err != nil {
 		return 0, err
 	}
-	u, err := s.UnmanagedOne(ctx, id, tag)
+	u, err := s.UnmanagedOne(ctx, id, scope, tag)
 	if err != nil {
 		return 0, err
 	}
@@ -56,7 +59,10 @@ func (s *Service) Adopt(ctx context.Context, id int64, tag, how, actor string) (
 		if i < 0 {
 			return 0, ErrNoOffer
 		}
-		if sid, err = s.d.Lists.AddNew(ctx, u.Catalog[i], lists, actor); err != nil {
+		if !scope.Writes(0) {
+			return 0, access.Forbidden(access.Routing)
+		}
+		if sid, err = s.d.Lists.AddNew(ctx, u.Catalog[i], lists, scope, actor); err != nil {
 			return 0, err
 		}
 	case AdoptExisting:
@@ -64,7 +70,7 @@ func (s *Service) Adopt(ctx context.Context, id int64, tag, how, actor string) (
 			return 0, ErrNoOffer
 		}
 		sid = u.Existing.ID
-		if err := s.d.Lists.Add(ctx, rt.ListID, []int64{sid}, actor); err != nil {
+		if err := s.d.Lists.Add(ctx, rt.ListID, scope, []int64{sid}, actor); err != nil {
 			return 0, err
 		}
 	case AdoptCustom:
@@ -86,10 +92,11 @@ func (s *Service) Adopt(ctx context.Context, id int64, tag, how, actor string) (
 		}
 		err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 			var err error
-			if sid, err = s.d.Services.CreateCustomTx(ctx, tx, services.Custom{Name: tag, Tag: tag, Origin: "router"}, set, actor); err != nil {
+			c := services.Custom{Name: tag, Tag: tag, Origin: "router", Owner: rt.OwnerID}
+			if sid, err = s.d.Services.CreateCustomTx(ctx, tx, c, set, actor); err != nil {
 				return err
 			}
-			return s.d.Lists.AddTx(ctx, tx, rt.ListID, []int64{sid}, actor)
+			return s.d.Lists.AddTx(ctx, tx, rt.ListID, scope, []int64{sid}, actor)
 		})
 		if err != nil {
 			s.d.Lists.Refused(ctx, err, actor)

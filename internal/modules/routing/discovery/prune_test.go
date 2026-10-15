@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -15,8 +16,8 @@ func TestOldRunsPruned(t *testing.T) {
 	for _, u := range []string{"https://old.example/", "https://new.example/"} {
 		b.Site(u, "", loaded(u, "", req(u, u[8:len(u)-1])))
 	}
-	old := wait(t, h, start(t, h, discovery.Start{Website: "old.example", Via: discovery.ViaDirect}), discovery.Done)
-	recent := wait(t, h, start(t, h, discovery.Start{Website: "new.example", Via: discovery.ViaDirect}), discovery.Done)
+	old := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "old.example", Via: discovery.ViaDirect}), discovery.Done)
+	recent := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "new.example", Via: discovery.ViaDirect}), discovery.Done)
 	dir := filepath.Join(h.App.Cfg.DataDir, "discovery")
 	for _, r := range []discovery.Run{old, recent} {
 		if len(r.Visits) != 1 || len(r.Visits[0].Screenshots) != 1 {
@@ -38,7 +39,7 @@ func TestOldRunsPruned(t *testing.T) {
 	if err := h.Mod.Prune(bg, nil); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Discovery.Get(bg, old.ID); err != discovery.ErrNotFound {
+	if _, err := h.Mod.Discovery.Get(bg, old.ID, access.All); err != discovery.ErrNotFound {
 		t.Errorf("the old run: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(dir, itoa(old.ID))); !os.IsNotExist(err) {
@@ -47,7 +48,7 @@ func TestOldRunsPruned(t *testing.T) {
 	if _, err := os.Stat(stray); !os.IsNotExist(err) {
 		t.Errorf("a directory without a run stayed: %v", err)
 	}
-	if r, err := h.Mod.Discovery.Get(bg, recent.ID); err != nil || len(r.Hosts) != 1 {
+	if r, err := h.Mod.Discovery.Get(bg, recent.ID, access.All); err != nil || len(r.Hosts) != 1 {
 		t.Errorf("the newer run: %+v %v", r, err)
 	}
 	if _, err := h.Mod.Discovery.Screenshot(recent.ID, recent.Visits[0].Screenshots[0]); err != nil {

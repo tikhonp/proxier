@@ -187,6 +187,7 @@ templ fetchArea(v fetchView) {
 			@fetchStateLine(v, false)
 			if v.Live {
 				@fetchURLBox(v)
+				if v.CanChange {
 				<div class="btns">
 					@ui.ActionButton(ui.Action{
 						ID: "rs.fetch_new", Label: "generations.fetch.new", Method: "POST", Small: true,
@@ -194,13 +195,16 @@ templ fetchArea(v fetchView) {
 						Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "generations.fetch.new.title"), Body: i18n.T(ctx, "generations.fetch.new.body")},
 					})
 				</div>
+				}
 			} else {
 				if !v.Expired {
 					<p class="subtle">{ i18n.T(ctx, "generations.fetch.what") }</p>
 				}
+				if v.CanChange {
 				<div class="btns">
 					@ui.ActionButton(ui.Action{ID: "rs.fetch_create", Label: "generations.fetch.create", Method: "POST", Href: GenerationHref(v.GID) + "/fetch-url", Kind: ui.Primary})
 				</div>
+				}
 			}
 		</div>
 	</section>

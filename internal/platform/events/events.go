@@ -50,6 +50,15 @@ func ActorMember(actor string) (int64, bool) {
 	return id, err == nil && id > 0
 }
 
+// MemberActors are every actor naming member id: member:<id>, and for
+// member 1 the old admin too.
+func MemberActors(id int64) []string {
+	if id == 1 {
+		return []string{MemberActor(id), legacyAdmin}
+	}
+	return []string{MemberActor(id)}
+}
+
 // JobActor is the actor of an event recorded by job id.
 func JobActor(id int64) string { return fmt.Sprintf("job:%d", id) }
 

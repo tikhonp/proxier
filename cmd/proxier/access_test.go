@@ -139,11 +139,13 @@ func TestEverySignedInRouteChecksAnArea(t *testing.T) {
 
 // A member at servers: view sees the list of servers in service and nothing
 // else of servers; one at routerscripts: own makes generations but doesn't
-// write or publish scripts.
+// write or publish scripts; one at routing: own changes no shared service
+// and imports nothing.
 func TestLowLevelsReachOnlyTheirRoutes(t *testing.T) {
 	s := sitetest.New(t, sitetest.Options{Modules: modules()})
 	nobody := s.Join("nobody", access.Grant{}, "")
-	low := s.Join("low", access.Grant{}.With(access.Servers, access.LevelView).With(access.RouterScripts, access.LevelOwn), "")
+	low := s.Join("low", access.Grant{}.With(access.Servers, access.LevelView).With(access.RouterScripts, access.LevelOwn).
+		With(access.Routing, access.LevelOwn), "")
 
 	reached := map[access.Area][]string{}
 	for _, r := range routes(t, s) {
@@ -155,7 +157,7 @@ func TestLowLevelsReachOnlyTheirRoutes(t *testing.T) {
 			continue // the walk above reports it
 		}
 		a := access.Area(m[1])
-		if a != access.Servers && a != access.RouterScripts {
+		if a != access.Servers && a != access.RouterScripts && a != access.Routing {
 			continue
 		}
 		if do(low, r).Code != http.StatusForbidden {
@@ -173,5 +175,14 @@ func TestLowLevelsReachOnlyTheirRoutes(t *testing.T) {
 	}
 	if len(reached[access.RouterScripts]) == 0 {
 		t.Error("routerscripts: own reaches nothing")
+	}
+	shared := regexp.MustCompile(`/routing/import|/routing/services/:id/(switch|refresh)|^POST /routing/services/:id/snapshots/|/routing/lists/:id/refresh|^POST /routing/catalog|^POST /routing/services$`)
+	for _, r := range reached[access.Routing] {
+		if shared.MatchString(r) {
+			t.Errorf("routing: own reaches %s, which needs manage_all", r)
+		}
+	}
+	if !slices.Contains(reached[access.Routing], "POST /routing/lists") {
+		t.Errorf("routing: own can't make a list: %v", reached[access.Routing])
 	}
 }

@@ -49,21 +49,24 @@ type histRow struct {
 type eventLine struct{ Time, Text string }
 
 type pageView struct {
-	It       services.Item
-	Custom   bool
-	State    string // ok, waiting, failing
-	Word     string
-	Refresh  string // "Refresh queued · job #123"
-	Rejected *rejectedView
-	Src      sourceView
-	Line     string // "v2fly:netflix · tag netflix · in no list"
-	Band     string // after add or save
-	Counts   string // "212 · 198 suffix, 14 exact · 3 skipped"
-	Domains  domainsView
-	Skipped  []skipRow
-	Dropped  []droppedView
-	History  []histRow
-	Activity []eventLine
+	It     services.Item
+	Custom bool
+	// CanChange: the member may change the service: their own custom one,
+	// or any with manage_all (shared services are everyone's).
+	CanChange bool
+	State     string // ok, waiting, failing
+	Word      string
+	Refresh   string // "Refresh queued · job #123"
+	Rejected  *rejectedView
+	Src       sourceView
+	Line      string // "v2fly:netflix · tag netflix · in no list"
+	Band      string // after add or save
+	Counts    string // "212 · 198 suffix, 14 exact · 3 skipped"
+	Domains   domainsView
+	Skipped   []skipRow
+	Dropped   []droppedView
+	History   []histRow
+	Activity  []eventLine
 }
 
 // droppedView is what a service lists but doesn't install in one list.
@@ -83,16 +86,17 @@ func (h *handler) page(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	lists, err := h.Services.ListsOf(ctx, it.ID)
+	lists, err := h.Services.ListsOf(ctx, it.ID, scope(ctx))
 	if err != nil {
 		return err
 	}
-	ms, err := h.Lists.Memberships(ctx, it.ID)
+	ms, err := h.Lists.Memberships(ctx, it.ID, scope(ctx))
 	if err != nil {
 		return err
 	}
-	v := pageView{It: it, Custom: it.Source == selector.Custom}
-	v.Line = sourceWord(ctx, it) + " · " + i18n.T(ctx, "services.tag_is", i18n.Args{"tag": it.Tag}) + " · " + inLists(ctx, lists)
+	v := pageView{It: it, Custom: it.Source == selector.Custom, CanChange: it.MayChange(scope(ctx))}
+	v.Line = sourceWord(ctx, it) + " · " + i18n.T(ctx, "services.tag_is", i18n.Args{"tag": it.Tag}) + " · " + inLists(ctx, lists) +
+		ownerNote(ctx, it.OwnerID)
 	switch {
 	case c.QueryParam("added") == "1":
 		v.Band = i18n.N(ctx, "services.added_band", int64(acc.Count()), i18n.Args{"tag": it.Tag})
@@ -123,6 +127,9 @@ func (h *handler) page(c *echo.Context) error {
 	if !v.Custom {
 		if v.Rejected, err = h.rejectedOf(ctx, it, acc); err != nil {
 			return err
+		}
+		if v.Rejected != nil {
+			v.Rejected.CanDecide = v.CanChange
 		}
 	}
 	v.Counts = loc.Number(int64(acc.Count())) + " · " + i18n.T(ctx, "services.counts", i18n.Args{
@@ -416,7 +423,7 @@ func (h *handler) switchPost(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	raw := strings.TrimSpace(c.FormValue("selector"))
-	err = h.Services.Switch(ctx, it.ID, raw, web.Actor(ctx))
+	err = h.Services.Switch(ctx, it.ID, scope(ctx), raw, web.Actor(ctx))
 	if errors.Is(err, services.ErrCustom) {
 		return echo.ErrNotFound
 	}
@@ -511,7 +518,7 @@ type removeView struct {
 type listLink struct{ Name, Href string }
 
 func (h *handler) removePage(c *echo.Context) error {
-	it, err := h.load(c)
+	it, err := h.loadToChange(c)
 	if err != nil {
 		return err
 	}
@@ -523,7 +530,7 @@ func (h *handler) removePage(c *echo.Context) error {
 }
 
 func (h *handler) listLinks(ctx context.Context, id int64) ([]listLink, error) {
-	ms, err := h.Lists.Memberships(ctx, id)
+	ms, err := h.Lists.Memberships(ctx, id, scope(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -540,12 +547,12 @@ func (h *handler) renderRemove(c *echo.Context, status int, v removeView) error 
 }
 
 func (h *handler) removePost(c *echo.Context) error {
-	it, err := h.load(c)
+	it, err := h.loadToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Services.Remove(ctx, it.ID, web.Actor(ctx))
+	err = h.Services.Remove(ctx, it.ID, scope(ctx), web.Actor(ctx))
 	var in *services.InListsError
 	if errors.As(err, &in) {
 		links, lerr := h.listLinks(ctx, it.ID)

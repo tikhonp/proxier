@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
 // Subscription is a row of subs_subscriptions.
 type Subscription struct {
 	ID             int64   `db:"id"`
+	OwnerID        int64   `db:"owner_id"`
 	Name           string  `db:"name"`
 	Title          string  `db:"title"`
 	Description    string  `db:"description"`
@@ -25,30 +27,30 @@ type Subscription struct {
 	CreatedAt      db.Time `db:"created_at"`
 }
 
-const subCols = `id, name, title, description, formats, default_format, update_hours, hide_unhealthy, hide_states,
+const subCols = `id, owner_id, name, title, description, formats, default_format, update_hours, hide_unhealthy, hide_states,
 	hide_grace_min, auto_add, auto_add_since, all_unhealthy_at, created_at`
 
-// InsertSubscription adds one with the table's defaults.
-func InsertSubscription(ctx context.Context, x sqlx.ExtContext, name, title, description string, at db.Time) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO subs_subscriptions (name, title, description, created_at) VALUES (?, ?, ?, ?)`,
-		name, title, description, at)
+// InsertSubscription adds one of owner with the table's defaults.
+func InsertSubscription(ctx context.Context, x sqlx.ExtContext, owner int64, name, title, description string, at db.Time) (int64, error) {
+	res, err := x.ExecContext(ctx, `INSERT INTO subs_subscriptions (owner_id, name, title, description, created_at) VALUES (?, ?, ?, ?, ?)`,
+		owner, name, title, description, at)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
 }
 
-// GetSubscription reads one by id.
-func GetSubscription(ctx context.Context, q sqlx.QueryerContext, id int64) (Subscription, error) {
+// GetSubscription reads one by id within scope.
+func GetSubscription(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Subscription, error) {
 	var s Subscription
-	err := sqlx.GetContext(ctx, q, &s, `SELECT `+subCols+` FROM subs_subscriptions WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &s, `SELECT `+subCols+` FROM subs_subscriptions WHERE id = ? AND ? IN (0, owner_id)`, id, scope)
 	return s, notFound(err)
 }
 
-// ListSubscriptions reads every subscription, by name.
-func ListSubscriptions(ctx context.Context, q sqlx.QueryerContext) ([]Subscription, error) {
+// ListSubscriptions reads every subscription within scope, by name.
+func ListSubscriptions(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) ([]Subscription, error) {
 	var out []Subscription
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+subCols+` FROM subs_subscriptions ORDER BY name, id`)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+subCols+` FROM subs_subscriptions WHERE ? IN (0, owner_id) ORDER BY name, id`, scope)
 	return out, err
 }
 

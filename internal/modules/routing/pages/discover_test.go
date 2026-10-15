@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery/discoverytest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
@@ -99,7 +100,7 @@ func TestDiscoverPages(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || !strings.Contains(rec.Header().Get("Location"), "/routing/services/") {
 		t.Fatalf("create: %d %s", rec.Code, rec.Body.String())
 	}
-	if it, err := h.Mod.Services.ByTag(bg(), "example-site"); err != nil || it.Origin != "discovery" {
+	if it, err := h.Mod.Services.ByTag(bg(), "example-site", access.All); err != nil || it.Origin != "discovery" {
 		t.Errorf("created: %+v %v", it, err)
 	}
 	rec = h.Login.Post(run+"/add", url.Values{"service": {i64s(ex)}, "host": {"static.example.com"}})

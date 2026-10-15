@@ -125,10 +125,10 @@ type IntegrationDeclarer interface {
 }
 
 // Searcher is a module whose things appear in the search pop-up's "Go to".
-// g is the searching member's grant; a hit names its area, and only those
-// of areas g sees are shown.
+// w is the searching member: a module finds only what w.Scope reads, and a
+// hit names its area, of which only those w's grant sees are shown.
 type Searcher interface {
-	Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error)
+	Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error)
 }
 
 // JobDeclarer is a module with job types and schedules (docs/processes/platform/jobs.md).
@@ -147,6 +147,12 @@ type SubjectNamer interface {
 	NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error)
 }
 
+// SubjectOwner is a module whose things have owners: it lists the subjects
+// of events and jobs a member owns, for Activity and Jobs at activity: own.
+type SubjectOwner interface {
+	OwnedSubjects(ctx context.Context, member int64) ([]events.Subject, error)
+}
+
 // NotificationRenderer writes the notification of the module's own event
 // types where the default text (notify.<type> with the payload's fields) is
 // not enough. ok=false leaves the event to the default. Title and Body are
@@ -157,6 +163,7 @@ type NotificationRenderer interface {
 
 // DashboardDeclarer is a module with areas on the dashboard: what needs
 // attention in it. An area that returns nothing to show returns no entry.
+// w is the member looking: an area shows only what w.Scope reads.
 type DashboardDeclarer interface {
-	Dashboard(ctx context.Context) ([]ui.DashboardArea, error)
+	Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardArea, error)
 }

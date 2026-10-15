@@ -35,7 +35,12 @@ func (h *handler) jobsCellView(c *echo.Context) templ.Component {
 	if m := web.FromContext(ctx).Member; m != nil {
 		seen, _ = h.Jobs.SeenAt(ctx, m.ID)
 	}
-	running, failed, err := h.Jobs.HeaderCounts(ctx, seen)
+	own, err := h.own(ctx)
+	if err != nil {
+		h.Log.Error("pages: jobs cell", "error", err)
+		return ui.JobsCell(ui.JobsCellView{})
+	}
+	running, failed, err := h.Jobs.HeaderCounts(ctx, seen, own)
 	if err != nil {
 		h.Log.Error("pages: jobs cell", "error", err)
 	}
@@ -182,6 +187,11 @@ func (h *handler) jobsPage(c *echo.Context) error {
 	if typ, id, ok := strings.Cut(f.Subject, ":"); ok {
 		filter.Subject = events.Subject{Type: typ, ID: id}
 	}
+	own, err := h.own(ctx)
+	if err != nil {
+		return err
+	}
+	filter.Own = own
 	list, err := h.Jobs.List(ctx, filter)
 	if err != nil {
 		return err
@@ -198,7 +208,7 @@ func (h *handler) jobsPage(c *echo.Context) error {
 	// and the header are taken first.
 	me := web.FromContext(ctx).Member.ID
 	seen, _ := h.Jobs.SeenAt(ctx, me)
-	running, failedSince, _ := h.Jobs.HeaderCounts(ctx, seen)
+	running, failedSince, _ := h.Jobs.HeaderCounts(ctx, seen, own)
 	if f.Before == 0 {
 		if err := h.Jobs.MarkSeen(ctx, me); err != nil {
 			h.Log.Error("pages: mark jobs seen", "error", err)
@@ -517,11 +527,24 @@ func (h *handler) loadJob(c *echo.Context) (jobs.Job, error) {
 	if err != nil {
 		return jobs.Job{}, err
 	}
-	j, err := h.Jobs.Job(c.Request().Context(), id)
+	ctx := c.Request().Context()
+	j, err := h.Jobs.Job(ctx, id)
 	if errors.Is(err, jobs.ErrNotFound) {
 		return jobs.Job{}, echo.ErrNotFound
 	}
-	return j, err
+	if err != nil {
+		return j, err
+	}
+	// At activity: own, another member's job is not found, so IDs don't
+	// tell what exists.
+	own, err := h.own(ctx)
+	if err != nil {
+		return j, err
+	}
+	if !own.Keeps(j.CreatedBy, j.Subject) {
+		return jobs.Job{}, echo.ErrNotFound
+	}
+	return j, nil
 }
 
 func (h *handler) jobPage(c *echo.Context) error {
@@ -587,16 +610,13 @@ func jobArea(typ string) access.Area {
 
 // mayChangeJob refuses Cancel and Retry to a member who sees the job on the
 // Jobs page but can't change its area.
-func (h *handler) mayChangeJob(c *echo.Context, id int64) error {
-	j, err := h.Jobs.Job(c.Request().Context(), id)
-	if errors.Is(err, jobs.ErrNotFound) {
-		return echo.ErrNotFound
-	}
+func (h *handler) mayChangeJob(c *echo.Context) error {
+	j, err := h.loadJob(c)
 	if err != nil {
 		return err
 	}
 	if a := jobArea(j.Type); !web.Can(c.Request().Context(), a, a.ManageLevel()) {
-		return web.Forbidden(a)
+		return access.Forbidden(a)
 	}
 	return nil
 }
@@ -606,7 +626,7 @@ func (h *handler) jobCancel(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.mayChangeJob(c, id); err != nil {
+	if err := h.mayChangeJob(c); err != nil {
 		return err
 	}
 	if err := h.Jobs.Cancel(c.Request().Context(), id, web.Actor(c.Request().Context())); err != nil {
@@ -628,7 +648,7 @@ func (h *handler) jobRetry(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if err := h.mayChangeJob(c, id); err != nil {
+	if err := h.mayChangeJob(c); err != nil {
 		return err
 	}
 	j, err := h.Jobs.Job(ctx, id)

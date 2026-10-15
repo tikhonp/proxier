@@ -39,7 +39,7 @@ func (h *handler) search(c *echo.Context) error {
 	}
 	if q != "" {
 		for _, s := range h.Searchers {
-			found, err := s.Search(ctx, g, q, searchLimit)
+			found, err := s.Search(ctx, web.Who(ctx), q, searchLimit)
 			if err != nil {
 				h.Log.Warn("search", "error", err)
 				continue

@@ -22,6 +22,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -44,6 +45,7 @@ const (
 // Link is a link without its token.
 type Link struct {
 	ID             int64
+	OwnerID        int64 // a member
 	SubscriptionID int64 // 0 only for a deleted link whose tombstone ended before its subscription was deleted
 	Name, Note     string
 	State          string    // active, disabled, deleted
@@ -76,7 +78,7 @@ func (l Link) TombstoneEnds(period time.Duration) time.Time { return l.DeletedAt
 
 func fromRow(r store.Link) Link {
 	return Link{
-		ID: r.ID, SubscriptionID: r.SubscriptionID.Int64, Name: r.Name, Note: r.Note, State: r.State,
+		ID: r.ID, OwnerID: r.OwnerID, SubscriptionID: r.SubscriptionID.Int64, Name: r.Name, Note: r.Note, State: r.State,
 		Expires: r.ExpiresAt.Time, Lang: i18n.Lang(r.Language), Format: r.Format.String,
 		AlertNetworks: int(r.AlertNetworks.Int64), AlertApps: int(r.AlertApps.Int64), AlertsMuted: r.AlertsMuted,
 		AlertedAt: r.AlertedAt.Time, CreatedAt: r.CreatedAt.Time, DisabledAt: r.DisabledAt.Time,
@@ -219,13 +221,13 @@ func (s *Service) nameTaken(ctx context.Context, tx *sqlx.Tx, fe store.FieldErro
 	return err
 }
 
-// Create adds an active link with a new token. Errors are store.FieldErrors
-// (nothing created).
-func (s *Service) Create(ctx context.Context, n New, actor string) (int64, error) {
+// Create adds an active link of w with a new token, in a subscription w may
+// change. Errors are store.FieldErrors (nothing created).
+func (s *Service) Create(ctx context.Context, w access.Who, n New, actor string) (int64, error) {
 	var id int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		id, _, err = s.CreateTx(ctx, tx, n, actor)
+		id, _, err = s.CreateTx(ctx, tx, w, n, actor)
 		return err
 	})
 	return id, err
@@ -234,14 +236,14 @@ func (s *Service) Create(ctx context.Context, n New, actor string) (int64, error
 // CreateTx is Create inside the caller's transaction (router scripts' link
 // issuer): the new link's id and token. Its field errors come before
 // anything is written.
-func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string) (int64, string, error) {
+func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, w access.Who, n New, actor string) (int64, string, error) {
 	n.Name, n.Note = strings.TrimSpace(n.Name), strings.TrimSpace(n.Note)
 	fe := store.FieldErrors{}
 	checkFields(fe, n.Name, n.Note, n.Lang)
 	if !n.Expires.IsZero() && !n.Expires.After(s.d.Now()) {
 		fe["expiry"] = "links.err.expiry_past"
 	}
-	sub, err := store.GetSubscription(ctx, tx, n.SubscriptionID)
+	sub, err := store.GetSubscription(ctx, tx, n.SubscriptionID, w.Scope(access.Subscriptions).Writable())
 	if errors.Is(err, store.ErrNotFound) {
 		fe["subscription"] = "links.err.subscription"
 	} else if err != nil {
@@ -256,7 +258,7 @@ func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string
 	token := vault.NewToken()
 	lookup := s.d.Vault.Lookup(token)
 	row := store.Link{
-		SubscriptionID: sql.NullInt64{Int64: n.SubscriptionID, Valid: true}, Name: n.Name, Note: n.Note,
+		OwnerID: w.Member, SubscriptionID: sql.NullInt64{Int64: n.SubscriptionID, Valid: true}, Name: n.Name, Note: n.Note,
 		ExpiresAt: db.At(n.Expires), Language: string(n.Lang), CreatedAt: s.now(),
 	}
 	if n.Expires.IsZero() {
@@ -278,9 +280,9 @@ func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string
 	return id, token, nil
 }
 
-// Get reads one link.
-func (s *Service) Get(ctx context.Context, id int64) (Link, error) {
-	r, err := store.GetLink(ctx, s.d.DB.R, id)
+// Get reads one link within scope.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Link, error) {
+	r, err := store.GetLink(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Link{}, ErrNotFound
 	}
@@ -301,8 +303,8 @@ func (s *Service) ByToken(ctx context.Context, token string) (Link, bool, error)
 }
 
 // Token opens a link's token. A deleted link has none to show (ErrDeleted).
-func (s *Service) Token(ctx context.Context, id int64) (string, error) {
-	l, err := s.Get(ctx, id)
+func (s *Service) Token(ctx context.Context, id int64, scope access.Scope) (string, error) {
+	l, err := s.Get(ctx, id, scope)
 	if err != nil {
 		return "", err
 	}
@@ -316,26 +318,40 @@ func (s *Service) Token(ctx context.Context, id int64) (string, error) {
 	return s.d.Vault.OpenString(blob, tokenAAD(id))
 }
 
-// change runs fn on a live link inside one transaction.
-func (s *Service) change(ctx context.Context, id int64, fn func(tx *sqlx.Tx, l store.Link) error) error {
+// ToChange loads a live link to change it: ErrNotFound outside what scope
+// reads, so IDs don't tell what exists, Forbidden for one it reads but may
+// not change, ErrDeleted for a tombstone.
+func ToChange(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (store.Link, error) {
+	l, err := store.GetLink(ctx, q, id, scope)
+	if errors.Is(err, store.ErrNotFound) {
+		return l, ErrNotFound
+	}
+	if err != nil {
+		return l, err
+	}
+	if !scope.Writes(l.OwnerID) {
+		return l, access.Forbidden(access.Subscriptions)
+	}
+	if l.State == "deleted" {
+		return l, ErrDeleted
+	}
+	return l, nil
+}
+
+// change runs fn on a live link scope may change inside one transaction.
+func (s *Service) change(ctx context.Context, id int64, scope access.Scope, fn func(tx *sqlx.Tx, l store.Link) error) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		l, err := store.GetLink(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		l, err := ToChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
-		}
-		if l.State == "deleted" {
-			return ErrDeleted
 		}
 		return fn(tx, l)
 	})
 }
 
 // Disable makes the link serve its "disabled" stub; a disabled one stays as it is.
-func (s *Service) Disable(ctx context.Context, id int64, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+func (s *Service) Disable(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if l.State == "disabled" {
 			return nil
 		}
@@ -347,8 +363,8 @@ func (s *Service) Disable(ctx context.Context, id int64, actor string) error {
 }
 
 // Enable brings the real output back on the next fetch.
-func (s *Service) Enable(ctx context.Context, id int64, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+func (s *Service) Enable(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if l.State == "active" {
 			return nil
 		}
@@ -360,9 +376,9 @@ func (s *Service) Enable(ctx context.Context, id int64, actor string) error {
 }
 
 // RegenerateToken gives the link a new URL; the old one answers 404 at once.
-func (s *Service) RegenerateToken(ctx context.Context, id int64, actor string) error {
+func (s *Service) RegenerateToken(ctx context.Context, id int64, scope access.Scope, actor string) error {
 	token := vault.NewToken()
-	return s.change(ctx, id, func(tx *sqlx.Tx, _ store.Link) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, _ store.Link) error {
 		if err := store.SetToken(ctx, tx, id, s.d.Vault.SealString(token, tokenAAD(id)), s.d.Vault.Lookup(token)); err != nil {
 			return err
 		}
@@ -372,21 +388,22 @@ func (s *Service) RegenerateToken(ctx context.Context, id int64, actor string) e
 
 // ChangeSubscription points the link at another subscription
 // (subs.ErrNotFound when there is none).
-func (s *Service) ChangeSubscription(ctx context.Context, id, subscriptionID int64, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+func (s *Service) ChangeSubscription(ctx context.Context, id int64, scope access.Scope, subscriptionID int64, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if l.SubscriptionID.Int64 == subscriptionID {
 			return nil
 		}
-		return s.move(ctx, tx, l, subscriptionID, actor)
+		return s.move(ctx, tx, l, subscriptionID, scope, actor)
 	})
 }
 
-func (s *Service) move(ctx context.Context, tx *sqlx.Tx, l store.Link, to int64, actor string) error {
-	from, err := store.GetSubscription(ctx, tx, l.SubscriptionID.Int64)
+// move points l at to, a subscription scope may change.
+func (s *Service) move(ctx context.Context, tx *sqlx.Tx, l store.Link, to int64, scope access.Scope, actor string) error {
+	from, err := store.GetSubscription(ctx, tx, l.SubscriptionID.Int64, access.All)
 	if err != nil {
 		return err
 	}
-	next, err := store.GetSubscription(ctx, tx, to)
+	next, err := store.GetSubscription(ctx, tx, to, scope.Writable())
 	if errors.Is(err, store.ErrNotFound) {
 		return subs.ErrNotFound
 	}
@@ -399,20 +416,23 @@ func (s *Service) move(ctx context.Context, tx *sqlx.Tx, l store.Link, to int64,
 	return s.record(ctx, tx, "link.subscription_changed", l.ID, actor, map[string]any{"from": from.Name, "to": next.Name})
 }
 
-// MoveAll moves every live link of fromSub to toSub, one event each.
+// MoveAll moves every live link of fromSub that scope may change to toSub,
+// one event each. Both subscriptions must be ones scope may change.
 // Tombstones stay where they are.
-func (s *Service) MoveAll(ctx context.Context, fromSub, toSub int64, actor string) (int, error) {
+func (s *Service) MoveAll(ctx context.Context, fromSub, toSub int64, scope access.Scope, actor string) (int, error) {
 	if fromSub == toSub {
 		return 0, subs.ErrNotFound
 	}
 	moved := 0
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := store.GetSubscription(ctx, tx, toSub); errors.Is(err, store.ErrNotFound) {
-			return subs.ErrNotFound
-		} else if err != nil {
-			return err
+		for _, id := range []int64{fromSub, toSub} {
+			if _, err := store.GetSubscription(ctx, tx, id, scope.Writable()); errors.Is(err, store.ErrNotFound) {
+				return subs.ErrNotFound
+			} else if err != nil {
+				return err
+			}
 		}
-		list, err := store.LinksOfSubscription(ctx, tx, fromSub)
+		list, err := store.LinksOfSubscription(ctx, tx, fromSub, scope.Writable())
 		if err != nil {
 			return err
 		}
@@ -420,7 +440,7 @@ func (s *Service) MoveAll(ctx context.Context, fromSub, toSub int64, actor strin
 			if l.State == "deleted" {
 				continue
 			}
-			if err := s.move(ctx, tx, l, toSub, actor); err != nil {
+			if err := s.move(ctx, tx, l, toSub, scope, actor); err != nil {
 				return err
 			}
 			moved++
@@ -432,7 +452,7 @@ func (s *Service) MoveAll(ctx context.Context, fromSub, toSub int64, actor strin
 
 // SetExpiry sets, extends or clears (zero) the expiry. Any change re-arms the
 // expiry warning and the expired notification.
-func (s *Service) SetExpiry(ctx context.Context, id int64, expires time.Time, actor string) error {
+func (s *Service) SetExpiry(ctx context.Context, id int64, scope access.Scope, expires time.Time, actor string) error {
 	if !expires.IsZero() && !expires.After(s.d.Now()) {
 		return store.FieldErrors{"expiry": "links.err.expiry_past"}
 	}
@@ -440,7 +460,7 @@ func (s *Service) SetExpiry(ctx context.Context, id int64, expires time.Time, ac
 	if !expires.IsZero() {
 		next = db.At(expires)
 	}
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if l.ExpiresAt.Equal(next.Time) {
 			return nil
 		}
@@ -453,16 +473,16 @@ func (s *Service) SetExpiry(ctx context.Context, id int64, expires time.Time, ac
 
 // Edit saves the name, note, language and format override; link.changed
 // names the fields that changed. Errors are store.FieldErrors.
-func (s *Service) Edit(ctx context.Context, id int64, e Edit, actor string) error {
+func (s *Service) Edit(ctx context.Context, id int64, scope access.Scope, e Edit, actor string) error {
 	e.Name, e.Note = strings.TrimSpace(e.Name), strings.TrimSpace(e.Note)
 	fe := store.FieldErrors{}
 	checkFields(fe, e.Name, e.Note, e.Lang)
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if err := s.nameTaken(ctx, tx, fe, e.Name, id); err != nil {
 			return err
 		}
 		if e.Format != "" {
-			sub, err := store.GetSubscription(ctx, tx, l.SubscriptionID.Int64)
+			sub, err := store.GetSubscription(ctx, tx, l.SubscriptionID.Int64, access.All)
 			if err != nil {
 				return err
 			}
@@ -503,8 +523,8 @@ func (s *Service) Edit(ctx context.Context, id int64, e Edit, actor string) erro
 
 // Delete makes the link a tombstone: it leaves the lists and serves "Link
 // removed" until subscriptions.tombstone has passed, then 404.
-func (s *Service) Delete(ctx context.Context, id int64, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, l store.Link) error {
+func (s *Service) Delete(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if err := store.SetLinkState(ctx, tx, id, "deleted", l.DisabledAt, s.now()); err != nil {
 			return err
 		}
@@ -512,9 +532,10 @@ func (s *Service) Delete(ctx context.Context, id int64, actor string) error {
 	})
 }
 
-// OfSubscription are the links of a subscription that aren't deleted, by name.
-func (s *Service) OfSubscription(ctx context.Context, subID int64) ([]Link, error) {
-	list, err := store.LinksOfSubscription(ctx, s.d.DB.R, subID)
+// OfSubscription are the links of a subscription within scope that aren't
+// deleted, by name.
+func (s *Service) OfSubscription(ctx context.Context, subID int64, scope access.Scope) ([]Link, error) {
+	list, err := store.LinksOfSubscription(ctx, s.d.DB.R, subID, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -567,14 +588,15 @@ func (f Filter) keeps(l Link, now time.Time) bool {
 	return true
 }
 
-// List is the links the filter keeps, by last fetch (newest first, never
-// fetched last), then by name.
-func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
-	all, err := store.ListLinks(ctx, s.d.DB.R)
+// List is the links within scope the filter keeps, by last fetch (newest
+// first, never fetched last), then by name. A link's subscription is named
+// even when it is another member's.
+func (s *Service) List(ctx context.Context, scope access.Scope, f Filter) ([]Row, error) {
+	all, err := store.ListLinks(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
-	subList, err := store.ListSubscriptions(ctx, s.d.DB.R)
+	subList, err := store.ListSubscriptions(ctx, s.d.DB.R, access.All)
 	if err != nil {
 		return nil, err
 	}

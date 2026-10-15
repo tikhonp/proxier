@@ -7,6 +7,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sshx"
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 	"golang.org/x/crypto/ssh"
@@ -16,7 +17,7 @@ import (
 func runTest(t *testing.T, h *routingtest.Harness, routerID int64, c routers.Connection) routers.Test {
 	t.Helper()
 	h.StartJobs()
-	id, err := h.Mod.Routers.StartTest(bg, routerID, c, "admin")
+	id, err := h.Mod.Routers.StartTest(bg, routerID, routingtest.Owner, c, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -26,7 +27,7 @@ func runTest(t *testing.T, h *routingtest.Harness, routerID int64, c routers.Con
 
 func mustTest(t *testing.T, h *routingtest.Harness, id int64) routers.Test {
 	t.Helper()
-	tt, err := h.Mod.Routers.Test(bg, id)
+	tt, err := h.Mod.Routers.Test(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +36,7 @@ func mustTest(t *testing.T, h *routingtest.Harness, id int64) routers.Test {
 
 func confirm(t *testing.T, h *routingtest.Harness, id int64) routers.Test {
 	t.Helper()
-	next, err := h.Mod.Routers.Confirm(bg, id, true, "admin")
+	next, err := h.Mod.Routers.Confirm(bg, id, routingtest.Owner, true, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestAddRouterBehindJumpHost(t *testing.T) {
 		t.Fatalf("pinned: %+v", hosts)
 	}
 
-	id, err := h.Mod.Routers.Create(bg, "Parents", mainList(t, h), c, third.ID, "admin")
+	id, err := h.Mod.Routers.Create(bg, routingtest.Owner, "Parents", mainList(t, h), c, third.ID, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +130,7 @@ func TestDeclineFingerprintPinsNothing(t *testing.T) {
 	if first.State != routers.TestConfirm {
 		t.Fatalf("test: %+v", first)
 	}
-	if n, err := h.Mod.Routers.Confirm(bg, first.ID, false, "admin"); err != nil || n != 0 {
+	if n, err := h.Mod.Routers.Confirm(bg, first.ID, routingtest.Owner, false, "admin"); err != nil || n != 0 {
 		t.Fatalf("stop: %d %v", n, err)
 	}
 	got := mustTest(t, h, first.ID)
@@ -139,7 +140,7 @@ func TestDeclineFingerprintPinsNothing(t *testing.T) {
 	if len(knownHosts(t, h)) != 0 || len(h.Events("ssh.host_key_pinned")) != 0 {
 		t.Fatal("nothing pinned")
 	}
-	if _, err := h.Mod.Routers.Confirm(bg, first.ID, true, "admin"); err == nil {
+	if _, err := h.Mod.Routers.Confirm(bg, first.ID, routingtest.Owner, true, "admin"); err == nil {
 		t.Fatal("a stopped test can't be confirmed")
 	}
 }
@@ -161,7 +162,7 @@ func TestMissingForwarderWarns(t *testing.T) {
 	if warn.Name != routers.CheckForwarder || warn.Detail != "This router doesn't look set up by the router script: no DoH forwarder vpn-doh." {
 		t.Fatalf("warning: %+v", got.Checks)
 	}
-	id, err := h.Mod.Routers.Create(bg, "Home", mainList(t, h), c, got.ID, "admin")
+	id, err := h.Mod.Routers.Create(bg, routingtest.Owner, "Home", mainList(t, h), c, got.ID, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -174,7 +175,7 @@ func TestSaveUntestedWaitsForTest(t *testing.T) {
 	h := routingtest.New(t)
 	main := mainList(t, h)
 	_, _, c := fakes(t, h, false)
-	id, err := h.Mod.Routers.Create(bg, "Home", main, c, 0, "admin")
+	id, err := h.Mod.Routers.Create(bg, routingtest.Owner, "Home", main, c, 0, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -182,7 +183,7 @@ func TestSaveUntestedWaitsForTest(t *testing.T) {
 	other := c
 	other.Names.List = "other_list"
 	tested := runTest(t, h, 0, other)
-	id2, err := h.Mod.Routers.Create(bg, "Home 2", main, c, tested.ID, "admin")
+	id2, err := h.Mod.Routers.Create(bg, routingtest.Owner, "Home 2", main, c, tested.ID, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

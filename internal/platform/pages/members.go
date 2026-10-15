@@ -137,7 +137,7 @@ func (h *handler) memberAdd(c *echo.Context) error {
 	case overreachErrs(err) != nil:
 		v.Err, v.Access.Errs = "members.err.above", overreachErrs(err)
 	case errors.Is(err, auth.ErrNotAllowed):
-		return web.Forbidden(access.Settings)
+		return access.Forbidden(access.Settings)
 	default:
 		return err
 	}
@@ -243,7 +243,7 @@ func (h *handler) memberAccess(c *echo.Context) error {
 	case overreachErrs(err) != nil:
 		v.Err, v.Access.Errs = "members.err.above", overreachErrs(err)
 	case errors.Is(err, auth.ErrNotAllowed):
-		return web.Forbidden(access.Settings)
+		return access.Forbidden(access.Settings)
 	default:
 		return err
 	}
@@ -268,7 +268,7 @@ func (h *handler) memberSetupLink(c *echo.Context) error {
 	case errors.Is(err, auth.ErrAlreadySetUp):
 		return web.Redirect(c, memberHref(id))
 	case errors.Is(err, auth.ErrNotAllowed):
-		return web.Forbidden(access.Settings)
+		return access.Forbidden(access.Settings)
 	default:
 		return err
 	}
@@ -291,7 +291,7 @@ func (h *handler) memberRemove(c *echo.Context) error {
 	case errors.Is(err, auth.ErrLastSettingsManager):
 		return h.renderMember(c, http.StatusConflict, memberView{Err: "members.err.last_remove"}, nil)
 	case errors.Is(err, auth.ErrNotAllowed):
-		return web.Forbidden(access.Settings)
+		return access.Forbidden(access.Settings)
 	}
 	return err
 }

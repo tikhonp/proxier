@@ -8,6 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
@@ -23,16 +24,20 @@ type Choices struct {
 
 // Run saves the choices and queues the import job. Errors are
 // store.FieldErrors (list, config_name, config_list), ErrNotFound or
-// ErrNotPreview (it ran already).
-func (s *Service) Run(ctx context.Context, id int64, c Choices, actor string) (int64, error) {
+// ErrNotPreview (it ran already). The import must be one scope may change,
+// and its lists ones scope may change.
+func (s *Service) Run(ctx context.Context, id int64, scope access.Scope, c Choices, actor string) (int64, error) {
 	var jobID int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		r, err := store.GetImport(ctx, tx, id)
+		r, err := store.GetImport(ctx, tx, id, scope)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
+		}
+		if !scope.Writes(r.OwnerID) {
+			return access.Forbidden(access.Routing)
 		}
 		if r.State != "preview" {
 			return ErrNotPreview
@@ -42,7 +47,7 @@ func (s *Service) Run(ctx context.Context, id int64, c Choices, actor string) (i
 			return err
 		}
 		fe := store.FieldErrors{}
-		if _, err := store.GetList(ctx, tx, c.ListID); errors.Is(err, store.ErrNotFound) {
+		if _, err := store.GetList(ctx, tx, c.ListID, scope.Writable()); errors.Is(err, store.ErrNotFound) {
 			fe["list"] = "mtvpn.err.list"
 		} else if err != nil {
 			return err
@@ -60,7 +65,7 @@ func (s *Service) Run(ctx context.Context, id int64, c Choices, actor string) (i
 				return err
 			}
 			sr.ListID = c.ConfigList
-			if _, err := store.GetList(ctx, tx, c.ConfigList); errors.Is(err, store.ErrNotFound) {
+			if _, err := store.GetList(ctx, tx, c.ConfigList, scope.Writable()); errors.Is(err, store.ErrNotFound) {
 				fe["config_list"] = "mtvpn.err.list"
 			} else if err != nil {
 				return err

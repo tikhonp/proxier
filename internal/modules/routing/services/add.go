@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Prepared is a parsed and resolved new upstream service, not yet written.
@@ -91,7 +92,7 @@ func (s *Service) Add(ctx context.Context, raw string, actor string) (int64, err
 
 // tagFree is a *TagTakenError when a service has the tag.
 func (s *Service) tagFree(ctx context.Context, q sqlx.QueryerContext, tag string) error {
-	ex, err := store.ServiceByTag(ctx, q, tag)
+	ex, err := store.ServiceByTag(ctx, q, tag, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	}
@@ -118,13 +119,14 @@ func (s *Service) resolve(ctx context.Context, sel selector.Selector) (sources.R
 }
 
 // Switch gives an upstream service another selector with the same tag. Its
-// snapshot is accepted at once, without the safety checks: the admin chose
-// the source.
-func (s *Service) Switch(ctx context.Context, id int64, raw string, actor string) error {
-	it, err := s.Get(ctx, id)
+// snapshot is accepted at once, without the safety checks: the member chose
+// the source. A shared service changes only with routing: manage_all.
+func (s *Service) Switch(ctx context.Context, id int64, scope access.Scope, raw string, actor string) error {
+	r, err := toChange(ctx, s.d.DB.R, id, scope)
 	if err != nil {
 		return err
 	}
+	it := item(r)
 	if it.Source == selector.Custom {
 		return ErrCustom
 	}
@@ -150,10 +152,7 @@ func (s *Service) Switch(ctx context.Context, id int64, raw string, actor string
 		return nil
 	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetService(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		cur, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/a-h/templ"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
@@ -22,6 +23,7 @@ var servicesFilterAll = services.Filter{}
 
 type memberRow struct {
 	ID           int64
+	Href         string // "" for another member's custom service: private
 	Pos          int
 	Tag, Sub     string
 	Owned, Total string
@@ -40,12 +42,15 @@ type undoView struct {
 }
 
 type membersView struct {
-	ListID   int64
-	Name     string
-	Rows     []memberRow
-	OrderCSV string
-	Stale    bool
-	Undo     *undoView
+	// CanChange: the member may change the list (theirs, or manage_all); a
+	// reader sees no controls.
+	CanChange bool
+	ListID    int64
+	Name      string
+	Rows      []memberRow
+	OrderCSV  string
+	Stale     bool
+	Undo      *undoView
 }
 
 type warnView struct {
@@ -53,13 +58,22 @@ type warnView struct {
 }
 
 type listPageView struct {
-	L        lists.List
-	Line     string
-	Band     string
-	Members  membersView
-	Targets  []targetView
-	Warnings []warnView
-	Activity []eventLine
+	WritesAll bool // manage_all: refresh all, make default
+	L         lists.List
+	Line      string
+	Band      string
+	Members   membersView
+	Targets   []targetView
+	Warnings  []warnView
+	Activity  []eventLine
+}
+
+// rowHref is a row's data-href, none for a row that opens nothing.
+func rowHref(href string) templ.Attributes {
+	if href == "" {
+		return templ.Attributes{}
+	}
+	return templ.Attributes{"data-href": href}
 }
 
 func csv(ids []int64) string {
@@ -88,7 +102,8 @@ func parseCSV(s string) ([]int64, bool) {
 // membersView is the Services area of a view, the cursor on moved (0: none).
 func membersOf(ctx context.Context, v lists.View, moved int64, states map[int64]string) membersView {
 	loc := i18n.From(ctx)
-	mv := membersView{ListID: v.List.ID, Name: v.List.Name}
+	mv := membersView{ListID: v.List.ID, Name: v.List.Name, CanChange: scope(ctx).Writes(v.List.OwnerID)}
+	sees := scope(ctx).Writable()
 	var ids []int64
 	for i, m := range v.Members {
 		r := memberRow{
@@ -99,6 +114,9 @@ func membersOf(ctx context.Context, v lists.View, moved int64, states map[int64]
 		}
 		if m.Service.Source != selector.Custom {
 			r.Sub = m.Service.Selector
+		}
+		if m.Service.OwnerID == 0 || sees.Reads(m.Service.OwnerID) {
+			r.Href = svcHref(m.Service.ID)
 		}
 		mv.Rows = append(mv.Rows, r)
 		ids = append(ids, m.Service.ID)
@@ -122,8 +140,8 @@ func (h *handler) listPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v := listPageView{L: l, Members: membersOf(ctx, view, 0, states)}
-	v.Line = loc.N("lists.services_n", int64(len(view.Members))) + " · " + loc.N("lists.domains_n", int64(view.Result.Count()))
+	v := listPageView{L: l, Members: membersOf(ctx, view, 0, states), WritesAll: writesAll(ctx)}
+	v.Line = loc.N("lists.services_n", int64(len(view.Members))) + " · " + loc.N("lists.domains_n", int64(view.Result.Count())) + ownerNote(ctx, l.OwnerID)
 	if l.Default {
 		v.Line += " · " + i18n.T(ctx, "lists.default_line")
 	}
@@ -215,7 +233,7 @@ func serviceParam(c *echo.Context) (int64, error) {
 }
 
 func (h *handler) removeFromList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -223,7 +241,7 @@ func (h *handler) removeFromList(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Lists.Remove(c.Request().Context(), l.ID, sid, web.Actor(c.Request().Context()))
+	err = h.Lists.Remove(c.Request().Context(), l.ID, scope(c.Request().Context()), sid, web.Actor(c.Request().Context()))
 	if errors.Is(err, lists.ErrNotMember) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}
@@ -234,7 +252,7 @@ func (h *handler) removeFromList(c *echo.Context) error {
 }
 
 func (h *handler) moveInList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -243,7 +261,7 @@ func (h *handler) moveInList(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	before, after, err := h.Lists.Move(ctx, l.ID, sid, c.FormValue("dir") == "down", web.Actor(ctx))
+	before, after, err := h.Lists.Move(ctx, l.ID, scope(ctx), sid, c.FormValue("dir") == "down", web.Actor(ctx))
 	if errors.Is(err, lists.ErrStaleOrder) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}
@@ -258,7 +276,7 @@ func (h *handler) moveInList(c *echo.Context) error {
 }
 
 func (h *handler) orderList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -273,7 +291,7 @@ func (h *handler) orderList(c *echo.Context) error {
 			return h.answerMembers(c, l, 0, true, nil)
 		}
 	}
-	before, after, err := h.Lists.SetOrder(ctx, l.ID, ids, expect, web.Actor(ctx))
+	before, after, err := h.Lists.SetOrder(ctx, l.ID, scope(ctx), ids, expect, web.Actor(ctx))
 	if errors.Is(err, lists.ErrStaleOrder) {
 		return h.answerMembers(c, l, 0, true, nil)
 	}

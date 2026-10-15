@@ -10,6 +10,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -31,10 +32,13 @@ type previewPayload struct {
 // Preview starts a read-only run of a sync's first steps: it reads the
 // router, plans and builds the scripts, and stores them in a sync row of
 // kind preview. A preview already queued for the router is reused.
-func (s *Service) Preview(ctx context.Context, id int64, actor string) (int64, error) {
+func (s *Service) Preview(ctx context.Context, id int64, scope access.Scope, actor string) (int64, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return 0, err
+	}
 	var syncID int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if rt, err := store.GetRouter(ctx, tx, id); errors.Is(err, store.ErrNotFound) {
+		if rt, err := store.GetRouter(ctx, tx, id, access.All); errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
@@ -78,7 +82,7 @@ func (s *Service) stepPreview(ctx context.Context, r *jobs.Run) error {
 	if err := r.Payload(&p); err != nil {
 		return jobs.Permanent(err)
 	}
-	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID)
+	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	} else if err != nil {

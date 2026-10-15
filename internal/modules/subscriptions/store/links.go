@@ -5,12 +5,14 @@ import (
 	"database/sql"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
 // Link is a row of subs_links without its token.
 type Link struct {
 	ID               int64          `db:"id"`
+	OwnerID          int64          `db:"owner_id"`
 	SubscriptionID   sql.NullInt64  `db:"subscription_id"`
 	Name             string         `db:"name"`
 	Note             string         `db:"note"`
@@ -32,16 +34,16 @@ type Link struct {
 	LastFetchNetwork string         `db:"last_fetch_network"`
 }
 
-const linkCols = `id, subscription_id, name, note, state, expires_at, language, format, alert_networks, alert_apps,
+const linkCols = `id, owner_id, subscription_id, name, note, state, expires_at, language, format, alert_networks, alert_apps,
 	alerts_muted, alerted_at, expiry_warned_at, expired_at, created_at, disabled_at, deleted_at, last_fetch_at,
 	last_fetch_app, last_fetch_network`
 
 // InsertLink adds an active link with an empty token blob and its lookup; the
 // caller seals the token with the new id (SetToken) in the same transaction.
 func InsertLink(ctx context.Context, x sqlx.ExtContext, l Link, lookup []byte) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO subs_links (subscription_id, name, note, token, token_lookup, state, expires_at,
-		language, created_at) VALUES (?, ?, ?, X'', ?, 'active', ?, ?, ?)`,
-		l.SubscriptionID, l.Name, l.Note, lookup, l.ExpiresAt, l.Language, l.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO subs_links (owner_id, subscription_id, name, note, token, token_lookup, state, expires_at,
+		language, created_at) VALUES (?, ?, ?, ?, X'', ?, 'active', ?, ?, ?)`,
+		l.OwnerID, l.SubscriptionID, l.Name, l.Note, lookup, l.ExpiresAt, l.Language, l.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -61,10 +63,10 @@ func Token(ctx context.Context, q sqlx.QueryerContext, id int64) ([]byte, error)
 	return b, notFound(err)
 }
 
-// GetLink reads one by id.
-func GetLink(ctx context.Context, q sqlx.QueryerContext, id int64) (Link, error) {
+// GetLink reads one by id within scope.
+func GetLink(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Link, error) {
 	var l Link
-	err := sqlx.GetContext(ctx, q, &l, `SELECT `+linkCols+` FROM subs_links WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &l, `SELECT `+linkCols+` FROM subs_links WHERE id = ? AND ? IN (0, owner_id)`, id, scope)
 	return l, notFound(err)
 }
 
@@ -75,18 +77,19 @@ func LinkByLookup(ctx context.Context, q sqlx.QueryerContext, lookup []byte) (Li
 	return l, notFound(err)
 }
 
-// ListLinks reads every link, by id.
-func ListLinks(ctx context.Context, q sqlx.QueryerContext) ([]Link, error) {
+// ListLinks reads every link within scope, by id.
+func ListLinks(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) ([]Link, error) {
 	var out []Link
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+linkCols+` FROM subs_links ORDER BY id`)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+linkCols+` FROM subs_links WHERE ? IN (0, owner_id) ORDER BY id`, scope)
 	return out, err
 }
 
-// LinksOfSubscription reads the links of a subscription, deleted ones
-// included, by name.
-func LinksOfSubscription(ctx context.Context, q sqlx.QueryerContext, subID int64) ([]Link, error) {
+// LinksOfSubscription reads the links of a subscription within scope,
+// deleted ones included, by name.
+func LinksOfSubscription(ctx context.Context, q sqlx.QueryerContext, subID int64, scope access.Scope) ([]Link, error) {
 	var out []Link
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+linkCols+` FROM subs_links WHERE subscription_id = ? ORDER BY name, id`, subID)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+linkCols+` FROM subs_links WHERE subscription_id = ? AND ? IN (0, owner_id)
+		ORDER BY name, id`, subID, scope)
 	return out, err
 }
 

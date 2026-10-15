@@ -36,13 +36,15 @@ templ servicePage(s ui.Shell, v pageView) {
 					<span>{ v.Line }</span>
 				</div>
 			</div>
-			<div class="actions">
-				if v.Custom {
-					@ui.ActionButton(ui.Action{ID: "services.edit", Label: "services.edit", Method: "GET", Href: svcHref(v.It.ID) + "/edit", Key: "e", Kind: ui.Primary})
-				} else {
-					@ui.ActionButton(ui.Action{ID: "refresh.now", Label: "refresh.now", Method: "POST", Href: svcHref(v.It.ID) + "/refresh", Key: "r", Kind: ui.Primary})
-				}
-			</div>
+			if v.CanChange {
+				<div class="actions">
+					if v.Custom {
+						@ui.ActionButton(ui.Action{ID: "services.edit", Label: "services.edit", Method: "GET", Href: svcHref(v.It.ID) + "/edit", Key: "e", Kind: ui.Primary})
+					} else {
+						@ui.ActionButton(ui.Action{ID: "refresh.now", Label: "refresh.now", Method: "POST", Href: svcHref(v.It.ID) + "/refresh", Key: "r", Kind: ui.Primary})
+					}
+				</div>
+			}
 		</div>
 		if v.Band != "" {
 			@ui.Alert("pine", "status") {
@@ -110,7 +112,8 @@ templ servicePage(s ui.Shell, v pageView) {
 				}
 				@ui.Area(i18n.T(ctx, "services.area.actions"), "") {
 					<div class="act-rows">
-						if v.Custom {
+						if !v.CanChange {
+						} else if v.Custom {
 							<div class="row act">
 								<a href={ templ.SafeURL(svcHref(v.It.ID) + "/edit") } class="pc-btn pc-sm">{ i18n.T(ctx, "services.edit") }</a>
 								<span class="sm subtle">{ i18n.T(ctx, "services.edit.note") }</span>
@@ -125,10 +128,12 @@ templ servicePage(s ui.Shell, v pageView) {
 							@ui.ActionButton(ui.Action{ID: "lists.to_lists", Label: "lists.to_lists", Method: "GET", Href: svcHref(v.It.ID) + "/lists", Small: true})
 							<span class="sm subtle">{ i18n.T(ctx, "lists.to_lists.note") }</span>
 						</div>
-						<div class="row act">
-							@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger})
-							<span class="sm subtle">{ i18n.T(ctx, "services.remove.note") }</span>
-						</div>
+						if v.CanChange {
+							<div class="row act">
+								@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger})
+								<span class="sm subtle">{ i18n.T(ctx, "services.remove.note") }</span>
+							</div>
+						}
 					</div>
 				}
 				@ui.Area(i18n.T(ctx, "services.area.activity"), "") {
@@ -209,13 +214,15 @@ templ rejectedBand(id int64, v *rejectedView) {
 				<a href={ templ.SafeURL(v.CauseHref) } class="pc-btn pc-sm" data-action="refresh.cause_add">{ i18n.T(ctx, "refresh.cause_add", i18n.Args{"selector": v.CauseSel}) }</a>
 			</p>
 		}
-		<div class="rej-acts">
-			<form method="post" action={ templ.SafeURL(svcHref(id) + "/snapshots/" + i64(v.SnapID) + "/dismiss") } class="inline">
-				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-				<button type="submit" class="pc-btn pc-sm" data-action="refresh.dismiss">{ v.Keep }</button>
-			</form>
-			@ui.ActionButton(acceptAction(id, v))
-		</div>
+		if v.CanDecide {
+			<div class="rej-acts">
+				<form method="post" action={ templ.SafeURL(svcHref(id) + "/snapshots/" + i64(v.SnapID) + "/dismiss") } class="inline">
+					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+					<button type="submit" class="pc-btn pc-sm" data-action="refresh.dismiss">{ v.Keep }</button>
+				</form>
+				@ui.ActionButton(acceptAction(id, v))
+			</div>
+		}
 		<p class="sm subtle">{ v.Footer }</p>
 	</section>
 }

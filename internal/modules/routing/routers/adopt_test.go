@@ -8,6 +8,8 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
+	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestAdopt(t *testing.T) {
@@ -23,16 +25,16 @@ func TestAdopt(t *testing.T) {
 
 	// as the catalog's v2fly:netflix: the list gains it and the sync updates the tag
 	h.StartJobs()
-	sid, err := h.Mod.Routers.Adopt(bg, id, "netflix", routers.AdoptV2fly, "admin")
+	sid, err := h.Mod.Routers.Adopt(bg, id, access.All, "netflix", routers.AdoptV2fly, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
-	it, err := h.Mod.Services.Get(bg, sid)
+	it, err := h.Mod.Services.Get(bg, sid, access.All)
 	if err != nil || it.Selector != "v2fly:netflix" {
 		t.Fatalf("service: %+v %v", it, err)
 	}
-	if ls, _ := h.Mod.Lists.ListsOf(bg, sid); len(ls) != 1 || ls[0].ID != main {
+	if ls, _ := h.Mod.Lists.ListsOf(bg, sid, access.All); len(ls) != 1 || ls[0].ID != main {
 		t.Fatalf("in Main: %+v", ls)
 	}
 	if a := applied(t, h, id); a["netflix"].Suffix != 26 {
@@ -46,12 +48,12 @@ func TestAdopt(t *testing.T) {
 	}
 
 	// as a custom service made from the router's names: recorded as is
-	cid, err := h.Mod.Routers.Adopt(bg, id, "old-work", routers.AdoptCustom, "admin")
+	cid, err := h.Mod.Routers.Adopt(bg, id, access.All, "old-work", routers.AdoptCustom, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
-	c, err := h.Mod.Services.Get(bg, cid)
+	c, err := h.Mod.Services.Get(bg, cid, access.All)
 	if err != nil || c.Tag != "old-work" || c.Source != selector.Custom || c.Origin != "router" {
 		t.Fatalf("custom: %+v %v", c, err)
 	}
@@ -80,20 +82,57 @@ func TestInvalidTagCantBeAdopted(t *testing.T) {
 		t.Fatalf("listed, not adoptable: %+v", u)
 	}
 	for _, how := range []string{routers.AdoptCustom, routers.AdoptV2fly, routers.AdoptExisting} {
-		if _, err := h.Mod.Routers.Adopt(bg, id, "my stuff", how, "admin"); !errors.Is(err, routers.ErrInvalidTag) {
+		if _, err := h.Mod.Routers.Adopt(bg, id, access.All, "my stuff", how, "admin"); !errors.Is(err, routers.ErrInvalidTag) {
 			t.Fatalf("%s: %v", how, err)
 		}
 	}
 	// remove and ignore still work
-	if err := h.Mod.Routers.Ignore(bg, id, "my stuff", true, "admin"); err != nil {
+	if err := h.Mod.Routers.Ignore(bg, id, access.All, "my stuff", true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.StartJobs()
-	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, "my stuff", "admin"); err != nil {
+	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, access.All, "my stuff", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
 	if len(r.Names("my stuff")) != 0 {
 		t.Fatal("removed")
+	}
+}
+
+// A custom service adopted from a router is the router's owner's; a new
+// v2fly or iplist service would be shared, so a member at own can't adopt
+// that way; and a tag another member's private service has is taken,
+// without naming it.
+func TestAdoptAsAMemberAtOwn(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("netflix", lines("nf", 26))
+	withCatalog(t, h)
+	anna := access.Who{Member: 2, Grant: access.Grant{}.With(access.Routing, access.LevelOwn)}
+	scope := anna.Scope(access.Routing)
+	h.Custom("theirs", "theirs.example")
+	r, id := h.Router("Dacha", h.ListOf(anna, "Anna list"), routingtest.OwnedBy(anna))
+	r.Seed("netflix", entries(customNames("nf", 25)...)...)
+	r.Seed("old-work", entries("work.example")...)
+	r.Seed("theirs", entries("theirs.example")...)
+	syncNow(t, h, id)
+
+	var forbidden *access.ForbiddenError
+	if _, err := h.Mod.Routers.Adopt(bg, id, scope, "netflix", routers.AdoptV2fly, "member:2"); !errors.As(err, &forbidden) {
+		t.Fatalf("a shared service adopted at own: %v", err)
+	}
+	cid, err := h.Mod.Routers.Adopt(bg, id, scope, "old-work", routers.AdoptCustom, "member:2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c, err := h.Mod.Services.Get(bg, cid, scope); err != nil || c.OwnerID != 2 {
+		t.Fatalf("anna's custom service: %+v %v", c, err)
+	}
+	if u, err := h.Mod.Routers.UnmanagedOne(bg, id, scope, "theirs"); err != nil || u.Existing != nil {
+		t.Fatalf("member 1's private service offered to anna: %+v %v", u, err)
+	}
+	var fe store.FieldErrors
+	if _, err := h.Mod.Routers.Adopt(bg, id, scope, "theirs", routers.AdoptCustom, "member:2"); !errors.As(err, &fe) || fe["tag"] != "services.err.tag_taken" {
+		t.Fatalf("a tag member 1's service has: %v", err)
 	}
 }

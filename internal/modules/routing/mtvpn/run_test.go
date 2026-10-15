@@ -3,6 +3,7 @@ package mtvpn_test
 import (
 	"bytes"
 	"database/sql"
+	"errors"
 	"fmt"
 	"reflect"
 	"strings"
@@ -11,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/mtvpn"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func contains(s, sub string) bool { return strings.Contains(s, sub) }
@@ -83,14 +85,14 @@ func TestImportTodaysFile(t *testing.T) {
 	if got := tags(t, h, 1); !reflect.DeepEqual(got, []string{"anthropic", "tunneled-domains", "youtube", "google", "instagram.com"}) {
 		t.Errorf("Main: %v", got)
 	}
-	it, _ := h.Mod.Services.ByTag(bg(), "tunneled-domains")
+	it, _ := h.Mod.Services.ByTag(bg(), "tunneled-domains", access.All)
 	if it.Source != selector.URL {
 		t.Errorf("tunneled-domains: %+v", it)
 	}
 	if im.Shadowrocket.Outcome != mtvpn.Created || im.Shadowrocket.ID == 0 {
 		t.Fatalf("config: %+v", im.Shadowrocket)
 	}
-	c, err := h.Mod.Shadowrocket.Get(bg(), im.Shadowrocket.ID)
+	c, err := h.Mod.Shadowrocket.Get(bg(), im.Shadowrocket.ID, access.All)
 	if err != nil || c.Name != "iphone" || c.List != "Main" || c.Rules == 0 {
 		t.Errorf("config: %+v %v", c, err)
 	}
@@ -144,7 +146,7 @@ func TestConvertToCustom(t *testing.T) {
 	if r.Outcome != mtvpn.Converted {
 		t.Fatalf("row: %+v", r)
 	}
-	it, err := h.Mod.Services.Get(bg(), r.ServiceID)
+	it, err := h.Mod.Services.Get(bg(), r.ServiceID, access.All)
 	if err != nil || it.Source != selector.Custom || it.Origin != "import" || it.Tag != "tunneled-domains" || it.Name != "tunneled-domains" {
 		t.Fatalf("service: %+v %v", it, err)
 	}
@@ -193,14 +195,14 @@ func TestImportTwiceAddsNothing(t *testing.T) {
 	if n := len(h.Events("routing.service_added")); n != 5 {
 		t.Errorf("%d service_added", n)
 	}
-	if cs, _ := h.Mod.Shadowrocket.List(bg()); len(cs) != 1 {
+	if cs, _ := h.Mod.Shadowrocket.List(bg(), access.All); len(cs) != 1 {
 		t.Errorf("configs: %+v", cs)
 	}
 	if im.State != "done" {
 		t.Errorf("state %s", im.State)
 	}
 	// running a finished import again is refused
-	if _, err := h.Mod.Import.Run(bg(), im.ID, all(im), "admin"); err != mtvpn.ErrNotPreview {
+	if _, err := h.Mod.Import.Run(bg(), im.ID, access.All, all(im), "admin"); err != mtvpn.ErrNotPreview {
 		t.Errorf("run again: %v", err)
 	}
 }
@@ -230,23 +232,23 @@ func TestImportResumes(t *testing.T) {
 	}
 	im := preview(t, h, "services:\n  - a\n  - b\n  - c\n  - d\n")
 	h.Up.Hang("/v2fly/data/c", true)
-	if _, err := h.Mod.Import.Run(bg(), im.ID, all(im), "admin"); err != nil {
+	if _, err := h.Mod.Import.Run(bg(), im.ID, access.All, all(im), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.StartJobs()
 	waitFor(t, "two rows", func() bool {
-		cur, _ := h.Mod.Import.Get(bg(), im.ID)
+		cur, _ := h.Mod.Import.Get(bg(), im.ID, access.All)
 		return cur.Rows[1].Outcome == mtvpn.Created
 	})
 	h.StopJobs() // a shutdown: the job is interrupted mid-row
-	cur, _ := h.Mod.Import.Get(bg(), im.ID)
+	cur, _ := h.Mod.Import.Get(bg(), im.ID, access.All)
 	if cur.State != "running" || cur.Rows[2].Outcome != "" {
 		t.Fatalf("after the stop: %s %+v", cur.State, cur.Rows[2])
 	}
 	h.Up.Hang("/v2fly/data/c", false)
 	h.StartJobs()
 	h.Drain()
-	cur, _ = h.Mod.Import.Get(bg(), im.ID)
+	cur, _ = h.Mod.Import.Get(bg(), im.ID, access.All)
 	if cur.State != "done" {
 		t.Fatalf("state %s", cur.State)
 	}
@@ -265,5 +267,32 @@ func TestImportResumes(t *testing.T) {
 	_ = h.App.DB.R.Get(&job, `SELECT job_id FROM routing_imports WHERE id = ?`, im.ID)
 	if st, _ := h.Job(job.Int64); st != "succeeded" {
 		t.Errorf("job %s", st)
+	}
+}
+
+// What an import creates is its starter's: a converted custom service and
+// the Shadowrocket config (the job reads the owner from the import).
+func TestImportedThingsAreTheStartersOwn(t *testing.T) {
+	h := routingtest.New(t)
+	text := today(h)
+	id, err := h.Mod.Import.Preview(bg(), 2, text, "member:2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := h.Mod.Import.Get(bg(), id, access.Owner(3)); !errors.Is(err, mtvpn.ErrNotFound) {
+		t.Fatalf("another member's import: %v", err)
+	}
+	im, err := h.Mod.Import.Get(bg(), id, access.All)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := all(im)
+	c.Convert[1] = true
+	im = run(t, h, im, c)
+	if it, err := h.Mod.Services.Get(bg(), im.Rows[1].ServiceID, access.Owner(2)); err != nil || it.OwnerID != 2 {
+		t.Fatalf("converted service: %+v %v", it, err)
+	}
+	if cfg, err := h.Mod.Shadowrocket.Get(bg(), im.Shadowrocket.ID, access.Owner(2)); err != nil || cfg.OwnerID != 2 {
+		t.Fatalf("config: %+v %v", cfg, err)
 	}
 }
