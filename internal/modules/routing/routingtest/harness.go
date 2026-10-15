@@ -23,6 +23,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
@@ -41,6 +42,7 @@ type Harness struct {
 	mu       sync.Mutex
 	stopJobs func()
 	fakes    map[int64]*routerostest.Router
+	jumps    map[int64]*sshxtest.Server
 }
 
 // Option changes New.

@@ -15,7 +15,7 @@ import (
 // Conn is what remote needs of an SSH connection; *sshx.Client is one.
 type Conn interface {
 	Run(ctx context.Context, cmd string, o sshx.RunOptions) (sshx.Result, error)
-	Upload(ctx context.Context, path string, data []byte, mode fs.FileMode) error
+	Upload(ctx context.Context, path string, data []byte, mode fs.FileMode, o sshx.TransferOptions) error
 }
 
 var _ Conn = (*sshx.Client)(nil)

@@ -24,7 +24,9 @@ const (
 	OutputCap = 1 << 20
 	// DefaultCommandTimeout bounds a command that sets no timeout.
 	DefaultCommandTimeout = 5 * time.Minute
-	keepAliveMisses       = 3
+	// DefaultTransferTimeout bounds an upload that sets no timeout.
+	DefaultTransferTimeout = 5 * time.Minute
+	keepAliveMisses        = 3
 )
 
 // Client is an open connection to a target, through its jump host if it has
@@ -384,12 +386,16 @@ func (c *Client) Run(ctx context.Context, cmd string, o RunOptions) (Result, err
 // end ends a command Run gave up on and returns once its session is gone.
 // It closes the session and waits CloseGrace for the host to confirm; a host
 // that never does (RouterOS can drop a command's channel and keep the
-// connection), or a session still opening, costs the whole connection.
+// connection), or a session still opening, costs the whole connection. The
+// kill and the close are writes, which a dead link blocks for good, so they
+// don't hold up the wait.
 func (c *Client) end(opened <-chan *ssh.Session, done <-chan error) {
 	select {
 	case sess := <-opened:
-		_ = sess.Signal(ssh.SIGKILL) // not every server honours it; closing the session ends the rest
-		_ = sess.Close()
+		go func() {
+			_ = sess.Signal(ssh.SIGKILL) // not every server honours it; closing the session ends the rest
+			_ = sess.Close()
+		}()
 		select {
 		case <-done:
 			return
@@ -401,76 +407,121 @@ func (c *Client) end(opened <-chan *ssh.Session, done <-chan error) {
 	<-done
 }
 
-// Upload writes data to path over SFTP: to <path>.proxier-tmp first, then
-// renamed over the target, so a reader never sees half a file. Parent
-// directories are not created.
-func (c *Client) Upload(ctx context.Context, path string, data []byte, mode fs.FileMode) error {
-	sc, err := sftp.NewClient(c.ssh)
-	if err != nil {
-		return fmt.Errorf("sshx: start SFTP: %w", err)
-	}
-	defer func() { _ = sc.Close() }()
-	// The SFTP client has no context; closing it on cancel stops the transfer.
-	stop := context.AfterFunc(ctx, func() { _ = sc.Close() })
-	defer stop()
+// TransferOptions tune one upload.
+type TransferOptions struct {
+	Timeout time.Duration // 0: DefaultTransferTimeout
+}
 
-	tmp := path + ".proxier-tmp"
-	f, err := sc.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
-	if err != nil {
-		return fmt.Errorf("sshx: create %s: %w", tmp, err)
+// transfer runs fn on a new SFTP client, bounded like Run: once the timeout
+// or ctx ends it, the SFTP client is closed and given CloseGrace, then the
+// whole connection is closed. Starting SFTP waits for the host's answer too,
+// so it runs inside the bound.
+func (c *Client) transfer(ctx context.Context, timeout time.Duration, fn func(*sftp.Client) error) error {
+	var mu sync.Mutex
+	var sc *sftp.Client
+	done := make(chan error, 1)
+	go func() {
+		s, err := sftp.NewClient(c.ssh)
+		if err != nil {
+			done <- fmt.Errorf("sshx: start SFTP: %w", err)
+			return
+		}
+		mu.Lock()
+		sc = s
+		mu.Unlock()
+		err = fn(s)
+		_ = s.Close()
+		done <- err
+	}()
+
+	if timeout <= 0 {
+		timeout = DefaultTransferTimeout
 	}
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		_ = sc.Remove(tmp)
-		return fmt.Errorf("sshx: write %s: %w", tmp, err)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
+	var ending error
+	select {
+	case err := <-done:
+		return err
+	case <-timer.C:
+		ending = ErrTimeout
+	case <-ctx.Done():
+		ending = ctx.Err()
 	}
-	if err := sc.Chmod(tmp, mode); err != nil {
-		_ = f.Close()
-		_ = sc.Remove(tmp)
-		return fmt.Errorf("sshx: chmod %s: %w", tmp, err)
-	}
-	_ = f.Sync() // fsync@openssh.com where the server has it; best effort
-	if err := f.Close(); err != nil {
-		_ = sc.Remove(tmp)
-		return fmt.Errorf("sshx: close %s: %w", tmp, err)
-	}
-	if err := sc.PosixRename(tmp, path); err != nil {
-		// A server without posix-rename: plain SFTP rename refuses to replace,
-		// so the target is removed first. Not atomic, but the data is whole.
-		_ = sc.Remove(path)
-		if err := sc.Rename(tmp, path); err != nil {
-			_ = sc.Remove(tmp)
-			return fmt.Errorf("sshx: rename %s: %w", tmp, err)
+	mu.Lock()
+	s := sc
+	mu.Unlock()
+	if s != nil {
+		go func() { _ = s.Close() }() // a write too: a dead link blocks it
+		select {
+		case <-done:
+			return ending
+		case <-time.After(c.closeGrace):
 		}
 	}
-	return nil
+	_ = c.Close()
+	<-done
+	return ending
+}
+
+// Upload writes data to path over SFTP: to <path>.proxier-tmp first, then
+// renamed over the target, so a reader never sees half a file. Parent
+// directories are not created. An upload over its timeout returns ErrTimeout
+// and may have cost the connection, as a command does.
+func (c *Client) Upload(ctx context.Context, path string, data []byte, mode fs.FileMode, o TransferOptions) error {
+	return c.transfer(ctx, o.Timeout, func(sc *sftp.Client) error {
+		tmp := path + ".proxier-tmp"
+		f, err := sc.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+		if err != nil {
+			return fmt.Errorf("sshx: create %s: %w", tmp, err)
+		}
+		if _, err := f.Write(data); err != nil {
+			_ = f.Close()
+			_ = sc.Remove(tmp)
+			return fmt.Errorf("sshx: write %s: %w", tmp, err)
+		}
+		if err := sc.Chmod(tmp, mode); err != nil {
+			_ = f.Close()
+			_ = sc.Remove(tmp)
+			return fmt.Errorf("sshx: chmod %s: %w", tmp, err)
+		}
+		_ = f.Sync() // fsync@openssh.com where the server has it; best effort
+		if err := f.Close(); err != nil {
+			_ = sc.Remove(tmp)
+			return fmt.Errorf("sshx: close %s: %w", tmp, err)
+		}
+		if err := sc.PosixRename(tmp, path); err != nil {
+			// A server without posix-rename: plain SFTP rename refuses to replace,
+			// so the target is removed first. Not atomic, but the data is whole.
+			_ = sc.Remove(path)
+			if err := sc.Rename(tmp, path); err != nil {
+				_ = sc.Remove(tmp)
+				return fmt.Errorf("sshx: rename %s: %w", tmp, err)
+			}
+		}
+		return nil
+	})
 }
 
 // Put writes data to path over SFTP in place: no temporary file, chmod, fsync
 // or rename, which RouterOS's minimal SFTP server may lack. A reader can see
 // half a file, so it is for files nothing reads until the caller says so
-// (a script /import runs afterwards).
-func (c *Client) Put(ctx context.Context, path string, data []byte) error {
-	sc, err := sftp.NewClient(c.ssh)
-	if err != nil {
-		return fmt.Errorf("sshx: start SFTP: %w", err)
-	}
-	defer func() { _ = sc.Close() }()
-	stop := context.AfterFunc(ctx, func() { _ = sc.Close() })
-	defer stop()
-
-	f, err := sc.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
-	if err != nil {
-		return fmt.Errorf("sshx: create %s: %w", path, err)
-	}
-	if _, err := f.Write(data); err != nil {
-		_ = f.Close()
-		return fmt.Errorf("sshx: write %s: %w", path, err)
-	}
-	if err := f.Close(); err != nil {
-		return fmt.Errorf("sshx: close %s: %w", path, err)
-	}
-	return nil
+// (a script /import runs afterwards). Bounded as Upload is.
+func (c *Client) Put(ctx context.Context, path string, data []byte, o TransferOptions) error {
+	return c.transfer(ctx, o.Timeout, func(sc *sftp.Client) error {
+		f, err := sc.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC)
+		if err != nil {
+			return fmt.Errorf("sshx: create %s: %w", path, err)
+		}
+		if _, err := f.Write(data); err != nil {
+			_ = f.Close()
+			return fmt.Errorf("sshx: write %s: %w", path, err)
+		}
+		if err := f.Close(); err != nil {
+			return fmt.Errorf("sshx: close %s: %w", path, err)
+		}
+		return nil
+	})
 }
 
 // Closed reports whether the connection was closed: by Close, by the
@@ -484,15 +535,20 @@ func (c *Client) Closed() bool {
 	}
 }
 
-// Close ends the connection, and the jump host's.
+// Close ends the connection, and the jump host's. The jump host's goes
+// first: closing the target's connection writes through it, which a dead
+// link blocks for good, while closing the jump host's only closes a socket
+// and fails every channel through it.
 func (c *Client) Close() error {
 	var err error
 	c.stopOnce.Do(func() {
 		close(c.stop)
-		err = c.ssh.Close()
-		if c.jump != nil {
-			_ = c.jump.Close()
+		if c.jump == nil {
+			err = c.ssh.Close()
+			return
 		}
+		err = c.jump.Close()
+		_ = c.ssh.Close() // fails at once on the closed jump connection
 	})
 	return err
 }

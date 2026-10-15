@@ -3,6 +3,7 @@ package routers_test
 import (
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/platform/access"
+	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 )
 
 // An /import the router runs in full and then never ends (no exit status, no
@@ -135,5 +137,93 @@ func TestRestartDuringImportThatNeverEndsResumesAndRemovesTheFile(t *testing.T) 
 	}
 	if len(r.Imports()) != 1 || applied(t, h, id)["openai"].Hash != openaiHash {
 		t.Fatalf("recorded, not pushed again: imports %v", r.Imports())
+	}
+}
+
+// The link to the jump host dies without a word right after the import ran:
+// no exit status ever arrives, the jump host forgets the session, and every
+// write through the link blocks (a router behind a Pi once hung like this for
+// good, its import done). The keepalive gives up on the connection, and the
+// attempt fails at push as for an import that never ends.
+func TestJumpLinkThatDiesAfterTheImportFailsTheAttemptAndTheRetryRecordsIt(t *testing.T) {
+	h := routingtest.New(t)
+	h.App.SSH.CloseGrace = 100 * time.Millisecond
+	h.App.SSH.KeepAlive = 20 * time.Millisecond
+	links := sshxtest.NewLinks()
+	h.App.SSH.Dial = links.Dial
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Air76", 0, routingtest.ViaJump())
+	jump := h.JumpFake(id)
+	r.OnImport(func(n int) {
+		if n == 1 {
+			links.Stall(jump.Addr)
+		}
+	})
+	job := syncNow(t, h, id)
+
+	if st, _ := h.Job(job); st != "queued" {
+		t.Fatalf("the attempt fails and waits for its retry: %s", st)
+	}
+	ev := h.Events("routing.router_sync_failed")
+	if len(ev) != 1 || ev[0].Payload["step"] != "push" || truthy(ev[0].Payload["final"]) {
+		t.Fatalf("one failure at push, not final: %+v", ev)
+	}
+	if f := r.Files(); len(f) != 0 {
+		t.Fatalf("the file is removed over a new connection: %v", f)
+	}
+	if applied(t, h, id)["openai"].Hash != openaiHash || !strings.Contains(jobLog(t, h, job), "openai: installed before the failure.") {
+		t.Fatal("the import ran in full: the re-read records it")
+	}
+
+	h.Advance(5 * time.Minute)
+	h.Settle()
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("the retry: %s %s", st, e)
+	}
+	if imp := r.Imports(); len(imp) != 1 {
+		t.Fatalf("nothing left to push: %v", imp)
+	}
+}
+
+// The link to the jump host dies the same way while the file is uploading:
+// nothing was imported, the attempt fails at push saying the connection was
+// lost (not that the group lacks ftp), and the retry pushes the file.
+func TestJumpLinkThatDiesDuringTheUploadFailsTheAttemptAndTheRetryPushes(t *testing.T) {
+	h := routingtest.New(t)
+	h.App.SSH.CloseGrace = 100 * time.Millisecond
+	h.App.SSH.KeepAlive = 20 * time.Millisecond
+	links := sshxtest.NewLinks()
+	h.App.SSH.Dial = links.Dial
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Air76", 0, routingtest.ViaJump())
+	jump := h.JumpFake(id)
+	var once sync.Once
+	r.Server.OnUpload(func(string) { once.Do(func() { links.Stall(jump.Addr) }) })
+	job := syncNow(t, h, id)
+
+	if st, _ := h.Job(job); st != "queued" {
+		t.Fatalf("the attempt fails and waits for its retry: %s", st)
+	}
+	ev := h.Events("routing.router_sync_failed")
+	if len(ev) != 1 || ev[0].Payload["step"] != "push" ||
+		!strings.Contains(ev[0].Payload["error"].(string), "the connection to the router was lost") {
+		t.Fatalf("one failure at push, the connection lost: %+v", ev)
+	}
+	if imp := r.Imports(); len(imp) != 0 {
+		t.Fatalf("nothing was imported: %v", imp)
+	}
+
+	h.Advance(5 * time.Minute)
+	h.Settle()
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("the retry: %s %s", st, e)
+	}
+	if imp := r.Imports(); len(imp) != 1 || applied(t, h, id)["openai"].Hash != openaiHash {
+		t.Fatalf("the retry pushes the file: %v", imp)
+	}
+	if f := r.Files(); len(f) != 0 {
+		t.Fatalf("no file is left: %v", f)
 	}
 }

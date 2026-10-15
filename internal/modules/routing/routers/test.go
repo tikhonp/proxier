@@ -288,7 +288,7 @@ func (s *Service) stepTest(ctx context.Context, r *jobs.Run) error {
 	}
 	checks = append(checks, CheckResult{Name: CheckEntries, OK: true, Detail: strconv.Itoa(chk.Entries)})
 	file := "proxier-test-" + strconv.FormatInt(t.ID, 10) + ".rsc"
-	if err := cl.Put(ctx, file, []byte("# proxier test connection\n")); err != nil {
+	if err := cl.Put(ctx, file, []byte("# proxier test connection\n"), sshx.TransferOptions{Timeout: time.Minute}); err != nil {
 		state = TestFailed
 		checks = append(checks, CheckResult{Name: CheckUpload, Detail: "The router refused the upload (" + err.Error() +
 			"): Proxier's group needs the ftp policy."})

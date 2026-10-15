@@ -33,10 +33,17 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			descs = append(descs, p.Describe())
 		}
 		log.Info("File %d/%d %s: %s.", i+1, len(files), f.Name, strings.Join(descs, ", "))
-		err := cl.Put(ctx, f.Name, f.Body)
+		timeout := routeros.UploadTimeout(len(f.Body))
+		err := cl.Put(ctx, f.Name, f.Body, sshx.TransferOptions{Timeout: timeout})
 		if err != nil {
 			if ctx.Err() != nil {
 				return ctx.Err()
+			}
+			switch {
+			case errors.Is(err, sshx.ErrTimeout):
+				return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s did not end within %s.", f.Name, timeout), err: err}
+			case cl.Closed():
+				return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s failed: the connection to the router was lost (%v).", f.Name, err), err: err}
 			}
 			return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s failed (%v): does Proxier's group have the ftp policy?", f.Name, err), err: err}
 		}

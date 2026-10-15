@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -155,4 +157,177 @@ func TestRunTimesOutWhenTheJumpHostStopsForwarding(t *testing.T) {
 		t.Fatalf("want ErrTimeout, got %v", err)
 	}
 	assertConnectionClosed(t, c)
+}
+
+// A jump host whose link dies without a word: nothing more arrives and every
+// write through it blocks, as a tailnet peer that vanished. Whatever was
+// waiting must still end at its bound, and the close must not wait on the
+// dead link (a sync through a Pi once hung for good like this, its import
+// done and its session gone from the Pi).
+
+// viaDyingJump connects to target through a jump host; kill makes the link
+// to the jump host die silently.
+func (e *env) viaDyingJump(target *sshxtest.Server) (c *Client, kill func()) {
+	e.t.Helper()
+	jump := e.server()
+	jump.AllowForwarding()
+	links := sshxtest.NewLinks()
+	e.ssh.Dial = links.Dial
+	c = e.mustConnect(Target{
+		Hop:  Hop{Address: target.Addr, User: "proxier", Subject: "router:2"},
+		Jump: &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"},
+	})
+	return c, func() { links.Stall(jump.Addr) }
+}
+
+// longCommand scripts cmd to run until the test ends; started is closed once
+// it runs.
+func (e *env) longCommand(srv *sshxtest.Server, cmd string) (started <-chan struct{}) {
+	ch, release := make(chan struct{}), make(chan struct{})
+	e.t.Cleanup(func() { close(release) }) // before the server's own cleanup closes it
+	srv.Handle(cmd, func(io.Reader, io.Writer, io.Writer) int {
+		close(ch)
+		<-release
+		return 0
+	})
+	return ch
+}
+
+func TestRunTimesOutWhenTheJumpLinkDiesSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	target := e.server()
+	started := e.longCommand(target, "/import file-name=x.rsc")
+	c, kill := e.viaDyingJump(target)
+	go func() { <-started; kill() }()
+
+	_, took, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: boundTimeout})
+	})
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("want ErrTimeout, got %v", err)
+	}
+	if took < boundTimeout {
+		t.Fatalf("Run returned after %s, before its timeout", took)
+	}
+	assertConnectionClosed(t, c)
+}
+
+func TestRunReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	target := e.server()
+	started := e.longCommand(target, "/import file-name=x.rsc")
+	c, kill := e.viaDyingJump(target)
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() { <-started; kill(); time.Sleep(boundTimeout); cancel() }()
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(ctx, "/import file-name=x.rsc", RunOptions{Timeout: time.Hour})
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want context.Canceled, got %v", err)
+	}
+	assertConnectionClosed(t, c)
+}
+
+func TestKeepAliveEndsACommandWhoseJumpLinkDiedSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	e.ssh.KeepAlive = 20 * time.Millisecond
+	target := e.server()
+	started := e.longCommand(target, "/import file-name=x.rsc")
+	c, kill := e.viaDyingJump(target)
+	go func() { <-started; kill() }()
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Hour})
+	})
+	if err == nil || errors.Is(err, ErrTimeout) {
+		t.Fatalf("the keepalive ends the command on the dead link, got %v", err)
+	}
+	if !c.Closed() {
+		t.Fatal("the keepalive closed the connection")
+	}
+}
+
+func TestCloseReturnsWhenTheJumpLinkDiedSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	c, kill := e.viaDyingJump(e.server())
+	kill()
+
+	_, _, _ = runWithin(t, 2*time.Second, func() (Result, error) { return Result{}, c.Close() })
+	assertConnectionClosed(t, c)
+}
+
+func TestPutReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	c, kill := e.viaDyingJump(e.server())
+	kill()
+	ctx, cancel := context.WithTimeout(context.Background(), boundTimeout)
+	defer cancel()
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return Result{}, c.Put(ctx, "proxier-sync-1-1.rsc", []byte("x\n"), TransferOptions{Timeout: time.Hour})
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("want the context's error, got %v", err)
+	}
+	assertConnectionClosed(t, c)
+}
+
+func TestPutTimesOutWhenTheJumpLinkDiesSilently(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	c, kill := e.viaDyingJump(e.server())
+	kill()
+
+	_, took, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return Result{}, c.Put(context.Background(), "proxier-sync-1-1.rsc", []byte("x\n"), TransferOptions{Timeout: boundTimeout})
+	})
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("want ErrTimeout, got %v", err)
+	}
+	if took < boundTimeout {
+		t.Fatalf("Put returned after %s, before its timeout", took)
+	}
+	assertConnectionClosed(t, c)
+}
+
+func TestUploadTimesOutWhenTheJumpLinkDiesMidTransfer(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	target := e.server()
+	c, kill := e.viaDyingJump(target)
+	// SFTP is running when the link dies: the upload is past its start.
+	if err := c.Upload(context.Background(), filepath.Join(target.Dir(), "before"), []byte("x"), 0o600, TransferOptions{}); err != nil {
+		t.Fatal(err)
+	}
+	kill()
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return Result{}, c.Upload(context.Background(), filepath.Join(target.Dir(), "f"), make([]byte, 1<<20), 0o600, TransferOptions{Timeout: boundTimeout})
+	})
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("want ErrTimeout, got %v", err)
+	}
+	assertConnectionClosed(t, c)
+}
+
+func TestPutWithinItsTimeoutUploads(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	srv := e.server()
+	c := e.mustConnect(e.target(srv, "router:1"))
+	if err := c.Put(context.Background(), "x.rsc", []byte("x\n"), TransferOptions{Timeout: time.Minute}); err != nil {
+		t.Fatal(err)
+	}
+	if b, err := os.ReadFile(filepath.Join(srv.Dir(), "x.rsc")); err != nil || string(b) != "x\n" {
+		t.Fatalf("uploaded %q, %v", b, err)
+	}
+	if c.Closed() {
+		t.Fatal("an upload in time keeps the connection")
+	}
 }
