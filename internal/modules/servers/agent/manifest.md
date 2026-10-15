@@ -1,6 +1,6 @@
 ### Manifest
 
-The seed template, converted from `servers-templates/proxy` ([VLESS XHTTP integration](../integrations/vless-xhttp.md)), shows every part:
+The seed template, converted from `servers-templates/proxy` ([VLESS XHTTP integration](../../../../docs/integrations/vless-xhttp.md)), shows every part:
 
 ```yaml
 name: VLESS XHTTP behind nginx

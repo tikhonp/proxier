@@ -522,9 +522,9 @@ const shadowrocketMode = {
 };
 
 // A mode for RouterOS scripts, coloured like the server's routeros lexer
-// (ui/routeros.go): comment lines, "# @…" annotations, :commands, strings
-// with escapes, $variables, numbers, and a /menu path at the start of a
-// statement.
+// (internal/platform/ui/routeros.go): comment lines, "# @…" annotations,
+// :commands, strings with escapes, $variables, numbers, and a /menu path at
+// the start of a statement.
 const routerosMode = {
   name: "routeros",
   startState: () => ({ inString: false, stmtStart: true }),

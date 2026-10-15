@@ -36,7 +36,7 @@ make lint            # golangci-lint in Docker (not installed on the host; defau
 make vuln            # govulncheck
 make dev             # docker compose: air hot reload on :8080; needs .env (cp .env.example .env, fill the key)
 make manage ARGS="migrate status"     # inside the dev container
-make editor          # rebuild the template editor's CodeMirror bundle in Docker (web/editor → ui/static/js/editor.bundle.js, committed)
+make editor          # rebuild the template editor's CodeMirror bundle in Docker (web/editor → internal/platform/ui/static/js/editor.bundle.js, committed)
 make check-editor    # make editor + fail if the committed bundle differs (part of make check; needs Docker running)
 make build-image     # code.tikhonnnnn.com/tikhon/proxier:local
 go run ./cmd/proxier serve            # on the host, with PROXIER_MASTER_KEY, PROXIER_BASE_URL, PROXIER_DATA_DIR=./data
