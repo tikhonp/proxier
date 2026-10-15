@@ -524,7 +524,7 @@ func offer(v View, sh Shelf, o Offer, recommended bool) templ.Component {
 			templ_7745c5c3_Var26 = templ.NopComponent
 		}
 		ctx = templ.ClearChildren(ctx)
-		args := i18n.Args{"app": o.App.Name, "manual": i18n.T(ctx, o.Manual)}
+		args := i18n.Args{"app": o.App.Name, "manual": i18n.From(ctx).Text(o.Manual)}
 		var templ_7745c5c3_Var27 = []any{"lp-app", templ.KV("lp-rec", recommended)}
 		templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var27...)
 		if templ_7745c5c3_Err != nil {
@@ -583,15 +583,15 @@ func offer(v View, sh Shelf, o Offer, recommended bool) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if o.Note != "" {
+		if o.Note != (i18n.Message{}) {
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 51, "<p class=\"lp-note\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var31 string
-			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, o.Note))
+			templ_7745c5c3_Var31, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.From(ctx).Text(o.Note))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/linkpage/page.templ`, Line: 110, Col: 43}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/linkpage/page.templ`, Line: 110, Col: 51}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var31))
 			if templ_7745c5c3_Err != nil {
@@ -638,9 +638,9 @@ func offer(v View, sh Shelf, o Offer, recommended bool) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var34 string
-			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, d.Label))
+			templ_7745c5c3_Var34, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.From(ctx).Text(d.Label))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/linkpage/page.templ`, Line: 117, Col: 102}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/linkpage/page.templ`, Line: 117, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var34))
 			if templ_7745c5c3_Err != nil {
@@ -656,7 +656,7 @@ func offer(v View, sh Shelf, o Offer, recommended bool) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		switch {
-		case sh.DeepLinks && o.App.Import != nil:
+		case sh.DeepLinks && o.App.HasImport():
 			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 59, "<div class=\"lp-btns\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

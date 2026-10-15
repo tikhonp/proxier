@@ -41,6 +41,10 @@ func (l *Localizer) text(m Message) string {
 	return m.EN
 }
 
+// Text renders m in l's language: a text kept outside the catalog, with no
+// placeholders filled.
+func (l *Localizer) Text(m Message) string { return l.text(m) }
+
 func (l *Localizer) lookup(key string) (string, bool) {
 	if l.cat == nil {
 		return "", false

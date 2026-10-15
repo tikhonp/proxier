@@ -12,25 +12,40 @@ const (
 	encURL    = "https%3A%2F%2Fp.example.com%2Fs%2FAbC-123_xyz"
 )
 
+// appNamed is the app the shelves offer under name.
+func appNamed(t *testing.T, name string) *App {
+	t.Helper()
+	for _, sh := range Shelves {
+		for _, o := range sh.Offers {
+			if o.App.Name == name {
+				return o.App
+			}
+		}
+	}
+	t.Fatalf("no app %s", name)
+	return nil
+}
+
 // TestDeepLinksAreExact: a wrong scheme or encoding is a dead button, so
 // each app's link is spelled out for a title with a space and Cyrillic.
 func TestDeepLinksAreExact(t *testing.T) {
-	for app, want := range map[*App]string{
-		happ:         "happ://add/" + testURL,
-		v2raytun:     "v2raytun://import/" + testURL,
-		hiddify:      "hiddify://import/" + testURL + "#" + encTitle,
-		v2rayng:      "v2rayng://install-sub?url=" + encURL + "#" + encTitle,
-		karing:       "karing://install-config?url=" + encURL + "&name=" + encTitle,
-		incy:         "incy://import/" + testURL,
-		shadowrocket: "shadowrocket://add/sub://aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXo=?remark=" + encTitle,
-		streisand:    "streisand://import/" + testURL + "#" + encTitle,
-		throne:       "throne://addsub/aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXoj0KHQtdC80YzRjyDQvNCw0LzQsA==",
+	for name, want := range map[string]string{
+		"Happ":         "happ://add/" + testURL,
+		"v2RayTun":     "v2raytun://import/" + testURL,
+		"Hiddify":      "hiddify://import/" + testURL + "#" + encTitle,
+		"v2rayNG":      "v2rayng://install-sub?url=" + encURL + "#" + encTitle,
+		"Karing":       "karing://install-config?url=" + encURL + "&name=" + encTitle,
+		"INCY":         "incy://import/" + testURL,
+		"Shadowrocket": "shadowrocket://add/sub://aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXo=?remark=" + encTitle,
+		"Streisand":    "streisand://import/" + testURL + "#" + encTitle,
+		"Throne":       "throne://addsub/aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXoj0KHQtdC80YzRjyDQvNCw0LzQsA==",
 	} {
-		if got := app.Import(testURL, testTitle); got != want {
-			t.Errorf("%s:\n got %s\nwant %s", app.Name, got, want)
+		app := appNamed(t, name)
+		if got := app.Import(testURL, testTitle); !app.HasImport() || got != want {
+			t.Errorf("%s:\n got %s\nwant %s", name, got, want)
 		}
 	}
-	if v2rayn.Import != nil {
+	if v2rayn := appNamed(t, "v2rayN"); v2rayn.HasImport() || v2rayn.Import(testURL, testTitle) != "" {
 		t.Error("v2rayN has no deep link")
 	}
 }
@@ -52,7 +67,7 @@ func TestShelvesFollowTheList(t *testing.T) {
 		var names []string
 		for _, o := range s.Offers {
 			names = append(names, o.App.Name)
-			if len(o.Downloads) == 0 || o.Manual == "" {
+			if len(o.Downloads) == 0 || o.Manual.RU == "" {
 				t.Errorf("%s on %s: no download or no manual import", o.App.Name, s.Platform)
 			}
 			for _, d := range o.Downloads {
@@ -67,6 +82,42 @@ func TestShelvesFollowTheList(t *testing.T) {
 	}
 	if got := strings.Join(order, " "); got != "ios android macos windows linux tv" {
 		t.Errorf("tabs %s", got)
+	}
+	for _, sh := range Shelves {
+		if sh.DeepLinks != (sh.Platform != TV) {
+			t.Errorf("%s: deep links %v", sh.Platform, sh.DeepLinks)
+		}
+	}
+}
+
+// TestLoadRefusesABadList: a mistake in apps.yaml is named, never a page
+// with a dead button or a missing text.
+func TestLoadRefusesABadList(t *testing.T) {
+	good := string(appsYAML)
+	for what, c := range map[string]struct{ old, new, want string }{
+		"an unknown app":          {"- app: incy", "- app: nope", "ios, nope: no such app"},
+		"an unknown field":        {"  incy: {name: INCY,", "  incy: {nme: INCY,", "field nme not found"},
+		"a broken deep link":      {"incy://import/{{.URL}}", "incy://import/{{.Link}}", "app incy: import"},
+		"an unknown function":     {"incy://import/{{.URL}}", "incy://import/{{hex .URL}}", "app incy: import"},
+		"a note without Russian":  {`ru: "Есть и в российском App Store."`, `ru: ""`, "ios, incy: the note needs both en and ru"},
+		"a label without English": {`apk: {en: "APK file",`, `apk: {en: "",`, "apk: needs both en and ru"},
+		"an unknown label":        {"{label: testflight,", "{label: tf,", `label "tf": no such label`},
+		"an unknown manual":       {"manual: throne", "manual: thorne", `manual "thorne": no such manual`},
+		"a plain http download":   {`"https://testflight.apple.com`, `"http://testflight.apple.com`, "is not an https URL"},
+		"a platform twice":        {"- platform: linux", "- platform: windows", "platform windows: twice"},
+		"an unknown platform":     {"- platform: tv", "- platform: tvos", `platform "tvos": not one of`},
+		"a missing platform":      {"- platform: tv", "- platform: tvos", "platform tv: missing"},
+	} {
+		if !strings.Contains(good, c.old) {
+			t.Fatalf("%s: apps.yaml has no %q", what, c.old)
+		}
+		_, err := load([]byte(strings.Replace(good, c.old, c.new, 1)))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want %q", what, err, c.want)
+		}
+	}
+	if _, err := load(appsYAML); err != nil {
+		t.Errorf("apps.yaml: %v", err)
 	}
 }
 
