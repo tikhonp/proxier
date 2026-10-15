@@ -30,7 +30,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```sh
-make test            # go test -race, except servers/proxy, provision, deploy (xray's XHTTP client has its own data race; they run without -race) — SQLite in temp files, no services needed
+make test            # go test -race (SQLite itself uninstrumented), except servers/proxy, provision, deploy (xray's XHTTP client has its own data race; they run without -race, side by side) — SQLite in temp files, no services needed
 make check           # templ generate + gofmt + vet + generated-file diff + tests (CI minus lint/vuln); stage regenerated *_templ.go first
 make lint            # golangci-lint in Docker (not installed on the host; default linters); Docker Desktop must run (open -a Docker)
 make vuln            # govulncheck

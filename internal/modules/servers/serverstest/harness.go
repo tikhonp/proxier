@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/modules/servers/checkhost/checkhosttest"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare/cloudflaretest"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
@@ -45,6 +48,7 @@ type Harness struct {
 	VPS   *VPS
 	CF    *cloudflaretest.Fake
 	Proxy *proxytest.Server
+	CH    *checkhosttest.Fake
 
 	// Country is the new servers' (NL, so nl-1, nl-2…); TemplateID is the
 	// seed template.
@@ -111,6 +115,18 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 	}
 
 	h.VPS = NewVPS(t)
+
+	// External checks go to a fake check-host.net, and the reference check
+	// to a local site that is always up, so no check leaves the machine.
+	h.CH = checkhosttest.New(t)
+	mod.Health.CheckHost = h.CH.Client
+	ref := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusNoContent) }))
+	t.Cleanup(ref.Close)
+	if err := h.App.Settings.Set(ctx, "admin", "servers", map[string]string{
+		"servers.reference_domestic": ref.URL + "/dom", "servers.reference_foreign": ref.URL + "/for",
+	}); err != nil {
+		t.Fatal(err)
+	}
 
 	p := mod.Provision
 	p.SmokeGap = 5 * time.Millisecond

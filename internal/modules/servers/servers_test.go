@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -259,6 +260,22 @@ func TestModuleWiresValidators(t *testing.T) {
 	if !xray || rep.OK() {
 		t.Errorf("a config xray refuses must be an error: %v", rep.Findings)
 	}
+}
+
+// Validations and proxy tests build xray instances at the same time (two
+// editors, a health round's proxy tests), and building one sets a
+// process-wide dialer.
+func TestConcurrentValidationsDoNotRace(t *testing.T) {
+	site(t)
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() {
+			if rep := validate.Validate(t.Context(), validate.Input{Slug: seed.Slug, Files: seed.Files()}); !rep.OK() {
+				t.Errorf("the seed template: %v", rep.Findings)
+			}
+		})
+	}
+	wg.Wait()
 }
 
 // Every job type of the module has a title, and so has each of its steps: the

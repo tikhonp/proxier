@@ -32,9 +32,14 @@ migrate-status:
 XRAY_TESTS = ./internal/modules/servers/proxy/... ./internal/modules/servers/provision/... ./internal/modules/servers/deploy/...
 # CI passes GOTESTFLAGS=-timeout=60m (its runner is many times slower than a laptop).
 GOTESTFLAGS ?=
+# SQLite (modernc) is C translated to Go: instrumenting it for -race made every
+# test several times slower and checks only the C library, never our code.
+RACEFLAGS = -race -gcflags='modernc.org/...=-race=false'
+# The two runs go side by side; the target fails when either does.
 test:
-	go test -race -count=1 $(GOTESTFLAGS) $$(go list ./... | grep -Ev '/servers/(proxy|provision|deploy)')
-	go test -count=1 $(GOTESTFLAGS) $(XRAY_TESTS)
+	go test -count=1 $(GOTESTFLAGS) $(XRAY_TESTS) & xray=$$!; \
+	go test $(RACEFLAGS) -count=1 $(GOTESTFLAGS) $$(go list ./... | grep -Ev '/servers/(proxy|provision|deploy)'); race=$$?; \
+	wait $$xray && exit $$race
 
 templ:
 	go run github.com/a-h/templ/cmd/templ@$(TEMPL_VERSION) generate

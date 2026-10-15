@@ -15,6 +15,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
@@ -104,7 +105,7 @@ func instance(e endpoint.Endpoint, o Options) (*core.Instance, error) {
 	if err != nil {
 		return nil, fmt.Errorf("proxy: xray refused the client config: %w", err)
 	}
-	inst, err := core.New(cfg)
+	inst, err := newInstance(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("proxy: xray could not build the client: %w", err)
 	}
@@ -113,6 +114,16 @@ func instance(e endpoint.Endpoint, o Options) (*core.Instance, error) {
 		return nil, fmt.Errorf("proxy: xray could not start the client: %w", err)
 	}
 	return inst, nil
+}
+
+// xrayMu serialises building instances: core.New sets xray's process-wide
+// system dialer, so two proxy tests or validations at once race on it.
+var xrayMu sync.Mutex
+
+func newInstance(cfg *core.Config) (*core.Instance, error) {
+	xrayMu.Lock()
+	defer xrayMu.Unlock()
+	return core.New(cfg)
 }
 
 // ValidateConfig asks xray whether it accepts config: it is loaded as JSON and
@@ -140,7 +151,7 @@ func ValidateConfig(config []byte) error {
 	if err != nil {
 		return trimXray(err)
 	}
-	inst, err := core.New(cfg)
+	inst, err := newInstance(cfg)
 	if err != nil {
 		return trimXray(err)
 	}

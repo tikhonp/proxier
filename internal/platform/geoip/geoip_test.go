@@ -74,12 +74,14 @@ func TestCountryLookup(t *testing.T) {
 	}
 
 	// a service that hangs costs the form no more than the timeout
+	defer func(d time.Duration) { geoip.Timeout = d }(geoip.Timeout)
+	geoip.Timeout = 100 * time.Millisecond
 	answer = "hang"
 	start := time.Now()
 	if got := geoip.Lookup(t.Context(), pattern, "198.51.100.7"); got != "" {
 		t.Errorf("hang → %q", got)
 	}
-	if d := time.Since(start); d > geoip.Timeout+time.Second {
+	if d := time.Since(start); d > geoip.Timeout+500*time.Millisecond {
 		t.Errorf("the lookup waited %s", d)
 	}
 	// the service being down
