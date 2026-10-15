@@ -12,7 +12,7 @@ No page states the rate limits or terms for automated use ([check-host.net](./in
 
 ## Russian throttling and the proxy test
 
-Whether the proxy test's 256 KB object and its `stalled` class catch the throttling of foreign hosting networks that stalls after the first 16 to 20 KB ([health](./processes/servers/server-health.md)). Only a real server in a throttled network answers it. Not seen yet.
+Whether the proxy test's 256 KB object and its `stalled` class catch the throttling of foreign hosting networks that stalls after the first 16 to 20 KB ([health](./processes/servers/server-health.md)). Only a real server in a throttled network answers it. Seen once, without the facts to settle it: people found a server very slow while Proxier, testing from home with the default object, called it healthy (so home measured at least 1 Mbit/s). Where they connected from isn't known, so it doesn't tell whether home's own network is spared the throttling (probe agents on other networks, in the backlog, would cover that) or 256 KB is too small to show it.
 
 ## The tailnet key's expiry
 
@@ -36,7 +36,7 @@ One router (hEX S, 7.24.5, behind a jump host) ran a 370 KiB import in full and 
 
 ## Passkeys and the authenticator app on real devices
 
-Checked with a software passkey in tests and Chrome's virtual authenticator, not with a real one. Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in a password manager (1Password, Bitwarden), on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted, and the phone's clock drift staying within one 30 s step.
+Checked with a software passkey in tests, Chrome's virtual authenticator and Bitwarden ([sign-in](./processes/platform/sign-in.md#steps-passkeys)). Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in 1Password, on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted, and the phone's clock drift staying within one 30 s step.
 
 ## Not yet seen on real devices
 

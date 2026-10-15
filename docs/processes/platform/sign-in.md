@@ -33,7 +33,7 @@ With the authenticator app on, step 5 changes:
 
 1. **Adding** (Settings → Security → Passkeys): a name (1 to 64 characters) and the current password, then **Add passkey**. The browser asks the device, the password manager or the security key to make one; it must check who holds it (user verification). The passkey is stored with its name. → `auth.passkey_added{name}` (notifies)
 2. Once a passkey exists, the sign-in page offers **Sign in with a passkey**, and the browser offers passkeys in the username field's autofill. Before that it has no passkey part at all.
-3. **Signing in**: the browser shows the passkeys it holds for this site; the member picks one and confirms with Face ID, Touch ID, a PIN or the key. No username, no password, no code: the passkey's user handle names the member. → `auth.signed_in{…, method: passkey}`
+3. **Signing in**: the browser shows the passkeys it holds for this site; the member picks one and confirms with Face ID, Touch ID, a PIN or the key. No username, no password, no code: the passkey's user handle names the member. Bitwarden does all of this: it saves the passkey, offers it in the username field's autofill and signs in. → `auth.signed_in{…, method: passkey}`
 4. A refused passkey (unknown, removed, from another site, without user verification, a signature counter that went back) is a failed attempt: "That passkey wasn't accepted." → `auth.sign_in_failed{ip, stage: passkey}`
 5. **Removing**: **Remove…** on its row asks for the current password. → `auth.passkey_removed{name}` (notifies)
 
