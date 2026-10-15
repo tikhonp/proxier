@@ -1,0 +1,171 @@
+# The apps the link's page suggests (docs/integrations/subscription-format.md#browser-page).
+# This file is the whole list: add, remove or reorder apps here and nothing
+# else changes. It is compiled in, and a mistake in it fails the tests.
+#
+# apps: every app the page knows, by an id the platforms refer to.
+#   name:   as the page shows it
+#   import: the app's deep link that adds the link, as a Go text/template over
+#           .URL (the link's URL) and .Title (the subscription's title), with
+#           esc (percent-encode every byte but A-Z a-z 0-9 - . _ ~, so a space
+#           is %20) and b64 (standard base64 with padding). A link URL has no
+#           "?" or "#", so a path takes {{.URL}} as it is; a query or fragment
+#           takes {{esc .URL}} and {{esc .Title}}. No import: the app has no
+#           deep link and the person adds the link by hand.
+# labels:  the download buttons' texts.
+# manuals: how to add the link from the clipboard, for when an app has no deep
+#          link or it does nothing. One loose line each ("{manual}" in the
+#          page's steps), since the apps' own labels weren't tried on devices.
+# platforms: the tabs in order, every one of ios android macos windows linux
+#   tv once, each with its apps in order (the first is recommended):
+#   app, note (optional), downloads (label + an https URL), manual.
+# Texts are {en: "…", ru: "…"}, quoted (a comma ends an unquoted one).
+# YAML anchors (&name, *name) share an offer, a note or a download between
+# platforms.
+
+apps:
+  happ: {name: Happ, import: "happ://add/{{.URL}}"}
+  v2raytun: {name: v2RayTun, import: "v2raytun://import/{{.URL}}"}
+  hiddify: {name: Hiddify, import: "hiddify://import/{{.URL}}#{{esc .Title}}"}
+  v2rayng: {name: v2rayNG, import: "v2rayng://install-sub?url={{esc .URL}}#{{esc .Title}}"}
+  v2rayn: {name: v2rayN}
+  karing: {name: Karing, import: "karing://install-config?url={{esc .URL}}&name={{esc .Title}}"}
+  incy: {name: INCY, import: "incy://import/{{.URL}}"}
+  shadowrocket: {name: Shadowrocket, import: "shadowrocket://add/sub://{{b64 .URL}}?remark={{esc .Title}}"}
+  streisand: {name: Streisand, import: "streisand://import/{{.URL}}#{{esc .Title}}"}
+  throne: {name: Throne, import: 'throne://addsub/{{b64 (print .URL "#" .Title)}}'}
+
+labels:
+  appstore: {en: "App Store", ru: "App Store"}
+  appstore_tv: {en: "App Store (Apple TV)", ru: "App Store (Apple TV)"}
+  testflight: {en: "TestFlight", ru: "TestFlight"}
+  play: {en: "Google Play", ru: "Google Play"}
+  apk: {en: "APK file", ru: "Файл APK"}
+  exe: {en: "Installer (.exe)", ru: "Установщик (.exe)"}
+  dmg: {en: "Disk image (.dmg)", ru: "Образ диска (.dmg)"}
+  deb: {en: "Package (.deb)", ru: "Пакет (.deb)"}
+  github: {en: "Download page", ru: "Страница загрузки"}
+
+manuals:
+  tap_plus: {en: "tap + and choose to import from the clipboard", ru: "нажмите + и выберите импорт из буфера обмена"}
+  click_plus: {en: "click + and choose to add from the clipboard", ru: "нажмите + и выберите добавление из буфера обмена"}
+  v2rayn: {en: "choose to import share links from the clipboard, then update the subscriptions", ru: "выберите импорт ссылок из буфера обмена, затем обновите подписки"}
+  throne: {en: "choose to add a profile from the clipboard", ru: "выберите добавление профиля из буфера обмена"}
+  tv: {en: "add a subscription and type in the link shown on this page", ru: "добавьте подписку и введите ссылку, которая указана на этой странице"}
+
+platforms:
+  - platform: ios
+    apps:
+      - app: shadowrocket
+        note: {en: "Paid. In the Russian App Store too, and known to work with these servers.", ru: "Платное. Есть и в российском App Store, и точно работает с этими серверами."}
+        downloads:
+          - {label: appstore, url: "https://apps.apple.com/us/app/shadowrocket/id932747118"}
+        manual: tap_plus
+      - app: karing
+        note: &free_ru_store {en: "Free. In the Russian App Store too.", ru: "Бесплатное. Есть и в российском App Store."}
+        downloads:
+          - &karing_appstore {label: appstore, url: "https://apps.apple.com/us/app/karing/id6472431552"}
+        manual: tap_plus
+      - app: incy
+        note: {en: "In the Russian App Store too.", ru: "Есть и в российском App Store."}
+        downloads:
+          - {label: appstore, url: "https://apps.apple.com/ru/app/incy/id6756943388"}
+        manual: tap_plus
+      - app: happ
+        note: {en: "Not in the Russian App Store: install it with an Apple ID of another country, or take the TestFlight build, which works with a Russian Apple ID too.", ru: "Нет в российском App Store: установите его с Apple ID другой страны или возьмите сборку из TestFlight — она работает и с российским Apple ID."}
+        downloads:
+          - &happ_appstore {label: appstore, url: "https://apps.apple.com/us/app/happ-proxy-utility/id6504287215"}
+          - {label: testflight, url: "https://testflight.apple.com/join/ystvnbsP"}
+        manual: tap_plus
+      - app: streisand
+        note: {en: "Not in the Russian App Store: it needs an Apple ID of another country.", ru: "Нет в российском App Store: нужен Apple ID другой страны."}
+        downloads:
+          - {label: appstore, url: "https://apps.apple.com/us/app/streisand/id6450534064"}
+        manual: tap_plus
+
+  - platform: android
+    apps:
+      - app: happ
+        note: {en: "If Google Play doesn't open, install the APK file.", ru: "Если Google Play не открывается, установите файл APK."}
+        downloads:
+          - &happ_play {label: play, url: "https://play.google.com/store/apps/details?id=com.happproxy"}
+          - &happ_apk {label: apk, url: "https://github.com/Happ-proxy/happ-android/releases/latest/download/Happ.apk"}
+        manual: tap_plus
+      - app: v2raytun
+        downloads:
+          - {label: play, url: "https://play.google.com/store/apps/details?id=com.v2raytun.android"}
+        manual: tap_plus
+      - app: hiddify
+        note: &open_source {en: "Free and open source.", ru: "Бесплатное, с открытым кодом."}
+        downloads:
+          - {label: play, url: "https://play.google.com/store/apps/details?id=app.hiddify.com"}
+          - &hiddify_releases {label: github, url: "https://github.com/hiddify/hiddify-app/releases/latest"}
+        manual: tap_plus
+      - app: v2rayng
+        note: {en: "Free and open source. On the download page, take the file with “universal” in its name.", ru: "Бесплатное, с открытым кодом. На странице загрузки возьмите файл, в названии которого есть «universal»."}
+        downloads:
+          - &v2rayng_releases {label: github, url: "https://github.com/2dust/v2rayNG/releases/latest"}
+        manual: tap_plus
+
+  - platform: macos
+    apps:
+      - app: happ
+        note: {en: "Take the disk image: the App Store version isn't in the Russian App Store.", ru: "Скачайте образ диска: версии из App Store нет в российском магазине."}
+        downloads:
+          - {label: dmg, url: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.macOS.universal.dmg"}
+          - *happ_appstore
+        manual: click_plus
+      - &desktop_hiddify
+        app: hiddify
+        note: *open_source
+        downloads: [*hiddify_releases]
+        manual: click_plus
+      - app: karing
+        note: *free_ru_store
+        downloads: [*karing_appstore]
+        manual: click_plus
+      - &desktop_v2rayn
+        app: v2rayn
+        note: {en: "Free and open source, for those at ease with settings. It has no Add button: you add the link by hand.", ru: "Бесплатное, с открытым кодом, для тех, кто не боится настроек. Кнопки «Добавить» нет: ссылка добавляется вручную."}
+        downloads:
+          - {label: github, url: "https://github.com/2dust/v2rayN/releases/latest"}
+        manual: v2rayn
+
+  - platform: windows
+    apps:
+      - app: happ
+        downloads:
+          - {label: exe, url: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"}
+        manual: click_plus
+      - *desktop_hiddify
+      - *desktop_v2rayn
+      - &desktop_throne
+        app: throne
+        note: *open_source
+        downloads:
+          - {label: github, url: "https://github.com/throneproj/Throne/releases/latest"}
+        manual: throne
+
+  - platform: linux
+    apps:
+      - app: happ
+        downloads:
+          - {label: deb, url: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.linux.x64.deb"}
+        manual: click_plus
+      - *desktop_hiddify
+      - *desktop_v2rayn
+      - *desktop_throne
+
+  # A TV has no browser to tap a deep link in: its tab never shows Add buttons.
+  - platform: tv
+    apps:
+      - app: happ
+        note: {en: "Apple TV: from the App Store, the Russian one included. Android TV: from Google Play, or the APK file.", ru: "Apple TV: из App Store, в том числе российского. Android TV: из Google Play или файлом APK."}
+        downloads:
+          - {label: appstore_tv, url: "https://apps.apple.com/us/app/happ-proxy-utility-for-tv/id6748297274"}
+          - *happ_play
+          - *happ_apk
+        manual: tv
+      - app: v2rayng
+        note: {en: "For Android TV. On the download page, take the file with “universal” in its name.", ru: "Для Android TV. На странице загрузки возьмите файл, в названии которого есть «universal»."}
+        downloads: [*v2rayng_releases]
+        manual: tv

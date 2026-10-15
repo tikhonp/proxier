@@ -83,7 +83,7 @@ The URL goes into a path as it is, since it has no `?` or `#`. In a query or a f
 | Linux | Happ, Hiddify, v2rayN, Throne |
 | TV | Happ (Apple TV, Android TV), v2rayNG (Android TV) |
 
-Left out on purpose: the official sing-box apps and NekoBox, which have no XHTTP; Clash Verge Rev, Stash and Clash Mi, which need Clash YAML (a backlog format); FoXray, which is gone. The table is data in code (`subscriptions/linkpage`), like app detection. Which of these links and steps work on real devices is in [open questions](../open-questions.md#the-browser-pages-apps).
+Left out on purpose: the official sing-box apps and NekoBox, which have no XHTTP; Clash Verge Rev, Stash and Clash Mi, which need Clash YAML (a backlog format); FoXray, which is gone. The apps, their order on each tab, notes, download buttons, manual imports (in English and Russian) and deep links (Go templates over the URL and the title) are one file, `internal/modules/subscriptions/linkpage/apps.yaml`: adding, removing or reordering an app changes only it. It is compiled in and checked when the package loads (every tab once with an app, known apps, labels and manual imports, both languages, https downloads, deep links that render), so a mistake in it fails the tests. Which of these links and steps work on real devices is in [open questions](../open-questions.md#the-browser-pages-apps).
 
 ## App detection
 

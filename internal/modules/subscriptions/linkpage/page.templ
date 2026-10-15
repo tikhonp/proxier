@@ -98,7 +98,7 @@ templ Page(v View) {
 
 // offer is one app's card: install, add the link, turn it on.
 templ offer(v View, sh Shelf, o Offer, recommended bool) {
-	{{ args := i18n.Args{"app": o.App.Name, "manual": i18n.T(ctx, o.Manual)} }}
+	{{ args := i18n.Args{"app": o.App.Name, "manual": i18n.From(ctx).Text(o.Manual)} }}
 	<article class={ "lp-app", templ.KV("lp-rec", recommended) }>
 		<div class="lp-app-h">
 			<h3>{ o.App.Name }</h3>
@@ -106,21 +106,21 @@ templ offer(v View, sh Shelf, o Offer, recommended bool) {
 				<span class="lp-badge">{ i18n.T(ctx, "links.page.recommended") }</span>
 			}
 		</div>
-		if o.Note != "" {
-			<p class="lp-note">{ i18n.T(ctx, o.Note) }</p>
+		if o.Note != (i18n.Message{}) {
+			<p class="lp-note">{ i18n.From(ctx).Text(o.Note) }</p>
 		}
 		<ol class="lp-steps">
 			<li>
 				<p>{ i18n.T(ctx, "links.page.step.install", args) }</p>
 				<div class="lp-btns">
 					for _, d := range o.Downloads {
-						<a class="pc-btn" href={ templ.SafeURL(d.URL) } rel="noopener noreferrer">{ i18n.T(ctx, d.Label) }</a>
+						<a class="pc-btn" href={ templ.SafeURL(d.URL) } rel="noopener noreferrer">{ i18n.From(ctx).Text(d.Label) }</a>
 					}
 				</div>
 			</li>
 			<li>
 				switch {
-					case sh.DeepLinks && o.App.Import != nil:
+					case sh.DeepLinks && o.App.HasImport():
 						<div class="lp-btns">
 							<a class={ "pc-btn", "lp-add", templ.KV("pc-pri", recommended) } href={ templ.SafeURL(o.App.Import(v.URL, v.Title)) }>{ i18n.T(ctx, "links.page.add", args) }</a>
 						</div>
