@@ -21,6 +21,8 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/config"
+	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/db/dbtest"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -76,6 +78,11 @@ func New(t *testing.T, o Options) *Site {
 	if logTo == nil {
 		logTo = io.Discard
 	}
+	sources := []db.MigrationSource{dbtest.Platform}
+	for _, m := range o.Modules {
+		sources = append(sources, m)
+	}
+	dbtest.Seed(t, cfg.DatabasePath(), sources...)
 	app, err := platform.Open(cfg, slog.New(slog.NewTextHandler(logTo, nil)), o.Modules...)
 	if err != nil {
 		t.Fatalf("open: %v", err)

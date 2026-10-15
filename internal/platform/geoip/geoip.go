@@ -15,8 +15,9 @@ import (
 	"time"
 )
 
-// Timeout bounds the lookup: the form must not wait for a slow service.
-const Timeout = 3 * time.Second
+// Timeout bounds the lookup: the form must not wait for a slow service. A
+// test shortens it.
+var Timeout = 3 * time.Second
 
 // Client sends the request; tests use an httptest client.
 var Client = &http.Client{Timeout: Timeout}
