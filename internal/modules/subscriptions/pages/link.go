@@ -130,11 +130,11 @@ func (h *handler) linkView(c *echo.Context, l links.Link) (linkView, error) {
 		v.URL, v.Masked = h.Links.URL(token), h.maskedURL()
 	}
 	if !ended {
-		resp, format, err := h.Links.Serve(ctx, l, "", true)
+		sv, err := h.Links.Serve(ctx, l, "", true)
 		if err != nil {
 			return v, err
 		}
-		v.Preview, v.HasPreview = responseView(ctx, resp, format), true
+		v.Preview, v.HasPreview = responseView(ctx, sv.Response, sv.Format), true
 	}
 
 	if v.Who, err = h.whoView(ctx, l, c.QueryParam("window") == "7d"); err != nil {
