@@ -9,7 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Read first
 
 - `docs/README.md` — the docs map and reading order. For code: `docs/architecture.md` → **`docs/development.md`** (layout, module interfaces, rules, test harnesses, real-browser checks) → `docs/adr/` → `docs/data-model.md` → the module doc → **the process doc of a flow before touching it**.
-- `CONTEXT.md` — the glossary. Use its words, never the ones under _Avoid_.
+- [Glossary](#glossary) below. Use its words, never the ones under _Avoid_.
 - `docs/overview.md` (scope and the backlog), `docs/open-questions.md` (what the real deployment hasn't confirmed yet).
 - Docs describe Proxier as it is now: no phases, build history or dated decision notes (git has those).
 - UI: `docs/ui/README.md` (what each screen does) and `docs/ui/design/README.md` + `tokens.css` + `screens/RP-*.dc.html` (how it looks: the Rosé Pine page of the design canvas).
@@ -70,3 +70,317 @@ web/editor/                   source of the CodeMirror bundle (package.json, edi
 ## Deployment
 
 Image `code.tikhonnnnn.com/tikhon/proxier` (Forgejo's registry; distroless static, uid 65532, `/data` volume owned by it, `ENTRYPOINT /bin/proxier`, `CMD serve`), built by Forgejo Actions on code.tikhonnnnn.com (`.forgejo/workflows/ci.yaml`, secret `REGISTRY_TOKEN`) only after tests pass: main → `:<sha>`, `:main`, `:latest`; tag `v*` → `:<tag>`; `APP_VERSION=<ref>-<sha7>`. Production compose lives in `~/projects/sh-blackberry/proxier.yaml` and the gateway in `~/projects/sh-main` (tunnel port 10005); the user commits those. Details in `docs/deployment.md`.
+
+## Glossary
+
+The vocabulary is fixed: use these words in the UI, code, database and conversation, not the ones under _Avoid_.
+
+### Servers
+
+**Server**:
+A VPS that Proxier built and manages. It is identified by its server name, never by its IP address.
+_Avoid_: host, node, VPS, box, machine
+
+**Country**:
+Where a server is: an ISO 3166-1 alpha-2 code (`NL`), chosen when the server is created. Its name and flag are derived from the code, never stored; its code in lower case is the first half of a new server's name. Servers once had a **location** (a code, a name and a country, managed on its own page); ADR 0015 replaced it. The word survives only in old Activity entries and in `.Server.Location`, kept for older templates.
+_Avoid_: location, region, geo
+
+**Server name**:
+`<code>-<number>`, e.g. `nl-1`: the country's code in lower case (a server created when servers had locations keeps its location's code, `ams-1`). It belongs to one server for its whole life, and numbers are never reused.
+_Avoid_: hostname, label, id
+
+**Management hostname**:
+The DNS name Proxier and members use to reach a server, e.g. `nl-1.hosts.tikhonnnnn.com`.
+_Avoid_: domain (alone)
+
+**Proxy hostname**:
+The DNS name that clients connect to and the TLS certificate is issued for. It is the same as the management hostname.
+_Avoid_: SNI domain, cover domain
+
+**Template**:
+A named definition of what gets installed on a server: files, steps, generated values, endpoints and checks.
+_Avoid_: recipe, playbook, script, preset
+
+**Template version**:
+An immutable, published snapshot of a template. Every server is built from exactly one.
+_Avoid_: revision, release
+
+**Draft**:
+The editable, unpublished next version of a template or a router script.
+
+**Manifest**:
+The part of a template version that declares its parameters, generated values, files, steps, endpoints and checks.
+
+**Parameter**:
+A value a member supplies when building a server from a template, e.g. the Let's Encrypt email.
+_Avoid_: variable, input, option
+
+**Generated value**:
+A secret that Proxier creates once per server (a UUID, a secret path) and reuses on every redeploy until it is rotated.
+_Avoid_: random value, secret (alone)
+
+**Stack**:
+What a template version puts on a server: the rendered files and the containers running from them.
+_Avoid_: deployment (for the files), install
+
+**Provisioning**:
+Turning a fresh VPS (IP and root password) into an active server: base setup, DNS, stack, smoke test.
+_Avoid_: setup, bootstrap, install
+
+**Redeploy**:
+Rendering a template version again for an existing server and applying the difference.
+_Avoid_: update, sync, re-provision
+
+**Endpoint**:
+One place on a server that clients connect to, with a protocol, host, port and parameters.
+_Avoid_: inbound, node, config
+
+**Endpoint type**:
+A protocol Proxier understands: it knows how to build connection URIs for it and how to test it. There is one: VLESS over XHTTP with TLS.
+_Avoid_: protocol (alone), transport
+
+**Credential**:
+The secret a client presents to an endpoint (the VLESS UUID). There is one per endpoint, shared by every link.
+_Avoid_: key, password, user id
+
+**Rotation**:
+Replacing a server's rotatable generated values (the credential and secret path), so that every old connection URI stops working.
+_Avoid_: reset, regenerate, revoke
+
+**Retirement**:
+Taking a server out of service for good: its DNS records are removed and it leaves every subscription, but its history is kept.
+_Avoid_: delete, decommission, archive
+
+### Health
+
+**Check**:
+One probe of a server from one vantage point, and its result.
+_Avoid_: test (alone), ping, probe
+
+**Self-check**:
+A check run on the server itself over SSH: containers, certificate, local answers, resources.
+
+**Proxy test**:
+A check that connects through an endpoint the way a real client does and downloads a payload.
+_Avoid_: e2e test, speed test
+
+**External check**:
+A check run by a third-party network of nodes (check-host.net) from chosen countries.
+
+**Reference check**:
+A check of home's own internet access (a domestic site and a foreign site) that decides whether the other checks can be trusted.
+_Avoid_: connectivity test, self-test
+
+**Vantage point**:
+Where a check runs from: home (Proxier itself) or an external node in a named country.
+_Avoid_: probe, location
+
+**Health state**:
+The verdict on a server, drawn from its recent checks: healthy, degraded, blocked, down, unknown or paused.
+_Avoid_: status, uptime
+
+**Blocked**:
+The health state of a server that works on its own and can be reached from abroad, but can't be used from Russia.
+_Avoid_: banned, censored, down
+
+**Lifecycle state**:
+Where a server is in its life: provisioning, active, failed or retired.
+_Avoid_: status, health
+
+### Subscriptions
+
+**Subscription**:
+A named, ordered set of servers, with output settings, that links point to.
+_Avoid_: plan, group, bundle, profile
+
+**Link**:
+A named secret URL given to one person or device. It serves the connection URIs of exactly one subscription.
+_Avoid_: user, subscriber, client, account, key
+
+**Token**:
+The secret part of a link's URL. Regenerating it makes the old URL stop working.
+_Avoid_: id, hash, password
+
+**Connection URI**:
+One `vless://…` line in a link's output, for one endpoint.
+_Avoid_: share link, config, key, proxy link
+
+**Format**:
+How a link's output is written. There are two: a plain URI list and a base64 URI list.
+_Avoid_: type, encoding
+
+**Stub entry**:
+The single placeholder connection URI that a disabled, expired or deleted link serves. Its name tells the person why.
+_Avoid_: dummy, fake server
+
+**Fetch**:
+One request for a link's URL by a client app, recorded with time, IP and app.
+_Avoid_: hit, download, refresh
+
+**Expiry**:
+The moment after which a link serves its stub entry.
+_Avoid_: deadline, TTL
+
+**Shared-link alert**:
+A warning that a link is fetched from more networks or apps than one person's devices would explain.
+_Avoid_: abuse alert, leak alert
+
+**Cut-off**:
+Disabling a link and rotating every server in its subscription, so the link's holder loses access even with copied URIs.
+_Avoid_: ban, revoke, kill
+
+### Routing
+
+**Service**:
+A named set of domains from one source, e.g. `v2fly:anthropic`. It is what gets added to routing lists and installed on routers.
+_Avoid_: app, site, category, list
+
+**Source**:
+Where a service's domains come from: v2fly, iplist, a URL, or Proxier itself (custom).
+_Avoid_: provider, origin, feed
+
+**Selector**:
+How a service is named in its source, written `source:selector`, e.g. `iplist:beta:cloudflare.com`.
+_Avoid_: id, path, query
+
+**Tag**:
+A service's identity on a router: its selector without the source prefix. Exactly one service has each tag.
+_Avoid_: comment, label, name
+
+**Custom service**:
+A service whose domains a member writes and edits in Proxier.
+_Avoid_: own list, manual list, user list
+
+**Snapshot**:
+A service's parsed domains as fetched at one moment. The newest accepted snapshot is what targets get.
+_Avoid_: cache, version
+
+**Suffix domain**:
+A domain that also covers all of its subdomains.
+_Avoid_: wildcard, `domain:` (v2fly spelling)
+
+**Exact domain**:
+A domain that covers only itself.
+_Avoid_: `full:` (v2fly spelling), host
+
+**Catalog**:
+The searchable index of every selector the upstream sources offer, and of the domains they contain.
+_Avoid_: library, directory
+
+**Discovery**:
+Finding the domains a website uses, by catalog lookup and a headless-browser visit, so they can become a custom service.
+_Avoid_: crawl, scan, resolve
+
+**Routing list**:
+A named set of services. Each target follows exactly one routing list.
+_Avoid_: profile, policy, ruleset, service list
+
+**Target**:
+A place a routing list is applied to: a router or a Shadowrocket config.
+_Avoid_: destination, sink, output
+
+**Router**:
+A MikroTik that Proxier keeps in sync with a routing list.
+_Avoid_: device, gateway, mikrotik
+
+**Jump host**:
+The tailnet machine Proxier connects through to reach a router it can't reach directly.
+_Avoid_: bastion, proxy
+
+**Infra pin**:
+A router entry with a comment starting `mtvpn:`. It belongs to the router script, and sync never touches it.
+_Avoid_: system entry, protected entry
+
+**Unmanaged tag**:
+A service tag found on a router that Proxier never installed there.
+_Avoid_: foreign entry, orphan
+
+**Sync**:
+Bringing a target in line with its routing list.
+_Avoid_: push, deploy, apply
+
+**Drift**:
+A difference between what a router holds and what Proxier last installed on it.
+
+**Shadowrocket config**:
+A target that Proxier hosts: a base config with the routing list's rules spliced in, served at a secret URL.
+_Avoid_: profile, conf
+
+**Base config**:
+The hand-written part of a Shadowrocket config, which Proxier copies verbatim.
+
+### Router scripts
+
+**Router script**:
+A RouterOS script that sets up a factory-fresh router, kept in versions, e.g. `fresh-router.rsc`.
+_Avoid_: rsc, template, bootstrap
+
+**Script parameter**:
+One literal `:local` value in a router script's PARAMETERS block, filled in for each router.
+_Avoid_: variable, placeholder
+
+**Computed value**:
+A `:local` value of a router script's PARAMETERS block that is an expression, not a literal; shown, never filled in.
+_Avoid_: derived parameter
+
+**Generation**:
+A router script version filled in with one router's parameter values.
+_Avoid_: build, render, instance, copy
+
+**Fetch URL**:
+A short-lived, single-use secret URL that a router downloads one generation from.
+_Avoid_: download link, one-time link
+
+### Platform
+
+**Member**:
+A person who signs in to Proxier with their own username, password, sessions, authenticator app and passkeys, and a level in each area. `proxier manage create-admin` makes the first one, member 1, as Owner; the others are added on Settings → Members. A removed member keeps their row, so history names them. In code and history, a member acts as `member:<id>`; the old actor `admin` is member 1.
+_Avoid_: user, account, admin
+
+**Area**:
+A part of Proxier a member has one level in: `servers`, `subscriptions`, `routing`, `routerscripts`, `activity`, `settings`. Areas follow the modules.
+_Avoid_: section, permission, scope (that is whose things a query covers)
+
+**Level**:
+How far a member goes in one area, on that area's own ladder: `none`, `view`, `manage` (servers, settings); `none`, `own`, `view_all`, `manage_all` (subscriptions, routing, router scripts); `none`, `own`, `all` (activity). A member's levels in every area are their **grant**.
+_Avoid_: role, permission, right
+
+**Owner**, **Operator**, **Viewer**:
+The presets that fill a grant: the top level everywhere; Owner without Settings; reading everything and no Settings.
+_Avoid_: admin, superuser, role
+
+**Owner** (of a thing):
+The member a subscription, link, routing list, router, Shadowrocket config, custom service, import, discovery run or generation belongs to: who made it, or the heir of a removed member. Not the Owner preset. A member's **scope** in an area is whose things they read (their own at `own`, everyone's from `view_all`) and change (everyone's only at `manage_all`).
+_Avoid_: author, creator (the actor of `*.created` stays who made it), tenant
+
+**Heir**:
+The member who takes over a removed member's things: whoever removed them, or for a member who removed themselves, the first member in with `settings: manage`.
+_Avoid_: successor, inheritor
+
+**Setup link**:
+The single-use secret URL, valid 24 hours, where a newly added member chooses their password.
+_Avoid_: invite, invitation, activation link
+
+**Passkey**:
+A WebAuthn credential on a member's device or in a password manager that signs in alone, with no username or password. Optional; any number of them.
+_Avoid_: security key (that is one kind of device that holds one), WebAuthn credential (in the UI), FIDO key
+
+**Authenticator app**:
+The optional TOTP second step of a password sign-in: a 6-digit **code** from an app on the phone. In code and events, `totp`.
+_Avoid_: 2FA app, OTP, one-time password, MFA
+
+**Code step**:
+The page after a right password while the authenticator app is on: the sign-in waits there (5 minutes, 5 tries) for the code.
+_Avoid_: second factor page, challenge
+
+**Job**:
+A unit of background work (provisioning, a sync, a check round) with a queue, a state, steps and a live log.
+_Avoid_: task, run, process
+
+**Event**:
+An append-only record that something happened. Events feed the activity history and notifications.
+_Avoid_: log entry, audit record
+
+**Notification**:
+A Telegram message sent to a member, in their chat and language, because of an event that concerns them (their own thing or sign-in, an area they manage, or a change to members for who manages Settings).
+_Avoid_: alert (reserved for shared-link alerts), message

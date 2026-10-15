@@ -1,6 +1,6 @@
 # UI: screens, navigation and components
 
-This document lists every screen: what it shows, what can be done there, and the states it handles. How it looks (tokens, rules, screen sources) is in [design/](design/README.md). The UI is built with templ + htmx ([ADR 0014](../adr/0014-server-rendered-ui-templ-htmx.md)). Terms are the glossary's ([CONTEXT.md](../../CONTEXT.md)). Behaviour behind each action is in the linked process docs.
+This document lists every screen: what it shows, what can be done there, and the states it handles. How it looks (tokens, rules, screen sources) is in [design/](design/README.md). The UI is built with templ + htmx ([ADR 0014](../adr/0014-server-rendered-ui-templ-htmx.md)). Terms are the glossary's ([CLAUDE.md](../../CLAUDE.md#glossary)). Behaviour behind each action is in the linked process docs.
 
 ## Character
 

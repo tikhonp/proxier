@@ -10,6 +10,5 @@ data/
 .idea/
 .vscode/
 
-CONTEXT.md
 !internal/modules/servers/seed/files/.env
 /proxier
