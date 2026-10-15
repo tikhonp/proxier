@@ -6,6 +6,7 @@
 package access
 
 import (
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"strconv"
@@ -298,22 +299,100 @@ func PresetOf(g Grant) Preset {
 	return ""
 }
 
-// Scope is whose things a query covers: everyone's, or one member's own.
-// Handlers take it from the request; jobs and event subscribers use All.
-type Scope struct{ owner int64 }
+// Who is a signed-in member as access sees them: their ID and grant.
+type Who struct {
+	Member int64
+	Grant  Grant
+}
 
-// All covers everyone's things.
-var All = Scope{}
+// Scope is whose things the member reaches in a: at own their own; at
+// view_all they read everyone's and change their own; at manage_all (and in
+// an area with no owners, servers or settings) everything. Activity's all
+// reads everyone's.
+func (w Who) Scope(a Area) Scope {
+	s := Owner(w.Member)
+	switch l := w.Grant.Level(a); {
+	case l == LevelViewAll:
+		s.readsAll = true
+	case l == LevelManageAll, l == LevelAll, a == Servers, a == Settings:
+		return All
+	}
+	return s
+}
 
-// Owner covers the things of one member.
-func Owner(member int64) Scope { return Scope{owner: member} }
+// Scope is whose things a query reaches: everyone's, or one member's own,
+// and separately for reading and for changing. Every query of owned things
+// takes one, so a forgotten scope doesn't compile. Handlers take it from
+// the request (web.Scope); jobs and event subscribers use All.
+//
+// A Scope is a SQL argument standing for the owner whose rows it reads, 0
+// for everyone's: a query keeps a row with "? IN (0, owner_id)". The zero
+// Scope reads nothing, so a Scope never made by All, Owner or Who.Scope
+// can't widen a query.
+type Scope struct {
+	member              int64
+	readsAll, writesAll bool
+}
 
-// Member is the member a scope is limited to; ok is false for All.
-func (s Scope) Member() (member int64, ok bool) { return s.owner, s.owner != 0 }
+// All reads and changes everyone's things.
+var All = Scope{readsAll: true, writesAll: true}
+
+// Owner reads and changes the things of one member.
+func Owner(member int64) Scope { return Scope{member: member} }
+
+// Member is the member whose things the scope reads; ok is false when it
+// reads everyone's.
+func (s Scope) Member() (member int64, ok bool) { return s.member, !s.readsAll }
+
+// Reads reports whether the scope reaches a thing of owner.
+func (s Scope) Reads(owner int64) bool { return s.readsAll || s.member != 0 && owner == s.member }
+
+// Writes reports whether the scope may change a thing of owner.
+func (s Scope) Writes(owner int64) bool { return s.writesAll || s.member != 0 && owner == s.member }
+
+// Writable is the scope narrowed to what it may change: for loading a
+// thing to change it, or offering things to pick (a subscription for a new
+// link). A thing the scope reads but can't change is then not found.
+func (s Scope) Writable() Scope {
+	return Scope{member: s.member, readsAll: s.writesAll, writesAll: s.writesAll}
+}
+
+// Value makes a Scope a SQL argument: 0 for everyone's, the member's ID,
+// or -1 (no owner has it) for a zero Scope.
+func (s Scope) Value() (driver.Value, error) {
+	switch {
+	case s.readsAll:
+		return int64(0), nil
+	case s.member == 0:
+		return int64(-1), nil
+	}
+	return s.member, nil
+}
 
 func (s Scope) String() string {
-	if s.owner == 0 {
+	switch {
+	case s.readsAll && s.writesAll:
 		return "all"
+	case s.readsAll:
+		return "read all, owner:" + strconv.FormatInt(s.member, 10)
 	}
-	return "owner:" + strconv.FormatInt(s.owner, 10)
+	return "owner:" + strconv.FormatInt(s.member, 10)
 }
+
+// ForbiddenError is a member's grant not reaching what they asked for in
+// Area: a route of a higher level, or a thing they read but may not change.
+// The web error handler answers it with a 403 page naming the area, or for
+// htmx (which swaps no 4xx) a fragment the key line shows.
+type ForbiddenError struct{ Area Area }
+
+func (e *ForbiddenError) Error() string {
+	return "access: " + string(e.Area) + " doesn't reach this"
+}
+
+// StatusCode is 403 (echo reads it).
+func (e *ForbiddenError) StatusCode() int { return 403 }
+
+// Forbidden is the error of a request the member's grant doesn't reach in
+// area. Being an error, it stops a handler or service that checks more than
+// its route.
+func Forbidden(area Area) error { return &ForbiddenError{Area: area} }

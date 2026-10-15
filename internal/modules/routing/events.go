@@ -43,6 +43,7 @@ var Events = []events.Type{
 	{Name: "routing.unmanaged_tag_ignored", Description: "An unmanaged tag was ignored, or no longer ignored."},
 	{Name: "routing.discovery_completed", Description: "A discovery run finished."},
 	{Name: "routing.discovery_failed", Description: "A discovery run failed."},
+	{Name: "routing.handed_over", Description: "A removed member's lists, routers, Shadowrocket configs, custom services, imports and discovery runs went to their heir (subject: the removed member)."},
 }
 
 func init() {

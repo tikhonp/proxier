@@ -51,11 +51,21 @@ func (h *handler) loadRouter(c *echo.Context) (routers.Router, error) {
 	if err != nil {
 		return routers.Router{}, echo.ErrNotFound
 	}
-	r, err := h.Routers.Get(c.Request().Context(), id)
+	r, err := h.Routers.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, routers.ErrNotFound) {
 		return r, echo.ErrNotFound
 	}
 	return r, err
+}
+
+// loadRouterToChange is loadRouter for a page or action that changes the
+// router: Forbidden for one the member reads but may not change.
+func (h *handler) loadRouterToChange(c *echo.Context) (routers.Router, error) {
+	r, err := h.loadRouter(c)
+	if err != nil {
+		return r, err
+	}
+	return r, mayChange(c.Request().Context(), r.OwnerID)
 }
 
 // ------------------------------------------------------------------ status words
@@ -115,6 +125,7 @@ func (h *handler) routerWord(ctx context.Context, r routers.Router) (kind, word 
 
 type routerRow struct {
 	ID                      int64
+	CanChange               bool
 	Name, Addr, State, List string
 	Kind, Word, Detail      string
 	Watch                   string
@@ -124,13 +135,13 @@ type routerRow struct {
 func (h *handler) routersList(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	rs, err := h.Routers.List(ctx)
+	rs, err := h.Routers.List(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
 	rows := make([]routerRow, 0, len(rs))
 	for _, r := range rs {
-		row := routerRow{ID: r.ID, Name: r.Name, List: r.List, State: i18n.T(ctx, "routers.state."+r.State), Addr: addrLine(ctx, r),
+		row := routerRow{ID: r.ID, CanChange: scope(ctx).Writes(r.OwnerID), Name: r.Name, List: r.List, State: i18n.T(ctx, "routers.state."+r.State), Addr: addrLine(ctx, r),
 			Failing: r.State == routers.StateActive && r.LastResult == "failed"}
 		if row.Kind, row.Word, err = h.routerWord(ctx, r); err != nil {
 			return err
@@ -261,11 +272,14 @@ type rtAddView struct {
 
 func (h *handler) rtRenderAdd(c *echo.Context, status int, v rtAddView) error {
 	ctx := c.Request().Context()
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
 	v.Lists = all
+	if v.F.ListID == 0 && len(all) > 0 {
+		v.F.ListID = all[0].ID
+	}
 	if key, _, err := h.SSH.PublicKey(ctx); err == nil {
 		v.Key = strings.TrimSpace(key)
 	}
@@ -279,13 +293,17 @@ func (h *handler) routerAddPage(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	v := rtAddView{F: routerForm{ListID: def.ID, Conn: routers.Connection{}.Normalize(), FirstHop: "direct"}}
+	listID := def.ID
+	if !scope(ctx).Writable().Reads(def.OwnerID) {
+		listID = 0 // the default is another member's: the first list of the member's is picked
+	}
+	v := rtAddView{F: routerForm{ListID: listID, Conn: routers.Connection{}.Normalize(), FirstHop: "direct"}}
 	if h.Routers.TailnetRunning(ctx) {
 		v.F.FirstHop = "tailnet"
 	}
 	v.F.Conn.Host = ""
 	if id := formID(c.QueryParam("test")); id != 0 {
-		t, err := h.Routers.Test(ctx, id)
+		t, err := h.Routers.Test(ctx, id, scope(ctx))
 		if err == nil && t.RouterID == 0 {
 			v.F.Conn, v.TestID = t.Conn, t.ID
 			v.F.FirstHop = hopOf(t.Conn)
@@ -316,7 +334,7 @@ func (h *handler) routerTest(c *echo.Context) error {
 	rid := formID(c.FormValue("router"))
 	conn := formConn(c)
 	if rid != 0 {
-		r, err := h.Routers.Get(ctx, rid)
+		r, err := h.Routers.Get(ctx, rid, scope(ctx))
 		if errors.Is(err, routers.ErrNotFound) {
 			return echo.ErrNotFound
 		} else if err != nil {
@@ -324,7 +342,7 @@ func (h *handler) routerTest(c *echo.Context) error {
 		}
 		conn = r.Conn
 	}
-	id, err := h.Routers.StartTest(ctx, rid, conn, web.Actor(ctx))
+	id, err := h.Routers.StartTest(ctx, rid, web.Who(ctx), conn, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.rtRenderAdd(c, http.StatusUnprocessableEntity, rtAddView{
@@ -399,8 +417,16 @@ func (h *handler) loadTest(c *echo.Context) (routers.Test, error) {
 	if err != nil {
 		return routers.Test{}, echo.ErrNotFound
 	}
-	t, err := h.Routers.Test(c.Request().Context(), id)
+	ctx := c.Request().Context()
+	t, err := h.Routers.Test(ctx, id, scope(ctx))
 	if errors.Is(err, routers.ErrTestNotFound) {
+		return t, echo.ErrNotFound
+	}
+	if err != nil || t.RouterID == 0 {
+		return t, err
+	}
+	// a saved router's test is as private as its router
+	if _, err := h.Routers.Get(ctx, t.RouterID, scope(ctx)); errors.Is(err, routers.ErrNotFound) {
 		return t, echo.ErrNotFound
 	}
 	return t, err
@@ -429,7 +455,7 @@ func (h *handler) routerConfirm(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	next, err := h.Routers.Confirm(ctx, t.ID, c.FormValue("decision") == "trust", web.Actor(ctx))
+	next, err := h.Routers.Confirm(ctx, t.ID, web.Who(ctx), c.FormValue("decision") == "trust", web.Actor(ctx))
 	if errors.Is(err, routers.ErrNotConfirming) {
 		next = 0
 	} else if err != nil {
@@ -450,12 +476,12 @@ func (h *handler) routerCreate(c *echo.Context) error {
 	ctx := c.Request().Context()
 	f := routerForm{Name: c.FormValue("name"), ListID: formID(c.FormValue("list")), Conn: formConn(c), FirstHop: c.FormValue("first_hop")}
 	testID := formID(c.FormValue("test"))
-	id, err := h.Routers.Create(ctx, f.Name, f.ListID, f.Conn, testID, web.Actor(ctx))
+	id, err := h.Routers.Create(ctx, web.Who(ctx), f.Name, f.ListID, f.Conn, testID, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v := rtAddView{F: f, Errs: errText(ctx, fe), TestID: testID}
 		if testID != 0 {
-			if t, err := h.Routers.Test(ctx, testID); err == nil {
+			if t, err := h.Routers.Test(ctx, testID, scope(ctx)); err == nil {
 				tv := h.testView(ctx, t, f.Name, f.ListID)
 				v.Test = &tv
 			}
@@ -476,6 +502,7 @@ type planRow struct {
 }
 
 type rtPreviewView struct {
+	CanChange       bool
 	RouterID        int64
 	SyncID          int64
 	Running, Failed bool
@@ -496,6 +523,9 @@ type historyRow struct {
 }
 
 type routerView struct {
+	// CanChange: the member may change the router (theirs, or manage_all);
+	// a reader sees no controls.
+	CanChange bool
 	R         routers.Router
 	Kind      string
 	Word      string
@@ -543,7 +573,7 @@ func (h *handler) routerPage(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	v := routerView{R: r, Waiting: !r.Connected() && r.State == "active"}
+	v := routerView{R: r, CanChange: scope(ctx).Writes(r.OwnerID), Waiting: !r.Connected() && r.State == "active"}
 	busy, err := h.Routers.Busy(ctx, r.ID)
 	if err != nil {
 		return err
@@ -571,7 +601,7 @@ func (h *handler) routerPage(c *echo.Context) error {
 	if r.Board != "" {
 		parts = append(parts, r.Board)
 	}
-	v.Line = strings.Join(parts, " · ")
+	v.Line = strings.Join(parts, " · ") + ownerNote(ctx, r.OwnerID)
 	if r.LastResult == "failed" && r.State != routers.StateAwaiting {
 		b := &failBand{Problem: r.LastError, Count: loc.N("routers.band.in_a_row", int64(r.Failures))}
 		if busy.Retry {
@@ -624,7 +654,7 @@ func (h *handler) routerPage(c *echo.Context) error {
 		}
 	}
 	if testID != 0 {
-		if t, err := h.Routers.Test(ctx, testID); err == nil && t.RouterID == r.ID {
+		if t, err := h.Routers.Test(ctx, testID, scope(ctx)); err == nil && t.RouterID == r.ID {
 			tv := h.testView(ctx, t, "", 0)
 			v.Test = &tv
 		}
@@ -701,7 +731,7 @@ func planRows(ctx context.Context, plan []routers.TagPlan) []planRow {
 
 func (h *handler) rtPreviewOf(ctx context.Context, r routers.Router, s routers.Sync, busy routers.Now) rtPreviewView {
 	loc := i18n.From(ctx)
-	v := rtPreviewView{RouterID: r.ID, SyncID: s.ID, Running: s.State == "running", Failed: s.State == "failed" || s.State == "cancelled", Error: s.Error}
+	v := rtPreviewView{CanChange: scope(ctx).Writes(r.OwnerID), RouterID: r.ID, SyncID: s.ID, Running: s.State == "running", Failed: s.State == "failed" || s.State == "cancelled", Error: s.Error}
 	if v.Running {
 		v.WaitJob = busy.PreviewWaits
 	}
@@ -799,11 +829,11 @@ func (h *handler) routerActivity(ctx context.Context, r routers.Router) ([]event
 }
 
 func (h *handler) routerSyncNow(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.SyncNow(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Routers.SyncNow(c.Request().Context(), r.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); errors.Is(err, routers.ErrNotActive) {
 		return echo.NewHTTPError(http.StatusConflict, "the router is not active")
 	} else if err != nil {
 		return err
@@ -812,11 +842,11 @@ func (h *handler) routerSyncNow(c *echo.Context) error {
 }
 
 func (h *handler) routerPreviewStart(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
-	if _, err := h.Routers.Preview(c.Request().Context(), r.ID, web.Actor(c.Request().Context())); err != nil {
+	if _, err := h.Routers.Preview(c.Request().Context(), r.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, routerHref(r.ID)+"#preview")
@@ -922,7 +952,7 @@ type editView struct {
 }
 
 func (h *handler) routerEditPage(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
@@ -936,13 +966,13 @@ func (h *handler) renderEdit(c *echo.Context, status int, v editView) error {
 }
 
 func (h *handler) routerEdit(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 	f := routerForm{Name: c.FormValue("name"), ListID: r.ListID, Conn: formConn(c), FirstHop: c.FormValue("first_hop")}
-	_, err = h.Routers.Edit(ctx, r.ID, f.Name, f.Conn, web.Actor(ctx))
+	_, err = h.Routers.Edit(ctx, r.ID, scope(ctx), f.Name, f.Conn, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderEdit(c, http.StatusUnprocessableEntity, editView{R: r, F: f, Errs: errText(ctx, fe)})
@@ -960,7 +990,7 @@ type listPickView struct {
 }
 
 func (h *handler) routerListPage(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
@@ -969,7 +999,7 @@ func (h *handler) routerListPage(c *echo.Context) error {
 
 func (h *handler) renderListPick(c *echo.Context, status int, v listPickView) error {
 	ctx := c.Request().Context()
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
@@ -979,12 +1009,12 @@ func (h *handler) renderListPick(c *echo.Context, status int, v listPickView) er
 }
 
 func (h *handler) routerSetList(c *echo.Context) error {
-	r, err := h.loadRouter(c)
+	r, err := h.loadRouterToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Routers.SetList(ctx, r.ID, formID(c.FormValue("list")), web.Actor(ctx))
+	err = h.Routers.SetList(ctx, r.ID, scope(ctx), formID(c.FormValue("list")), web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderListPick(c, http.StatusUnprocessableEntity, listPickView{R: r, Err: i18n.T(ctx, fe["list"])})

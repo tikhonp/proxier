@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
@@ -18,9 +19,10 @@ var targetWord = map[string]string{"router": "router", "shadowrocket": "Shadowro
 // Delete deletes a list; its services stay. The default can't go
 // (ErrDefault). Routers and Shadowrocket configs following it must move to
 // another list (moveTo) in the same step, else *HasTargetsError.
-func (s *Service) Delete(ctx context.Context, id, moveTo int64, actor string) error {
+// The targets move only to a list scope may change.
+func (s *Service) Delete(ctx context.Context, id, moveTo int64, scope access.Scope, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		l, err := getList(ctx, tx, id)
+		l, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
@@ -40,7 +42,7 @@ func (s *Service) Delete(ctx context.Context, id, moveTo int64, actor string) er
 				}
 				return e
 			}
-			to, err := getList(ctx, tx, moveTo)
+			to, err := getList(ctx, tx, moveTo, scope.Writable())
 			if errors.Is(err, ErrNotFound) || err == nil && to.ID == id {
 				return ErrMoveTo
 			}

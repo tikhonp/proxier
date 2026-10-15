@@ -125,3 +125,60 @@ func TestWithinLowersToTheLimit(t *testing.T) {
 		t.Fatalf("viewer within %s = %s, want %s", limit, got, want)
 	}
 }
+
+func TestScopesReadAndChangeByLevel(t *testing.T) {
+	const me, other = 7, 9
+	who := func(l Level) Who { return Who{Member: me, Grant: Grant{}.With(Routing, l)} }
+	cases := []struct {
+		level                  Level
+		readsOther, writeOther bool
+	}{
+		{LevelOwn, false, false},
+		{LevelViewAll, true, false},
+		{LevelManageAll, true, true},
+	}
+	for _, c := range cases {
+		s := who(c.level).Scope(Routing)
+		if !s.Reads(me) || !s.Writes(me) {
+			t.Errorf("%s: doesn't reach the member's own things", c.level)
+		}
+		if s.Reads(other) != c.readsOther || s.Writes(other) != c.writeOther {
+			t.Errorf("%s: reads another's %v, changes another's %v", c.level, s.Reads(other), s.Writes(other))
+		}
+		if w := s.Writable(); w.Reads(other) != c.writeOther || !w.Reads(me) {
+			t.Errorf("%s: Writable reads another's %v", c.level, w.Reads(other))
+		}
+	}
+	if s := (Who{Member: me, Grant: PresetViewer.Grant()}).Scope(Subscriptions); !s.Reads(other) || s.Writes(other) {
+		t.Error("a Viewer must read everyone's subscriptions and change only their own")
+	}
+	if s := (Who{Member: me}).Scope(Servers); s != All {
+		t.Error("servers have no owners: every scope there is All")
+	}
+	if s := (Who{Member: me, Grant: Grant{}.With(Activity, LevelOwn)}).Scope(Activity); s.Reads(other) {
+		t.Error("activity: own reads another member's")
+	}
+}
+
+func TestScopeIsTheOwnerAsASQLArgument(t *testing.T) {
+	cases := []struct {
+		s    Scope
+		want int64
+	}{
+		{All, 0},
+		{Owner(7), 7},
+		{Who{Member: 7, Grant: Grant{}.With(Routing, LevelViewAll)}.Scope(Routing), 0},
+		{Who{Member: 7, Grant: Grant{}.With(Routing, LevelViewAll)}.Scope(Routing).Writable(), 7},
+		{Scope{}, -1}, // a Scope made by nothing reads nothing
+		{Owner(0), -1},
+	}
+	for _, c := range cases {
+		v, err := c.s.Value()
+		if err != nil || v != c.want {
+			t.Errorf("%s: %v %v, want %d", c.s, v, err, c.want)
+		}
+	}
+	if (Scope{}).Reads(0) || (Scope{}).Writes(0) {
+		t.Error("the zero Scope reaches the things of member 0")
+	}
+}

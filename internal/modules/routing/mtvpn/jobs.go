@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -64,7 +65,7 @@ func (s *Service) load(ctx context.Context, q sqlx.QueryerContext, r *jobs.Run) 
 	if err := r.Payload(&p); err != nil {
 		return Import{}, jobs.Permanent(err)
 	}
-	row, err := store.GetImport(ctx, q, p.ImportID)
+	row, err := store.GetImport(ctx, q, p.ImportID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return Import{}, jobs.Permanent(ErrNotFound)
 	}
@@ -122,7 +123,7 @@ func (s *Service) importRow(ctx context.Context, im Import, row *Row, actor stri
 			return saveRows(ctx, tx, im)
 		})
 	}
-	if ex, err := store.ServiceByTag(ctx, s.d.DB.R, row.Tag); err == nil {
+	if ex, err := store.ServiceByTag(ctx, s.d.DB.R, row.Tag, access.All); err == nil {
 		row.Outcome, row.ServiceID = Reused, ex.ID
 		return save(nil)
 	} else if !errors.Is(err, store.ErrNotFound) {
@@ -148,7 +149,7 @@ func (s *Service) importRow(ctx context.Context, im Import, row *Row, actor stri
 		var id int64
 		var err error
 		if row.Convert {
-			id, err = s.d.Services.CreateCustomTx(ctx, tx, services.Custom{Name: row.Tag, Tag: row.Tag, Origin: "import"}, res.Set, actor)
+			id, err = s.d.Services.CreateCustomTx(ctx, tx, services.Custom{Name: row.Tag, Tag: row.Tag, Origin: "import", Owner: im.OwnerID}, res.Set, actor)
 			row.Outcome = Converted
 		} else {
 			pinned, perr := selector.Parse(sel.Pin(res.Portal).String())
@@ -231,7 +232,7 @@ func (s *Service) stepLists(ctx context.Context, r *jobs.Run) error {
 		ids = append(ids, row.ServiceID)
 	}
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if err := s.d.Lists.AppendTx(ctx, tx, im.ListID, ids, actor); err != nil {
+		if err := s.d.Lists.AppendTx(ctx, tx, im.ListID, access.All, ids, actor); err != nil {
 			return err
 		}
 		return saveRows(ctx, tx, im)
@@ -268,7 +269,8 @@ func (s *Service) stepShadowrocket(ctx context.Context, r *jobs.Run) error {
 		return s.d.DB.Write(ctx, finish)
 	}
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		id, err := s.d.Shadowrocket.CreateTx(ctx, tx, shadowrocket.New{Name: sr.Name, ListID: sr.ListID, Policy: shadowrocket.DefaultPolicy,
+		// the lists were checked against the member's scope when it was run
+		id, err := s.d.Shadowrocket.CreateTx(ctx, tx, access.All, shadowrocket.New{Owner: im.OwnerID, Name: sr.Name, ListID: sr.ListID, Policy: shadowrocket.DefaultPolicy,
 			Base: im.base, Note: "imported from mtvpn"}, r.Info().Actor())
 		if err != nil {
 			return err

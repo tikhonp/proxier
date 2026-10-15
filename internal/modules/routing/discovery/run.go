@@ -17,6 +17,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/own"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/modules/servers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -36,7 +37,7 @@ func (s *Service) Start(ctx context.Context, st Start, actor string) (int64, err
 	if err != nil {
 		fe["website"] = "discovery.err.website"
 	}
-	row := store.DiscoveryRun{Input: strings.TrimSpace(st.Website), URL: t.URL, Host: t.Host, Registrable: t.Registrable, Via: st.Via,
+	row := store.DiscoveryRun{OwnerID: st.Owner, Input: strings.TrimSpace(st.Website), URL: t.URL, Host: t.Host, Registrable: t.Registrable, Via: st.Via,
 		Depth: st.Depth, CreatedAt: db.At(s.d.Now())}
 	switch {
 	case st.Via == ViaDirect:
@@ -78,21 +79,22 @@ func (s *Service) Start(ctx context.Context, st Start, actor string) (int64, err
 	return id, err
 }
 
-// Again starts a new run of the same website and depth through another path.
-func (s *Service) Again(ctx context.Context, id int64, via string, serverID int64, actor string) (int64, error) {
-	r, err := store.GetRun(ctx, s.d.DB.R, id)
+// Again starts a new run of w's of the same website and depth, of a run w
+// reads, through another path.
+func (s *Service) Again(ctx context.Context, id int64, w access.Who, via string, serverID int64, actor string) (int64, error) {
+	r, err := store.GetRun(ctx, s.d.DB.R, id, w.Scope(access.Routing))
 	if errors.Is(err, store.ErrNotFound) {
 		return 0, ErrNotFound
 	}
 	if err != nil {
 		return 0, err
 	}
-	return s.Start(ctx, Start{Website: r.Input, Via: via, ServerID: serverID, Depth: r.Depth}, actor)
+	return s.Start(ctx, Start{Owner: w.Member, Website: r.Input, Via: via, ServerID: serverID, Depth: r.Depth}, actor)
 }
 
 func fromRow(r store.DiscoveryRun) (Run, error) {
 	run := Run{
-		ID: r.ID, Input: r.Input, URL: r.URL, Host: r.Host, Registrable: r.Registrable, Via: r.Via, ServerID: r.ServerID.Int64,
+		ID: r.ID, OwnerID: r.OwnerID, Input: r.Input, URL: r.URL, Host: r.Host, Registrable: r.Registrable, Via: r.Via, ServerID: r.ServerID.Int64,
 		ServerName: r.ServerName, Depth: r.Depth, State: r.State, JobID: r.JobID.Int64, Title: r.Title, Capped: r.Capped,
 		Error: r.Error, CreatedAt: r.CreatedAt.Time, FinishedAt: r.FinishedAt.Time,
 	}
@@ -102,9 +104,9 @@ func fromRow(r store.DiscoveryRun) (Run, error) {
 	return run, json.Unmarshal([]byte(r.Visits), &run.Visits)
 }
 
-// Recent reads the newest runs, without their hosts.
-func (s *Service) Recent(ctx context.Context, limit int) ([]Run, error) {
-	rows, err := store.RecentRuns(ctx, s.d.DB.R, limit)
+// Recent reads the newest runs within scope, without their hosts.
+func (s *Service) Recent(ctx context.Context, scope access.Scope, limit int) ([]Run, error) {
+	rows, err := store.RecentRuns(ctx, s.d.DB.R, scope, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -119,10 +121,10 @@ func (s *Service) Recent(ctx context.Context, limit int) ([]Run, error) {
 	return out, nil
 }
 
-// Get reads a run with its hosts, grouped by registrable domain, and what
-// already covers them in every routing list.
-func (s *Service) Get(ctx context.Context, id int64) (Run, error) {
-	r, err := store.GetRun(ctx, s.d.DB.R, id)
+// Get reads a run within scope with its hosts, grouped by registrable
+// domain, and what already covers them in every routing list scope reads.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Run, error) {
+	r, err := store.GetRun(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Run{}, ErrNotFound
 	}
@@ -141,7 +143,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Run, error) {
 		run.Hosts = append(run.Hosts, hostOf(h))
 	}
 	group(&run)
-	return run, s.covered(ctx, &run)
+	return run, s.covered(ctx, &run, scope)
 }
 
 func hostOf(h store.DiscoveredHost) Host {
@@ -168,11 +170,11 @@ func storedHost(runID int64, h Host) store.DiscoveredHost {
 // covered fills the hosts' and groups' "covered by" over every routing list:
 // for a host, an exact entry of it or a suffix of it or above; for a group,
 // a suffix of its registrable domain or above.
-func (s *Service) covered(ctx context.Context, run *Run) error {
+func (s *Service) covered(ctx context.Context, run *Run, scope access.Scope) error {
 	if len(run.Hosts) == 0 {
 		return nil
 	}
-	all, err := s.d.Lists.All(ctx)
+	all, err := s.d.Lists.All(ctx, scope)
 	if err != nil {
 		return err
 	}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -71,7 +72,7 @@ func (s *Service) load(ctx context.Context, r *jobs.Run) (Run, error) {
 	if err := r.Payload(&p); err != nil {
 		return Run{}, jobs.Permanent(err)
 	}
-	row, err := store.GetRun(ctx, s.d.DB.R, p.RunID)
+	row, err := store.GetRun(ctx, s.d.DB.R, p.RunID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return Run{}, jobs.Permanent(ErrNotFound)
 	}

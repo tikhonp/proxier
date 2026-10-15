@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
@@ -50,7 +51,7 @@ func mainList(t *testing.T, h *routingtest.Harness) int64 {
 func syncNow(t *testing.T, h *routingtest.Harness, id int64) int64 {
 	t.Helper()
 	h.StartJobs()
-	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -79,7 +80,7 @@ func applied(t *testing.T, h *routingtest.Harness, id int64) map[string]routers.
 
 func router(t *testing.T, h *routingtest.Harness, id int64) routers.Router {
 	t.Helper()
-	r, err := h.Mod.Routers.Get(bg, id)
+	r, err := h.Mod.Routers.Get(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -93,7 +94,7 @@ func setCustom(t *testing.T, h *routingtest.Harness, id int64, tag string, names
 	for _, n := range names {
 		rows = append(rows, services.DomainRow{Domain: strings.TrimPrefix(n, "full:"), Exact: strings.HasPrefix(n, "full:")})
 	}
-	if _, err := h.Mod.Services.SaveCustom(bg, id, services.Edit{Name: tag, Tag: tag, Rows: rows}, "admin"); err != nil {
+	if _, err := h.Mod.Services.SaveCustom(bg, id, access.All, services.Edit{Name: tag, Tag: tag, Rows: rows}, "admin"); err != nil {
 		t.Fatalf("save %s: %v", tag, err)
 	}
 }

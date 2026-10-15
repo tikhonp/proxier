@@ -13,13 +13,14 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/servers/provision"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // custom makes a custom service with these suffix names on the real module.
 func custom(t *testing.T, rt *routing.Module, tag string, names ...string) int64 {
 	t.Helper()
 	ctx := context.Background()
-	id, err := rt.Services.CreateCustom(ctx, services.Custom{Name: tag, Tag: tag}, "admin")
+	id, err := rt.Services.CreateCustom(ctx, services.Custom{Owner: 1, Name: tag, Tag: tag}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +28,7 @@ func custom(t *testing.T, rt *routing.Module, tag string, names ...string) int64
 	for _, n := range names {
 		rows = append(rows, services.DomainRow{Domain: n})
 	}
-	if _, err := rt.Services.SaveCustom(ctx, id, services.Edit{Name: tag, Tag: tag, Rows: rows}, "admin"); err != nil {
+	if _, err := rt.Services.SaveCustom(ctx, id, access.All, services.Edit{Name: tag, Tag: tag, Rows: rows}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	return id
@@ -36,7 +37,7 @@ func custom(t *testing.T, rt *routing.Module, tag string, names ...string) int64
 func TestRealProvisioningRefusedByList(t *testing.T) {
 	h, rt := routingtest.WithServers(t)
 	sites := custom(t, rt, "my-sites", "tikhonnnnn.com")
-	if err := rt.Lists.Add(context.Background(), 1, []int64{sites}, "admin"); err != nil {
+	if err := rt.Lists.Add(context.Background(), 1, access.All, []int64{sites}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	// two servers of nl came and went: the next one is nl-3
@@ -63,7 +64,7 @@ func TestRealProvisioningRefusedByList(t *testing.T) {
 	}
 
 	// out of the list, the server can be made
-	if err := rt.Lists.Remove(context.Background(), 1, sites, "admin"); err != nil {
+	if err := rt.Lists.Remove(context.Background(), 1, access.All, sites, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	id := h.Create(f)
@@ -80,10 +81,10 @@ func TestRealGuardNamesServer(t *testing.T) {
 		t.Fatalf("nl-1: %s", s.State)
 	}
 	mine := custom(t, rt, "mine", "example.com")
-	if err := rt.Lists.Add(context.Background(), 1, []int64{mine}, "admin"); err != nil {
+	if err := rt.Lists.Add(context.Background(), 1, access.All, []int64{mine}, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	_, err := rt.Services.SaveCustom(context.Background(), mine, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
+	_, err := rt.Services.SaveCustom(context.Background(), mine, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "example.com"}, {Domain: "tikhonnnnn.com"},
 	}}, "admin")
 	var ge *lists.GuardError

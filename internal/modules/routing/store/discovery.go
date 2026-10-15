@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -16,6 +17,7 @@ const DiscoveryRetention = 30 * 24 * time.Hour
 // are JSON the discovery package reads.
 type DiscoveryRun struct {
 	ID          int64         `db:"id"`
+	OwnerID     int64         `db:"owner_id"`
 	Input       string        `db:"input"`
 	URL         string        `db:"url"`
 	Host        string        `db:"host"`
@@ -35,7 +37,7 @@ type DiscoveryRun struct {
 	FinishedAt  db.Time       `db:"finished_at"`
 }
 
-const runCols = `id, input, url, host, registrable, via, server_id, server_name, depth, state, job_id, title, suggestions, visits,
+const runCols = `id, owner_id, input, url, host, registrable, via, server_id, server_name, depth, state, job_id, title, suggestions, visits,
 	capped, error, created_at, finished_at`
 
 // DiscoveredHost is a row of routing_discovered_hosts. Failed is the direct
@@ -53,9 +55,9 @@ type DiscoveredHost struct {
 
 // InsertRun stores a queued run and returns its id.
 func InsertRun(ctx context.Context, x sqlx.ExtContext, r DiscoveryRun) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_discovery_runs (input, url, host, registrable, via, server_id, server_name, depth, state, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)`,
-		r.Input, r.URL, r.Host, r.Registrable, r.Via, r.ServerID, r.ServerName, r.Depth, r.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_discovery_runs (owner_id, input, url, host, registrable, via, server_id, server_name, depth, state, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)`,
+		r.OwnerID, r.Input, r.URL, r.Host, r.Registrable, r.Via, r.ServerID, r.ServerName, r.Depth, r.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -68,10 +70,10 @@ func SetRunJob(ctx context.Context, x sqlx.ExtContext, id, jobID int64) error {
 	return err
 }
 
-// GetRun reads one run.
-func GetRun(ctx context.Context, q sqlx.QueryerContext, id int64) (DiscoveryRun, error) {
+// GetRun reads one run within scope.
+func GetRun(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (DiscoveryRun, error) {
 	var r DiscoveryRun
-	err := sqlx.GetContext(ctx, q, &r, `SELECT `+runCols+` FROM routing_discovery_runs WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &r, `SELECT `+runCols+` FROM routing_discovery_runs WHERE id = ? AND ? IN (0, owner_id)`, id, scope)
 	return r, notFound(err)
 }
 
@@ -82,10 +84,10 @@ func RunOfJob(ctx context.Context, q sqlx.QueryerContext, jobID int64) (Discover
 	return r, notFound(err)
 }
 
-// RecentRuns reads the newest runs first.
-func RecentRuns(ctx context.Context, q sqlx.QueryerContext, limit int) ([]DiscoveryRun, error) {
+// RecentRuns reads the newest runs within scope first.
+func RecentRuns(ctx context.Context, q sqlx.QueryerContext, scope access.Scope, limit int) ([]DiscoveryRun, error) {
 	var out []DiscoveryRun
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+runCols+` FROM routing_discovery_runs ORDER BY id DESC LIMIT ?`, limit)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+runCols+` FROM routing_discovery_runs WHERE ? IN (0, owner_id) ORDER BY id DESC LIMIT ?`, scope, limit)
 	return out, err
 }
 

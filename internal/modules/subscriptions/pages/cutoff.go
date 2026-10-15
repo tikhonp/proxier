@@ -55,7 +55,7 @@ func (h *handler) cutoffPlan(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	p, err := h.Links.PlanCutOff(ctx, l.ID)
+	p, err := h.Links.PlanCutOff(ctx, l.ID, scope(ctx))
 	if err != nil {
 		return cutoffErr(err)
 	}
@@ -88,7 +88,7 @@ func (h *handler) cutoffStart(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, err := h.Links.CutOff(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
+	if _, err := h.Links.CutOff(c.Request().Context(), l.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return cutoffErr(err)
 	}
 	return web.Redirect(c, linkHref(l.ID))
@@ -120,7 +120,7 @@ func (h *handler) cutoffRetry(c *echo.Context) error {
 	if err != nil {
 		return echo.ErrNotFound
 	}
-	if err := h.Links.RetryCutOff(c.Request().Context(), l.ID, pos, web.Actor(c.Request().Context())); err != nil {
+	if err := h.Links.RetryCutOff(c.Request().Context(), l.ID, scope(c.Request().Context()), pos, web.Actor(c.Request().Context())); err != nil {
 		return cutoffErr(err)
 	}
 	return web.Redirect(c, linkHref(l.ID))
@@ -163,7 +163,7 @@ func (h *handler) cutoffView(ctx context.Context, linkID int64) (cutoffView, boo
 
 // cutoffBand is the alert band's Cut off line: which servers it rotates.
 func (h *handler) cutoffBand(ctx context.Context, l links.Link) (string, error) {
-	p, err := h.Links.PlanCutOff(ctx, l.ID)
+	p, err := h.Links.PlanCutOff(ctx, l.ID, scope(ctx))
 	if err != nil {
 		return "", err
 	}

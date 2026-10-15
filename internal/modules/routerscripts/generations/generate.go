@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -55,8 +56,8 @@ func merge(fe store.FieldErrors, err error, names map[string]string, fallback st
 // saves the generation in one transaction, or nothing at all. Field errors
 // (store.FieldErrors, the form's keys) gather the check's and both ports'
 // refusals.
-func (s *Service) Generate(ctx context.Context, scriptID int64, f Form, actor string) (int64, error) {
-	v, err := s.Check(ctx, scriptID, f)
+func (s *Service) Generate(ctx context.Context, w access.Who, scriptID int64, f Form, actor string) (int64, error) {
+	v, err := s.Check(ctx, w, scriptID, f)
 	if err != nil {
 		return 0, err
 	}
@@ -68,7 +69,7 @@ func (s *Service) Generate(ctx context.Context, scriptID int64, f Form, actor st
 		now := db.At(s.d.Now())
 		var err error
 		gid, err = store.InsertGeneration(ctx, tx, store.Generation{
-			ScriptID: scriptID, Version: v.Form.Version, RouterName: v.Form.RouterName, FileName: v.Plan.FileName, CreatedAt: now, CreatedBy: actor,
+			OwnerID: w.Member, ScriptID: scriptID, Version: v.Form.Version, RouterName: v.Form.RouterName, FileName: v.Plan.FileName, CreatedAt: now, CreatedBy: actor,
 		})
 		if err != nil {
 			return err
@@ -81,7 +82,7 @@ func (s *Service) Generate(ctx context.Context, scriptID int64, f Form, actor st
 		switch v.Form.Link.Mode {
 		case LinkCreate:
 			if v.linkSub != nil {
-				l, err := s.d.Links.Issue(ctx, tx, v.linkNm, v.linkSub.ID, actor)
+				l, err := s.d.Links.Issue(ctx, tx, w, v.linkNm, v.linkSub.ID, actor)
 				if err := merge(fe, err, linkFields, "link.name"); err != nil {
 					return err
 				}
@@ -96,7 +97,7 @@ func (s *Service) Generate(ctx context.Context, scriptID int64, f Form, actor st
 		switch v.Form.Router.Mode {
 		case RouterNew:
 			if v.reg.Host != "" {
-				r, err := s.d.Routers.Register(ctx, tx, v.reg, actor)
+				r, err := s.d.Routers.Register(ctx, tx, w, v.reg, actor)
 				if err := merge(fe, err, routerFields, "router.host"); err != nil {
 					return err
 				}

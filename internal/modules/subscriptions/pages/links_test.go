@@ -11,6 +11,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -24,16 +25,16 @@ func TestLinkList(t *testing.T) {
 	alex, _ := h.Link(friends, "Alex")
 	gone, _ := h.Link(friends, "Old phone")
 	soon, _ := h.Link(friends, "Sam")
-	if err := h.Mod.Links.Disable(h.T.Context(), dad, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(h.T.Context(), dad, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.SetExpiry(h.T.Context(), soon, h.Now.Add(3*24*time.Hour), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(h.T.Context(), soon, access.All, h.Now.Add(3*24*time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.SetExpiry(h.T.Context(), alex, h.Now.Add(time.Hour), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(h.T.Context(), alex, access.All, h.Now.Add(time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.Delete(h.T.Context(), gone, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(h.T.Context(), gone, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(2 * time.Hour) // Alex has expired
@@ -115,7 +116,7 @@ func TestNewLinkForm(t *testing.T) {
 	if rec.Code != 422 || !strings.Contains(rec.Body.String(), "The expiry must be in the future.") || !strings.Contains(rec.Body.String(), `value="Mom"`) {
 		t.Fatalf("past expiry: %d", rec.Code)
 	}
-	if list, _ := h.Mod.Links.List(h.T.Context(), links.Filter{State: "all"}); len(list) != 0 {
+	if list, _ := h.Mod.Links.List(h.T.Context(), access.All, links.Filter{State: "all"}); len(list) != 0 {
 		t.Fatalf("%d links created", len(list))
 	}
 	rec = h.Login.Post("/links", url.Values{"name": {"Mom"}, "subscription": {strconv.FormatInt(family, 10)}, "language": {"ru"},
@@ -266,7 +267,7 @@ func TestLinkActions(t *testing.T) {
 	mustContain(t, page(t, h, href), "Enable", "Disabled: it serves “⛔ Link disabled”.")
 	post(href+"/enable", nil, href)
 	post(href+"/regenerate", nil, href+"?regenerated=1")
-	fresh, _ := h.Mod.Links.Token(h.T.Context(), id)
+	fresh, _ := h.Mod.Links.Token(h.T.Context(), id, access.All)
 	if fresh == token {
 		t.Fatal("the token did not change")
 	}
@@ -315,7 +316,7 @@ func TestDeletedLinkPage(t *testing.T) {
 	h := substest.New(t)
 	sub := h.Subscription("Family", 1)
 	id, token := h.Link(sub, "Mom")
-	if err := h.Mod.Links.Delete(h.T.Context(), id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(h.T.Context(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	href := "/links/" + strconv.FormatInt(id, 10)
@@ -342,10 +343,10 @@ func TestSubscriptionLinksArea(t *testing.T) {
 	h.Link(sub, "Dad")
 	h.Link(other, "Alex")
 	gone, _ := h.Link(sub, "Old phone")
-	if err := h.Mod.Links.Disable(h.T.Context(), mom, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(h.T.Context(), mom, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.Delete(h.T.Context(), gone, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(h.T.Context(), gone, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body := page(t, h, "/subscriptions/"+strconv.FormatInt(sub, 10))
@@ -371,7 +372,7 @@ func TestLinkListAlerts(t *testing.T) {
 	mustNotContain(t, body, ">Mom<")
 
 	// muted: no marker, not counted
-	if err := h.Mod.Alerts.SetLimits(t.Context(), alex, 0, 0, true, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(t.Context(), alex, access.All, 0, 0, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body = page(t, h, "/links")

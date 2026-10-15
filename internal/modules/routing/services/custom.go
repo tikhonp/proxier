@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -61,6 +62,9 @@ func (s *Service) CreateCustom(ctx context.Context, c Custom, actor string) (int
 	if !slices.Contains(origins, c.Origin) {
 		return 0, fmt.Errorf("services: unknown origin %q", c.Origin)
 	}
+	if c.Owner <= 0 {
+		return 0, errors.New("services: a custom service needs its owner")
+	}
 	var id int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		fe := store.FieldErrors{}
@@ -72,7 +76,7 @@ func (s *Service) CreateCustom(ctx context.Context, c Custom, actor string) (int
 			return fe
 		}
 		id, err = store.InsertService(ctx, tx, store.Service{
-			Tag: tag, Source: string(selector.Custom), Name: name, Description: desc, Origin: c.Origin, CreatedAt: nowAt(s),
+			OwnerID: c.Owner, Tag: tag, Source: string(selector.Custom), Name: name, Description: desc, Origin: c.Origin, CreatedAt: nowAt(s),
 		})
 		if err != nil {
 			return err
@@ -139,10 +143,11 @@ func storedRows(rows []DomainRow) []store.CustomDomain {
 	return out
 }
 
-// SaveCustom saves the domain editor: everything is checked first, then one
-// transaction writes the rows, a new snapshot when the names changed and a
-// renamed tag. Nothing changed records nothing.
-func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string) (Saved, error) {
+// SaveCustom saves the domain editor of a custom service scope may change:
+// everything is checked first, then one transaction writes the rows, a new
+// snapshot when the names changed and a renamed tag. Nothing changed records
+// nothing.
+func (s *Service) SaveCustom(ctx context.Context, id int64, scope access.Scope, e Edit, actor string) (Saved, error) {
 	fe := store.FieldErrors{}
 	rows := checkRows(e.Rows, fe)
 	var rep Report
@@ -157,10 +162,7 @@ func (s *Service) SaveCustom(ctx context.Context, id int64, e Edit, actor string
 	saved := Saved{Report: rep}
 	refused := false
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetService(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		cur, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
@@ -255,6 +257,9 @@ func (s *Service) CreateCustomTx(ctx context.Context, tx *sqlx.Tx, c Custom, set
 	if !slices.Contains(origins, c.Origin) {
 		return 0, fmt.Errorf("services: unknown origin %q", c.Origin)
 	}
+	if c.Owner <= 0 {
+		return 0, errors.New("services: a custom service needs its owner")
+	}
 	in := make([]DomainRow, 0, set.Count())
 	for _, n := range set.Suffix {
 		in = append(in, DomainRow{Domain: n})
@@ -273,7 +278,7 @@ func (s *Service) CreateCustomTx(ctx context.Context, tx *sqlx.Tx, c Custom, set
 		return 0, fe
 	}
 	id, err := store.InsertService(ctx, tx, store.Service{
-		Tag: tag, Source: string(selector.Custom), Name: name, Description: desc, Origin: c.Origin, CreatedAt: nowAt(s),
+		OwnerID: c.Owner, Tag: tag, Source: string(selector.Custom), Name: name, Description: desc, Origin: c.Origin, CreatedAt: nowAt(s),
 	})
 	if err != nil {
 		return 0, err

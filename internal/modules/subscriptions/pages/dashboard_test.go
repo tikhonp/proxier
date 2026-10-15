@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestLinksDashboardArea(t *testing.T) {
@@ -14,14 +15,14 @@ func TestLinksDashboardArea(t *testing.T) {
 	alex, _ := h.Link(sub, "Alex")
 	masha, _ := h.Link(sub, "Masha — Pixel")
 	later, _ := h.Link(sub, "Later")
-	if err := h.Mod.Links.SetExpiry(t.Context(), later, h.Now.Add(30*24*time.Hour), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(t.Context(), later, access.All, h.Now.Add(30*24*time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if body := page(t, h, "/"); strings.Contains(body, "Links →") {
 		t.Fatal("an area with nothing to show")
 	}
 
-	if err := h.Mod.Links.SetExpiry(t.Context(), masha, h.Now.Add(4*24*time.Hour+time.Hour), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(t.Context(), masha, access.All, h.Now.Add(4*24*time.Hour+time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	shared(t, h, alex, 6)
@@ -34,7 +35,7 @@ func TestLinksDashboardArea(t *testing.T) {
 	noInline(t, body)
 
 	// expired links and muted alerts leave the area
-	if err := h.Mod.Alerts.SetLimits(t.Context(), alex, 0, 0, true, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(t.Context(), alex, access.All, 0, 0, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(5 * 24 * time.Hour)

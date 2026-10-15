@@ -14,10 +14,15 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
+
+// Owner is member 1 with the Owner preset: who generates in tests unless
+// one names another member.
+var Owner = access.Who{Member: 1, Grant: access.PresetOwner.Grant()}
 
 // Harness is the app with the module.
 type Harness struct {

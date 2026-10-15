@@ -1,12 +1,12 @@
 # Subscription management
 
-**Actors**: Admin; subscriptions module; servers (through `EndpointCatalog` and its events).
+**Actors**: a member with `subscriptions` access; subscriptions module; servers (through `EndpointCatalog` and its events).
 
 A subscription is the set of servers a group of links gets: "Family", "Friends", "Me — everything". The admin chooses and orders the servers, and sets how the output is written and whether broken servers disappear from it on their own. Links then just point at a subscription ([link lifecycle](./link-lifecycle.md)).
 
 ## Steps: creating and editing
 
-1. Subscriptions → **New subscription**: name, title (prefilled with the name), description. → `subscription.created`
+1. Subscriptions → **New subscription**: name, title (prefilled with the name), description. It belongs to the member who made it. → `subscription.created`
 2. **Servers**: **Add servers** lists the active servers that aren't in it yet (flag, name, health), with multi-select; the ticked ones are appended in name order. Rows are reordered by drag, by `J`/`K` on the selected row, or by their ↑/↓ buttons. Each row shows health and whether it is hidden right now, with **Remove** (a simple confirmation). → `subscription.servers_changed{added, removed, reordered}`
 3. **Settings**:
    - **formats** (allowed and default);
@@ -16,7 +16,7 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
 
    → `subscription.updated{changes}`
 4. **Preview** shows exactly what a link of this subscription would receive now: the headers and the connection URIs (credentials masked until revealed), with hidden servers listed and the reason, and members not in service. A preview records nothing.
-5. **Delete** works only when no link points to the subscription, a deleted link counting until its tombstone ends. Otherwise the dialog lists the links (and the day each deleted one stops holding it) and offers **Move links to…**. → `subscription.deleted`
+5. **Delete** works only when no link points to the subscription, a deleted link counting until its tombstone ends. Otherwise the dialog lists the links (and the day each deleted one stops holding it) and offers **Move links to…**, which moves the links the member may change to another subscription they may change. → `subscription.deleted`
 
 ## Steps: reactions to servers
 
@@ -28,7 +28,9 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
 
 ## Rules
 
-- Names are unique. Titles don't have to be.
+- A subscription belongs to a member ([ownership](../platform/members.md#ownership)). At `own` a member sees and changes only their own; `view_all` reads everyone's (servers, preview, links in it they read) without the controls, and a forged change is refused with 403; `manage_all` changes every one. Another member's subscription outside what the member reads is a 404.
+- The reactions to servers change every subscription, whoever owns it.
+- Names are unique, whoever owns the subscription. Titles don't have to be.
 - Only active servers can be added. A server keeps its position until removed. Removed servers don't leave gaps.
 - A server can be in many subscriptions. Its connection URIs are the same in all of them (credentials are per endpoint, [ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)).
 - The default format must be one of the allowed formats, and at least one format is allowed.
@@ -46,3 +48,5 @@ A subscription is the set of servers a group of links gets: "Family", "Friends",
 - Hide unhealthy on (grace 30 min) and de-1 `blocked` for 10 min → still served. At 31 min → left out, and the preview says why.
 - Hide unhealthy on and both servers `down` past the grace period → both served, and one `subscription.all_unhealthy` notification.
 - Turn off the `uri-plain` format while it is the default → refused until another default is chosen.
+- Two members at `own` → each lists and searches only their own subscriptions; the other's by URL, its delete page or a change → 404.
+- `view_all` on another member's subscription → shown without Add servers, ordering, removing, settings or delete; its delete forged → 403, nothing changed.

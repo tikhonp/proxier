@@ -7,23 +7,24 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestDefaultList(t *testing.T) {
 	h := routingtest.New(t)
 	bg := context.Background()
-	if err := h.Mod.Lists.Delete(bg, 1, 0, "admin"); !errors.Is(err, lists.ErrDefault) {
+	if err := h.Mod.Lists.Delete(bg, 1, 0, access.All, "admin"); !errors.Is(err, lists.ErrDefault) {
 		t.Fatalf("delete Main: %v", err)
 	}
 	parents := h.List("Parents")
-	if err := h.Mod.Lists.MakeDefault(bg, parents, "admin"); err != nil {
+	if err := h.Mod.Lists.MakeDefault(bg, parents, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	d, err := h.Mod.Lists.Default(bg)
 	if err != nil || d.ID != parents {
 		t.Fatalf("default: %+v %v", d, err)
 	}
-	if main, _ := h.Mod.Lists.Get(bg, 1); main.Default {
+	if main, _ := h.Mod.Lists.Get(bg, 1, access.All); main.Default {
 		t.Error("Main is still the default")
 	}
 	ev := h.Events("routing.list_updated")
@@ -31,13 +32,13 @@ func TestDefaultList(t *testing.T) {
 		t.Fatalf("events: %+v", ev)
 	}
 	// on the default it changes nothing
-	if err := h.Mod.Lists.MakeDefault(bg, parents, "admin"); err != nil || len(h.Events("routing.list_updated")) != 1 {
+	if err := h.Mod.Lists.MakeDefault(bg, parents, access.All, "admin"); err != nil || len(h.Events("routing.list_updated")) != 1 {
 		t.Errorf("again: %v", err)
 	}
-	if err := h.Mod.Lists.Delete(bg, parents, 0, "admin"); !errors.Is(err, lists.ErrDefault) {
+	if err := h.Mod.Lists.Delete(bg, parents, 0, access.All, "admin"); !errors.Is(err, lists.ErrDefault) {
 		t.Errorf("delete the new default: %v", err)
 	}
-	if err := h.Mod.Lists.Delete(bg, 1, 0, "admin"); err != nil {
+	if err := h.Mod.Lists.Delete(bg, 1, 0, access.All, "admin"); err != nil {
 		t.Errorf("delete Main now: %v", err)
 	}
 }
@@ -50,16 +51,16 @@ func TestDeleteMovesTargets(t *testing.T) {
 	h.Exec(`INSERT INTO routing_routers (name, list_id, state, host, ssh_user, created_by, created_at)
 		VALUES ('Home', ?, 'active', '192.168.88.1', 'proxier', 'admin', '2026-10-08T12:00:00.000Z')`, parents)
 
-	err := h.Mod.Lists.Delete(bg, parents, 0, "admin")
+	err := h.Mod.Lists.Delete(bg, parents, 0, access.All, "admin")
 	var he *lists.HasTargetsError
 	if !errors.As(err, &he) || len(he.Targets) != 1 || he.Targets[0] != "Home (router)" {
 		t.Fatalf("delete: %v", err)
 	}
-	if err := h.Mod.Lists.Delete(bg, parents, parents, "admin"); !errors.Is(err, lists.ErrMoveTo) {
+	if err := h.Mod.Lists.Delete(bg, parents, parents, access.All, "admin"); !errors.Is(err, lists.ErrMoveTo) {
 		t.Errorf("move to itself: %v", err)
 	}
 	marks := len(h.Marks.Changes())
-	if err := h.Mod.Lists.Delete(bg, parents, 1, "admin"); err != nil {
+	if err := h.Mod.Lists.Delete(bg, parents, 1, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	var list int64
@@ -79,11 +80,11 @@ func TestDeleteMovesTargets(t *testing.T) {
 	if len(m) != marks+1 || len(m[len(m)-1].Routers) != 1 || m[len(m)-1].Routers[0] != 1 {
 		t.Errorf("marks: %+v", m)
 	}
-	if _, err := h.Mod.Lists.Get(bg, parents); !errors.Is(err, lists.ErrNotFound) {
+	if _, err := h.Mod.Lists.Get(bg, parents, access.All); !errors.Is(err, lists.ErrNotFound) {
 		t.Errorf("Parents: %v", err)
 	}
 	// its services stay
-	if _, err := h.Mod.Services.Get(bg, mine); err != nil {
+	if _, err := h.Mod.Services.Get(bg, mine, access.All); err != nil {
 		t.Errorf("mine: %v", err)
 	}
 }

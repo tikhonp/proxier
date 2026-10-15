@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -95,7 +96,7 @@ func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i1
 // routerName names a router subject; a removed one keeps its id.
 func (m *Module) routerName(ctx context.Context, s events.Subject) string {
 	if id, err := strconv.ParseInt(s.ID, 10, 64); err == nil {
-		if r, err := m.Routers.Get(ctx, id); err == nil {
+		if r, err := m.Routers.Get(ctx, id, access.All); err == nil {
 			return r.Name
 		}
 	}
@@ -105,7 +106,7 @@ func (m *Module) routerName(ctx context.Context, s events.Subject) string {
 // serviceTag names a service subject; a removed one keeps its id.
 func (m *Module) serviceTag(ctx context.Context, s events.Subject) string {
 	if id, err := strconv.ParseInt(s.ID, 10, 64); err == nil {
-		if it, err := m.Services.Get(ctx, id); err == nil {
+		if it, err := m.Services.Get(ctx, id, access.All); err == nil {
 			return it.Tag
 		}
 	}

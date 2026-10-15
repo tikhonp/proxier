@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -116,15 +117,16 @@ func (s *Service) recordUnmanaged(ctx context.Context, tx *sqlx.Tx, rt store.Rou
 }
 
 // Unmanaged reads a router's unmanaged tags with what adopting each could
-// use: the catalog's selectors of that tag and an existing service.
-func (s *Service) Unmanaged(ctx context.Context, id int64) ([]UnmanagedTag, error) {
+// use: the catalog's selectors of that tag and an existing service scope may
+// use (another member's custom service is private).
+func (s *Service) Unmanaged(ctx context.Context, id int64, scope access.Scope) ([]UnmanagedTag, error) {
 	rows, err := store.UnmanagedOf(ctx, s.d.DB.R, id)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]UnmanagedTag, 0, len(rows))
 	for _, r := range rows {
-		u, err := s.unmanagedOf(ctx, r)
+		u, err := s.unmanagedOf(ctx, r, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -134,17 +136,17 @@ func (s *Service) Unmanaged(ctx context.Context, id int64) ([]UnmanagedTag, erro
 }
 
 // UnmanagedOne reads one unmanaged tag; ErrNoSuchTag when the router hasn't it.
-func (s *Service) UnmanagedOne(ctx context.Context, id int64, tag string) (UnmanagedTag, error) {
+func (s *Service) UnmanagedOne(ctx context.Context, id int64, scope access.Scope, tag string) (UnmanagedTag, error) {
 	r, err := store.GetUnmanaged(ctx, s.d.DB.R, id, tag)
 	if errors.Is(err, store.ErrNotFound) {
 		return UnmanagedTag{}, ErrNoSuchTag
 	} else if err != nil {
 		return UnmanagedTag{}, err
 	}
-	return s.unmanagedOf(ctx, r)
+	return s.unmanagedOf(ctx, r, scope)
 }
 
-func (s *Service) unmanagedOf(ctx context.Context, r store.Unmanaged) (UnmanagedTag, error) {
+func (s *Service) unmanagedOf(ctx context.Context, r store.Unmanaged, scope access.Scope) (UnmanagedTag, error) {
 	u := UnmanagedTag{Tag: r.Tag, Entries: r.Entries, FirstSeen: r.FirstSeen.Time, LastSeen: r.LastSeen.Time, Ignored: !r.IgnoredAt.IsZero()}
 	if err := json.Unmarshal([]byte(r.Names), &u.Names); err != nil {
 		return u, err
@@ -156,7 +158,7 @@ func (s *Service) unmanagedOf(ctx context.Context, r store.Unmanaged) (Unmanaged
 		}
 		u.Catalog = offers
 	}
-	if it, err := s.d.Services.ByTag(ctx, r.Tag); err == nil {
+	if it, err := s.d.Services.ByTag(ctx, r.Tag, scope); err == nil {
 		u.Existing = &it
 	} else if !errors.Is(err, services.ErrNotFound) {
 		return u, err
@@ -166,7 +168,10 @@ func (s *Service) unmanagedOf(ctx context.Context, r store.Unmanaged) (Unmanaged
 
 // RemoveUnmanaged removes an unmanaged tag from the router: a sync now that
 // plans that tag as a removal while it is still unmanaged.
-func (s *Service) RemoveUnmanaged(ctx context.Context, id int64, tag, actor string) (int64, error) {
+func (s *Service) RemoveUnmanaged(ctx context.Context, id int64, scope access.Scope, tag, actor string) (int64, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return 0, err
+	}
 	if _, err := store.GetUnmanaged(ctx, s.d.DB.R, id, tag); errors.Is(err, store.ErrNotFound) {
 		return 0, ErrNoSuchTag
 	} else if err != nil {
@@ -177,7 +182,10 @@ func (s *Service) RemoveUnmanaged(ctx context.Context, id int64, tag, actor stri
 
 // Ignore hides an unmanaged tag from reports and notifications (it stays on
 // the router), or brings it back. A change that changes nothing records nothing.
-func (s *Service) Ignore(ctx context.Context, id int64, tag string, ignore bool, actor string) error {
+func (s *Service) Ignore(ctx context.Context, id int64, scope access.Scope, tag string, ignore bool, actor string) error {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return err
+	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		u, err := store.GetUnmanaged(ctx, tx, id, tag)
 		if errors.Is(err, store.ErrNotFound) {
@@ -193,7 +201,7 @@ func (s *Service) Ignore(ctx context.Context, id int64, tag string, ignore bool,
 			at = s.now()
 		} else {
 			// back in the reports without a notification: the admin knows it
-			rt, err := store.GetRouter(ctx, tx, id)
+			rt, err := store.GetRouter(ctx, tx, id, access.All)
 			if err != nil {
 				return err
 			}

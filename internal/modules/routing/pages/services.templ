@@ -7,7 +7,6 @@ import (
 )
 
 // ------------------------------------------------------------------ the list
-
 templ listPage(s ui.Shell, v listView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -17,7 +16,9 @@ templ listPage(s ui.Shell, v listView) {
 			</div>
 			<div class="actions">
 				@ui.ActionButton(ui.Action{ID: "services.new", Label: "services.new", Method: "GET", Href: listPath + "/new"})
-				@ui.ActionButton(ui.Action{ID: "services.add", Label: "services.add", Method: "GET", Href: listPath + "/add", Key: "n", Kind: ui.Primary})
+				if v.CanAdd {
+					@ui.ActionButton(ui.Action{ID: "services.add", Label: "services.add", Method: "GET", Href: listPath + "/add", Key: "n", Kind: ui.Primary})
+				}
 			</div>
 		</div>
 		if v.Band != "" {
@@ -84,7 +85,6 @@ templ listPage(s ui.Shell, v listView) {
 }
 
 // ------------------------------------------------------------------- add
-
 templ addPage(s ui.Shell, v addView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -176,7 +176,6 @@ templ takenArea(t takenView, ls []listCheck) {
 }
 
 // ------------------------------------------------------------ custom create
-
 templ newPage(s ui.Shell, v newView) {
 	@ui.Layout(s) {
 		<div class="titleblock">

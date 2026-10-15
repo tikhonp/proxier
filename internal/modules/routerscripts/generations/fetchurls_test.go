@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/generations"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params/paramstest"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/rscriptstest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
@@ -29,7 +30,7 @@ func generated(t *testing.T, h *rscriptstest.Harness) int64 {
 // createURL creates a fetch URL as the admin; its token.
 func createURL(t *testing.T, h *rscriptstest.Harness, gid int64) (generations.FetchURL, string) {
 	t.Helper()
-	u, link, err := h.Mod.Generations.CreateFetchURL(bg, gid, events.MemberActor(1))
+	u, link, err := h.Mod.Generations.CreateFetchURL(bg, gid, access.All, events.MemberActor(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,10 +107,10 @@ func TestCreateFetchURL(t *testing.T) {
 	if err := h.Mod.Scripts.Archive(bg, 1, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, _, err := h.Mod.Generations.CreateFetchURL(bg, gid, "admin"); err != nil {
+	if _, _, err := h.Mod.Generations.CreateFetchURL(bg, gid, access.All, "admin"); err != nil {
 		t.Fatalf("archived: %v", err)
 	}
-	if _, _, err := h.Mod.Generations.CreateFetchURL(bg, 99, "admin"); err != generations.ErrNotFound {
+	if _, _, err := h.Mod.Generations.CreateFetchURL(bg, 99, access.All, "admin"); err != generations.ErrNotFound {
 		t.Fatalf("unknown generation: %v", err)
 	}
 }

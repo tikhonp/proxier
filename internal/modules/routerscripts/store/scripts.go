@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -197,13 +198,15 @@ func Generations(ctx context.Context, q sqlx.QueryerContext, scriptID int64) (in
 	return n, err
 }
 
-// GenerationCounts counts the generations of every script that has any.
-func GenerationCounts(ctx context.Context, q sqlx.QueryerContext) (map[int64]int, error) {
+// GenerationCounts counts the generations within scope of every script that
+// has any.
+func GenerationCounts(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) (map[int64]int, error) {
 	var rows []struct {
 		ID int64 `db:"script_id"`
 		N  int   `db:"n"`
 	}
-	err := sqlx.SelectContext(ctx, q, &rows, `SELECT script_id, count(*) AS n FROM rscripts_generations GROUP BY script_id`)
+	err := sqlx.SelectContext(ctx, q, &rows, `SELECT script_id, count(*) AS n FROM rscripts_generations
+		WHERE ? IN (0, owner_id) GROUP BY script_id`, scope)
 	out := make(map[int64]int, len(rows))
 	for _, r := range rows {
 		out[r.ID] = r.N

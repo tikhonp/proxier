@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -114,18 +115,16 @@ func (s *Service) request(ctx context.Context, serverID int64, actor string) (re
 }
 
 // PlanCutOff says what Cut off would do; nothing is enqueued.
-func (s *Service) PlanCutOff(ctx context.Context, linkID int64) (CutOffPlan, error) {
+func (s *Service) PlanCutOff(ctx context.Context, linkID int64, scope access.Scope) (CutOffPlan, error) {
 	if s.d.Rotator == nil {
 		return CutOffPlan{}, ErrNoRotator
 	}
-	l, err := s.Get(ctx, linkID)
+	r, err := ToChange(ctx, s.d.DB.R, linkID, scope)
 	if err != nil {
 		return CutOffPlan{}, err
 	}
-	if l.State == "deleted" {
-		return CutOffPlan{}, ErrDeleted
-	}
-	members, err := s.d.Subs.Members(ctx, l.SubscriptionID)
+	l := fromRow(r)
+	members, err := s.d.Subs.Members(ctx, l.SubscriptionID, access.All)
 	if err != nil {
 		return CutOffPlan{}, err
 	}
@@ -157,12 +156,12 @@ func (s *Service) PlanCutOff(ctx context.Context, linkID int64) (CutOffPlan, err
 
 // CutOff disables the link (when active) and queues the rotation of the first
 // server of its subscription; the others follow one at a time.
-func (s *Service) CutOff(ctx context.Context, linkID int64, actor string) (int64, error) {
+func (s *Service) CutOff(ctx context.Context, linkID int64, scope access.Scope, actor string) (int64, error) {
 	if s.d.Rotator == nil {
 		return 0, ErrNoRotator
 	}
 	var id int64
-	err := s.change(ctx, linkID, func(tx *sqlx.Tx, l store.Link) error {
+	err := s.change(ctx, linkID, scope, func(tx *sqlx.Tx, l store.Link) error {
 		if l.State == "active" {
 			if err := store.SetLinkState(ctx, tx, linkID, "disabled", s.now(), db.Time{}); err != nil {
 				return err
@@ -247,11 +246,11 @@ func (s *Service) advance(ctx context.Context, tx *sqlx.Tx, cutoffID int64, acto
 
 // RetryCutOff queues a failed server of the link's latest cut-off again: at
 // once when nothing runs, else after the running one.
-func (s *Service) RetryCutOff(ctx context.Context, linkID int64, position int, actor string) error {
+func (s *Service) RetryCutOff(ctx context.Context, linkID int64, scope access.Scope, position int, actor string) error {
 	if s.d.Rotator == nil {
 		return ErrNoRotator
 	}
-	err := s.change(ctx, linkID, func(tx *sqlx.Tx, _ store.Link) error {
+	err := s.change(ctx, linkID, scope, func(tx *sqlx.Tx, _ store.Link) error {
 		c, err := store.LatestCutOff(ctx, tx, linkID)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotRetryable

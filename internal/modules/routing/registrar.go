@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sshx"
 )
 
@@ -81,18 +82,24 @@ type RouterRegistration struct {
 }
 
 // RouterRegistrar is how router scripts register the router they set up.
+// Every call takes the scope of the routing area it reaches: a member
+// offering lists or routers to choose passes theirs (web.Scope(ctx,
+// access.Routing).Writable()), so they get only what they may use.
 type RouterRegistrar interface {
-	// Lists are the routing lists, the default first.
-	Lists(ctx context.Context) ([]RegistrarList, error)
-	// Routers are every router that isn't being removed, by name.
-	Routers(ctx context.Context) ([]RegisteredRouter, error)
-	// Router reads one router; ErrRouterNotFound once removed.
-	Router(ctx context.Context, id int64) (RegisteredRouter, error)
-	// JumpHosts are the distinct jump hosts of the routers.
-	JumpHosts(ctx context.Context) ([]JumpHost, error)
-	// Register saves the router in awaiting setup inside tx; FieldErrors
-	// (as Add router's) before anything is written.
-	Register(ctx context.Context, tx *sqlx.Tx, r RouterRegistration, actor string) (RegisteredRouter, error)
+	// Lists are the routing lists within scope, the default first.
+	Lists(ctx context.Context, scope access.Scope) ([]RegistrarList, error)
+	// Routers are the routers within scope that aren't being removed, by
+	// name.
+	Routers(ctx context.Context, scope access.Scope) ([]RegisteredRouter, error)
+	// Router reads one router within scope; ErrRouterNotFound once removed,
+	// or outside scope.
+	Router(ctx context.Context, id int64, scope access.Scope) (RegisteredRouter, error)
+	// JumpHosts are the distinct jump hosts of the routers within scope.
+	JumpHosts(ctx context.Context, scope access.Scope) ([]JumpHost, error)
+	// Register saves a router of w in awaiting setup inside tx, following a
+	// list w may change; FieldErrors (as Add router's) before anything is
+	// written.
+	Register(ctx context.Context, tx *sqlx.Tx, w access.Who, r RouterRegistration, actor string) (RegisteredRouter, error)
 }
 
 // RouterRegistrar returns the module's router port. It reads the services
@@ -101,8 +108,8 @@ func (m *Module) RouterRegistrar() RouterRegistrar { return registrar{m} }
 
 type registrar struct{ m *Module }
 
-func (g registrar) Lists(ctx context.Context) ([]RegistrarList, error) {
-	rows, err := store.Lists(ctx, g.m.deps.DB.R)
+func (g registrar) Lists(ctx context.Context, scope access.Scope) ([]RegistrarList, error) {
+	rows, err := store.Lists(ctx, g.m.deps.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +139,8 @@ func (g registrar) router(r routers.Router, key string) RegisteredRouter {
 	}
 }
 
-func (g registrar) Routers(ctx context.Context) ([]RegisteredRouter, error) {
-	rows, err := g.m.Routers.List(ctx)
+func (g registrar) Routers(ctx context.Context, scope access.Scope) ([]RegisteredRouter, error) {
+	rows, err := g.m.Routers.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -147,8 +154,8 @@ func (g registrar) Routers(ctx context.Context) ([]RegisteredRouter, error) {
 	return out, nil
 }
 
-func (g registrar) Router(ctx context.Context, id int64) (RegisteredRouter, error) {
-	r, err := g.m.Routers.Get(ctx, id)
+func (g registrar) Router(ctx context.Context, id int64, scope access.Scope) (RegisteredRouter, error) {
+	r, err := g.m.Routers.Get(ctx, id, scope)
 	if errors.Is(err, routers.ErrNotFound) {
 		return RegisteredRouter{}, ErrRouterNotFound
 	}
@@ -158,8 +165,8 @@ func (g registrar) Router(ctx context.Context, id int64) (RegisteredRouter, erro
 	return g.router(r, g.key(ctx)), nil
 }
 
-func (g registrar) JumpHosts(ctx context.Context) ([]JumpHost, error) {
-	rows, err := g.m.Routers.List(ctx)
+func (g registrar) JumpHosts(ctx context.Context, scope access.Scope) ([]JumpHost, error) {
+	rows, err := g.m.Routers.List(ctx, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -193,8 +200,8 @@ func (g registrar) JumpHosts(ctx context.Context) ([]JumpHost, error) {
 	return out, nil
 }
 
-func (g registrar) Register(ctx context.Context, tx *sqlx.Tx, r RouterRegistration, actor string) (RegisteredRouter, error) {
-	reg, err := g.m.Routers.RegisterTx(ctx, tx, routers.Registration{Name: r.Name, ListID: r.ListID, Conn: routers.Connection{
+func (g registrar) Register(ctx context.Context, tx *sqlx.Tx, w access.Who, r RouterRegistration, actor string) (RegisteredRouter, error) {
+	reg, err := g.m.Routers.RegisterTx(ctx, tx, w, routers.Registration{Name: r.Name, ListID: r.ListID, Conn: routers.Connection{
 		Host: r.Host, Port: r.Port, User: r.User, JumpHost: r.JumpHost, JumpPort: r.JumpPort, JumpUser: r.JumpUser, Tailnet: r.Tailnet,
 	}}, RegistrarBy, actor)
 	if err != nil {

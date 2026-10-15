@@ -10,6 +10,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/net/html"
 )
@@ -108,7 +109,7 @@ func TestAddServicePage(t *testing.T) {
 	if rec.Code != http.StatusSeeOther {
 		t.Fatalf("switch: %d", rec.Code)
 	}
-	it, _ := h.Mod.Services.Get(context.Background(), 1)
+	it, _ := h.Mod.Services.Get(context.Background(), 1, access.All)
 	if it.Selector != "iplist:anthropic" {
 		t.Errorf("switch: %s", it.Selector)
 	}
@@ -151,7 +152,7 @@ func TestServicePage(t *testing.T) {
 
 	// a switch makes a second snapshot; its diff
 	h.Up.File("netflix.txt", "netflix.com\nnew.netflix.com\n")
-	if err := h.Mod.Services.Switch(ctx, id, "netflix="+h.Up.URL()+"/files/netflix.txt", "admin"); err != nil {
+	if err := h.Mod.Services.Switch(ctx, id, access.All, "netflix="+h.Up.URL()+"/files/netflix.txt", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body = h.Login.Get("/routing/services/1").Body.String()
@@ -426,7 +427,7 @@ func TestCustomServiceNameAndTag(t *testing.T) {
 	rec := h.Login.Post("/routing/services/custom", url.Values{"name": {"My Test Service"}, "tag": {"a b"}})
 	has(t, "refused", rec.Body.String(), `placeholder="my-test-service" data-slug-of="svc-name"`)
 
-	id, err := h.Mod.Services.CreateCustom(context.Background(), services.Custom{Name: "My Test Service", Tag: "mytest"}, "admin")
+	id, err := h.Mod.Services.CreateCustom(context.Background(), services.Custom{Owner: 1, Name: "My Test Service", Tag: "mytest"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

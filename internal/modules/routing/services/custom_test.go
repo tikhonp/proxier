@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestPasteNormalises(t *testing.T) {
@@ -45,7 +46,7 @@ func TestRowsUnderSuffixStay(t *testing.T) {
 		t.Errorf("suffix wins: %+v", rows)
 	}
 	id := h.Custom("mine")
-	saved, err := h.Mod.Services.SaveCustom(context.Background(), id, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
+	saved, err := h.Mod.Services.SaveCustom(context.Background(), id, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "example.com"}, {Domain: "api.example.com", Exact: true, Note: "the API"},
 	}}, "admin")
 	if err != nil || len(saved.Report.Merged) != 0 {
@@ -86,7 +87,7 @@ func TestSaveCustom(t *testing.T) {
 		t.Fatal("a new custom service has names")
 	}
 	edit := services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{{Domain: "a.com"}, {Domain: "b.com"}, {Domain: "full:c.com"}}}
-	saved, err := h.Mod.Services.SaveCustom(ctx, id, edit, "admin")
+	saved, err := h.Mod.Services.SaveCustom(ctx, id, access.All, edit, "admin")
 	if err != nil || !saved.Changed {
 		t.Fatal(saved, err)
 	}
@@ -102,7 +103,7 @@ func TestSaveCustom(t *testing.T) {
 		t.Errorf("marks: %+v", m)
 	}
 
-	saved, err = h.Mod.Services.SaveCustom(ctx, id, edit, "admin")
+	saved, err = h.Mod.Services.SaveCustom(ctx, id, access.All, edit, "admin")
 	if err != nil || saved.Changed {
 		t.Fatal(saved, err)
 	}
@@ -112,7 +113,7 @@ func TestSaveCustom(t *testing.T) {
 
 	// a note alone changes the rows, not the snapshot: recorded, not marked
 	edit.Rows[0].Note = "the first"
-	if saved, _ = h.Mod.Services.SaveCustom(ctx, id, edit, "admin"); !saved.Changed {
+	if saved, _ = h.Mod.Services.SaveCustom(ctx, id, access.All, edit, "admin"); !saved.Changed {
 		t.Error("a note change was not saved")
 	}
 	if hist, _ := h.Mod.Services.Snapshots(ctx, id); len(hist) != 2 || len(h.Marks.Changes()) != 1 {
@@ -120,7 +121,7 @@ func TestSaveCustom(t *testing.T) {
 	}
 
 	// errors name their row; nothing is written
-	_, err = h.Mod.Services.SaveCustom(ctx, id, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{{Domain: "ok.com"}, {Domain: "1.2.3.4"}}}, "admin")
+	_, err = h.Mod.Services.SaveCustom(ctx, id, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{{Domain: "ok.com"}, {Domain: "1.2.3.4"}}}, "admin")
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) || fe["row.2"] != "services.paste.ip" || len(fe) != 1 {
 		t.Errorf("%v", err)
@@ -128,12 +129,12 @@ func TestSaveCustom(t *testing.T) {
 	if rows, _ := h.Mod.Services.CustomRows(ctx, id); len(rows) != 3 {
 		t.Errorf("a refused save wrote rows: %+v", rows)
 	}
-	if _, err := h.Mod.Services.SaveCustom(ctx, 999, edit, "admin"); !errors.Is(err, services.ErrNotFound) {
+	if _, err := h.Mod.Services.SaveCustom(ctx, 999, access.All, edit, "admin"); !errors.Is(err, services.ErrNotFound) {
 		t.Error(err)
 	}
 	h.Up.V2fly("x", "x.com")
 	up := h.Upstream("x")
-	if _, err := h.Mod.Services.SaveCustom(ctx, up, edit, "admin"); !errors.Is(err, services.ErrNotCustom) {
+	if _, err := h.Mod.Services.SaveCustom(ctx, up, access.All, edit, "admin"); !errors.Is(err, services.ErrNotCustom) {
 		t.Error(err)
 	}
 }
@@ -143,11 +144,11 @@ func TestRenameTag(t *testing.T) {
 	ctx := context.Background()
 	id := h.Custom("mine", "example.com")
 	marks := len(h.Marks.Changes())
-	saved, err := h.Mod.Services.SaveCustom(ctx, id, services.Edit{Name: "mine", Tag: "personal", Rows: []services.DomainRow{{Domain: "example.com"}}}, "admin")
+	saved, err := h.Mod.Services.SaveCustom(ctx, id, access.All, services.Edit{Name: "mine", Tag: "personal", Rows: []services.DomainRow{{Domain: "example.com"}}}, "admin")
 	if err != nil || !saved.Changed {
 		t.Fatal(saved, err)
 	}
-	it, _ := h.Mod.Services.Get(ctx, id)
+	it, _ := h.Mod.Services.Get(ctx, id, access.All)
 	if it.Tag != "personal" {
 		t.Errorf("%+v", it)
 	}
@@ -161,26 +162,26 @@ func TestRenameTag(t *testing.T) {
 	}
 
 	h.Custom("other")
-	_, err = h.Mod.Services.SaveCustom(ctx, id, services.Edit{Name: "mine", Tag: "other"}, "admin")
+	_, err = h.Mod.Services.SaveCustom(ctx, id, access.All, services.Edit{Name: "mine", Tag: "other"}, "admin")
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) || fe["tag"] != "services.err.tag_taken" {
 		t.Errorf("a taken tag: %v", err)
 	}
 	for tag, key := range map[string]string{"telegram-cidr": "services.err.tag", "a b": "services.err.tag"} {
-		_, err = h.Mod.Services.SaveCustom(ctx, id, services.Edit{Name: "mine", Tag: tag}, "admin")
+		_, err = h.Mod.Services.SaveCustom(ctx, id, access.All, services.Edit{Name: "mine", Tag: tag}, "admin")
 		if !errors.As(err, &fe) || fe["tag"] != key {
 			t.Errorf("%s: %v", tag, err)
 		}
 	}
-	_, err = h.Mod.Services.CreateCustom(ctx, services.Custom{Name: "Мои сайты"}, "admin")
+	_, err = h.Mod.Services.CreateCustom(ctx, services.Custom{Owner: 1, Name: "Мои сайты"}, "admin")
 	if !errors.As(err, &fe) || fe["tag"] != "services.err.tag_empty" {
 		t.Errorf("no tag from a Cyrillic name: %v", err)
 	}
-	cid, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Name: "My sites"}, "admin")
-	if c, _ := h.Mod.Services.Get(ctx, cid); err != nil || c.Tag != "my-sites" {
+	cid, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Owner: 1, Name: "My sites"}, "admin")
+	if c, _ := h.Mod.Services.Get(ctx, cid, access.All); err != nil || c.Tag != "my-sites" {
 		t.Errorf("slug: %+v %v", c, err)
 	}
-	if _, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Name: "My sites", Tag: "x"}, "admin"); !errors.As(err, &fe) || fe["name"] != "services.err.name_taken" {
+	if _, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Owner: 1, Name: "My sites", Tag: "x"}, "admin"); !errors.As(err, &fe) || fe["name"] != "services.err.name_taken" {
 		t.Errorf("a taken name: %v", err)
 	}
 }

@@ -122,7 +122,7 @@ type alertsFormView struct {
 
 func (h *handler) alertsForm(c *echo.Context) (alertsFormView, error) {
 	ctx := c.Request().Context()
-	l, err := h.loadLink(c)
+	l, err := h.loadLinkToChange(c)
 	if err != nil {
 		return alertsFormView{}, err
 	}
@@ -190,7 +190,7 @@ func (h *handler) saveAlerts(c *echo.Context) error {
 		v.Networks, v.Apps, v.Muted = c.FormValue("networks"), c.FormValue("apps"), c.FormValue("muted") == "1"
 		networks, apps, muted = limitValue(v.Networks), limitValue(v.Apps), v.Muted
 	}
-	err = h.Alerts.SetLimits(ctx, v.L.ID, networks, apps, muted, web.Actor(ctx))
+	err = h.Alerts.SetLimits(ctx, v.L.ID, scope(ctx), networks, apps, muted, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)

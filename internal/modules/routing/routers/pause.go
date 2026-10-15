@@ -6,6 +6,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // ErrState is an action the router's state doesn't allow.
@@ -24,9 +25,12 @@ func (s *Service) cancelQueued(ctx context.Context, tx *sqlx.Tx, id int64, actor
 
 // Pause stops an active router's syncs, previews and drift checks: their
 // queued jobs are cancelled and marks skip it until Resume.
-func (s *Service) Pause(ctx context.Context, id int64, actor string) error {
+func (s *Service) Pause(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return err
+	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		rt, err := store.GetRouter(ctx, tx, id)
+		rt, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
@@ -51,9 +55,12 @@ func (s *Service) Pause(ctx context.Context, id int64, actor string) error {
 
 // Resume makes a paused router active again and queues a full sync now (a
 // router that never connected still waits for its first passing test).
-func (s *Service) Resume(ctx context.Context, id int64, actor string) error {
+func (s *Service) Resume(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return err
+	}
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		rt, err := store.GetRouter(ctx, tx, id)
+		rt, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {

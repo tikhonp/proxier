@@ -158,6 +158,7 @@ var messages = i18n.Messages{
 	"event.routerscript.current_changed":        {EN: "Made v{to} of {subject} current (was v{from})", RU: "Текущей версией {subject} стала v{to} (была v{from})"},
 	"event.routerscript.archived":               {EN: "Archived or unarchived router script {subject}", RU: "Скрипт роутера {subject} отправлен в архив или возвращён"},
 	"event.routerscript.deleted":                {EN: "Deleted router script {name}", RU: "Удалён скрипт роутера {name}"},
+	"event.routerscript.handed_over":            {EN: "Handed over the generations ({generations}) of removed {subject} to {to}", RU: "Генерации ({generations}) удалённого участника {subject} переданы {to}"},
 	"event.routerscript.generated":              {EN: "Generated {subject} from {script} v{version}", RU: "Сделана генерация {subject} из {script} v{version}"},
 	"event.routerscript.fetch_url_created":      {EN: "Created a fetch URL for {subject}", RU: "Создана ссылка для загрузки {subject}"},
 	"event.routerscript.fetched":                {EN: "{subject} was fetched from {ip}", RU: "{subject} загружен с {ip}"},

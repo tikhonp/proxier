@@ -7,13 +7,14 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func hideOn(t *testing.T, h *substest.Harness, id int64) {
 	t.Helper()
 	st := settingsOf(get(t, h, id))
 	st.HideOn = true
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -23,12 +24,12 @@ func TestPreviewHidesUnhealthy(t *testing.T) {
 	id := h.Subscription("Family", 1, 2)
 	hideOn(t, h, id)
 	h.Catalog.SetHealth(2, "blocked", h.Now.Add(-10*time.Minute))
-	resp, _, err := h.Mod.Subs.Preview(en(h), id, "", true)
+	resp, _, err := h.Mod.Subs.Preview(en(h), id, access.All, "", true)
 	if err != nil || len(resp.Lines) != 2 || len(resp.Hidden) != 0 {
 		t.Fatalf("10 min: %v %v", resp.Lines, err)
 	}
 	h.Advance(21 * time.Minute)
-	resp, _, err = h.Mod.Subs.Preview(en(h), id, "", true)
+	resp, _, err = h.Mod.Subs.Preview(en(h), id, access.All, "", true)
 	if err != nil || len(resp.Lines) != 1 || !strings.Contains(resp.Lines[0], "nl-1") || len(resp.Hidden) != 1 || resp.Hidden[0].For != 31*time.Minute {
 		t.Fatalf("31 min: %v %+v %v", resp.Lines, resp.Hidden, err)
 	}
@@ -38,7 +39,7 @@ func TestPreviewHidesUnhealthy(t *testing.T) {
 		t.Error("the preview does not say why de-1 is hidden")
 	}
 	h.Catalog.SetHealth(2, "healthy", h.Now)
-	if resp, _, _ := h.Mod.Subs.Preview(en(h), id, "", true); len(resp.Lines) != 2 {
+	if resp, _, _ := h.Mod.Subs.Preview(en(h), id, access.All, "", true); len(resp.Lines) != 2 {
 		t.Error("de-1 did not come back")
 	}
 }
@@ -50,7 +51,7 @@ func TestPreviewAllUnhealthy(t *testing.T) {
 	h.Catalog.SetHealth(1, "down", h.Now.Add(-time.Hour))
 	h.Catalog.SetHealth(2, "down", h.Now.Add(-time.Hour))
 	before := len(h.Events(""))
-	resp, _, err := h.Mod.Subs.Preview(en(h), id, "", true)
+	resp, _, err := h.Mod.Subs.Preview(en(h), id, access.All, "", true)
 	if err != nil || len(resp.Lines) != 2 || !resp.AllHidden {
 		t.Fatalf("%v %v %v", resp.Lines, resp.AllHidden, err)
 	}
@@ -66,7 +67,7 @@ func TestMemberOutOfService(t *testing.T) {
 	h := substest.New(t)
 	id := h.Subscription("Family", 1, 2)
 	h.Catalog.Drop(2)
-	resp, members, err := h.Mod.Subs.Preview(en(h), id, "", true)
+	resp, members, err := h.Mod.Subs.Preview(en(h), id, access.All, "", true)
 	if err != nil || len(resp.Lines) != 1 || strings.Contains(resp.Lines[0], "de-1") {
 		t.Fatalf("%v %v", resp.Lines, err)
 	}
@@ -78,7 +79,7 @@ func TestMemberOutOfService(t *testing.T) {
 		t.Error("the page does not list de-1 as not in service")
 	}
 	h.Catalog.Drop(1)
-	resp, _, _ = h.Mod.Subs.Preview(en(h), id, "", true)
+	resp, _, _ = h.Mod.Subs.Preview(en(h), id, access.All, "", true)
 	if resp.Outcome != output.StubEmpty || resp.Lines[0] != output.StubURI("⚠️ No servers yet") {
 		t.Errorf("all dropped: %s %v", resp.Outcome, resp.Lines)
 	}

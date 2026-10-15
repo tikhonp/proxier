@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -40,8 +41,9 @@ func refreshRequest(id int64, actor string) jobs.Request {
 
 // RefreshNow queues a refresh of one upstream service and returns its job
 // (an already queued one when the request coalesced into it).
+// Upstream services are shared: the route needs routing: manage_all.
 func (s *Service) RefreshNow(ctx context.Context, serviceID int64, actor string) (int64, error) {
-	it, err := s.d.Services.Get(ctx, serviceID)
+	it, err := s.d.Services.Get(ctx, serviceID, access.All)
 	if err != nil {
 		return 0, err
 	}
@@ -54,8 +56,9 @@ func (s *Service) RefreshNow(ctx context.Context, serviceID int64, actor string)
 
 // RefreshList queues a refresh of every upstream service of a list (Refresh
 // all) and returns how many.
+// Like RefreshNow, the route needs routing: manage_all.
 func (s *Service) RefreshList(ctx context.Context, listID int64, actor string) (int, error) {
-	if _, err := s.d.Lists.Get(ctx, listID); err != nil {
+	if _, err := s.d.Lists.Get(ctx, listID, access.All); err != nil {
 		return 0, err
 	}
 	ids, err := store.UpstreamMembers(ctx, s.d.DB.R, listID)

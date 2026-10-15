@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -26,7 +27,7 @@ func (m *Module) RenderNotification(ctx context.Context, e events.Event, loc *i1
 	if err != nil {
 		return notify.Message{}, false, nil
 	}
-	l, err := m.Links.Get(ctx, id)
+	l, err := m.Links.Get(ctx, id, access.All)
 	if err != nil {
 		return notify.Message{}, false, nil
 	}

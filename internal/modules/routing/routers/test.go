@@ -12,6 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx"
@@ -80,18 +81,23 @@ type testPayload struct {
 	TestID int64 `json:"test_id"`
 }
 
-// StartTest queues Test connection of c: of the add form (routerID 0) or of
-// a saved router.
-func (s *Service) StartTest(ctx context.Context, routerID int64, c Connection, actor string) (int64, error) {
+// StartTest queues Test connection of c for w: of the add form (routerID 0)
+// or of a saved router w may change. The test is w's.
+func (s *Service) StartTest(ctx context.Context, routerID int64, w access.Who, c Connection, actor string) (int64, error) {
 	c = c.Normalize()
 	if fe := c.Validate(); fe != nil {
 		return 0, fe
+	}
+	if routerID != 0 {
+		if _, err := s.toChange(ctx, routerID, w.Scope(access.Routing)); err != nil {
+			return 0, err
+		}
 	}
 	var id int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		req := jobs.Request{Type: JobTest, CreatedBy: actor}
 		if routerID != 0 {
-			if _, err := store.GetRouter(ctx, tx, routerID); errors.Is(err, store.ErrNotFound) {
+			if _, err := store.GetRouter(ctx, tx, routerID, access.All); errors.Is(err, store.ErrNotFound) {
 				return ErrNotFound
 			} else if err != nil {
 				return err
@@ -99,7 +105,7 @@ func (s *Service) StartTest(ctx context.Context, routerID int64, c Connection, a
 			req.ResourceKey, req.Subject = resourceKey(routerID), Subject(routerID)
 		}
 		var err error
-		if id, err = store.InsertTest(ctx, tx, routerID, jsonOf(c), s.now()); err != nil {
+		if id, err = store.InsertTest(ctx, tx, w.Member, routerID, jsonOf(c), s.now()); err != nil {
 			return err
 		}
 		req.Payload = testPayload{TestID: id}
@@ -115,13 +121,34 @@ func (s *Service) StartTest(ctx context.Context, routerID int64, c Connection, a
 	return id, err
 }
 
-// Test reads a test.
-func (s *Service) Test(ctx context.Context, id int64) (Test, error) {
+// Test reads a test within scope: a saved router's while scope reads the
+// router, one of the add form while scope reads its starter's things. Any
+// other is ErrTestNotFound, since it shows a host and its fingerprints.
+func (s *Service) Test(ctx context.Context, id int64, scope access.Scope) (Test, error) {
+	r, err := s.testRow(ctx, id, scope)
+	return testOf(r), err
+}
+
+func (s *Service) testRow(ctx context.Context, id int64, scope access.Scope) (store.Test, error) {
 	r, err := store.GetTest(ctx, s.d.DB.R, id)
 	if errors.Is(err, store.ErrNotFound) {
-		return Test{}, ErrTestNotFound
+		return r, ErrTestNotFound
 	}
-	return testOf(r), err
+	if err != nil {
+		return r, err
+	}
+	if r.RouterID == 0 {
+		if !scope.Reads(r.OwnerID) {
+			return r, ErrTestNotFound
+		}
+		return r, nil
+	}
+	if _, err := store.GetRouter(ctx, s.d.DB.R, r.RouterID, scope); errors.Is(err, store.ErrNotFound) {
+		return r, ErrTestNotFound
+	} else if err != nil {
+		return r, err
+	}
+	return r, nil
 }
 
 // LatestTest is a router's newest test; false when it has none.
@@ -135,11 +162,21 @@ func (s *Service) LatestTest(ctx context.Context, routerID int64) (Test, bool, e
 
 // Confirm answers a test waiting at a fingerprint. trust pins the key it saw
 // and starts a new test of the same form; otherwise the test ends failed and
-// nothing is pinned.
-func (s *Service) Confirm(ctx context.Context, testID int64, trust bool, actor string) (int64, error) {
-	t, err := s.Test(ctx, testID)
+// nothing is pinned. w must be able to change the test's router, or for
+// one of the add form, its starter's things.
+func (s *Service) Confirm(ctx context.Context, testID int64, w access.Who, trust bool, actor string) (int64, error) {
+	scope := w.Scope(access.Routing)
+	r, err := s.testRow(ctx, testID, scope)
 	if err != nil {
 		return 0, err
+	}
+	t := testOf(r)
+	if t.RouterID != 0 {
+		if _, err := s.toChange(ctx, t.RouterID, scope); err != nil {
+			return 0, err
+		}
+	} else if !scope.Writes(r.OwnerID) {
+		return 0, access.Forbidden(access.Routing)
 	}
 	if t.State != TestConfirm {
 		return 0, ErrNotConfirming
@@ -170,7 +207,7 @@ func (s *Service) Confirm(ctx context.Context, testID int64, trust bool, actor s
 	if err := end("Fingerprint of " + t.ConfirmAddr + " confirmed: tested again."); err != nil {
 		return 0, err
 	}
-	return s.StartTest(ctx, t.RouterID, t.Conn, actor)
+	return s.StartTest(ctx, t.RouterID, w, t.Conn, actor)
 }
 
 // stepTest connects, reads the check and tries an upload.
@@ -179,7 +216,7 @@ func (s *Service) stepTest(ctx context.Context, r *jobs.Run) error {
 	if err := r.Payload(&p); err != nil {
 		return jobs.Permanent(err)
 	}
-	t, err := s.Test(ctx, p.TestID)
+	t, err := s.Test(ctx, p.TestID, access.All)
 	if err != nil {
 		return jobs.Permanent(err)
 	}
@@ -272,7 +309,7 @@ func (s *Service) stepTest(ctx context.Context, r *jobs.Run) error {
 // testedRouter writes what a saved router's test read; the first pass of a
 // router that never connected connects it and queues its initial sync.
 func (s *Service) testedRouter(ctx context.Context, tx *sqlx.Tx, id int64, res store.Test, actor string) error {
-	cur, err := store.GetRouter(ctx, tx, id)
+	cur, err := store.GetRouter(ctx, tx, id, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	} else if err != nil {

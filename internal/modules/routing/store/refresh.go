@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -41,7 +42,7 @@ func RefreshFailed(ctx context.Context, x sqlx.ExtContext, id int64, errText str
 		errText, id); err != nil {
 		return Service{}, err
 	}
-	return GetService(ctx, x, id)
+	return GetService(ctx, x, id, access.All)
 }
 
 // SetFailingNotified records that refresh_failing was sent for this run of failures.

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -53,16 +54,17 @@ func SetPositions(ctx context.Context, x sqlx.ExtContext, listID int64, serviceI
 // Membership is a list holding a service, at a position.
 type Membership struct {
 	ListID    int64  `db:"list_id"`
+	OwnerID   int64  `db:"owner_id"`
 	Name      string `db:"name"`
 	IsDefault bool   `db:"is_default"`
 	Position  int    `db:"position"`
 }
 
-// MembershipsOf reads the lists that hold a service, by name.
-func MembershipsOf(ctx context.Context, q sqlx.QueryerContext, serviceID int64) ([]Membership, error) {
+// MembershipsOf reads the lists within scope that hold a service, by name.
+func MembershipsOf(ctx context.Context, q sqlx.QueryerContext, serviceID int64, scope access.Scope) ([]Membership, error) {
 	var out []Membership
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT m.list_id, l.name, l.is_default, m.position FROM routing_list_services m
-		JOIN routing_lists l ON l.id = m.list_id WHERE m.service_id = ? ORDER BY l.name`, serviceID)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT m.list_id, l.owner_id, l.name, l.is_default, m.position FROM routing_list_services m
+		JOIN routing_lists l ON l.id = m.list_id WHERE m.service_id = ? AND ? IN (0, l.owner_id) ORDER BY l.name`, serviceID, scope)
 	return out, err
 }
 

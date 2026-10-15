@@ -84,6 +84,11 @@ func (h *handler) activityPage(c *echo.Context) error {
 	if t, id, ok := strings.Cut(f.Subject, ":"); ok {
 		filter.Subject = events.Subject{Type: t, ID: id}
 	}
+	own, err := h.own(ctx)
+	if err != nil {
+		return err
+	}
+	filter.Own = own
 	list, err := events.List(ctx, h.Query, filter)
 	if err != nil {
 		return err

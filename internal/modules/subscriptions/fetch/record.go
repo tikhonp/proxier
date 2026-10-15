@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -47,7 +48,7 @@ func (s *Service) record(c *echo.Context, l links.Link, format string, resp outp
 		if !resp.AllHidden {
 			return nil
 		}
-		sub, err := store.GetSubscription(ctx, tx, l.SubscriptionID)
+		sub, err := store.GetSubscription(ctx, tx, l.SubscriptionID, access.All)
 		if err != nil {
 			return err
 		}

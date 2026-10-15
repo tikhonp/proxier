@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 var alertApps = []string{"Happ/1.6.1", "v2RayTun/4.0", "HiddifyNext/2.5", "Shadowrocket/2.2"}
@@ -54,7 +55,7 @@ func TestLinkAlertPanels(t *testing.T) {
 	mustContain(t, page(t, h, href), "Fetched from 7 networks and 4 apps in the last 24 h.")
 
 	// muted: no band, no marker, the counts still show
-	if err := h.Mod.Alerts.SetLimits(t.Context(), id, 0, 0, true, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(t.Context(), id, access.All, 0, 0, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body = page(t, h, href)
@@ -62,7 +63,7 @@ func TestLinkAlertPanels(t *testing.T) {
 	mustContain(t, body, "Who fetches it", "Networks · 7", "Alert limits", "muted")
 
 	// a day after the alert, unmuted: the alert has passed
-	if err := h.Mod.Alerts.SetLimits(t.Context(), id, 0, 0, false, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(t.Context(), id, access.All, 0, 0, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	mustContain(t, page(t, h, href), "Shared-link alert")
@@ -93,7 +94,7 @@ func TestAlertLimitsPage(t *testing.T) {
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != href {
 		t.Fatalf("save: %d %q", rec.Code, rec.Header().Get("Location"))
 	}
-	l, _ := h.Mod.Links.Get(t.Context(), id)
+	l, _ := h.Mod.Links.Get(t.Context(), id, access.All)
 	if l.AlertNetworks != 10 || l.AlertApps != 0 || l.AlertsMuted {
 		t.Errorf("saved: %+v", l)
 	}
@@ -114,13 +115,13 @@ func TestAlertLimitsPage(t *testing.T) {
 
 	// Mute alerts from the band keeps the limits
 	h.Login.Post(href+"/alerts", url.Values{"action": {"mute"}})
-	l, _ = h.Mod.Links.Get(t.Context(), id)
+	l, _ = h.Mod.Links.Get(t.Context(), id, access.All)
 	if !l.AlertsMuted || l.AlertNetworks != 10 {
 		t.Errorf("mute: %+v", l)
 	}
 	mustContain(t, page(t, h, href+"/alerts"), "Alerts are muted for this link", "Unmute")
 	h.Login.Post(href+"/alerts", url.Values{"action": {"unmute"}})
-	l, _ = h.Mod.Links.Get(t.Context(), id)
+	l, _ = h.Mod.Links.Get(t.Context(), id, access.All)
 	if l.AlertsMuted || l.AlertNetworks != 10 {
 		t.Errorf("unmute: %+v", l)
 	}
@@ -130,7 +131,7 @@ func TestAlertLimitsPage(t *testing.T) {
 	}
 
 	// a deleted link's limits can't change
-	if err := h.Mod.Links.Delete(t.Context(), id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(t.Context(), id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if rec := h.Login.Get(href + "/alerts"); rec.Code != http.StatusConflict {

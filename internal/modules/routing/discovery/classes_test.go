@@ -41,7 +41,7 @@ func TestClassify(t *testing.T) {
 		req("https://cdn.jsdelivr.net/x.js", "cdn.jsdelivr.net"),
 		req("https://203.0.113.5/p", "203.0.113.5"),
 		failed("https://api.other.net/x", "api.other.net", "net::ERR_CONNECTION_RESET")))
-	r := wait(t, h, start(t, h, discovery.Start{Website: "example.com", Via: discovery.ViaDirect}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "example.com", Via: discovery.ViaDirect}), discovery.Done)
 	if g, ok := groupOf(r, "example.com"); !ok || !g.Ticked || g.Class != discovery.FirstParty || len(g.Hosts) != 2 {
 		t.Errorf("first-party group: %+v", g)
 	}

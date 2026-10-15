@@ -9,7 +9,6 @@ import (
 )
 
 // ------------------------------------------------------------------ the list
-
 templ listPage(s ui.Shell, rows []rowView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -67,7 +66,6 @@ templ listPage(s ui.Shell, rows []rowView) {
 }
 
 // ------------------------------------------------------------------- create
-
 templ newPage(s ui.Shell, v newView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -117,7 +115,6 @@ templ nameFields(name, title, description string, errs map[string]string, autofo
 }
 
 // ----------------------------------------------------------------- the page
-
 templ subscriptionPage(s ui.Shell, v pageView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -126,10 +123,12 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 				<h1>{ v.S.Name }</h1>
 				<p class="subtle">{ v.Status }</p>
 			</div>
-			<div class="actions">
-				@ui.ActionButton(ui.Action{ID: "links.new", Label: "links.new", Method: "GET", Href: "/links/new?subscription=" + i64(v.S.ID), Key: "n"})
-				@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true})
-			</div>
+			if v.Servers.CanChange {
+				<div class="actions">
+					@ui.ActionButton(ui.Action{ID: "links.new", Label: "links.new", Method: "GET", Href: "/links/new?subscription=" + i64(v.S.ID), Key: "n"})
+					@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true})
+				</div>
+			}
 		</div>
 		switch v.Saved {
 			case "1":
@@ -144,7 +143,9 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 		<div class="subcols">
 			<div class="col-l">
 				@serversArea(v.Servers)
-				@settingsArea(v)
+				if v.Servers.CanChange {
+					@settingsArea(v)
+				}
 			</div>
 			<div class="col-r">
 				@ui.Area(i18n.T(ctx, "subs.area.preview"), i18n.T(ctx, "subs.area.preview.note")) {
@@ -208,11 +209,15 @@ templ serversArea(v serversView) {
 		if len(v.Rows) == 0 {
 			<p class="subtle area-body">{ i18n.T(ctx, "subs.servers.empty") }</p>
 		} else {
-			<div class="tbl" data-sortable>
+			<div class="tbl" data-sortable?={ v.CanChange }>
 				for _, r := range v.Rows {
 					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.member", i18n.Args{"name": r.Name}) } data-href={ "/servers/" + i64(r.ID) } data-cursor?={ r.Cursor }>
 						<span class="caret" aria-hidden="true">›</span>
-						<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "subs.drag") }>⋮⋮</span>
+						if v.CanChange {
+							<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "subs.drag") }>⋮⋮</span>
+						} else {
+							<span></span>
+						}
 						<span class="subtle">{ strconv.Itoa(r.Pos) }</span>
 						<span>
 							if r.Flag != "" {
@@ -225,24 +230,36 @@ templ serversArea(v serversView) {
 						</span>
 						<span class={ "out", "sm", r.OutClass }>{ r.Out }</span>
 						<span class="acts">
-							@moveButton(v.SubID, r, "up")
-							@moveButton(v.SubID, r, "down")
-							@ui.ActionButton(ui.Action{
-								ID: "subs.remove." + i64(r.ID), Label: "subs.remove", Method: "POST", Small: true, Kind: ui.Ghost,
-								Href: subHref(v.SubID) + "/servers/" + i64(r.ID) + "/remove",
-								Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "subs.remove.title", i18n.Args{"server": r.Name, "name": v.Name}), Body: i18n.T(ctx, "subs.remove.body")},
-							})
+							if v.CanChange {
+								@memberActs(v, r)
+							}
 						</span>
 					</div>
 				}
 			</div>
-			<form method="post" action={ subHref(v.SubID) + "/servers/order" } data-sortable-form hx-post={ subHref(v.SubID) + "/servers/order" } hx-target="#servers-area" hx-swap="outerHTML" class="hidden">
-				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-				<input type="hidden" name="order" value={ v.OrderCSV }/>
-			</form>
+			if v.CanChange {
+				@orderForm(v)
+			}
 			<p class="sm subtle area-body">{ i18n.T(ctx, "subs.servers.note") }</p>
 		}
 	</section>
+}
+
+templ memberActs(v serversView, r memberRow) {
+	@moveButton(v.SubID, r, "up")
+	@moveButton(v.SubID, r, "down")
+	@ui.ActionButton(ui.Action{
+		ID: "subs.remove." + i64(r.ID), Label: "subs.remove", Method: "POST", Small: true, Kind: ui.Ghost,
+		Href:    subHref(v.SubID) + "/servers/" + i64(r.ID) + "/remove",
+		Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "subs.remove.title", i18n.Args{"server": r.Name, "name": v.Name}), Body: i18n.T(ctx, "subs.remove.body")},
+	})
+}
+
+templ orderForm(v serversView) {
+	<form method="post" action={ subHref(v.SubID) + "/servers/order" } data-sortable-form hx-post={ subHref(v.SubID) + "/servers/order" } hx-target="#servers-area" hx-swap="outerHTML" class="hidden">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<input type="hidden" name="order" value={ v.OrderCSV }/>
+	</form>
 }
 
 // moveButton is ↑ (K) or ↓ (J) of a row: keys act on the row under the cursor only.
@@ -340,7 +357,6 @@ templ previewBody(v previewView) {
 }
 
 // --------------------------------------------------------------- add servers
-
 templ addPage(s ui.Shell, v addView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -376,7 +392,6 @@ templ addPage(s ui.Shell, v addView) {
 }
 
 // -------------------------------------------------------------------- delete
-
 templ deletePage(s ui.Shell, v deleteView) {
 	@ui.Layout(s) {
 		<div class="titleblock">

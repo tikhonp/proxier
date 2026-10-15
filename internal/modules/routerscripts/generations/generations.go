@@ -25,6 +25,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -53,6 +54,7 @@ type Value struct {
 // router as they are now.
 type Generation struct {
 	ID               int64
+	OwnerID          int64 // a member
 	ScriptID         int64
 	Script, Slug     string
 	Version          int
@@ -135,10 +137,23 @@ func secret(p params.Param) bool {
 	return p.Annotations.Secret || p.Annotations.Fill == params.FillLink
 }
 
-func (s *Service) row(ctx context.Context, id int64) (store.Generation, error) {
-	g, err := store.GetGeneration(ctx, s.d.DB.R, id)
+// row reads a generation within scope: ErrNotFound outside it, so IDs don't
+// tell what exists.
+func (s *Service) row(ctx context.Context, id int64, scope access.Scope) (store.Generation, error) {
+	g, err := store.GetGeneration(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return g, ErrNotFound
+	}
+	return g, err
+}
+
+// toChange reads a generation to change it (a new fetch URL) or to make a
+// new one from it, which copies its secrets: Forbidden for one scope reads
+// but may not change.
+func (s *Service) toChange(ctx context.Context, id int64, scope access.Scope) (store.Generation, error) {
+	g, err := s.row(ctx, id, scope)
+	if err == nil && !scope.Writes(g.OwnerID) {
+		err = access.Forbidden(access.RouterScripts)
 	}
 	return g, err
 }
@@ -168,9 +183,11 @@ func splitNames(s string) []string {
 	return strings.Split(s, ",")
 }
 
-// Get reads a generation with its link, router and key as they are now.
-func (s *Service) Get(ctx context.Context, id int64) (Generation, error) {
-	g, err := s.row(ctx, id)
+// Get reads a generation within scope with its link, router and key as they
+// are now. The link and router are the generation's own, so they are read
+// whoever owns them now.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Generation, error) {
+	g, err := s.row(ctx, id, scope)
 	if err != nil {
 		return Generation{}, err
 	}
@@ -187,7 +204,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Generation, error) {
 		return Generation{}, err
 	}
 	out := Generation{
-		ID: g.ID, ScriptID: g.ScriptID, Script: sc.Name, Slug: sc.Slug, Version: g.Version, Current: sc.Current,
+		ID: g.ID, OwnerID: g.OwnerID, ScriptID: g.ScriptID, Script: sc.Name, Slug: sc.Slug, Version: g.Version, Current: sc.Current,
 		RouterName: g.RouterName, FileName: g.FileName, Changed: splitNames(g.Changed), LinkID: g.LinkID, LinkName: g.LinkName,
 		LinkCreated: g.LinkCreated, RouterID: g.RouterID, RouterRegistered: g.RouterRegistered, CreatedAt: g.CreatedAt.Time, CreatedBy: g.CreatedBy,
 	}
@@ -213,7 +230,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Generation, error) {
 		out.Values = append(out.Values, v)
 	}
 	if g.LinkID != 0 && s.d.Links != nil {
-		l, err := s.d.Links.Link(ctx, g.LinkID)
+		l, err := s.d.Links.Link(ctx, g.LinkID, access.All)
 		switch {
 		case errors.Is(err, subscriptions.ErrLinkNotFound) || err == nil && l.State == "deleted":
 			out.LinkGone = true
@@ -226,7 +243,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Generation, error) {
 		}
 	}
 	if g.RouterID != 0 && s.d.Routers != nil {
-		r, err := s.d.Routers.Router(ctx, g.RouterID)
+		r, err := s.d.Routers.Router(ctx, g.RouterID, access.All)
 		switch {
 		case errors.Is(err, routing.ErrRouterNotFound):
 			out.RouterGone = true
@@ -250,7 +267,7 @@ func (s *Service) routerState(ctx context.Context, g store.Generation) (string, 
 	if g.RouterID == 0 || s.d.Routers == nil {
 		return "", nil
 	}
-	r, err := s.d.Routers.Router(ctx, g.RouterID)
+	r, err := s.d.Routers.Router(ctx, g.RouterID, access.All)
 	if errors.Is(err, routing.ErrRouterNotFound) {
 		return "removed", nil
 	}
@@ -276,19 +293,20 @@ func (s *Service) rows(ctx context.Context, gens []store.Generation) ([]Row, err
 	return out, nil
 }
 
-// OfScript lists a script's generations, newest first, with their routers'
-// states now.
-func (s *Service) OfScript(ctx context.Context, scriptID int64) ([]Row, error) {
-	gens, err := store.ScriptGenerations(ctx, s.d.DB.R, scriptID)
+// OfScript lists a script's generations within scope, newest first, with
+// their routers' states now.
+func (s *Service) OfScript(ctx context.Context, scriptID int64, scope access.Scope) ([]Row, error) {
+	gens, err := store.ScriptGenerations(ctx, s.d.DB.R, scriptID, scope)
 	if err != nil {
 		return nil, err
 	}
 	return s.rows(ctx, gens)
 }
 
-// AwaitingCount counts a script's generations whose router awaits setup.
-func (s *Service) AwaitingCount(ctx context.Context, scriptID int64) (int, error) {
-	gens, err := store.ScriptGenerations(ctx, s.d.DB.R, scriptID)
+// AwaitingCount counts a script's generations within scope whose router
+// awaits setup.
+func (s *Service) AwaitingCount(ctx context.Context, scriptID int64, scope access.Scope) (int, error) {
+	gens, err := store.ScriptGenerations(ctx, s.d.DB.R, scriptID, scope)
 	if err != nil {
 		return 0, err
 	}
@@ -305,9 +323,10 @@ func (s *Service) AwaitingCount(ctx context.Context, scriptID int64) (int, error
 	return n, nil
 }
 
-// Search finds generations by router name (any case), newest first.
-func (s *Service) Search(ctx context.Context, q string, limit int) ([]Row, error) {
-	all, err := store.AllGenerations(ctx, s.d.DB.R)
+// Search finds generations within scope by router name (any case), newest
+// first.
+func (s *Service) Search(ctx context.Context, scope access.Scope, q string, limit int) ([]Row, error) {
+	all, err := store.AllGenerations(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -325,8 +344,8 @@ func (s *Service) Search(ctx context.Context, q string, limit int) ([]Row, error
 }
 
 // file is the generation's version body and filled file.
-func (s *Service) file(ctx context.Context, id int64) (body string, file []byte, parsed params.Script, g store.Generation, err error) {
-	g, err = s.row(ctx, id)
+func (s *Service) file(ctx context.Context, id int64, scope access.Scope) (body string, file []byte, parsed params.Script, g store.Generation, err error) {
+	g, err = s.row(ctx, id, scope)
 	if err != nil {
 		return
 	}
@@ -347,15 +366,15 @@ func (s *Service) file(ctx context.Context, id int64) (body string, file []byte,
 
 // Body is the generated file: the version's body with every value filled in.
 // It holds secrets: never log it.
-func (s *Service) Body(ctx context.Context, id int64) ([]byte, error) {
-	_, file, _, _, err := s.file(ctx, id)
+func (s *Service) Body(ctx context.Context, id int64, scope access.Scope) ([]byte, error) {
+	_, file, _, _, err := s.file(ctx, id, scope)
 	return file, err
 }
 
 // Changes is the unified diff of the version's body against the file, every
 // secret parameter's literal shown as •••.
-func (s *Service) Changes(ctx context.Context, id int64) (string, error) {
-	body, file, parsed, g, err := s.file(ctx, id)
+func (s *Service) Changes(ctx context.Context, id int64, scope access.Scope) (string, error) {
+	body, file, parsed, g, err := s.file(ctx, id, scope)
 	if err != nil {
 		return "", err
 	}

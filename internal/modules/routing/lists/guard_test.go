@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestGuardRefusesAdd(t *testing.T) {
@@ -20,7 +21,7 @@ func TestGuardRefusesAdd(t *testing.T) {
 	before := len(h.Events(""))
 	marks := len(h.Marks.Changes())
 
-	err := h.Mod.Lists.Add(context.Background(), 1, []int64{ok, id}, "admin")
+	err := h.Mod.Lists.Add(context.Background(), 1, access.All, []int64{ok, id}, "admin")
 	var ge *lists.GuardError
 	if !errors.As(err, &ge) || ge.Server != "nl-1" || ge.Hostname != "nl-1.hosts.tikhonnnnn.com" || ge.Domain != "hosts.tikhonnnnn.com" ||
 		ge.Service != "hosts" || ge.List != "Main" {
@@ -51,7 +52,7 @@ func TestGuardRefusesAdd(t *testing.T) {
 	}
 	// once the server is gone, the name is allowed
 	h.Servers.Remove(1)
-	if err := h.Mod.Lists.Add(context.Background(), 1, []int64{id}, "admin"); err != nil {
+	if err := h.Mod.Lists.Add(context.Background(), 1, access.All, []int64{id}, "admin"); err != nil {
 		t.Errorf("without the server: %v", err)
 	}
 }
@@ -63,7 +64,7 @@ func TestGuardRefusesCustomSave(t *testing.T) {
 	h.List("Main", mine)
 	parents := h.List("Parents", mine)
 
-	_, err := h.Mod.Services.SaveCustom(context.Background(), mine, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
+	_, err := h.Mod.Services.SaveCustom(context.Background(), mine, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "example.com"}, {Domain: "tikhonnnnn.com"},
 	}}, "admin")
 	var ge *lists.GuardError
@@ -80,12 +81,12 @@ func TestGuardRefusesCustomSave(t *testing.T) {
 	}
 	// an exact name equal to another host is refused too; a sibling isn't
 	h.Servers.Put(2, "de-1", "de-1.example.net")
-	if _, err := h.Mod.Services.SaveCustom(context.Background(), mine, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
+	if _, err := h.Mod.Services.SaveCustom(context.Background(), mine, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "de-1.example.net", Exact: true},
 	}}, "admin"); !errors.As(err, &ge) || ge.Server != "de-1" {
 		t.Errorf("exact: %v", err)
 	}
-	if _, err := h.Mod.Services.SaveCustom(context.Background(), mine, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
+	if _, err := h.Mod.Services.SaveCustom(context.Background(), mine, access.All, services.Edit{Name: "mine", Tag: "mine", Rows: []services.DomainRow{
 		{Domain: "api.tikhonnnnn.com"}, {Domain: "de-2.example.net", Exact: true},
 	}}, "admin"); err != nil {
 		t.Errorf("siblings: %v", err)

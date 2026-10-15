@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // listOrder is a list's services' tags in order.
@@ -318,20 +319,20 @@ func TestListEventsInActivity(t *testing.T) {
 	h := routingtest.New(t)
 	ctx := context.Background()
 	yt := h.Custom("youtube", "youtube.com")
-	id, err := h.Mod.Lists.Create(ctx, "Spare", "", "admin")
+	id, err := h.Mod.Lists.Create(ctx, 1, "Spare", "", "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Lists.Add(ctx, id, []int64{yt}, "admin"); err != nil {
+	if err := h.Mod.Lists.Add(ctx, id, access.All, []int64{yt}, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Lists.Remove(ctx, id, yt, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(ctx, id, access.All, yt, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Lists.Edit(ctx, id, "Spare", "for trips", "admin"); err != nil {
+	if _, err := h.Mod.Lists.Edit(ctx, id, access.All, "Spare", "for trips", "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Lists.MakeDefault(ctx, id, "admin"); err != nil {
+	if err := h.Mod.Lists.MakeDefault(ctx, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	body := strings.Join(strings.Fields(h.Login.Get("/activity?module=routing").Body.String()), " ")

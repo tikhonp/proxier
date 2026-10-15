@@ -224,6 +224,32 @@ func MemberSubject(id int64) events.Subject {
 	return events.Subject{Type: "member", ID: strconv.FormatInt(id, 10)}
 }
 
+// Handover is what a member.removed event tells the modules: the member
+// removed, and the heir who takes over everything they owned.
+type Handover struct {
+	Member, Heir           int64
+	Username, HeirUsername string
+}
+
+// HandoverOf reads a member.removed event; false for any other event, or
+// one without an heir.
+func HandoverOf(e events.Event) (Handover, bool) {
+	if e.Type != "member.removed" || e.Subject.Type != "member" {
+		return Handover{}, false
+	}
+	h := Handover{Member: SubjectMember(e.Subject)}
+	// a JSON number once stored; the event as recorded holds the int64
+	switch heir := e.Payload["heir"].(type) {
+	case float64:
+		h.Heir = int64(heir)
+	case int64:
+		h.Heir = heir
+	}
+	h.Username, _ = e.Payload["username"].(string)
+	h.HeirUsername, _ = e.Payload["heir_username"].(string)
+	return h, h.Member > 0 && h.Heir > 0 && h.Heir != h.Member
+}
+
 // SubjectMember returns the member a subject of type member or admin names.
 func SubjectMember(sub events.Subject) int64 {
 	if sub.Type == "admin" {

@@ -7,6 +7,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -25,7 +26,7 @@ func autoAdd(t *testing.T, h *substest.Harness, id int64) {
 	t.Helper()
 	st := settingsOf(get(t, h, id))
 	st.AutoAdd = true
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 }

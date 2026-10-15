@@ -32,7 +32,7 @@ func (h *handler) list(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
 	v := listView{Archived: c.QueryParam("archived") == "1"}
-	rows, err := h.Scripts.List(ctx, v.Archived)
+	rows, err := h.Scripts.List(ctx, scope(ctx), v.Archived)
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (h *handler) list(c *echo.Context) error {
 			row.Published = loc.Date(r.PublishedAt)
 		}
 		if r.Generations > 0 {
-			n, err := h.Generations.AwaitingCount(ctx, r.ID)
+			n, err := h.Generations.AwaitingCount(ctx, r.ID, scope(ctx))
 			if err != nil {
 				return err
 			}

@@ -65,7 +65,7 @@ type areaModule struct{ fail bool }
 
 func (areaModule) Name() string      { return "areas" }
 func (areaModule) Migrations() fs.FS { return nil }
-func (m areaModule) Dashboard(context.Context) ([]ui.DashboardArea, error) {
+func (m areaModule) Dashboard(context.Context, access.Who) ([]ui.DashboardArea, error) {
 	if m.fail {
 		return nil, errors.New("the query failed")
 	}

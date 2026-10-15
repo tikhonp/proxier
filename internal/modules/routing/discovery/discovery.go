@@ -89,6 +89,7 @@ const (
 
 // Start is the Discover form.
 type Start struct {
+	Owner    int64 // the member the run belongs to
 	Website  string
 	Via      string // direct, server, auto
 	ServerID int64
@@ -132,6 +133,7 @@ type Group struct {
 // Run is a discovery run.
 type Run struct {
 	ID          int64
+	OwnerID     int64 // a member
 	Input, URL  string
 	Host        string
 	Registrable string

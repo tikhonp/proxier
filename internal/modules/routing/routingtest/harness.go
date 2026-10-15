@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources/sourcestest"
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
@@ -226,12 +227,22 @@ func (h *Harness) Upstream(sel string) int64 {
 	return id
 }
 
-// Custom adds a custom service; names as the editor takes them
+// Owner is member 1 with the Owner preset: who the harness's things belong
+// to unless a test names another member.
+var Owner = access.Who{Member: 1, Grant: access.PresetOwner.Grant()}
+
+// Custom adds a custom service of Owner; names as the editor takes them
 // ("example.com", "full:api.example.com").
 func (h *Harness) Custom(tag string, names ...string) int64 {
 	h.T.Helper()
+	return h.CustomOf(Owner, tag, names...)
+}
+
+// CustomOf adds a custom service of w.
+func (h *Harness) CustomOf(w access.Who, tag string, names ...string) int64 {
+	h.T.Helper()
 	ctx := context.Background()
-	id, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Name: tag, Tag: tag}, "admin")
+	id, err := h.Mod.Services.CreateCustom(ctx, services.Custom{Name: tag, Tag: tag, Owner: w.Member}, events.MemberActor(w.Member))
 	if err != nil {
 		h.T.Fatalf("create %s: %v", tag, err)
 	}
@@ -242,7 +253,7 @@ func (h *Harness) Custom(tag string, names ...string) int64 {
 	for _, n := range names {
 		rows = append(rows, services.DomainRow{Domain: n, Exact: strings.HasPrefix(n, "full:")})
 	}
-	if _, err := h.Mod.Services.SaveCustom(ctx, id, services.Edit{Name: tag, Tag: tag, Rows: rows}, "admin"); err != nil {
+	if _, err := h.Mod.Services.SaveCustom(ctx, id, w.Scope(access.Routing), services.Edit{Name: tag, Tag: tag, Rows: rows}, events.MemberActor(w.Member)); err != nil {
 		h.T.Fatalf("save %s: %v", tag, err)
 	}
 	return id
@@ -253,20 +264,27 @@ func (h *Harness) Custom(tag string, names ...string) int64 {
 // after any it has).
 func (h *Harness) List(name string, serviceIDs ...int64) int64 {
 	h.T.Helper()
+	return h.ListOf(Owner, name, serviceIDs...)
+}
+
+// ListOf is List for w: a new list is w's, and w adds the services.
+func (h *Harness) ListOf(w access.Who, name string, serviceIDs ...int64) int64 {
+	h.T.Helper()
 	ctx := context.Background()
+	actor := events.MemberActor(w.Member)
 	var id int64
 	if err := h.App.DB.R.Get(&id, `SELECT coalesce(max(id), 0) FROM routing_lists WHERE name = ?`, name); err != nil {
 		h.T.Fatal(err)
 	}
 	if id == 0 {
 		var err error
-		if id, err = h.Mod.Lists.Create(ctx, name, "", "admin"); err != nil {
+		if id, err = h.Mod.Lists.Create(ctx, w.Member, name, "", actor); err != nil {
 			h.T.Fatalf("create list %s: %v", name, err)
 		}
 	}
 	// one at a time: Add sorts what it adds by tag
 	for _, sid := range serviceIDs {
-		if err := h.Mod.Lists.Add(ctx, id, []int64{sid}, "admin"); err != nil {
+		if err := h.Mod.Lists.Add(ctx, id, w.Scope(access.Routing), []int64{sid}, actor); err != nil {
 			h.T.Fatalf("add %d to %s: %v", sid, name, err)
 		}
 	}

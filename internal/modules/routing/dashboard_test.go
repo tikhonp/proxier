@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestDashboardRoutingArea(t *testing.T) {
@@ -32,7 +33,7 @@ func TestDashboardRoutingArea(t *testing.T) {
 	_, office := h.Router("Office", 0)
 	h.StartJobs()
 	for _, id := range []int64{home, office} {
-		if _, err := h.Mod.Routers.SyncNow(ctx, id, "admin"); err != nil {
+		if _, err := h.Mod.Routers.SyncNow(ctx, id, access.All, "admin"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -47,7 +48,7 @@ func TestDashboardRoutingArea(t *testing.T) {
 
 	// failing, drift and unmanaged routers first; the synced ones leave
 	h.RouterFake(home).Offline(true)
-	if _, err := h.Mod.Routers.SyncNow(ctx, home, "admin"); err != nil {
+	if _, err := h.Mod.Routers.SyncNow(ctx, home, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -59,7 +60,7 @@ func TestDashboardRoutingArea(t *testing.T) {
 	h.RunSchedule(routers.JobDriftRound)
 	h.Settle()
 	_, synced := h.Router("Third", 0)
-	if _, err := h.Mod.Routers.SyncNow(ctx, synced, "admin"); err != nil {
+	if _, err := h.Mod.Routers.SyncNow(ctx, synced, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()

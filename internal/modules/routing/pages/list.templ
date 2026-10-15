@@ -17,9 +17,11 @@ templ rlistPage(s ui.Shell, v listPageView) {
 					<p class="sm subtle">{ v.L.Description }</p>
 				}
 			</div>
-			<div class="actions">
-				@ui.ActionButton(ui.Action{ID: "lists.add", Label: "lists.add", Method: "GET", Href: listHref(v.L.ID) + "/add", Key: "n", Kind: ui.Primary})
-			</div>
+			if v.Members.CanChange {
+				<div class="actions">
+					@ui.ActionButton(ui.Action{ID: "lists.add", Label: "lists.add", Method: "GET", Href: listHref(v.L.ID) + "/add", Key: "n", Kind: ui.Primary})
+				</div>
+			}
 		</div>
 		if v.Band != "" {
 			@ui.Alert("pine", "status") {
@@ -69,31 +71,8 @@ templ rlistPage(s ui.Shell, v listPageView) {
 						</div>
 					}
 				}
-				@ui.Area(i18n.T(ctx, "lists.area.actions"), "") {
-					<div class="act-rows">
-						<div class="row act">
-							@ui.ActionButton(ui.Action{ID: "refresh.all", Label: "refresh.all", Method: "POST", Href: listHref(v.L.ID) + "/refresh", Small: true})
-							<span class="sm subtle">{ i18n.T(ctx, "refresh.all.note") }</span>
-						</div>
-						<div class="row act">
-							@ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true})
-							<span class="sm subtle">{ i18n.T(ctx, "lists.rename.note") }</span>
-						</div>
-						if !v.L.Default {
-							<div class="row act">
-								@ui.ActionButton(ui.Action{ID: "lists.make_default", Label: "lists.make_default", Method: "POST", Href: listHref(v.L.ID) + "/default", Small: true})
-								<span class="sm subtle">{ i18n.T(ctx, "lists.make_default.note") }</span>
-							</div>
-						}
-						<div class="row act">
-							@ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger})
-							if v.L.Default {
-								<span class="sm subtle">{ i18n.T(ctx, "lists.delete.default") }</span>
-							} else {
-								<span class="sm subtle">{ i18n.T(ctx, "lists.delete.note") }</span>
-							}
-						</div>
-					</div>
+				if v.Members.CanChange {
+					@listActions(v)
 				}
 				@ui.Area(i18n.T(ctx, "lists.area.activity"), "") {
 					if len(v.Activity) == 0 {
@@ -141,18 +120,28 @@ templ membersArea(v membersView) {
 		}
 		if len(v.Rows) == 0 {
 			<p class="subtle area-body">{ i18n.T(ctx, "lists.services.empty", i18n.Args{"name": v.Name}) }</p>
-			<p class="area-body">
-				@ui.ActionButton(ui.Action{ID: "lists.add.empty", Label: "lists.add", Method: "GET", Href: listHref(v.ListID) + "/add", Small: true})
-			</p>
+			if v.CanChange {
+				<p class="area-body">
+					@ui.ActionButton(ui.Action{ID: "lists.add.empty", Label: "lists.add", Method: "GET", Href: listHref(v.ListID) + "/add", Small: true})
+				</p>
+			}
 		} else {
-			<div class="tbl" data-sortable>
+			<div class="tbl" data-sortable?={ v.CanChange }>
 				for _, r := range v.Rows {
-					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.member", i18n.Args{"tag": r.Tag}) } data-href={ svcHref(r.ID) } data-cursor?={ r.Cursor }>
+					<div class="row member pc-row" data-row={ i64(r.ID) } data-sort-id={ i64(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.member", i18n.Args{"tag": r.Tag}) } { rowHref(r.Href)... } data-cursor?={ r.Cursor }>
 						<span class="caret" aria-hidden="true">›</span>
-						<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "lists.drag") }>⋮⋮</span>
+						if v.CanChange {
+							<span class="handle" data-sort-handle aria-hidden="true" title={ i18n.T(ctx, "lists.drag") }>⋮⋮</span>
+						} else {
+							<span></span>
+						}
 						<span class="subtle">{ strconv.Itoa(r.Pos) }</span>
 						<span class="col">
-							<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold" title={ r.Tag }>{ r.Tag }</a>
+							if r.Href != "" {
+								<a href={ templ.SafeURL(r.Href) } class="bold" title={ r.Tag }>{ r.Tag }</a>
+							} else {
+								<span class="bold" title={ r.Tag }>{ r.Tag }</span>
+							}
 							if r.Sub != "" {
 								<span class="sm subtle seltext">{ r.Sub }</span>
 							}
@@ -170,24 +159,36 @@ templ membersArea(v membersView) {
 							@ui.Status(r.StateKind, r.State)
 						</span>
 						<span class="acts">
-							@listMoveButton(v.ListID, r, "up")
-							@listMoveButton(v.ListID, r, "down")
-							@ui.ActionButton(ui.Action{
-								ID: "lists.remove." + i64(r.ID), Label: "lists.remove", Method: "POST", Small: true, Kind: ui.Ghost,
-								Href: listHref(v.ListID) + "/services/" + i64(r.ID) + "/remove",
-								Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "lists.remove.title", i18n.Args{"tag": r.Tag, "name": v.Name}), Body: i18n.T(ctx, "lists.remove.body", i18n.Args{"tag": r.Tag, "name": v.Name})},
-							})
+							if v.CanChange {
+								@memberActs(v, r)
+							}
 						</span>
 					</div>
 				}
 			</div>
-			<form method="post" action={ templ.SafeURL(listHref(v.ListID) + "/services/order") } data-sortable-form hx-post={ listHref(v.ListID) + "/services/order" } hx-target="#members-area" hx-swap="outerHTML" class="hidden">
-				<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-				<input type="hidden" name="order" value={ v.OrderCSV }/>
-			</form>
+			if v.CanChange {
+				@listOrderForm(v)
+			}
 			<p class="sm subtle area-body">{ i18n.T(ctx, "lists.services.note") }</p>
 		}
 	</section>
+}
+
+templ memberActs(v membersView, r memberRow) {
+	@listMoveButton(v.ListID, r, "up")
+	@listMoveButton(v.ListID, r, "down")
+	@ui.ActionButton(ui.Action{
+		ID: "lists.remove." + i64(r.ID), Label: "lists.remove", Method: "POST", Small: true, Kind: ui.Ghost,
+		Href:    listHref(v.ListID) + "/services/" + i64(r.ID) + "/remove",
+		Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "lists.remove.title", i18n.Args{"tag": r.Tag, "name": v.Name}), Body: i18n.T(ctx, "lists.remove.body", i18n.Args{"tag": r.Tag, "name": v.Name})},
+	})
+}
+
+templ listOrderForm(v membersView) {
+	<form method="post" action={ templ.SafeURL(listHref(v.ListID) + "/services/order") } data-sortable-form hx-post={ listHref(v.ListID) + "/services/order" } hx-target="#members-area" hx-swap="outerHTML" class="hidden">
+		<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+		<input type="hidden" name="order" value={ v.OrderCSV }/>
+	</form>
 }
 
 // listMoveButton is ↑ (K) or ↓ (J) of a row: keys act on the row under the cursor only.
@@ -201,4 +202,37 @@ templ listMoveButton(list int64, r memberRow, dir string) {
 			<button type="submit" class="pc-btn pc-sm" data-key="J" data-row-only disabled?={ r.Last } aria-label={ i18n.T(ctx, "lists.move.down", i18n.Args{"tag": r.Tag}) }>↓</button>
 		}
 	</form>
+}
+
+// listActions are what a member who may change the list does with it;
+// refreshing its upstream services and the default need manage_all.
+templ listActions(v listPageView) {
+	@ui.Area(i18n.T(ctx, "lists.area.actions"), "") {
+		<div class="act-rows">
+			if v.WritesAll {
+				<div class="row act">
+					@ui.ActionButton(ui.Action{ID: "refresh.all", Label: "refresh.all", Method: "POST", Href: listHref(v.L.ID) + "/refresh", Small: true})
+					<span class="sm subtle">{ i18n.T(ctx, "refresh.all.note") }</span>
+				</div>
+			}
+			<div class="row act">
+				@ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true})
+				<span class="sm subtle">{ i18n.T(ctx, "lists.rename.note") }</span>
+			</div>
+			if !v.L.Default && v.WritesAll {
+				<div class="row act">
+					@ui.ActionButton(ui.Action{ID: "lists.make_default", Label: "lists.make_default", Method: "POST", Href: listHref(v.L.ID) + "/default", Small: true})
+					<span class="sm subtle">{ i18n.T(ctx, "lists.make_default.note") }</span>
+				</div>
+			}
+			<div class="row act">
+				@ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger})
+				if v.L.Default {
+					<span class="sm subtle">{ i18n.T(ctx, "lists.delete.default") }</span>
+				} else {
+					<span class="sm subtle">{ i18n.T(ctx, "lists.delete.note") }</span>
+				}
+			</div>
+		</div>
+	}
 }

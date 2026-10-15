@@ -7,14 +7,14 @@ import (
 	"strings"
 	"testing"
 
-	"golang.org/x/crypto/ssh"
-
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/params/paramstest"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/rscriptstest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
+	"golang.org/x/crypto/ssh"
 )
 
 // TestRouterSetUpEndToEnd is a new router's whole set-up short of a real
@@ -35,7 +35,7 @@ func TestRouterSetUpEndToEnd(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := m.Routing.Lists.Add(bg, main.ID, []int64{sid}, "admin"); err != nil {
+	if err := m.Routing.Lists.Add(bg, main.ID, access.All, []int64{sid}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	line, _ := keyLine(t, m.Harness)
@@ -54,13 +54,13 @@ func TestRouterSetUpEndToEnd(t *testing.T) {
 	f := realForm(t, m, id, m.Subscription("Family"), host)
 	f.Router.Port, _ = strconv.Atoi(port)
 	gid := generate(t, m.Harness, id, f)
-	g, err := m.Mod.Generations.Get(bg, gid)
+	g, err := m.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || g.Router == nil || g.Router.State != "awaiting" || g.Link == nil {
 		t.Fatalf("generated: %+v %v", g, err)
 	}
 
 	// the router fetches its file once
-	_, link, err := m.Mod.Generations.CreateFetchURL(bg, gid, events.MemberActor(1))
+	_, link, err := m.Mod.Generations.CreateFetchURL(bg, gid, access.All, events.MemberActor(1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRouterSetUpEndToEnd(t *testing.T) {
 		return &httpResult{Code: res.Code, Body: res.Body.String()}
 	}
 	file := get()
-	token, err := m.Subs.Links.Token(bg, g.LinkID)
+	token, err := m.Subs.Links.Token(bg, g.LinkID, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestRouterSetUpEndToEnd(t *testing.T) {
 	// the probe connects (the imported script installed the key) and the initial sync runs
 	m.RunSchedule(routers.JobProbeRound)
 	m.Drain()
-	rt, err := m.Routing.Routers.Get(bg, g.RouterID)
+	rt, err := m.Routing.Routers.Get(bg, g.RouterID, access.All)
 	if err != nil || rt.State != routers.StateActive || !rt.Connected() {
 		t.Fatalf("router: %+v %v", rt, err)
 	}

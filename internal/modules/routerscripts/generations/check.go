@@ -96,7 +96,7 @@ func (s *Service) plan(ctx context.Context, v *View, version int, keep map[strin
 	if f.Link.Mode == LinkExisting {
 		for _, l := range v.Links {
 			if l.ID == f.Link.LinkID {
-				full, err := s.d.Links.Link(ctx, l.ID)
+				full, err := s.d.Links.Link(ctx, l.ID, linkScope(v.who))
 				if err != nil && !errors.Is(err, subscriptions.ErrLinkNotFound) {
 					return err
 				}

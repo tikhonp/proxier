@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -31,11 +32,12 @@ type Registered struct {
 // Register saves a router in awaiting setup: no test runs, it gets no sync
 // from changes and never notifies; the probe connects it within AwaitingFor.
 // Name, list and connection are validated as Add router's (store.FieldErrors).
-func (s *Service) Register(ctx context.Context, r Registration, by string) (Registered, error) {
+// The router is w's and follows a list w may change.
+func (s *Service) Register(ctx context.Context, w access.Who, r Registration, by string) (Registered, error) {
 	var out Registered
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		out, err = s.RegisterTx(ctx, tx, r, by, by)
+		out, err = s.RegisterTx(ctx, tx, w, r, by, by)
 		return err
 	})
 	return out, err
@@ -44,7 +46,12 @@ func (s *Service) Register(ctx context.Context, r Registration, by string) (Regi
 // RegisterTx is Register inside the caller's transaction (the
 // RouterRegistrar port): by is the router's created_by and router_added's "by",
 // actor the event's actor. Its field errors come before anything is written.
-func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, r Registration, by, actor string) (Registered, error) {
+// A member who can't make routers (routing below own) registers none.
+func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, w access.Who, r Registration, by, actor string) (Registered, error) {
+	if !w.Grant.Can(access.Routing, access.LevelOwn) {
+		return Registered{}, access.Forbidden(access.Routing)
+	}
+	scope := w.Scope(access.Routing).Writable()
 	name := strings.TrimSpace(r.Name)
 	c := r.Conn.Normalize()
 	fe := c.Validate()
@@ -57,9 +64,12 @@ func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, r Registration, b
 	var l store.List
 	var err error
 	if r.ListID == 0 {
-		l, err = store.DefaultList(ctx, tx)
+		// the default, when it is one w may change
+		if l, err = store.DefaultList(ctx, tx); err == nil && !scope.Writes(l.OwnerID) {
+			err = store.ErrNotFound
+		}
 	} else {
-		l, err = store.GetList(ctx, tx, r.ListID)
+		l, err = store.GetList(ctx, tx, r.ListID, scope)
 	}
 	if errors.Is(err, store.ErrNotFound) {
 		fe["list"] = "routers.err.list"
@@ -70,7 +80,7 @@ func (s *Service) RegisterTx(ctx context.Context, tx *sqlx.Tx, r Registration, b
 		return Registered{}, fe
 	}
 	id, err := store.InsertRouter(ctx, tx, store.Router{
-		Name: name, ListID: l.ID, State: StateAwaiting, Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
+		OwnerID: w.Member, Name: name, ListID: l.ID, State: StateAwaiting, Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
 		JumpPort: c.JumpPort, JumpUser: c.JumpUser, Tailnet: c.Tailnet, AddressList: c.Names.List, Forwarder: c.Names.Forwarder,
 		AwaitingUntil: db.At(s.d.Now().Add(AwaitingFor)), CreatedBy: by, CreatedAt: s.now(),
 	})

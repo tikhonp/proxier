@@ -24,7 +24,7 @@ func TestVisitThroughServerUsesDialer(t *testing.T) {
 	url := "https://example.com/"
 	b.Site(url, "de-1", loaded(url, "Example", req(url, "example.com")))
 
-	r := wait(t, h, start(t, h, discovery.Start{Website: "example.com", Via: discovery.ViaServer, ServerID: 2, Depth: 5}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "example.com", Via: discovery.ViaServer, ServerID: 2, Depth: 5}), discovery.Done)
 	v := b.Visits()
 	if len(v) != 1 || !strings.HasPrefix(v[0].Proxy, "socks5://127.0.0.1:") || v[0].Path != "de-1" || v[0].Links != 5 {
 		t.Fatalf("visit: %+v", v)

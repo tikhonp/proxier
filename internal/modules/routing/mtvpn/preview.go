@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -87,6 +88,7 @@ type Shadowrocket struct {
 // Import is a stored preview, then its result.
 type Import struct {
 	ID           int64
+	OwnerID      int64  // the member who started it; what it creates is theirs
 	State        string // preview, running, done, failed
 	ListID       int64  // 0 when the list was deleted meanwhile
 	Rows         []Row
@@ -152,8 +154,8 @@ const Interactive = 45 * time.Second
 // Preview parses the file, fetches its service lists and its base, builds
 // the rows and stores them as a preview. The text itself is never stored,
 // logged or put in a job. An empty or too big file is store.FieldErrors
-// {"file": …}; a parse error is a *ParseError.
-func (s *Service) Preview(ctx context.Context, text string, actor string) (int64, error) {
+// {"file": …}; a parse error is a *ParseError. The import is owner's.
+func (s *Service) Preview(ctx context.Context, owner int64, text string, actor string) (int64, error) {
 	if strings.TrimSpace(text) == "" {
 		return 0, store.FieldErrors{"file": "mtvpn.err.empty"}
 	}
@@ -176,7 +178,7 @@ func (s *Service) Preview(ctx context.Context, text string, actor string) (int64
 		}
 		seen[key] = true
 		if r.Status == StatusExists || r.Status == StatusNew {
-			ex, err := store.ServiceByTag(ctx, s.d.DB.R, r.Tag)
+			ex, err := store.ServiceByTag(ctx, s.d.DB.R, r.Tag, access.All)
 			switch {
 			case err == nil:
 				r.Status, r.ExistingAs = StatusExists, ex.Selector
@@ -235,7 +237,7 @@ func (s *Service) Preview(ctx context.Context, text string, actor string) (int64
 	var id int64
 	err = s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		id, err = store.InsertImport(ctx, tx, store.Import{
+		id, err = store.InsertImport(ctx, tx, store.Import{OwnerID: owner,
 			ListID: sql.NullInt64{Int64: def.ID, Valid: true}, Rows: rowsJSON, Ignored: strings.Join(f.Ignored, ","),
 			Base: base, BaseURL: baseURL, Shadowrocket: string(srJSON), ListFailures: failJSON, CreatedAt: db.At(s.d.Now()),
 		})
@@ -392,9 +394,9 @@ func lineCount(text string) int {
 	return n
 }
 
-// Get reads an import.
-func (s *Service) Get(ctx context.Context, id int64) (Import, error) {
-	r, err := store.GetImport(ctx, s.d.DB.R, id)
+// Get reads an import within scope.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Import, error) {
+	r, err := store.GetImport(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Import{}, ErrNotFound
 	}
@@ -406,7 +408,7 @@ func (s *Service) Get(ctx context.Context, id int64) (Import, error) {
 
 func fromRow(r store.Import) (Import, error) {
 	im := Import{
-		ID: r.ID, State: r.State, ListID: r.ListID.Int64, BaseURL: r.BaseURL, JobID: r.JobID.Int64,
+		ID: r.ID, OwnerID: r.OwnerID, State: r.State, ListID: r.ListID.Int64, BaseURL: r.BaseURL, JobID: r.JobID.Int64,
 		CreatedAt: r.CreatedAt.Time, FinishedAt: r.FinishedAt.Time, base: r.Base,
 	}
 	if r.Ignored != "" {

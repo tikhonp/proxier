@@ -18,12 +18,26 @@ Areas follow the module boundaries. Each area has its own ladder, lowest first; 
 | `settings` | Settings and Members | none · manage |
 
 - `view` (servers) shows the servers in service: name, country and health state, on the list only. Everything else of servers, templates included, needs `manage`.
-- `own` creates things and changes them; `view_all` adds reading everyone's; `manage_all` is everything in the area. Things don't have owners yet: until they do, `own` and `view_all` reach everything their pages show, as `manage_all` does.
+- `own` creates things and reads and changes only the member's own; `view_all` reads everyone's too and still changes only the member's own; `manage_all` reads and changes everything in the area ([ownership](#ownership)).
 - In `routerscripts`, writing, publishing, archiving and deleting scripts, and their agent sessions, need `manage_all`; `own` reads scripts and makes generations.
 - In `routing`, adding a v2fly, iplist or URL service and refreshing the catalog need `manage_all`; a custom service needs `own`.
+- **Cut off** a link and rotating a server need `servers: manage`: a cut-off rotates servers every member's links share ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)). A member without it can disable their own link but not cut it off.
+- In `activity`, `own` shows the events and jobs the member caused, or whose subject is theirs (their own member, or a thing they own); `all` shows everything.
 - **Cancel** and **Retry** of a job need the manage level of the job's own area (a `servers.*` job: `servers: manage`; a platform job: `settings: manage`), whatever `activity` shows.
 - Every member, whatever their grant, has the dashboard, the search pop-up, Settings → General (their language) and Settings → Security (their password, passkeys, authenticator app and sessions). The instance's settings on General and the lockout on Security need `settings: manage`.
 - **Presets** fill the grid: **Owner** is the top level everywhere; **Operator** is Owner without Settings; **Viewer** is `view`, `view_all` or `all` everywhere and no Settings.
+
+## Ownership
+
+Things in the owned areas have an **owner**, a member: subscriptions and links (`subscriptions`), routing lists, routers, Shadowrocket configs, custom services, mtvpn imports and discovery runs (`routing`), and generations with their fetch URLs (`routerscripts`). Servers, templates, scripts and their versions, and the shared services (v2fly, iplist, url) and catalog have none. A new thing belongs to the member who made it; what existed before members belongs to member 1.
+
+- Every query of owned things takes an `access.Scope`: what the member reads (their own, or everyone's from `view_all`) and what they change (their own, or everyone's at `manage_all`). Handlers take it from the request (`web.Scope`), jobs and reactions use `access.All`, so a query without one doesn't compile.
+- Another member's thing outside what the member reads is not found (404), never 403, so IDs don't tell what exists. One they read but may not change shows without its controls, and a forged change is refused with 403.
+- Choices offer only what the member may change: a new link goes into one of their subscriptions, a router or Shadowrocket config follows one of their lists, and router scripts offer their own subscriptions, links, lists and routers, and make the new link and router theirs.
+- A thing of another member names its owner on its page ("owner anna").
+- Custom services are private: only their owner, or a member with `routing: manage_all`, sees them and puts them in lists. A tag stays unique across Proxier, since it is a service's identity on routers: a tag another member's private service has is refused as taken, without naming whose.
+- Names stay unique across Proxier as before (subscriptions, links, lists, routers, Shadowrocket configs): a name another member uses is refused as taken.
+- When a member is removed, each module hands everything they owned to the heir in its reaction to `member.removed`, recording one `subscription.handed_over`, `routing.handed_over` or `routerscript.handed_over` (subject the removed member) when it moved anything. Nothing is deleted, so links, configs and fetch URLs keep working.
 
 ## Steps: adding a member
 
@@ -41,7 +55,8 @@ Areas follow the module boundaries. Each area has its own ladder, lowest first; 
 
 1. **Remove member** on their page, confirmed in a dialog.
 2. Their sessions end (`member_removed`), their passkeys, authenticator app, levels and setup link go, and the row stays, removed, so Activity still names them. → `member.removed{username, heir, heir_username, sessions}` (notifies). `heir` is the member who removed them, or for a member who removed themselves, the first member in with `settings: manage`: the member who takes over what the removed one owned.
-3. To bring someone back, add them again; the username is free once its member is removed.
+3. Each module hands the removed member's things to the heir. → `subscription.handed_over{from, to, subscriptions, links}`, `routing.handed_over{from, to, lists, routers, shadowrocket, services, imports, discovery}`, `routerscript.handed_over{from, to, generations}`, each only when it moved something.
+4. To bring someone back, add them again; the username is free once its member is removed.
 
 ## Rules
 
@@ -86,3 +101,11 @@ Areas follow the module boundaries. Each area has its own ladder, lowest first; 
 - A member who sees a job but can't change its area → no **Cancel** or **Retry**, and 403 on the POST; the job is untouched.
 - Each new POST of Members without the CSRF token → 403.
 - Events from before members: `admin.created` and `admin.language_changed` become `member.added` and `member.language_changed`, and back on rollback.
+- Two members at `own`: each sees only their own subscriptions, links, lists, routers, Shadowrocket configs and generations, in lists, search and the dashboard; the other's link, subscription, router or generation by URL → 404, not 403, and a POST to it → 404 with nothing changed.
+- `view_all` (the Viewer preset) on another member's link, subscription, list, router or generation → shown with its owner and without controls; a forged change or a change page → 403, nothing changed; their own → changed.
+- New link with another member's subscription forged in the form → refused, no link.
+- Cut-off by a member without `servers: manage`, even on their own link → not offered, its page and POST 403, the link untouched; disabling it → done.
+- Removed member's links still serve; their subscriptions, links and generations belong to the heir (`*.handed_over` once; a second delivery moves and records nothing); Activity still names them.
+- Router scripts' "create a link" offers only the member's own subscriptions, and the new link is theirs; a forged subscription, link or router of another member → refused as a field error.
+- At `activity: own`: Activity, Jobs and the jobs cell show only the member's events and jobs; another member's job by URL → 404.
+- Custom service tag already taken by another member's private service → "tag is taken", without naming the service or its owner.

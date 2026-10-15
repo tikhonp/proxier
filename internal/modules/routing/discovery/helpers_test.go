@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery/discoverytest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
@@ -36,7 +37,7 @@ func wait(t *testing.T, h *routingtest.Harness, id int64, state string) discover
 	t.Helper()
 	deadline := testwait.Deadline(20 * time.Second)
 	for {
-		r, err := h.Mod.Discovery.Get(bg, id)
+		r, err := h.Mod.Discovery.Get(bg, id, access.All)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -8,6 +8,7 @@ import "github.com/tikhonp/proxier/internal/platform/i18n"
 var messages = i18n.Messages{
 	// Subjects
 	"routing.subject.refresh": {EN: "Upstream refresh", RU: "Обновление источников"},
+	"routing.owner":           {EN: "owner {name}", RU: "владелец {name}"},
 	"routing.subject.catalog": {EN: "Catalog", RU: "Каталог"},
 
 	// Nav, list, search
@@ -252,6 +253,7 @@ var messages = i18n.Messages{
 	"event.routing.unmanaged_tag_ignored":        {EN: "Unmanaged tag {tag} on {subject}: ignored {ignored}", RU: "Чужой тег {tag} на {subject}: игнорируется — {ignored}"},
 	"event.routing.discovery_completed":          {EN: "Discovered {hosts} hosts of {website}", RU: "Найдено хостов сайта {website}: {hosts}"},
 	"event.routing.discovery_failed":             {EN: "Discovery of {website} failed: {error}", RU: "Поиск доменов {website} не удался: {error}"},
+	"event.routing.handed_over":                  {EN: "Lists ({lists}), routers ({routers}), Shadowrocket configs ({shadowrocket}), custom services ({services}), imports ({imports}) and discovery runs ({discovery}) of removed {from} went to {to}", RU: "Списки ({lists}), роутеры ({routers}), конфиги Shadowrocket ({shadowrocket}), свои сервисы ({services}), импорты ({imports}) и поиски доменов ({discovery}) удалённого {from} перешли к {to}"},
 
 	// Notifications (the refresh and catalog ones are in messages_refresh.go, the routers' sync ones in messages_routers.go)
 	"notify.routing.drift_detected":            {EN: "{subject} drifted from what Proxier installed", RU: "{subject} разошёлся с тем, что поставил Proxier"},

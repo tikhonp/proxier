@@ -179,9 +179,13 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 templ srURLField(id int64, full, masked string, revealed bool) {
 	<div class="urlfield" id="sr-url">
 		if revealed {
-			<code>@ui.URLText(full)</code>
+			<code>
+				@ui.URLText(full)
+			</code>
 		} else {
-			<code class="masked">@ui.URLText(masked)</code>
+			<code class="masked">
+				@ui.URLText(masked)
+			</code>
 		}
 		<span class="url-btns">
 			if revealed {
@@ -223,7 +227,9 @@ templ srPage(s ui.Shell, v srView) {
 				<p class="subtle">{ v.Line }</p>
 			</div>
 			<div class="actions">
-				@ui.ActionButton(ui.Action{ID: "shadowrocket.edit_base", Label: "shadowrocket.edit_base", Method: "GET", Href: srHref(v.C.ID) + "/base", Key: "e", Kind: ui.Primary})
+				if v.CanChange {
+					@ui.ActionButton(ui.Action{ID: "shadowrocket.edit_base", Label: "shadowrocket.edit_base", Method: "GET", Href: srHref(v.C.ID) + "/base", Key: "e", Kind: ui.Primary})
+				}
 				<button type="button" class="pc-btn" data-copy={ v.URL } data-action="shadowrocket.copy" data-key="y">{ i18n.T(ctx, "shadowrocket.url.copy") }</button>
 			</div>
 		</div>
@@ -276,7 +282,7 @@ templ srPage(s ui.Shell, v srView) {
 								if ver.Prev {
 									<a class="pc-btn pc-sm" href={ templ.SafeURL(srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number) + "/diff") }>{ i18n.T(ctx, "shadowrocket.version.diff") }</a>
 								}
-								if !ver.Current {
+								if !ver.Current && v.CanChange {
 									@ui.ActionButton(ui.Action{
 										ID: "shadowrocket.restore." + strconv.Itoa(ver.Number), Label: "shadowrocket.version.restore", Method: "POST", Small: true,
 										Href:    srHref(v.C.ID) + "/versions/" + strconv.Itoa(ver.Number) + "/restore",
@@ -304,26 +310,8 @@ templ srPage(s ui.Shell, v srView) {
 						<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "shadowrocket.fetches.older") }</a></p>
 					}
 				}
-				@ui.Area(i18n.T(ctx, "shadowrocket.area.actions"), "") {
-					<div class="act-rows">
-						@actionRow(ui.Action{ID: "shadowrocket.edit", Label: "shadowrocket.edit", Method: "GET", Href: srHref(v.C.ID) + "/edit", Small: true}, i18n.T(ctx, "shadowrocket.edit.what"))
-						@actionRow(ui.Action{
-							ID: "shadowrocket.regenerate", Label: "shadowrocket.regenerate", Method: "POST", Href: srHref(v.C.ID) + "/token", Small: true,
-							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.regenerate.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.regenerate.body")},
-						}, i18n.T(ctx, "shadowrocket.regenerate.what"))
-						if v.C.Enabled {
-							@actionRow(ui.Action{
-								ID: "shadowrocket.disable", Label: "shadowrocket.disable", Method: "POST", Href: srHref(v.C.ID) + "/disable", Small: true,
-								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.disable.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.disable.body")},
-							}, i18n.T(ctx, "shadowrocket.disable.what"))
-						} else {
-							@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
-						}
-						@actionRow(ui.Action{
-							ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
-							Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
-						}, i18n.T(ctx, "shadowrocket.delete.what"))
-					</div>
+				if v.CanChange {
+					@srActions(v)
 				}
 				@ui.Area(i18n.T(ctx, "shadowrocket.area.activity"), "") {
 					if len(v.Activity) == 0 {
@@ -427,5 +415,30 @@ templ srDeletePage(s ui.Shell, c shadowrocket.Config, title string) {
 				<a href={ templ.SafeURL(srHref(c.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
+	}
+}
+
+// srActions are what a member who may change the config does with it.
+templ srActions(v srView) {
+	@ui.Area(i18n.T(ctx, "shadowrocket.area.actions"), "") {
+		<div class="act-rows">
+			@actionRow(ui.Action{ID: "shadowrocket.edit", Label: "shadowrocket.edit", Method: "GET", Href: srHref(v.C.ID) + "/edit", Small: true}, i18n.T(ctx, "shadowrocket.edit.what"))
+			@actionRow(ui.Action{
+				ID: "shadowrocket.regenerate", Label: "shadowrocket.regenerate", Method: "POST", Href: srHref(v.C.ID) + "/token", Small: true,
+				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.regenerate.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.regenerate.body")},
+			}, i18n.T(ctx, "shadowrocket.regenerate.what"))
+			if v.C.Enabled {
+				@actionRow(ui.Action{
+					ID: "shadowrocket.disable", Label: "shadowrocket.disable", Method: "POST", Href: srHref(v.C.ID) + "/disable", Small: true,
+					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.disable.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.disable.body")},
+				}, i18n.T(ctx, "shadowrocket.disable.what"))
+			} else {
+				@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
+			}
+			@actionRow(ui.Action{
+				ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
+				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
+			}, i18n.T(ctx, "shadowrocket.delete.what"))
+		</div>
 	}
 }

@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -69,6 +70,7 @@ func (e *EmptyResolveError) Is(target error) bool { return target == ErrEmptyRes
 // Item is one service as stored.
 type Item struct {
 	ID          int64
+	OwnerID     int64 // a member for a custom service, 0 (shared) for the others
 	Tag         string
 	Source      selector.Source
 	Selector    string
@@ -160,7 +162,7 @@ const Interactive = 45 * time.Second
 
 func item(s store.Service) Item {
 	return Item{
-		ID: s.ID, Tag: s.Tag, Source: selector.Source(s.Source), Selector: s.Selector, Name: s.Name, Description: s.Description,
+		ID: s.ID, OwnerID: s.OwnerID, Tag: s.Tag, Source: selector.Source(s.Source), Selector: s.Selector, Name: s.Name, Description: s.Description,
 		Origin: s.Origin, LastChecked: s.LastCheckedAt.Time, LastError: s.LastError, Failures: s.Failures, CreatedAt: s.CreatedAt.Time,
 	}
 }
@@ -175,27 +177,55 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64,
 // Subject is a service's event subject.
 func Subject(id int64) events.Subject { return events.Subject{Type: "service", ID: fmt.Sprint(id)} }
 
-// Get reads a service.
-func (s *Service) Get(ctx context.Context, id int64) (Item, error) {
-	r, err := store.GetService(ctx, s.d.DB.R, id)
+// A custom service is private (docs/processes/routing/service-management.md):
+// only its owner and routing: manage_all see it, so every read of services
+// narrows the member's scope to what it may change. Shared services
+// (v2fly, iplist, url) are every routing member's.
+
+// Get reads a service: a shared one, or a custom one scope may change.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Item, error) {
+	r, err := store.GetService(ctx, s.d.DB.R, id, scope.Writable())
 	if errors.Is(err, store.ErrNotFound) {
 		return Item{}, ErrNotFound
 	}
 	return item(r), err
 }
 
-// ByTag reads a service by its tag.
-func (s *Service) ByTag(ctx context.Context, tag string) (Item, error) {
-	r, err := store.ServiceByTag(ctx, s.d.DB.R, tag)
+// toChange loads a service to change it: ErrNotFound for another member's
+// custom service (private), Forbidden for a shared one to a scope that
+// doesn't change everyone's things (shared services need manage_all).
+func toChange(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (store.Service, error) {
+	r, err := store.GetService(ctx, q, id, scope.Writable())
+	if errors.Is(err, store.ErrNotFound) {
+		return r, ErrNotFound
+	}
+	if err != nil {
+		return r, err
+	}
+	if !scope.Writes(r.OwnerID) {
+		return r, access.Forbidden(access.Routing)
+	}
+	return r, nil
+}
+
+// MayChange reports whether scope may change it: its own custom service, or
+// any with routing: manage_all.
+func (it Item) MayChange(scope access.Scope) bool { return scope.Writes(it.OwnerID) }
+
+// ByTag reads a service by its tag: a shared one, or a custom one scope may
+// change.
+func (s *Service) ByTag(ctx context.Context, tag string, scope access.Scope) (Item, error) {
+	r, err := store.ServiceByTag(ctx, s.d.DB.R, tag, scope.Writable())
 	if errors.Is(err, store.ErrNotFound) {
 		return Item{}, ErrNotFound
 	}
 	return item(r), err
 }
 
-// List reads the services the filter keeps, by tag.
-func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
-	rows, err := store.ListServices(ctx, s.d.DB.R, f.Source)
+// List reads the services the filter keeps, by tag: the shared ones and the
+// custom ones scope may change. A row's lists are those scope reads.
+func (s *Service) List(ctx context.Context, scope access.Scope, f Filter) ([]Row, error) {
+	rows, err := store.ListServices(ctx, s.d.DB.R, f.Source, scope.Writable())
 	if err != nil {
 		return nil, err
 	}
@@ -218,7 +248,7 @@ func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
 		if f.State != "" && state != f.State {
 			continue
 		}
-		lists, err := store.ListsOf(ctx, s.d.DB.R, r.ID)
+		lists, err := store.ListsOf(ctx, s.d.DB.R, r.ID, scope)
 		if err != nil {
 			return nil, err
 		}
@@ -233,14 +263,14 @@ func (s *Service) List(ctx context.Context, f Filter) ([]Row, error) {
 	return out, nil
 }
 
-// Counts are the services list's status line.
-func (s *Service) Counts(ctx context.Context) (all, custom int, err error) {
-	return store.CountServices(ctx, s.d.DB.R)
+// Counts are the services list's status line, of the services scope sees.
+func (s *Service) Counts(ctx context.Context, scope access.Scope) (all, custom int, err error) {
+	return store.CountServices(ctx, s.d.DB.R, scope.Writable())
 }
 
-// ListsOf names the lists that hold a service.
-func (s *Service) ListsOf(ctx context.Context, id int64) ([]string, error) {
-	return store.ListsOf(ctx, s.d.DB.R, id)
+// ListsOf names the lists within scope that hold a service.
+func (s *Service) ListsOf(ctx context.Context, id int64, scope access.Scope) ([]string, error) {
+	return store.ListsOf(ctx, s.d.DB.R, id, scope)
 }
 
 // FromRow is a stored snapshot as the package shows it.

@@ -32,6 +32,7 @@ type svcRow struct {
 }
 
 type listView struct {
+	CanAdd   bool // manage_all: v2fly, iplist and URL services are shared
 	Status   string
 	Band     string
 	Chips    []ui.Chip
@@ -54,7 +55,7 @@ func (h *handler) list(c *echo.Context) error {
 	if !contains(sourceFilters, src) {
 		src = ""
 	}
-	all, custom, err := h.Services.Counts(ctx)
+	all, custom, err := h.Services.Counts(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (h *handler) list(c *echo.Context) error {
 	} else {
 		listParam = ""
 	}
-	rows, err := h.Services.List(ctx, f)
+	rows, err := h.Services.List(ctx, scope(ctx), f)
 	if err != nil {
 		return err
 	}
@@ -83,7 +84,7 @@ func (h *handler) list(c *echo.Context) error {
 	for _, st := range states {
 		byState[st]++
 	}
-	v := listView{
+	v := listView{CanAdd: writesAll(ctx),
 		Empty: all == 0,
 		Status: loc.N("services.status.services", int64(all)) + " · " + loc.N("services.status.custom", int64(custom)) + " · " +
 			i18n.T(ctx, "refresh.status.daily", i18n.Args{"at": h.refreshedAt(ctx)}),
@@ -132,7 +133,7 @@ func (h *handler) list(c *echo.Context) error {
 		})
 	}
 	// List chips: pressing the pressed one clears it.
-	rls, err := h.Lists.All(ctx)
+	rls, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
@@ -144,7 +145,7 @@ func (h *handler) list(c *echo.Context) error {
 		}
 		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "lists.filter.list", i18n.Args{"name": l.Name}), Href: href, On: listParam == id})
 	}
-	free, err := h.Services.List(ctx, services.Filter{NoList: true})
+	free, err := h.Services.List(ctx, scope(ctx), services.Filter{NoList: true})
 	if err != nil {
 		return err
 	}
@@ -230,7 +231,7 @@ type addView struct {
 
 // listChecks are the lists to tick: the default one on a first visit.
 func (h *handler) listChecks(ctx context.Context, checked []int64, first bool) ([]listCheck, error) {
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +272,7 @@ func (h *handler) add(c *echo.Context) error {
 	var id int64
 	var err error
 	if len(listIDs) > 0 {
-		id, err = h.Lists.AddNew(ctx, raw, listIDs, web.Actor(ctx))
+		id, err = h.Lists.AddNew(ctx, raw, listIDs, scope(ctx), web.Actor(ctx))
 	} else {
 		id, err = h.Services.Add(ctx, raw, web.Actor(ctx))
 	}
@@ -313,7 +314,7 @@ func (h *handler) add(c *echo.Context) error {
 func (h *handler) takenView(c *echo.Context, raw string, e *services.TagTakenError) (*takenView, error) {
 	ctx := c.Request().Context()
 	ex := e.Existing
-	lists, err := h.Services.ListsOf(ctx, ex.ID)
+	lists, err := h.Services.ListsOf(ctx, ex.ID, scope(ctx))
 	if err != nil {
 		return nil, err
 	}
@@ -328,7 +329,7 @@ func (h *handler) takenView(c *echo.Context, raw string, e *services.TagTakenErr
 	if sel.Source == selector.URL {
 		for n := 2; n < 100; n++ {
 			tag := e.Tag + "-" + strconv.Itoa(n)
-			if _, err := h.Services.ByTag(ctx, tag); errors.Is(err, services.ErrNotFound) {
+			if _, err := h.Services.ByTag(ctx, tag, scope(ctx)); errors.Is(err, services.ErrNotFound) {
 				if selector.ValidTag(tag) == nil {
 					tv.Suggest = tag + "=" + sel.URL
 				}
@@ -360,7 +361,7 @@ func (h *handler) renderNew(c *echo.Context, status int, v newView) error {
 func (h *handler) create(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := newView{Name: c.FormValue("name"), Tag: c.FormValue("tag"), Description: c.FormValue("description")}
-	id, err := h.Services.CreateCustom(ctx, services.Custom{Name: v.Name, Tag: v.Tag, Description: v.Description}, web.Actor(ctx))
+	id, err := h.Services.CreateCustom(ctx, services.Custom{Name: v.Name, Tag: v.Tag, Description: v.Description, Owner: web.Who(ctx).Member}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)

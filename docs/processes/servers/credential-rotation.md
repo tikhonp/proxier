@@ -1,6 +1,6 @@
 # Credential rotation
 
-**Actors**: Admin; the rotation job (queue `provisioning`); the server; every link whose subscription includes the server.
+**Actors**: a member with `servers: manage`; the rotation job (queue `provisioning`); the server; every link whose subscription includes the server.
 
 Credentials are shared per endpoint ([ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)), so the only way to take access away from someone who has a working connection URI is to change the credential for everyone. Rotation replaces a server's **rotatable generated values** (in the seed template, the client UUID and the XHTTP path) and redeploys. Links serve the new connection URIs at once, because outputs are computed on every fetch. Apps that refresh keep working. Anything holding only the old URIs stops.
 
@@ -31,6 +31,7 @@ Rotation on cut-off is a setting, `subscriptions.cutoff_rotates`, **off by defau
 
 ## Rules
 
+- Rotating a server and cutting off a link need `servers: manage` ([members](../platform/members.md#areas-and-levels)): a rotation changes the credential every member's links on the server share. Cut off also needs the right to change the link; without `servers: manage` it isn't offered and its page and POST answer 403.
 - Only values marked `rotate: true` change. Others (the container postfix, for example) stay.
 - The old values stay in force until the new ones pass the proxy test, so a failed rotation never leaves a server unusable for everyone.
 - A rotation is a deployment: it records a deployment and holds the server's resource key, so it never runs alongside a redeploy.
@@ -51,3 +52,4 @@ Rotation on cut-off is a setting, `subscriptions.cutoff_rotates`, **off by defau
 - The setting turned off while a cut-off runs → the running rotation finishes, the waiting servers are skipped (`TestTurningRotationOffStopsACutOffUnderWay`).
 - Cut-off where the second server is unreachable → the link stays disabled, server 1 is rotated, server 2 shows the failure with **Retry**, and server 3 still runs.
 - Rotation requested while a redeploy of the same server runs → it waits and then runs.
+- Cut off by a member without `servers: manage`, on their own link → not offered, the page and POST 403, nothing disabled or queued (`TestCutOffNeedsServersManage`).

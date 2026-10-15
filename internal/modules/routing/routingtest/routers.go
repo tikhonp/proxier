@@ -8,7 +8,9 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
+	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
@@ -18,10 +20,17 @@ import (
 // RouterOption changes Router.
 type RouterOption func(*routerOpts)
 
-type routerOpts struct{ jump bool }
+type routerOpts struct {
+	jump bool
+	who  access.Who
+}
 
 // ViaJump puts a fake jump host in front of the router.
 func ViaJump() RouterOption { return func(o *routerOpts) { o.jump = true } }
+
+// OwnedBy makes w the router's owner (Owner without it); the list must be
+// one w may change.
+func OwnedBy(w access.Who) RouterOption { return func(o *routerOpts) { o.who = w } }
 
 // Key is Proxier's public key, which the fakes authorize.
 func (h *Harness) Key() ssh.PublicKey {
@@ -53,7 +62,7 @@ func Conn(r *routerostest.Router, jump *sshxtest.Server) routers.Connection {
 // both. Nothing is queued: a test syncs it with SyncNow or a change.
 func (h *Harness) Router(name string, listID int64, opts ...RouterOption) (*routerostest.Router, int64) {
 	h.T.Helper()
-	var o routerOpts
+	o := routerOpts{who: Owner}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -72,7 +81,7 @@ func (h *Harness) Router(name string, listID int64, opts ...RouterOption) (*rout
 		listID = l.ID
 	}
 	c := Conn(r, jump)
-	id, err := h.Mod.Routers.Create(ctx, name, listID, c, 0, "admin")
+	id, err := h.Mod.Routers.Create(ctx, o.who, name, listID, c, 0, events.MemberActor(o.who.Member))
 	if err != nil {
 		h.T.Fatalf("create router %s: %v", name, err)
 	}
@@ -171,7 +180,7 @@ func (h *Harness) Settle() {
 // script would. The jump host is nil without ViaJump.
 func (h *Harness) Registered(name string, opts ...RouterOption) (*routerostest.Router, *sshxtest.Server, int64) {
 	h.T.Helper()
-	var o routerOpts
+	o := routerOpts{who: Owner}
 	for _, opt := range opts {
 		opt(&o)
 	}
@@ -181,7 +190,7 @@ func (h *Harness) Registered(name string, opts ...RouterOption) (*routerostest.R
 	if o.jump {
 		jump = routerostest.Jump(h.T, key)
 	}
-	reg, err := h.Mod.Routers.Register(context.Background(), routers.Registration{Name: name, Conn: Conn(r, jump)}, "script")
+	reg, err := h.Mod.Routers.Register(context.Background(), o.who, routers.Registration{Name: name, Conn: Conn(r, jump)}, "script")
 	if err != nil {
 		h.T.Fatalf("register %s: %v", name, err)
 	}

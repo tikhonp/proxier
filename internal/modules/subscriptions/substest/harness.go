@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/platform"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/module"
@@ -115,32 +116,50 @@ func (h *Harness) Events(typ string) []events.Event {
 	return list
 }
 
-// Subscription creates one with the given servers, in order.
+// Owner is member 1 with the Owner preset: who the harness's things belong
+// to unless a test names another member.
+var Owner = access.Who{Member: 1, Grant: access.PresetOwner.Grant()}
+
+// Subscription creates one of Owner with the given servers, in order.
 func (h *Harness) Subscription(name string, serverIDs ...int64) int64 {
 	h.T.Helper()
+	return h.SubscriptionOf(Owner, name, serverIDs...)
+}
+
+// SubscriptionOf creates one of w with the given servers, in order.
+func (h *Harness) SubscriptionOf(w access.Who, name string, serverIDs ...int64) int64 {
+	h.T.Helper()
 	ctx := context.Background()
-	id, err := h.Mod.Subs.Create(ctx, name, "", "", "admin")
+	actor := events.MemberActor(w.Member)
+	id, err := h.Mod.Subs.Create(ctx, w.Member, name, "", "", actor)
 	if err != nil {
 		h.T.Fatal(err)
 	}
 	for _, sid := range serverIDs { // one at a time: AddServers sorts by name
-		if err := h.Mod.Subs.AddServers(ctx, id, []int64{sid}, "admin"); err != nil {
+		if err := h.Mod.Subs.AddServers(ctx, id, w.Scope(access.Subscriptions), []int64{sid}, actor); err != nil {
 			h.T.Fatal(err)
 		}
 	}
 	return id
 }
 
-// Link creates a link through the service (language EN, no expiry) and
-// returns its id and token.
+// Link creates a link of Owner through the service (language EN, no
+// expiry) and returns its id and token.
 func (h *Harness) Link(subID int64, name string) (int64, string) {
 	h.T.Helper()
+	return h.LinkOf(Owner, subID, name)
+}
+
+// LinkOf creates a link of w (language EN, no expiry) and returns its id
+// and token.
+func (h *Harness) LinkOf(w access.Who, subID int64, name string) (int64, string) {
+	h.T.Helper()
 	ctx := context.Background()
-	id, err := h.Mod.Links.Create(ctx, links.New{Name: name, SubscriptionID: subID, Lang: "en"}, "admin")
+	id, err := h.Mod.Links.Create(ctx, w, links.New{Name: name, SubscriptionID: subID, Lang: "en"}, events.MemberActor(w.Member))
 	if err != nil {
 		h.T.Fatal(err)
 	}
-	token, err := h.Mod.Links.Token(ctx, id)
+	token, err := h.Mod.Links.Token(ctx, id, access.All)
 	if err != nil {
 		h.T.Fatal(err)
 	}

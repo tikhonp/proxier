@@ -69,16 +69,18 @@ func Register(r web.Routes, d Deps) {
 	rt.View.GET("/routing/services/:id/domains", h.domains)
 	rt.Manage.GET("/routing/services/:id/edit", h.editPage)
 	rt.Manage.POST("/routing/services/:id/edit", h.edit)
-	rt.Manage.GET("/routing/services/:id/switch", h.switchPage)
-	rt.Manage.POST("/routing/services/:id/switch", h.switchPost)
+	// Upstream services are shared: switching, refreshing and deciding on
+	// their snapshots need manage_all (docs/processes/routing/service-management.md).
+	rtAll.GET("/routing/services/:id/switch", h.switchPage)
+	rtAll.POST("/routing/services/:id/switch", h.switchPost)
 	rt.View.GET("/routing/services/:id/snapshots/:snap", h.diff)
 	rt.Manage.GET("/routing/services/:id/remove", h.removePage)
 	rt.Manage.POST("/routing/services/:id/remove", h.removePost)
-	rt.Manage.POST("/routing/services/:id/refresh", h.refreshPost)
+	rtAll.POST("/routing/services/:id/refresh", h.refreshPost)
 	rt.View.GET("/routing/services/:id/source", h.sourceArea)
-	rt.Manage.POST("/routing/services/:id/snapshots/:snap/accept", h.acceptPost)
-	rt.Manage.POST("/routing/services/:id/snapshots/:snap/dismiss", h.dismissPost)
-	rt.Manage.POST("/routing/lists/:id/refresh", h.refreshListPost)
+	rtAll.POST("/routing/services/:id/snapshots/:snap/accept", h.acceptPost)
+	rtAll.POST("/routing/services/:id/snapshots/:snap/dismiss", h.dismissPost)
+	rtAll.POST("/routing/lists/:id/refresh", h.refreshListPost)
 	rt.View.GET("/routing/search", h.search)
 	rt.View.GET("/routing/search/preview", h.preview)
 	rtAll.POST("/routing/catalog/refresh", h.catalogRefresh)
@@ -99,17 +101,60 @@ func i64(n int64) string { return strconv.FormatInt(n, 10) }
 
 func htmx(c *echo.Context) bool { return c.Request().Header.Get("HX-Request") == "true" }
 
-// load reads the service of the :id parameter; 404 when there is none.
+// scope is whose lists, routers, Shadowrocket configs, imports and
+// discovery runs the signed-in member reaches; the services package narrows
+// it for custom services, which are private.
+func scope(ctx context.Context) access.Scope { return web.Scope(ctx, access.Routing) }
+
+// mayChange refuses a page that changes a thing of owner the member reads
+// but may not change (view_all reading another member's, or a shared
+// service below manage_all).
+func mayChange(ctx context.Context, owner int64) error {
+	if !scope(ctx).Writes(owner) {
+		return access.Forbidden(access.Routing)
+	}
+	return nil
+}
+
+// writesAll reports whether the member changes everyone's things (routing:
+// manage_all): what shared services and the default list need.
+func writesAll(ctx context.Context) bool { return lists.WritesAll(scope(ctx)) }
+
+// ownerNote is " · owner anna" for a thing of another member, "" for the
+// member's own and for shared services (owner 0).
+func ownerNote(ctx context.Context, owner int64) string {
+	if owner == 0 || owner == web.Who(ctx).Member {
+		return ""
+	}
+	name, ok := web.MemberName(ctx, owner)
+	if !ok {
+		name = "#" + strconv.FormatInt(owner, 10)
+	}
+	return " · " + i18n.T(ctx, "routing.owner", i18n.Args{"name": name})
+}
+
+// load reads the service of the :id parameter; 404 when there is none or it
+// is another member's custom service.
 func (h *handler) load(c *echo.Context) (services.Item, error) {
 	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		return services.Item{}, echo.ErrNotFound
 	}
-	it, err := h.Services.Get(c.Request().Context(), id)
+	it, err := h.Services.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, services.ErrNotFound) {
 		return it, echo.ErrNotFound
 	}
 	return it, err
+}
+
+// loadToChange is load for a page that changes the service: Forbidden for a
+// shared one below manage_all.
+func (h *handler) loadToChange(c *echo.Context) (services.Item, error) {
+	it, err := h.load(c)
+	if err != nil {
+		return it, err
+	}
+	return it, mayChange(c.Request().Context(), it.OwnerID)
 }
 
 // errText translates field errors (i18n keys) for the form.

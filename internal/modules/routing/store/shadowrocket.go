@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -15,6 +16,7 @@ const ShadowrocketFetchRetention = 90 * 24 * time.Hour
 // current base version. The token is never read with it.
 type Shadowrocket struct {
 	ID          int64   `db:"id"`
+	OwnerID     int64   `db:"owner_id"`
 	Name        string  `db:"name"`
 	ListID      int64   `db:"list_id"`
 	List        string  `db:"list"`
@@ -26,14 +28,14 @@ type Shadowrocket struct {
 	Version     int     `db:"version"`
 }
 
-const shadowrocketSelect = `SELECT c.id, c.name, c.list_id, l.name AS list, c.policy, c.enabled, c.created_at, c.last_fetch_at, c.last_fetch_ua,
+const shadowrocketSelect = `SELECT c.id, c.owner_id, c.name, c.list_id, l.name AS list, c.policy, c.enabled, c.created_at, c.last_fetch_at, c.last_fetch_ua,
 	coalesce((SELECT max(v.number) FROM routing_shadowrocket_versions v WHERE v.config_id = c.id), 0) AS version
 	FROM routing_shadowrocket c JOIN routing_lists l ON l.id = c.list_id`
 
-// ShadowrocketConfigs reads every config by name.
-func ShadowrocketConfigs(ctx context.Context, q sqlx.QueryerContext) ([]Shadowrocket, error) {
+// ShadowrocketConfigs reads every config within scope by name.
+func ShadowrocketConfigs(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) ([]Shadowrocket, error) {
 	var out []Shadowrocket
-	err := sqlx.SelectContext(ctx, q, &out, shadowrocketSelect+` ORDER BY c.name`)
+	err := sqlx.SelectContext(ctx, q, &out, shadowrocketSelect+` WHERE ? IN (0, c.owner_id) ORDER BY c.name`, scope)
 	return out, err
 }
 
@@ -44,10 +46,10 @@ func ShadowrocketOfList(ctx context.Context, q sqlx.QueryerContext, listID int64
 	return out, err
 }
 
-// GetShadowrocket reads one config.
-func GetShadowrocket(ctx context.Context, q sqlx.QueryerContext, id int64) (Shadowrocket, error) {
+// GetShadowrocket reads one config within scope.
+func GetShadowrocket(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Shadowrocket, error) {
 	var c Shadowrocket
-	err := sqlx.GetContext(ctx, q, &c, shadowrocketSelect+` WHERE c.id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &c, shadowrocketSelect+` WHERE c.id = ? AND ? IN (0, c.owner_id)`, id, scope)
 	return c, notFound(err)
 }
 
@@ -68,8 +70,8 @@ func ShadowrocketNameTaken(ctx context.Context, q sqlx.QueryerContext, name stri
 // InsertShadowrocket adds a config with an empty token (sealed right after
 // with the id in its AAD) and returns its id.
 func InsertShadowrocket(ctx context.Context, x sqlx.ExtContext, c Shadowrocket, lookup []byte) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_shadowrocket (name, list_id, policy, token, token_lookup, enabled, created_at)
-		VALUES (?, ?, ?, X'', ?, 1, ?)`, c.Name, c.ListID, c.Policy, lookup, c.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_shadowrocket (owner_id, name, list_id, policy, token, token_lookup, enabled, created_at)
+		VALUES (?, ?, ?, ?, X'', ?, 1, ?)`, c.OwnerID, c.Name, c.ListID, c.Policy, lookup, c.CreatedAt)
 	if err != nil {
 		return 0, err
 	}

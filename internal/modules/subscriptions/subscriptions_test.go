@@ -44,7 +44,7 @@ func TestModuleIsWired(t *testing.T) {
 			}
 		}
 	}
-	if n != len(subscriptions.Events) || n != 17 {
+	if n != len(subscriptions.Events) || n != 18 {
 		t.Errorf("%d events declared, module has %d", n, len(subscriptions.Events))
 	}
 	for _, name := range []string{"subscription.all_unhealthy", "link.expiring_soon", "link.expired", "link.shared_suspected"} {
@@ -115,10 +115,10 @@ func TestLinksAreNamedAndSearched(t *testing.T) {
 	sub := h.Subscription("Family", 1)
 	mom, momToken := h.Link(sub, "Mom — iPhone")
 	gone, _ := h.Link(sub, "Mom — old phone")
-	if err := h.Mod.Links.Disable(ctx, mom, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(ctx, mom, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Links.Delete(ctx, gone, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(ctx, gone, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	ids := []string{strconv.FormatInt(mom, 10), strconv.FormatInt(gone, 10), "999"}
@@ -128,14 +128,14 @@ func TestLinksAreNamedAndSearched(t *testing.T) {
 		t.Fatalf("names: %+v %v", got, err)
 	}
 	ctx = i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), "mom", 10)
+	hits, err := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "mom", 10)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Mom — iPhone" || hits[0].Meta != "link · Family · disabled" || hits[0].Href != "/links/"+ids[0] {
 		t.Errorf("search: %+v %v", hits, err)
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "old phone", 10); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "old phone", 10); len(hits) != 0 {
 		t.Errorf("a deleted link was found: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "fam", 10); len(hits) != 1 || hits[0].Label != "Family" {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "fam", 10); len(hits) != 1 || hits[0].Label != "Family" {
 		t.Errorf("a subscription: %+v", hits)
 	}
 	// Activity names the link; the token is nowhere in it
@@ -149,7 +149,7 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 	h := substest.New(t)
 	ctx := context.Background()
 	id := h.Subscription("Family", 1, 2)
-	if _, err := h.Mod.Subs.Create(ctx, "Friends", "Друзья", "", "admin"); err != nil {
+	if _, err := h.Mod.Subs.Create(ctx, 1, "Friends", "Друзья", "", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	sid := strconv.FormatInt(id, 10)
@@ -161,14 +161,14 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 		t.Errorf("another type: %+v", got)
 	}
 	ctx = i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil))
-	hits, err := h.Mod.Search(ctx, access.PresetOwner.Grant(), "fam", 5)
+	hits, err := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "fam", 5)
 	if err != nil || len(hits) != 1 || hits[0].Label != "Family" || hits[0].Href != "/subscriptions/1" || hits[0].Meta != "subscription · 2 servers" {
 		t.Errorf("by name: %+v %v", hits, err)
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "друз", 5); len(hits) != 1 || hits[0].Label != "Friends" {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "друз", 5); len(hits) != 1 || hits[0].Label != "Friends" {
 		t.Errorf("by title: %+v", hits)
 	}
-	if hits, _ := h.Mod.Search(ctx, access.PresetOwner.Grant(), "zzz", 5); len(hits) != 0 {
+	if hits, _ := h.Mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "zzz", 5); len(hits) != 0 {
 		t.Errorf("nothing: %+v", hits)
 	}
 	// Activity names the subject

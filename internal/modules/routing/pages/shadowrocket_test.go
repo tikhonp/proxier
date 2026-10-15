@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routerostest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
 	"github.com/tikhonp/proxier/internal/modules/routing/shadowrocket"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"golang.org/x/crypto/ssh"
 )
@@ -21,11 +22,11 @@ func srSetup(t *testing.T) (*routingtest.Harness, int64, string) {
 	h := routingtest.New(t)
 	h.Up.V2fly("anthropic", "anthropic.com\nclaude.ai\n")
 	h.List("Main", h.Upstream("anthropic"))
-	id, err := h.Mod.Shadowrocket.Create(bg(), shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: srBase}, "admin")
+	id, err := h.Mod.Shadowrocket.Create(bg(), routingtest.Owner, shadowrocket.New{Name: "iphone", ListID: 1, Policy: "PROXY", Base: srBase}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, _ := h.Mod.Shadowrocket.URL(bg(), id)
+	u, _ := h.Mod.Shadowrocket.URL(bg(), id, access.All)
 	return h, id, strings.Split(u, "/")[4]
 }
 
@@ -74,7 +75,7 @@ func TestShadowrocketPages(t *testing.T) {
 	}
 	// Download: the same bytes as a fetch, as an attachment, not recorded
 	rec = h.Login.Get("/routing/shadowrocket/1/output")
-	out, _ := h.Mod.Shadowrocket.Output(bg(), 1)
+	out, _ := h.Mod.Shadowrocket.Output(bg(), 1, access.All)
 	if rec.Code != 200 || rec.Body.String() != string(out) || !strings.Contains(rec.Header().Get("Content-Disposition"), `filename="iphone.conf"`) {
 		t.Errorf("download: %d %v", rec.Code, rec.Header())
 	}
@@ -170,7 +171,7 @@ func TestNewConfigPage(t *testing.T) {
 		t.Fatalf("import: %d", rec.Code)
 	}
 	has(t, "imported", rec.Body.String(), "# from the URL", `value="phone"`, `data-code="shadowrocket"`)
-	if cs, _ := h.Mod.Shadowrocket.List(bg()); len(cs) != 2 {
+	if cs, _ := h.Mod.Shadowrocket.List(bg(), access.All); len(cs) != 2 {
 		t.Errorf("import saved something: %d configs", len(cs))
 	}
 	h.Up.Fail("/files/base.conf", 404)
@@ -264,7 +265,7 @@ func TestConfigPageHoldsTogether(t *testing.T) {
 	ua := "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/27.0.1 Safari/605.1.15"
 	h.Site.Do(sitetest.Req{Path: "/r/" + token + "/iphone.conf", Addr: "[2001:db8:85a3::8a2e:370:7334]:5000", Header: http.Header{"User-Agent": {ua}}})
 	h.Site.Do(sitetest.Req{Path: "/r/" + token + "/iphone.conf", Addr: "198.51.100.23:5000", Header: http.Header{"User-Agent": {""}}})
-	if _, _, err := h.Mod.Shadowrocket.SaveBase(bg(), 1, srBase+"\n", "imported from mtvpn", "admin"); err != nil {
+	if _, _, err := h.Mod.Shadowrocket.SaveBase(bg(), 1, access.All, srBase+"\n", "imported from mtvpn", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	page := tight(h.Login.Get("/routing/shadowrocket/1").Body.String())

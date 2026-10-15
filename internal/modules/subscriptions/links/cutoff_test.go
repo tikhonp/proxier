@@ -8,6 +8,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
@@ -90,10 +91,10 @@ func running(t *testing.T, c links.CutOff) links.CutOffItem {
 
 func TestCutOffRunsOneAtATime(t *testing.T) {
 	h, id := threeServers(t)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if l, _ := h.Mod.Links.Get(bg, id); l.State != "disabled" {
+	if l, _ := h.Mod.Links.Get(bg, id, access.All); l.State != "disabled" {
 		t.Errorf("the link is %s", l.State)
 	}
 	if len(h.Events("link.disabled")) != 1 || len(h.Events("link.cut_off")) != 1 {
@@ -128,7 +129,7 @@ func TestCutOffRunsOneAtATime(t *testing.T) {
 
 func TestCutOffContinuesAfterFailure(t *testing.T) {
 	h, id := threeServers(t)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	_, c := states(t, h, id)
@@ -148,7 +149,7 @@ func TestCutOffContinuesAfterFailure(t *testing.T) {
 
 func TestCutOffRetry(t *testing.T) {
 	h, id := threeServers(t)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	_, c := states(t, h, id)
@@ -159,10 +160,10 @@ func TestCutOffRetry(t *testing.T) {
 	third := running(t, c)
 
 	// Only a failed one can be retried.
-	if err := h.Mod.Links.RetryCutOff(bg, id, 1, "admin"); !errors.Is(err, links.ErrNotRetryable) {
+	if err := h.Mod.Links.RetryCutOff(bg, id, access.All, 1, "admin"); !errors.Is(err, links.ErrNotRetryable) {
 		t.Errorf("retrying a done one: %v", err)
 	}
-	if err := h.Mod.Links.RetryCutOff(bg, id, 2, "admin"); err != nil {
+	if err := h.Mod.Links.RetryCutOff(bg, id, access.All, 2, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	wantStates(t, h, id, "done", "waiting", "running")
@@ -179,7 +180,7 @@ func TestCutOffSkipsUnrotatable(t *testing.T) {
 	h, id := threeServers(t)
 	h.Rotator.Refuse(1, servers.ErrNotActive)
 	h.Rotator.Refuse(3, servers.ErrNothingToRotate)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	c := wantStates(t, h, id, "skipped:"+links.ReasonNotInService, "running", "skipped:"+links.ReasonNothing)
@@ -192,7 +193,7 @@ func TestCutOffSkipsUnrotatable(t *testing.T) {
 	// A server that stops being rotatable while it waits is skipped when its
 	// turn comes, and the chain goes on.
 	h2, id2 := threeServers(t)
-	if _, err := h2.Mod.Links.CutOff(bg, id2, "admin"); err != nil {
+	if _, err := h2.Mod.Links.CutOff(bg, id2, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h2.Rotator.Refuse(2, servers.ErrNotActive)
@@ -205,18 +206,18 @@ func TestCutOffSkipsUnrotatable(t *testing.T) {
 	for _, s := range []int64{1, 2, 3} {
 		h3.Rotator.Refuse(s, servers.ErrNotActive)
 	}
-	if _, err := h3.Mod.Links.CutOff(bg, id3, "admin"); err != nil {
+	if _, err := h3.Mod.Links.CutOff(bg, id3, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	wantStates(t, h3, id3, "skipped:"+links.ReasonNotInService, "skipped:"+links.ReasonNotInService, "skipped:"+links.ReasonNotInService)
-	if l, _ := h3.Mod.Links.Get(bg, id3); l.State != "disabled" || queued(t, h3) != 0 {
+	if l, _ := h3.Mod.Links.Get(bg, id3, access.All); l.State != "disabled" || queued(t, h3) != 0 {
 		t.Errorf("link %s, queued %d", l.State, queued(t, h3))
 	}
 }
 
 func TestCutOffEventsAreIdempotent(t *testing.T) {
 	h, id := threeServers(t)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	_, c := states(t, h, id)
@@ -245,10 +246,10 @@ func TestCutOffEventsAreIdempotent(t *testing.T) {
 
 func TestCutOffDisabledLink(t *testing.T) {
 	h, id := threeServers(t)
-	if err := h.Mod.Links.Disable(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(h.Events("link.disabled")); n != 1 {
@@ -257,13 +258,13 @@ func TestCutOffDisabledLink(t *testing.T) {
 	wantStates(t, h, id, "running", "waiting", "waiting")
 
 	// A deleted link can't be cut off.
-	if err := h.Mod.Links.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); !errors.Is(err, links.ErrDeleted) {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); !errors.Is(err, links.ErrDeleted) {
 		t.Errorf("cutting off a deleted link: %v", err)
 	}
-	if _, err := h.Mod.Links.PlanCutOff(bg, id); !errors.Is(err, links.ErrDeleted) {
+	if _, err := h.Mod.Links.PlanCutOff(bg, id, access.All); !errors.Is(err, links.ErrDeleted) {
 		t.Errorf("planning a deleted link: %v", err)
 	}
 }
@@ -278,19 +279,19 @@ func TestCutOffPlan(t *testing.T) {
 	fam := h.Subscription("Family 2", 1)
 	h.Link(fam, "Dad")
 	disabled, _ := h.Link(fam, "Old")
-	if err := h.Mod.Links.Disable(bg, disabled, "admin"); err != nil {
+	if err := h.Mod.Links.Disable(bg, disabled, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	expired, _ := h.Link(fam, "Expired")
-	if err := h.Mod.Links.SetExpiry(bg, expired, h.Now.Add(1), "admin"); err != nil {
+	if err := h.Mod.Links.SetExpiry(bg, expired, access.All, h.Now.Add(1), "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Link(h.Subscription("Other", 3), "Nobody")
-	l, _ := h.Mod.Links.Get(bg, id)
+	l, _ := h.Mod.Links.Get(bg, id, access.All)
 	h.Link(l.SubscriptionID, "Mom")
 	h.Advance(2)
 
-	p, err := h.Mod.Links.PlanCutOff(bg, id)
+	p, err := h.Mod.Links.PlanCutOff(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -311,7 +312,7 @@ func TestCutOffPlan(t *testing.T) {
 	// A server out of service: not in service, without health.
 	h.Catalog.Drop(1)
 	h.Rotator.Refuse(1, servers.ErrNotActive)
-	p, _ = h.Mod.Links.PlanCutOff(bg, id)
+	p, _ = h.Mod.Links.PlanCutOff(bg, id, access.All)
 	if len(p.Skip) != 2 || p.Skip[0].Name != "nl-1" || p.Skip[0].Reason != links.ReasonNotInService || p.Skip[0].Health != "" {
 		t.Errorf("skip %+v", p.Skip)
 	}
@@ -319,7 +320,7 @@ func TestCutOffPlan(t *testing.T) {
 	// Without a rotator there is no cut-off.
 	h4 := substest.New(t, substest.NoRotator())
 	id4, _ := h4.Link(h4.Subscription("Family", 1), "Alex")
-	if _, err := h4.Mod.Links.PlanCutOff(bg, id4); !errors.Is(err, links.ErrNoRotator) {
+	if _, err := h4.Mod.Links.PlanCutOff(bg, id4, access.All); !errors.Is(err, links.ErrNoRotator) {
 		t.Errorf("plan without a rotator: %v", err)
 	}
 	if h4.Mod.Links.CanCutOff() {
@@ -332,11 +333,11 @@ func itoa(n int64) string { return strconv.FormatInt(n, 10) }
 func TestCutOffWithRotationOffOnlyDisablesTheLink(t *testing.T) {
 	h, id := threeServers(t)
 	substest.CutOffRotates(t, h.App, false)
-	p, err := h.Mod.Links.PlanCutOff(bg, id)
+	p, err := h.Mod.Links.PlanCutOff(bg, id, access.All)
 	if err != nil || !p.RotationOff || len(p.Rotate) != 0 || len(p.Skip) != 3 || p.OtherLinks != 0 {
 		t.Fatalf("plan %+v %v", p, err)
 	}
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	off := "skipped:" + links.ReasonRotationOff
@@ -344,14 +345,14 @@ func TestCutOffWithRotationOffOnlyDisablesTheLink(t *testing.T) {
 	if n := queued(t, h); n != 0 {
 		t.Fatalf("%d rotations queued", n)
 	}
-	if l, _ := h.Mod.Links.Get(bg, id); l.State != "disabled" {
+	if l, _ := h.Mod.Links.Get(bg, id, access.All); l.State != "disabled" {
 		t.Fatalf("link %s", l.State)
 	}
 }
 
 func TestTurningRotationOffStopsACutOffUnderWay(t *testing.T) {
 	h, id := threeServers(t)
-	if _, err := h.Mod.Links.CutOff(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Links.CutOff(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	c := wantStates(t, h, id, "running", "waiting", "waiting")

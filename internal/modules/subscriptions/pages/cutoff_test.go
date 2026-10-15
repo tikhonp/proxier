@@ -8,6 +8,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestCutOffPages(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCutOffPages(t *testing.T) {
 		"2 other links in 2 subscriptions get new URIs on their next refresh.",
 		"Apps refresh within their update interval (12 h by default).", `action="`+href+`/cutoff"`)
 	noInline(t, body)
-	if l, _ := h.Mod.Links.Get(t.Context(), id); l.State != "active" {
+	if l, _ := h.Mod.Links.Get(t.Context(), id, access.All); l.State != "active" {
 		t.Errorf("the plan changed the link: %s", l.State)
 	}
 
@@ -82,7 +83,7 @@ func TestCutOffPages(t *testing.T) {
 	mustContain(t, body, "Cut off Alex 2…", "Disables the link and rotates nl-1, de-1, so copied URIs stop working too.")
 
 	// A deleted link: 409.
-	if err := h.Mod.Links.Delete(t.Context(), alex2, "admin"); err != nil {
+	if err := h.Mod.Links.Delete(t.Context(), alex2, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if rec := h.Login.Get(fmt.Sprintf("/links/%d/cutoff", alex2)); rec.Code != http.StatusConflict {

@@ -40,7 +40,7 @@ func TestChromiumIntegrationRow(t *testing.T) {
 func TestDiscoverySubjectNamed(t *testing.T) {
 	h := routingtest.New(t)
 	ctx := i18n.WithLocalizer(context.Background(), h.App.I18n.Localizer(i18n.EN, time.UTC))
-	id, err := h.Mod.Discovery.Start(ctx, discovery.Start{Website: "https://www.example.com/x", Via: discovery.ViaDirect}, "admin")
+	id, err := h.Mod.Discovery.Start(ctx, discovery.Start{Owner: 1, Website: "https://www.example.com/x", Via: discovery.ViaDirect}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

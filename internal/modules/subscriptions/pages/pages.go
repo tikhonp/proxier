@@ -76,15 +76,30 @@ func Register(r web.Routes, d Deps) {
 	subs.Manage.GET("/links/:id/edit", h.formPage("edit"))
 	subs.Manage.POST("/links/:id/edit", h.editLink)
 	subs.Manage.POST("/links/:id/delete", h.deleteLink)
-	subs.Manage.GET("/links/:id/cutoff", h.cutoffPlan)
-	subs.Manage.POST("/links/:id/cutoff", h.cutoffStart)
+	// A cut-off rotates shared servers: every member's links on them get new
+	// URIs, so it needs servers: manage as well.
+	rotates := web.Require(access.Servers, access.LevelManage)
+	subs.Manage.GET("/links/:id/cutoff", h.cutoffPlan, rotates)
+	subs.Manage.POST("/links/:id/cutoff", h.cutoffStart, rotates)
 	subs.View.GET("/links/:id/cutoff/status", h.cutoffStatus)
-	subs.Manage.POST("/links/:id/cutoff/:position/retry", h.cutoffRetry)
+	subs.Manage.POST("/links/:id/cutoff/:position/retry", h.cutoffRetry, rotates)
 	subs.View.GET("/links/:id/alerts", h.alertsPage)
 	subs.Manage.POST("/links/:id/alerts", h.saveAlerts)
 
 	settings.GET("/settings/subscriptions", h.settingsPage)
 	settings.POST("/settings/subscriptions", h.saveSettings)
+}
+
+// scope is whose subscriptions and links the signed-in member reaches.
+func scope(ctx context.Context) access.Scope { return web.Scope(ctx, access.Subscriptions) }
+
+// mayChange refuses a page that changes a thing of owner the member reads
+// but may not change (view_all reading another member's).
+func mayChange(ctx context.Context, owner int64) error {
+	if !scope(ctx).Writes(owner) {
+		return access.Forbidden(access.Subscriptions)
+	}
+	return nil
 }
 
 func subHref(id int64) string { return "/subscriptions/" + strconv.FormatInt(id, 10) }
@@ -99,11 +114,21 @@ func (h *handler) load(c *echo.Context) (subs.Subscription, error) {
 	if err != nil {
 		return subs.Subscription{}, echo.ErrNotFound
 	}
-	s, err := h.Subs.Get(c.Request().Context(), id)
+	s, err := h.Subs.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, subs.ErrNotFound) {
 		return s, echo.ErrNotFound
 	}
 	return s, err
+}
+
+// loadToChange is load for a page that changes the subscription: Forbidden
+// for one the member reads but may not change.
+func (h *handler) loadToChange(c *echo.Context) (subs.Subscription, error) {
+	s, err := h.load(c)
+	if err != nil {
+		return s, err
+	}
+	return s, mayChange(c.Request().Context(), s.OwnerID)
 }
 
 // healthKind is the marker of a health state.
@@ -139,7 +164,7 @@ type rowView struct {
 func (h *handler) list(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	rows, err := h.Subs.List(ctx)
+	rows, err := h.Subs.List(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -204,7 +229,7 @@ func (h *handler) renderNew(c *echo.Context, status int, v newView) error {
 func (h *handler) create(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := newView{Name: c.FormValue("name"), Title: c.FormValue("title"), Description: c.FormValue("description")}
-	id, err := h.Subs.Create(ctx, v.Name, v.Title, v.Description, web.Actor(ctx))
+	id, err := h.Subs.Create(ctx, web.Who(ctx).Member, v.Name, v.Title, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -239,6 +264,9 @@ type serversView struct {
 	ShowAdd  bool   // false without a catalog
 	Stale    bool
 	OrderCSV string
+	// CanChange: the member may change the subscription (theirs, or
+	// manage_all); a reader sees no controls.
+	CanChange bool
 }
 
 type formView struct {
@@ -284,13 +312,14 @@ func formOf(s subs.Subscription) formView {
 
 func (h *handler) serversView(ctx context.Context, s subs.Subscription, cursor int64) (serversView, error) {
 	loc := i18n.From(ctx)
-	members, err := h.Subs.Members(ctx, s.ID)
+	members, err := h.Subs.Members(ctx, s.ID, scope(ctx))
 	if err != nil {
 		return serversView{}, err
 	}
-	v := serversView{SubID: s.ID, Name: s.Name, ShowAdd: h.Subs.HasCatalog()}
+	v := serversView{SubID: s.ID, Name: s.Name, CanChange: scope(ctx).Writes(s.OwnerID)}
+	v.ShowAdd = h.Subs.HasCatalog() && v.CanChange
 	if v.ShowAdd {
-		addable, err := h.Subs.Addable(ctx, s.ID)
+		addable, err := h.Subs.Addable(ctx, s.ID, scope(ctx))
 		if err != nil {
 			return v, err
 		}
@@ -352,7 +381,7 @@ func (h *handler) pageView(c *echo.Context, s subs.Subscription) (pageView, erro
 	}
 	v.Links = len(v.LinkRows)
 	v.Status = i18n.T(ctx, "subs.status", i18n.Args{"title": s.Title}) + " · " +
-		loc.N("subs.n_servers", int64(len(v.Servers.Rows))) + " · " + loc.N("subs.n_links", int64(v.Links))
+		loc.N("subs.n_servers", int64(len(v.Servers.Rows))) + " · " + loc.N("subs.n_links", int64(v.Links)) + web.OwnerNote(ctx, s.OwnerID)
 	list, err := events.List(ctx, h.DB.R, events.Filter{Subject: subs.Subject(s.ID), Limit: 10})
 	if err != nil {
 		return v, err
@@ -409,7 +438,7 @@ func (h *handler) save(c *echo.Context) error {
 	if st.GraceMinutes, err = strconv.Atoi(strings.TrimSpace(c.FormValue("grace"))); err != nil {
 		st.GraceMinutes = -1
 	}
-	changed, err := h.Subs.Update(ctx, s.ID, st, web.Actor(ctx))
+	changed, err := h.Subs.Update(ctx, s.ID, scope(ctx), st, web.Actor(ctx))
 	var errs store.FieldErrors
 	if errors.As(err, &errs) {
 		v, verr := h.pageView(c, s)

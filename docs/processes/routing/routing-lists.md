@@ -34,6 +34,7 @@ A routing list is the set of services a target follows: "Main" for the home rout
 - A service can be in any number of lists. Ownership is computed per list.
 - Exactly one list is the default. The default can't be deleted.
 - An empty list is allowed. Targets following it end up with no Proxier-installed tags.
+- A list is its owner's. `view_all` reads everyone's and changes only its own; a list holds only services its changer may use (shared ones, or their own custom ones; `manage_all` any). Moving the default needs `manage_all`: it is every member's start ([routing: owners](../../modules/routing.md#owners)).
 
 ## Edge cases (each is a test)
 
@@ -49,3 +50,7 @@ A routing list is the set of services a target follows: "Main" for the home rout
 - Delete "Parents" with one router → refused, offering to move the router.
 - Switch the home router from "Main" to "Parents" → the next sync removes tags missing from "Parents" and keeps or updates the rest.
 - Delete the default list → refused.
+- A member at `routing: own` opens another member's list, or its edit page → 404, and it isn't listed or offered.
+- A member adds another member's custom service to their own list → 404, nothing added; a shared service → added.
+- A Viewer opens another member's list → its services shown, a private one by tag without a link, the owner named, no controls; editing it → 403, nothing recorded.
+- A member at `routing: own` makes their list the default → refused; `manage_all` → done.

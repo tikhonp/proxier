@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/snapshot"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -142,7 +143,7 @@ func (s *Service) Dismiss(ctx context.Context, serviceID, snapshotID int64, acto
 }
 
 func (s *Service) waitingIn(ctx context.Context, tx *sqlx.Tx, serviceID, snapshotID int64) (store.Service, store.Snapshot, error) {
-	cur, err := store.GetService(ctx, tx, serviceID)
+	cur, err := store.GetService(ctx, tx, serviceID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return cur, store.Snapshot{}, services.ErrNotFound
 	}

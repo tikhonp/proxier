@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/domain"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Suggestion is a catalog selector holding a website's names, for
@@ -88,7 +89,8 @@ func (s *Service) Lookup(ctx context.Context, host, registrable string) ([]Sugge
 		best[sg.Selector] = sg
 		attrs[sg.Selector] = r.Attrs
 	}
-	svcs, err := s.d.Services.List(ctx, services.Filter{})
+	// discovery's job: what it suggests is shown to whoever reads the run
+	svcs, err := s.d.Services.List(ctx, access.All, services.Filter{})
 	if err != nil {
 		return nil, err
 	}

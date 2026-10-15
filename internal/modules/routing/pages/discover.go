@@ -109,7 +109,7 @@ func (h *handler) renderDiscoverForm(c *echo.Context, status int, v discoverForm
 		return err
 	}
 	v.Chromium, v.ChromiumOK = h.chromiumLine(ctx)
-	runs, err := h.Discovery.Recent(ctx, 20)
+	runs, err := h.Discovery.Recent(ctx, scope(ctx), 20)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (h *handler) discoverStart(c *echo.Context) error {
 	ctx := c.Request().Context()
 	via, sid := parseVia(c.FormValue("via"))
 	depth, _ := strconv.Atoi(c.FormValue("depth"))
-	id, err := h.Discovery.Start(ctx, discovery.Start{Website: c.FormValue("website"), Via: via, ServerID: sid, Depth: depth}, web.Actor(ctx))
+	id, err := h.Discovery.Start(ctx, discovery.Start{Owner: web.Who(ctx).Member, Website: c.FormValue("website"), Via: via, ServerID: sid, Depth: depth}, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderDiscoverForm(c, http.StatusUnprocessableEntity, discoverForm{
@@ -163,7 +163,7 @@ func (h *handler) loadRun(c *echo.Context) (discovery.Run, error) {
 	if err != nil {
 		return discovery.Run{}, echo.ErrNotFound
 	}
-	r, err := h.Discovery.Get(c.Request().Context(), id)
+	r, err := h.Discovery.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, discovery.ErrNotFound) {
 		return r, echo.ErrNotFound
 	}
@@ -197,6 +197,8 @@ type customChoice struct {
 }
 
 type runView struct {
+	// CanChange: the member may save from the run (theirs, or manage_all).
+	CanChange          bool
 	Run                discovery.Run
 	Title, State, Kind string
 	Line               string
@@ -226,7 +228,7 @@ type listChoice struct {
 
 func (h *handler) runView(ctx context.Context, r discovery.Run) (runView, error) {
 	loc := i18n.From(ctx)
-	v := runView{Run: r, Active: r.Active(), Errs: map[string]string{}}
+	v := runView{Run: r, CanChange: scope(ctx).Writes(r.OwnerID), Active: r.Active(), Errs: map[string]string{}}
 	v.Kind, v.State = runState(ctx, r)
 	switch r.State {
 	case discovery.Done, discovery.Failed:
@@ -239,7 +241,7 @@ func (h *handler) runView(ctx context.Context, r discovery.Run) (runView, error)
 	if r.Depth > 0 {
 		depth = i18n.T(ctx, "discovery.depth.links")
 	}
-	v.Line = i18n.T(ctx, "discovery.run.line", i18n.Args{"url": r.URL, "via": viaWord(ctx, r), "depth": depth, "registrable": r.Registrable})
+	v.Line = i18n.T(ctx, "discovery.run.line", i18n.Args{"url": r.URL, "via": viaWord(ctx, r), "depth": depth, "registrable": r.Registrable}) + ownerNote(ctx, r.OwnerID)
 	if !h.Discovery.CanVisit() {
 		v.NoBrowser = i18n.T(ctx, "discovery.no_browser")
 	}
@@ -320,7 +322,7 @@ func (h *handler) runView(ctx context.Context, r discovery.Run) (runView, error)
 	if len(names) > 0 {
 		v.SaveNote = i18n.T(ctx, "discovery.save.note_targets", i18n.Args{"targets": strings.Join(names, ", ")})
 	}
-	customs, err := h.Services.List(ctx, services.Filter{Source: string(selector.Custom)})
+	customs, err := h.Services.List(ctx, scope(ctx), services.Filter{Source: string(selector.Custom)})
 	if err != nil {
 		return v, err
 	}
@@ -411,11 +413,11 @@ func (h *handler) runStatus(c *echo.Context) error {
 }
 
 func (h *handler) runScreenshot(c *echo.Context) error {
-	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	r, err := h.loadRun(c)
 	if err != nil {
-		return echo.ErrNotFound
+		return err
 	}
-	p, err := h.Discovery.Screenshot(id, c.Param("file"))
+	p, err := h.Discovery.Screenshot(r.ID, c.Param("file"))
 	if err != nil {
 		return echo.ErrNotFound
 	}
@@ -465,7 +467,7 @@ func (h *handler) runCreate(c *echo.Context) error {
 	listIDs := formIDs(c, "list")
 	p := formPick(c)
 	name, tag := c.FormValue("name"), c.FormValue("tag")
-	sid, err := h.Discovery.Create(ctx, r.ID, services.Custom{Name: name, Tag: tag}, p, listIDs, web.Actor(ctx))
+	sid, err := h.Discovery.Create(ctx, r.ID, scope(ctx), services.Custom{Name: name, Tag: tag}, p, listIDs, web.Actor(ctx))
 	if err == nil {
 		return web.Redirect(c, svcHref(sid)+"?added=1")
 	}
@@ -504,7 +506,7 @@ func (h *handler) runAdd(c *echo.Context) error {
 	ctx := c.Request().Context()
 	sid, _ := strconv.ParseInt(c.FormValue("service"), 10, 64)
 	p := formPick(c)
-	err = h.Discovery.AddTo(ctx, r.ID, sid, p, web.Actor(ctx))
+	err = h.Discovery.AddTo(ctx, r.ID, scope(ctx), sid, p, web.Actor(ctx))
 	if err == nil {
 		return web.Redirect(c, svcHref(sid)+"?saved=1")
 	}
@@ -531,7 +533,7 @@ func (h *handler) runAgain(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	via, sid := parseVia(c.FormValue("via"))
-	id, err := h.Discovery.Again(ctx, r.ID, via, sid, web.Actor(ctx))
+	id, err := h.Discovery.Again(ctx, r.ID, web.Who(ctx), via, sid, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		return h.renderRun(c, http.StatusUnprocessableEntity, r, func(v *runView) {

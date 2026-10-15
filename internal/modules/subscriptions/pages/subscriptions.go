@@ -53,7 +53,7 @@ func (h *handler) remove(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Subs.RemoveServer(c.Request().Context(), s.ID, sid, web.Actor(c.Request().Context()))
+	err = h.Subs.RemoveServer(c.Request().Context(), s.ID, scope(c.Request().Context()), sid, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrNotFound) {
 		return echo.ErrNotFound
 	}
@@ -72,7 +72,7 @@ func (h *handler) move(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	err = h.Subs.Move(c.Request().Context(), s.ID, sid, c.FormValue("dir") == "down", web.Actor(c.Request().Context()))
+	err = h.Subs.Move(c.Request().Context(), s.ID, scope(c.Request().Context()), sid, c.FormValue("dir") == "down", web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrStaleOrder) {
 		return h.answerServers(c, s, 0, true)
 	}
@@ -98,7 +98,7 @@ func (h *handler) order(c *echo.Context) error {
 		}
 		ids = append(ids, n)
 	}
-	err = h.Subs.SetOrder(c.Request().Context(), s.ID, ids, web.Actor(c.Request().Context()))
+	err = h.Subs.SetOrder(c.Request().Context(), s.ID, scope(c.Request().Context()), ids, web.Actor(c.Request().Context()))
 	if errors.Is(err, subs.ErrStaleOrder) {
 		return h.answerServers(c, s, 0, true)
 	}
@@ -122,7 +122,7 @@ type addView struct {
 }
 
 func (h *handler) addView(ctx context.Context, s subs.Subscription) (addView, error) {
-	list, err := h.Subs.Addable(ctx, s.ID)
+	list, err := h.Subs.Addable(ctx, s.ID, scope(ctx))
 	if err != nil {
 		return addView{}, err
 	}
@@ -138,7 +138,7 @@ func addRowOf(ctx context.Context, se servers.ServerEndpoints) addRow {
 }
 
 func (h *handler) addPage(c *echo.Context) error {
-	s, err := h.load(c)
+	s, err := h.loadToChange(c)
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (h *handler) add(c *echo.Context) error {
 		}
 		ids = append(ids, n)
 	}
-	err = h.Subs.AddServers(ctx, s.ID, ids, web.Actor(ctx))
+	err = h.Subs.AddServers(ctx, s.ID, scope(ctx), ids, web.Actor(ctx))
 	if errors.Is(err, subs.ErrNotServed) {
 		v, verr := h.addView(ctx, s)
 		if verr != nil {
@@ -209,7 +209,7 @@ type previewView struct {
 func (h *handler) previewView(ctx context.Context, s subs.Subscription, format string, reveal bool) (previewView, error) {
 	loc := i18n.From(ctx)
 	v := previewView{SubID: s.ID, Formats: s.Formats, Revealed: reveal}
-	resp, members, err := h.Subs.Preview(ctx, s.ID, format, !reveal)
+	resp, members, err := h.Subs.Preview(ctx, s.ID, scope(ctx), format, !reveal)
 	if errors.Is(err, output.ErrBadFormat) {
 		v.BadFormat = true
 		return v, nil
@@ -289,12 +289,12 @@ type deleteView struct {
 func (h *handler) deleteView(ctx context.Context, s subs.Subscription) (deleteView, error) {
 	loc := i18n.From(ctx)
 	v := deleteView{S: s}
-	members, err := h.Subs.Members(ctx, s.ID)
+	members, err := h.Subs.Members(ctx, s.ID, scope(ctx))
 	if err != nil {
 		return v, err
 	}
 	v.Servers = len(members)
-	holders, err := h.Subs.Holders(ctx, s.ID)
+	holders, err := h.Subs.Holders(ctx, s.ID, scope(ctx))
 	if err != nil {
 		return v, err
 	}
@@ -306,7 +306,7 @@ func (h *handler) deleteView(ctx context.Context, s subs.Subscription) (deleteVi
 		}
 	}
 	if len(v.Live) > 0 {
-		all, err := h.Subs.List(ctx)
+		all, err := h.Subs.List(ctx, scope(ctx).Writable())
 		if err != nil {
 			return v, err
 		}
@@ -325,7 +325,7 @@ func (h *handler) renderDelete(c *echo.Context, status int, v deleteView) error 
 }
 
 func (h *handler) deletePage(c *echo.Context) error {
-	s, err := h.load(c)
+	s, err := h.loadToChange(c)
 	if err != nil {
 		return err
 	}
@@ -342,7 +342,7 @@ func (h *handler) deletePost(c *echo.Context) error {
 		return err
 	}
 	ctx := c.Request().Context()
-	err = h.Subs.Delete(ctx, s.ID, web.Actor(ctx))
+	err = h.Subs.Delete(ctx, s.ID, scope(ctx), web.Actor(ctx))
 	if errors.Is(err, subs.ErrHasLinks) {
 		v, verr := h.deleteView(ctx, s)
 		if verr != nil {

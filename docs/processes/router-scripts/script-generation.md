@@ -1,6 +1,6 @@
 # Script generation
 
-**Actors**: Admin; router scripts module; subscriptions (`LinkIssuer`); routing (`RouterRegistrar`); the new router (through `GET /f/{token}`); the notifier.
+**Actors**: a member with `routerscripts: own` or more; router scripts module; subscriptions (`LinkIssuer`); routing (`RouterRegistrar`); the new router (through `GET /f/{token}`); the notifier.
 
 Setting up a new MikroTik means filling in the current router script for it, getting the file onto the router, and importing it. Proxier fills it in from a form. It can create the router's subscription link (so the router's mihomo uses Proxier's servers) and register the router for domain sync, all in one go. The router can then fetch its file itself.
 
@@ -39,7 +39,7 @@ The generation page says when the link's URL changed after the generation (its t
 
 ## Steps: getting it onto the router
 
-1. **Download** (signed-in admin) → `fresh-router-<router>-v<version>.rsc`, `no-store`. It records nothing (the request log has it).
+1. **Download** (a signed-in member who reads the generation) → `fresh-router-<router>-v<version>.rsc`, `no-store`. It records nothing (the request log has it).
 2. **Create fetch URL** (the generation page's Fetch URL area; **New fetch URL…** with a confirmation while one waits: "A new URL makes this one stop working.") → a token (`vault.NewToken()`, sealed as `fetch_url:<id>:token`, found by its lookup) valid for **1 hour** and **one** successful download. In the same transaction a URL of the generation that still waited ends first: as *replaced* when it still worked, as *expired* (with its `routerscript.fetch_url_expired`) when its hour had passed before the scan saw it. A generation of an archived script can still get one. The page shows the URL masked (`https://proxier.tikhonnnnn.com/f/••••••••`) with **Reveal** / **Hide** and **Copy**, the state line ("expires at 17:30 · in 58 min"), and the commands to paste into the new router's terminal, each with **Copy**, and **Copy both lines** (`y`):
 
    ```
@@ -59,6 +59,8 @@ The generation page follows it in **After the import**, three steps: **the route
 
 ## Rules
 
+- A generation belongs to the member who made it, and so do the link it creates and the router it registers ([ownership](../platform/members.md#ownership)). At `own` a member sees, downloads and makes fetch URLs only for their own generations; `view_all` reads everyone's (the page, View changes, Download) but makes no fetch URL for another's and can't generate again from it; `manage_all` does everything. Another member's generation outside what the member reads is a 404.
+- The form offers only what the member may change: subscriptions and links (`subscriptions` area), routing lists, routers and their jump hosts (`routing` area). A forged choice outside them is refused as a field error. **Generate again** starts only from a generation the member may change, since its secrets carry over: another member's answers 404, or 403 when the member reads it.
 - A generation is immutable. Changing a value means generating again, which makes a new generation. A link or router registered by the first one is reused if chosen, never duplicated without asking.
 - A generation that fills in the router's subscription link or a `@secret` value is a secret, and the summary says which of the two it holds (a version with neither only says what comes next). Every file is handled as a secret all the same: downloads need a session. Fetch URLs live 1 hour and work once. Neither the token nor the file content ever appears in a log or event.
 - Only parameter literals are changed. A generated file is byte-identical to its version everywhere else.
@@ -78,3 +80,7 @@ The generation page follows it in **After the import**, three steps: **the route
 - **Download** without a session → redirected to sign-in.
 - Generating twice for "Parents" and choosing the existing link and router → no duplicates created.
 - Routing module disabled → no "register for routing" section, and `vpnList` is an ordinary field.
+- Two members at `own` → each sees only their own generations on the script page and in search; the other's generation page, download, changes or fetch URL by URL → 404.
+- `view_all` on another member's generation → readable and downloadable, no **Create fetch URL** or **Generate again**; a forged fetch URL → 403, none created.
+- **Create a link** offers only the member's own subscriptions; another member's subscription forged → refused on its field, nothing created; the new link and router are the member's.
+- A removed member's generations belong to the heir, and their fetch URLs keep working (`routerscript.handed_over` once).

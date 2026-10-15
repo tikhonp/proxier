@@ -153,11 +153,11 @@ func (h *handler) linkList(c *echo.Context) error {
 	if v.Expiring {
 		f.ExpiringWithin = 7 * 24 * time.Hour
 	}
-	rows, err := h.Links.List(ctx, f)
+	rows, err := h.Links.List(ctx, scope(ctx), f)
 	if err != nil {
 		return err
 	}
-	all, err := h.Links.List(ctx, links.Filter{State: "all"})
+	all, err := h.Links.List(ctx, scope(ctx), links.Filter{State: "all"})
 	if err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (h *handler) linkList(c *echo.Context) error {
 			Expires: expiryShort(loc, r.Link, now), Last: lastFetch(loc, r.Link), Fetches: r.Fetches24h, Alert: alert,
 		})
 	}
-	subList, err := h.Subs.List(ctx)
+	subList, err := h.Subs.List(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -246,7 +246,7 @@ func (h *handler) newLinkPage(c *echo.Context) error {
 
 func (h *handler) renderNewLink(c *echo.Context, status int, v newLinkView) error {
 	ctx := c.Request().Context()
-	list, err := h.Subs.List(ctx)
+	list, err := h.Subs.List(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
 	}
@@ -268,7 +268,7 @@ func (h *handler) createLink(c *echo.Context) error {
 	expires, err := links.ParseExpiry(v.Expiry.Mode, v.Expiry.Date, v.Expiry.Clock, h.Links.Zone(ctx), h.Now())
 	var id int64
 	if err == nil {
-		id, err = h.Links.Create(ctx, links.New{Name: v.Name, Note: v.Note, SubscriptionID: v.SubID, Expires: expires, Lang: i18n.Lang(v.Lang)}, web.Actor(ctx))
+		id, err = h.Links.Create(ctx, web.Who(ctx), links.New{Name: v.Name, Note: v.Note, SubscriptionID: v.SubID, Expires: expires, Lang: i18n.Lang(v.Lang)}, web.Actor(ctx))
 	}
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
@@ -289,11 +289,21 @@ func (h *handler) loadLink(c *echo.Context) (links.Link, error) {
 	if err != nil {
 		return links.Link{}, echo.ErrNotFound
 	}
-	l, err := h.Links.Get(c.Request().Context(), id)
+	l, err := h.Links.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, links.ErrNotFound) {
 		return l, echo.ErrNotFound
 	}
 	return l, err
+}
+
+// loadLinkToChange is loadLink for a page that changes the link: Forbidden
+// for one the member reads but may not change.
+func (h *handler) loadLinkToChange(c *echo.Context) (links.Link, error) {
+	l, err := h.loadLink(c)
+	if err != nil {
+		return l, err
+	}
+	return l, mayChange(c.Request().Context(), l.OwnerID)
 }
 
 // actionErr maps the service's errors to answers: a deleted link is read-only.

@@ -10,18 +10,18 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
-	"github.com/tikhonp/proxier/internal/platform/jobs"
-	"github.com/tikhonp/proxier/internal/platform/sitetest"
-
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/jobs"
+	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
 func names(t *testing.T, s *subs.Service, id int64) string {
 	t.Helper()
-	ms, err := s.Members(context.Background(), id)
+	ms, err := s.Members(context.Background(), id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,15 +35,15 @@ func names(t *testing.T, s *subs.Service, id int64) string {
 func TestRealActivationJoinsSubscription(t *testing.T) {
 	h, mod := substest.WithServers(t)
 	ctx := context.Background()
-	me, err := mod.Subs.Create(ctx, "Me", "", "", "admin")
+	me, err := mod.Subs.Create(ctx, 1, "Me", "", "", "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	family, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")
-	s, _ := mod.Subs.Get(ctx, me)
+	family, _ := mod.Subs.Create(ctx, 1, "Family", "", "", "admin")
+	s, _ := mod.Subs.Get(ctx, me, access.All)
 	st := subs.Settings{Name: s.Name, Title: s.Title, Formats: s.Formats, DefaultFormat: s.DefaultFormat, UpdateHours: s.UpdateHours,
 		HideStates: s.Hide.States, GraceMinutes: 30, AutoAdd: true}
-	if _, err := mod.Subs.Update(ctx, me, st, "admin"); err != nil {
+	if _, err := mod.Subs.Update(ctx, me, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	id := h.Provisioned()
@@ -55,7 +55,7 @@ func TestRealActivationJoinsSubscription(t *testing.T) {
 		t.Errorf("Family got %s", got)
 	}
 	// the preview serves the real endpoint
-	resp, _, err := mod.Subs.Preview(i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil)), me, "", false)
+	resp, _, err := mod.Subs.Preview(i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil)), me, access.All, "", false)
 	if err != nil || resp.Outcome != output.OK || len(resp.Lines) != 1 || !strings.Contains(resp.Lines[0], "@nl-1.hosts.tikhonnnnn.com:443") ||
 		!strings.HasSuffix(resp.Lines[0], "#%F0%9F%87%B3%F0%9F%87%B1%20Netherlands%201") {
 		t.Errorf("preview: %+v %v", resp.Lines, err)
@@ -66,10 +66,10 @@ func TestRealRetirementLeavesSubscriptions(t *testing.T) {
 	h, mod := substest.WithServers(t)
 	ctx := context.Background()
 	id := h.Provisioned()
-	family, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")
-	only, _ := mod.Subs.Create(ctx, "Only", "", "", "admin")
+	family, _ := mod.Subs.Create(ctx, 1, "Family", "", "", "admin")
+	only, _ := mod.Subs.Create(ctx, 1, "Only", "", "", "admin")
 	for _, sub := range []int64{family, only} {
-		if err := mod.Subs.AddServers(ctx, sub, []int64{id}, "admin"); err != nil {
+		if err := mod.Subs.AddServers(ctx, sub, access.All, []int64{id}, "admin"); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -86,7 +86,7 @@ func TestRealRetirementLeavesSubscriptions(t *testing.T) {
 		t.Fatalf("not retired: %s", h.Server(id).State)
 	}
 	h.WaitFor("nl-1 removed", func() bool { return names(t, mod.Subs, family) == "" && names(t, mod.Subs, only) == "" })
-	resp, _, err := mod.Subs.Preview(i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil)), only, "", false)
+	resp, _, err := mod.Subs.Preview(i18n.WithLocalizer(ctx, h.App.I18n.Localizer(i18n.EN, nil)), only, access.All, "", false)
 	if err != nil || resp.Outcome != output.StubEmpty || resp.Lines[0] != output.StubURI("⚠️ No servers yet") {
 		t.Errorf("empty preview: %+v %v", resp, err)
 	}
@@ -107,15 +107,15 @@ func TestFetchDuringAndAfterRotation(t *testing.T) {
 	h, mod := substest.WithServers(t)
 	ctx := context.Background()
 	id := h.Provisioned()
-	sub, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")
-	if err := mod.Subs.AddServers(ctx, sub, []int64{id}, "admin"); err != nil {
+	sub, _ := mod.Subs.Create(ctx, 1, "Family", "", "", "admin")
+	if err := mod.Subs.AddServers(ctx, sub, access.All, []int64{id}, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	link, err := mod.Links.Create(ctx, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
+	link, err := mod.Links.Create(ctx, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	token, _ := mod.Links.Token(ctx, link)
+	token, _ := mod.Links.Token(ctx, link, access.All)
 	fetch := func() string {
 		t.Helper()
 		rec := h.Site.Do(sitetest.Req{Path: "/s/" + token, Addr: "198.51.100.23:5000"})
@@ -154,21 +154,21 @@ func cutOffSetup(t *testing.T) (h *serverstest.Harness, mod *subscriptions.Modul
 	substest.CutOffRotates(t, h.App, true)
 	ctx := context.Background()
 	ids = []int64{h.Provisioned(), h.AddServer("10.77.0.2"), h.AddServer("10.77.0.3")}
-	sub, _ := mod.Subs.Create(ctx, "Family", "", "", "admin")
+	sub, _ := mod.Subs.Create(ctx, 1, "Family", "", "", "admin")
 	for _, id := range ids {
-		if err := mod.Subs.AddServers(ctx, sub, []int64{id}, "admin"); err != nil {
+		if err := mod.Subs.AddServers(ctx, sub, access.All, []int64{id}, "admin"); err != nil {
 			t.Fatal(err)
 		}
 	}
-	alex, err := mod.Links.Create(ctx, links.New{Name: "Alex", SubscriptionID: sub, Lang: "en"}, "admin")
+	alex, err := mod.Links.Create(ctx, substest.Owner, links.New{Name: "Alex", SubscriptionID: sub, Lang: "en"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	mom, err := mod.Links.Create(ctx, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
+	mom, err := mod.Links.Create(ctx, substest.Owner, links.New{Name: "Mom", SubscriptionID: sub, Lang: "en"}, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
-	momToken, _ = mod.Links.Token(ctx, mom)
+	momToken, _ = mod.Links.Token(ctx, mom, access.All)
 	return h, mod, ids, alex, momToken
 }
 
@@ -230,10 +230,10 @@ func TestRealCutOffRotatesEveryServer(t *testing.T) {
 	if len(before) != 3 {
 		t.Fatalf("Mom gets %d servers", len(before))
 	}
-	if _, err := mod.Links.CutOff(ctx, alex, "admin"); err != nil {
+	if _, err := mod.Links.CutOff(ctx, alex, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if l, _ := mod.Links.Get(ctx, alex); l.State != "disabled" {
+	if l, _ := mod.Links.Get(ctx, alex, access.All); l.State != "disabled" {
 		t.Errorf("Alex is %s right after Cut off", l.State)
 	}
 	h.WaitFor("three rotations", func() bool { return cutOffStates(t, mod, alex) == "done,done,done" })
@@ -257,12 +257,12 @@ func TestRealCutOffWithUnreachableServer(t *testing.T) {
 	h, mod, ids, alex, _ := cutOffSetup(t)
 	ctx := context.Background()
 	h.Unreachable(h.Server(ids[1]).IP, true)
-	if _, err := mod.Links.CutOff(ctx, alex, "admin"); err != nil {
+	if _, err := mod.Links.CutOff(ctx, alex, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.WaitFor("the chain to end", func() bool { return cutOffStates(t, mod, alex) == "done,failed,done" })
 	h.Drain()
-	if l, _ := mod.Links.Get(ctx, alex); l.State != "disabled" {
+	if l, _ := mod.Links.Get(ctx, alex, access.All); l.State != "disabled" {
 		t.Errorf("Alex is %s", l.State)
 	}
 	c, _, _ := mod.Links.LatestCutOff(ctx, alex)
@@ -282,7 +282,7 @@ func TestRealCutOffWithUnreachableServer(t *testing.T) {
 		t.Error("the link page offers no Retry for the failed server")
 	}
 	h.Unreachable(h.Server(ids[1]).IP, false)
-	if err := mod.Links.RetryCutOff(ctx, alex, 2, "admin"); err != nil {
+	if err := mod.Links.RetryCutOff(ctx, alex, access.All, 2, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.WaitFor("the retry", func() bool { return cutOffStates(t, mod, alex) == "done,done,done" })

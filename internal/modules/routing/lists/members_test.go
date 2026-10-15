@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestMembersAndMarks(t *testing.T) {
@@ -19,10 +20,10 @@ func TestMembersAndMarks(t *testing.T) {
 	start := len(h.Marks.Changes())
 
 	// Add appends in tag order
-	if err := h.Mod.Lists.Add(bg, main, []int64{c, b}, "admin"); err != nil {
+	if err := h.Mod.Lists.Add(bg, main, access.All, []int64{c, b}, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Lists.Add(bg, main, []int64{a, b}, "admin"); err != nil { // b is in already
+	if err := h.Mod.Lists.Add(bg, main, access.All, []int64{a, b}, "admin"); err != nil { // b is in already
 		t.Fatal(err)
 	}
 	if got := order(t, h, main); got != "b,c,a" {
@@ -33,7 +34,7 @@ func TestMembersAndMarks(t *testing.T) {
 		t.Fatalf("added: %+v", ev)
 	}
 	// adding only what is in already changes nothing
-	if err := h.Mod.Lists.Add(bg, main, []int64{a}, "admin"); err != nil {
+	if err := h.Mod.Lists.Add(bg, main, access.All, []int64{a}, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if n := len(h.Events("routing.list_updated")); n != 2 {
@@ -41,44 +42,44 @@ func TestMembersAndMarks(t *testing.T) {
 	}
 
 	// Move and SetOrder
-	if _, _, err := h.Mod.Lists.Move(bg, main, a, false, "admin"); err != nil {
+	if _, _, err := h.Mod.Lists.Move(bg, main, access.All, a, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if got := order(t, h, main); got != "b,a,c" {
 		t.Fatalf("after move up: %s", got)
 	}
-	if _, _, err := h.Mod.Lists.Move(bg, main, c, true, "admin"); err != nil { // the last one down: nothing
+	if _, _, err := h.Mod.Lists.Move(bg, main, access.All, c, true, "admin"); err != nil { // the last one down: nothing
 		t.Fatal(err)
 	}
-	if _, _, err := h.Mod.Lists.SetOrder(bg, main, []int64{c, b, a}, nil, "admin"); err != nil {
+	if _, _, err := h.Mod.Lists.SetOrder(bg, main, access.All, []int64{c, b, a}, nil, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if got := order(t, h, main); got != "c,b,a" {
 		t.Fatalf("after set order: %s", got)
 	}
-	if _, _, err := h.Mod.Lists.SetOrder(bg, main, []int64{c, b, a}, nil, "admin"); err != nil { // the same order: nothing
+	if _, _, err := h.Mod.Lists.SetOrder(bg, main, access.All, []int64{c, b, a}, nil, "admin"); err != nil { // the same order: nothing
 		t.Fatal(err)
 	}
 	for _, bad := range [][]int64{{c, b}, {c, b, a, 99}, {c, c, a}} {
-		if _, _, err := h.Mod.Lists.SetOrder(bg, main, bad, nil, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
+		if _, _, err := h.Mod.Lists.SetOrder(bg, main, access.All, bad, nil, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
 			t.Errorf("SetOrder(%v): %v", bad, err)
 		}
 	}
-	if _, _, err := h.Mod.Lists.SetOrder(bg, main, []int64{a, b, c}, []int64{a, b, c}, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
+	if _, _, err := h.Mod.Lists.SetOrder(bg, main, access.All, []int64{a, b, c}, []int64{a, b, c}, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
 		t.Errorf("unexpected current order: %v", err)
 	}
-	if _, _, err := h.Mod.Lists.Move(bg, main, 99, true, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
+	if _, _, err := h.Mod.Lists.Move(bg, main, access.All, 99, true, "admin"); !errors.Is(err, lists.ErrStaleOrder) {
 		t.Errorf("move a non-member: %v", err)
 	}
 
 	// Remove re-densifies
-	if err := h.Mod.Lists.Remove(bg, main, b, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(bg, main, access.All, b, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if got := order(t, h, main); got != "c,a" {
 		t.Fatalf("after remove: %s", got)
 	}
-	if err := h.Mod.Lists.Remove(bg, main, b, "admin"); !errors.Is(err, lists.ErrNotMember) {
+	if err := h.Mod.Lists.Remove(bg, main, access.All, b, "admin"); !errors.Is(err, lists.ErrNotMember) {
 		t.Errorf("remove twice: %v", err)
 	}
 
@@ -135,7 +136,7 @@ func TestRemoveHandsOwnershipOverAndMarks(t *testing.T) {
 		t.Errorf("mine: %+v", o)
 	}
 	before := len(h.Marks.Changes())
-	if err := h.Mod.Lists.Remove(context.Background(), main, anthropic, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(context.Background(), main, access.All, anthropic, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	marks := h.Marks.Changes()

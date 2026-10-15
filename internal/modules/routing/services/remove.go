@@ -2,24 +2,21 @@ package services
 
 import (
 	"context"
-	"errors"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
-// Remove deletes a service with its snapshots and custom rows, only when no
-// routing list holds it.
-func (s *Service) Remove(ctx context.Context, id int64, actor string) error {
+// Remove deletes a service scope may change with its snapshots and custom
+// rows, only when no routing list holds it.
+func (s *Service) Remove(ctx context.Context, id int64, scope access.Scope, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetService(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		cur, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
-		lists, err := store.ListsOf(ctx, tx, id)
+		lists, err := store.ListsOf(ctx, tx, id, access.All)
 		if err != nil {
 			return err
 		}

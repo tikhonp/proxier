@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // withCatalog refreshes the catalog from what the upstream serves now.
@@ -21,7 +22,7 @@ func withCatalog(t *testing.T, h *routingtest.Harness) {
 
 func unmanagedTags(t *testing.T, h *routingtest.Harness, id int64) map[string]routers.UnmanagedTag {
 	t.Helper()
-	us, err := h.Mod.Routers.Unmanaged(bg, id)
+	us, err := h.Mod.Routers.Unmanaged(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestUnmanagedTagFoundAndOffered(t *testing.T) {
 		t.Fatalf("unmanaged_tags_found{netflix}: %+v", ev)
 	}
 	syncNow(t, h, id)
-	if _, err := h.Mod.Routers.Preview(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Routers.Preview(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -90,7 +91,7 @@ func TestRemoveAndIgnoreUnmanaged(t *testing.T) {
 
 	// Remove from router: only that tag, on a sync now
 	h.StartJobs()
-	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, "netflix", "admin"); err != nil {
+	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, access.All, "netflix", "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -107,15 +108,15 @@ func TestRemoveAndIgnoreUnmanaged(t *testing.T) {
 	if u := unmanagedTags(t, h, id); len(u) != 1 || u["old-work"].Tag == "" {
 		t.Fatalf("netflix is gone: %+v", u)
 	}
-	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, "netflix", "admin"); !errors.Is(err, routers.ErrNoSuchTag) {
+	if _, err := h.Mod.Routers.RemoveUnmanaged(bg, id, access.All, "netflix", "admin"); !errors.Is(err, routers.ErrNoSuchTag) {
 		t.Fatalf("no such tag: %v", err)
 	}
 
 	// Ignore: hidden from reports and notifications, left on the router
-	if err := h.Mod.Routers.Ignore(bg, id, "old-work", true, "admin"); err != nil {
+	if err := h.Mod.Routers.Ignore(bg, id, access.All, "old-work", true, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Routers.Ignore(bg, id, "old-work", true, "admin"); err != nil {
+	if err := h.Mod.Routers.Ignore(bg, id, access.All, "old-work", true, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	ev := h.Events("routing.unmanaged_tag_ignored")
@@ -141,7 +142,7 @@ func TestRemoveAndIgnoreUnmanaged(t *testing.T) {
 	if !unmanagedTags(t, h, id)["old-work"].Ignored {
 		t.Fatal("still ignored: the row stays while the tag is seen")
 	}
-	if err := h.Mod.Routers.Ignore(bg, id, "old-work", false, "admin"); err != nil {
+	if err := h.Mod.Routers.Ignore(bg, id, access.All, "old-work", false, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if ev := h.Events("routing.unmanaged_tag_ignored"); len(ev) != 2 || ev[1].Payload["ignored"] != false {

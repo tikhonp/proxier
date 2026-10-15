@@ -61,12 +61,13 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 | `MessagesDeclarer` | `Messages() i18n.Messages` |
 | `RouteDeclarer` | `Routes(r web.Routes)`: `r.Area(access.X)` gives `.View`, `.Manage` and `.At(level)` (session + CSRF + the grant's level in X), `r.Public` (no cookies), `r.Shell`, `r.SettingsPages`. `r.Member` (any grant) is the platform's, for every member's own pages |
 | `NavDeclarer`, `SettingsPageDeclarer`, `IntegrationDeclarer` | sidebar entries and Settings pages, each with its `Area` (`access.EveryMember` for every member's; a nav entry or dashboard area may add the `Level` its page needs), rows on Settings → Integrations (a Settings page, so `settings: manage`) |
-| `Searcher` | `Search(ctx, grant, q, limit)`: hits for the `/` and `:` pop-up, each with its `Area`; a hit naming none is left out |
+| `Searcher` | `Search(ctx, who, q, limit)`: hits for the `/` and `:` pop-up of what `who.Scope(area)` reads, each with its `Area`; a hit naming none is left out |
 | `JobDeclarer` | `JobTypes()`, `Schedules()` |
 | `SubscriberDeclarer` | `Subscribers() []events.Subscriber` |
 | `SubjectNamer` | names and links for `type:id` subjects in Activity and Jobs |
+| `SubjectOwner` | `OwnedSubjects(ctx, member)`: the subjects of the things a member owns, for Activity and Jobs at `activity: own` |
 | `NotificationRenderer` | the module's own notification texts |
-| `DashboardDeclarer` | dashboard areas, sorted by `Order`, each with its `Area` (and `Level`) |
+| `DashboardDeclarer` | `Dashboard(ctx, who)`: dashboard areas of what `who.Scope(area)` reads, sorted by `Order`, each with its `Area` (and `Level`) |
 
 ## Rules
 
@@ -94,7 +95,9 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 - Every signed-in route is on its area's group: what reads on `View`, what changes on `Manage`, what needs more on `At(level)`. `r.Member` holds only every member's own pages; `TestEverySignedInRouteChecksAnArea` (cmd/proxier) walks every route of the app as a member with no access and fails on any other that answers without 403.
 - A level is parsed at the boundary (`access.ParseArea`, `access.ParseLevel`): forms and rows become an `access.Area` or `access.Level` there and nowhere else.
 - A handler that checks more than its route (Cancel and Retry check the job's area) returns `web.Forbidden(area)`, an error, so it stops there; pages that show more to a higher level ask `web.Can(ctx, area, level)` or `Shell.Grant`.
-- Things have no owners yet: `own` and `view_all` gate routes as levels only.
+- Owned things (subscriptions, links, routing lists, routers, Shadowrocket configs, custom services, imports, discovery runs, generations) have an `owner_id`, a member ID with no foreign key, and every query of them takes an `access.Scope` ([ownership](./processes/platform/members.md#ownership)): `web.Scope(ctx, area)` in a handler, `access.All` in jobs, reactions and public fetches. The scope is a SQL argument (`? IN (0, owner_id)`); the zero `Scope` reads nothing. It reads the member's own at `own` and everyone's from `view_all`, and changes everyone's only at `manage_all`: a service loads a thing to change it through a `toChange` helper that answers not found outside the read scope and `access.Forbidden(area)` for one it reads but may not change (`scope.Writes(owner)`). Pickers offer `scope.Writable()`. A page hides the controls of a thing the member may not change, and names another member's owner with `web.OwnerNote`.
+- Creating takes the owner from `access.Who` (`web.Who(ctx)`): a port that creates for another module (`LinkIssuer.Issue`, `RouterRegistrar.Register`) takes the `Who` and decides the scope of its own area.
+- Each owning module reacts to `member.removed` (`auth.HandoverOf`) by giving the removed member's things to the heir in the reaction's transaction, recording one `*.handed_over` event only when it moved something.
 
 **Secrets**
 

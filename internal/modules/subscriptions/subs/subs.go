@@ -19,6 +19,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/conf"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -45,6 +46,7 @@ const (
 // Subscription is a subscription's settings.
 type Subscription struct {
 	ID                       int64
+	OwnerID                  int64 // a member
 	Name, Title, Description string
 	Formats                  []string
 	DefaultFormat            string
@@ -123,7 +125,7 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64,
 
 func fromRow(r store.Subscription) Subscription {
 	return Subscription{
-		ID: r.ID, Name: r.Name, Title: r.Title, Description: r.Description,
+		ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, Title: r.Title, Description: r.Description,
 		Formats: split(r.Formats), DefaultFormat: r.DefaultFormat, UpdateHours: r.UpdateHours,
 		Hide:    output.Hide{On: r.HideUnhealthy, States: split(r.HideStates), Grace: time.Duration(r.HideGraceMin) * time.Minute},
 		AutoAdd: r.AutoAdd, AutoAddSince: r.AutoAddSince.Time, CreatedAt: r.CreatedAt.Time,
@@ -166,9 +168,9 @@ func checkNames(fe store.FieldErrors, name, title, description string) {
 	}
 }
 
-// Create adds a subscription with the default settings. An empty title is
-// the name.
-func (s *Service) Create(ctx context.Context, name, title, description, actor string) (int64, error) {
+// Create adds a subscription of owner with the default settings. An empty
+// title is the name.
+func (s *Service) Create(ctx context.Context, owner int64, name, title, description, actor string) (int64, error) {
 	name, title, description = strings.TrimSpace(name), strings.TrimSpace(title), strings.TrimSpace(description)
 	if title == "" {
 		title = name
@@ -188,7 +190,7 @@ func (s *Service) Create(ctx context.Context, name, title, description, actor st
 			return fe
 		}
 		var err error
-		if id, err = store.InsertSubscription(ctx, tx, name, title, description, s.now()); err != nil {
+		if id, err = store.InsertSubscription(ctx, tx, owner, name, title, description, s.now()); err != nil {
 			return err
 		}
 		return s.record(ctx, tx, "subscription.created", id, actor, map[string]any{"name": name})
@@ -196,13 +198,30 @@ func (s *Service) Create(ctx context.Context, name, title, description, actor st
 	return id, err
 }
 
-// Get reads one subscription.
-func (s *Service) Get(ctx context.Context, id int64) (Subscription, error) {
-	r, err := store.GetSubscription(ctx, s.d.DB.R, id)
+// Get reads one subscription within scope.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Subscription, error) {
+	r, err := store.GetSubscription(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Subscription{}, ErrNotFound
 	}
 	return fromRow(r), err
+}
+
+// toChange loads a subscription to change it: ErrNotFound outside what
+// scope reads, so IDs don't tell what exists, and Forbidden for one it reads
+// but may not change.
+func toChange(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (store.Subscription, error) {
+	r, err := store.GetSubscription(ctx, q, id, scope)
+	if errors.Is(err, store.ErrNotFound) {
+		return r, ErrNotFound
+	}
+	if err != nil {
+		return r, err
+	}
+	if !scope.Writes(r.OwnerID) {
+		return r, access.Forbidden(access.Subscriptions)
+	}
+	return r, nil
 }
 
 // inService is what the catalog serves now, by server id.
@@ -230,9 +249,10 @@ func member(m store.Member, active map[int64]servers.ServerEndpoints) Member {
 	return out
 }
 
-// List is every subscription with its members and live links, by name.
-func (s *Service) List(ctx context.Context) ([]Row, error) {
-	all, err := store.ListSubscriptions(ctx, s.d.DB.R)
+// List is every subscription within scope with its members and live links,
+// by name.
+func (s *Service) List(ctx context.Context, scope access.Scope) ([]Row, error) {
+	all, err := store.ListSubscriptions(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -260,8 +280,8 @@ func (s *Service) List(ctx context.Context) ([]Row, error) {
 }
 
 // Members of a subscription, in order, with what the catalog serves now.
-func (s *Service) Members(ctx context.Context, id int64) ([]Member, error) {
-	if _, err := s.Get(ctx, id); err != nil {
+func (s *Service) Members(ctx context.Context, id int64, scope access.Scope) ([]Member, error) {
+	if _, err := s.Get(ctx, id, scope); err != nil {
 		return nil, err
 	}
 	rows, err := store.Members(ctx, s.d.DB.R, id)
@@ -281,7 +301,7 @@ func (s *Service) Members(ctx context.Context, id int64) ([]Member, error) {
 
 // Update saves the settings form. changed is false when nothing differed;
 // then nothing is recorded.
-func (s *Service) Update(ctx context.Context, id int64, st Settings, actor string) (bool, error) {
+func (s *Service) Update(ctx context.Context, id int64, scope access.Scope, st Settings, actor string) (bool, error) {
 	st.Name, st.Title, st.Description = strings.TrimSpace(st.Name), strings.TrimSpace(st.Title), strings.TrimSpace(st.Description)
 	if st.Title == "" {
 		st.Title = st.Name
@@ -307,10 +327,7 @@ func (s *Service) Update(ctx context.Context, id int64, st Settings, actor strin
 	}
 	changed := false
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		old, err := store.GetSubscription(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		old, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
@@ -406,20 +423,17 @@ func (s *Service) holders(ctx context.Context, q sqlx.QueryerContext, id int64) 
 }
 
 // Holders are the links that keep the subscription from being deleted now.
-func (s *Service) Holders(ctx context.Context, id int64) ([]Holder, error) {
-	if _, err := s.Get(ctx, id); err != nil {
+func (s *Service) Holders(ctx context.Context, id int64, scope access.Scope) ([]Holder, error) {
+	if _, err := s.Get(ctx, id, scope); err != nil {
 		return nil, err
 	}
 	return s.holders(ctx, s.d.DB.R, id)
 }
 
 // Delete removes a subscription no link holds; ErrHasLinks otherwise.
-func (s *Service) Delete(ctx context.Context, id int64, actor string) error {
+func (s *Service) Delete(ctx context.Context, id int64, scope access.Scope, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		sub, err := store.GetSubscription(ctx, tx, id)
-		if errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		}
+		sub, err := toChange(ctx, tx, id, scope)
 		if err != nil {
 			return err
 		}
@@ -446,7 +460,7 @@ func (s *Service) Usage(ctx context.Context, serverID int64) ([]string, int, err
 	}
 	var names []string
 	for _, id := range ids {
-		sub, err := store.GetSubscription(ctx, s.d.DB.R, id)
+		sub, err := store.GetSubscription(ctx, s.d.DB.R, id, access.All)
 		if err != nil {
 			return nil, 0, err
 		}

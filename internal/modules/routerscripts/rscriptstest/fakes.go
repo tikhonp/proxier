@@ -13,9 +13,11 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
-// FakeLinks is subscriptions' LinkIssuer in memory: subscriptions "Family"
+// FakeLinks is subscriptions' LinkIssuer in memory, every link and
+// subscription in every scope: subscriptions "Family"
 // (id 1, 3 servers) and "Me" (id 2, 4 servers). Issue keeps the link (it
 // can't follow the caller's rollback: tests that need that use WithModules)
 // with the URL https://proxier.test/s/<name hash>.
@@ -34,13 +36,13 @@ func fakeURL(name string) string {
 	return "https://proxier.test/s/" + hex.EncodeToString(sum[:8])
 }
 
-func (f *FakeLinks) Subscriptions(context.Context) ([]subscriptions.IssuerSubscription, error) {
+func (f *FakeLinks) Subscriptions(context.Context, access.Scope) ([]subscriptions.IssuerSubscription, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]subscriptions.IssuerSubscription(nil), f.subs...), nil
 }
 
-func (f *FakeLinks) Links(context.Context) ([]subscriptions.IssuedLink, error) {
+func (f *FakeLinks) Links(context.Context, access.Scope) ([]subscriptions.IssuedLink, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []subscriptions.IssuedLink
@@ -54,7 +56,7 @@ func (f *FakeLinks) Links(context.Context) ([]subscriptions.IssuedLink, error) {
 	return out, nil
 }
 
-func (f *FakeLinks) Link(_ context.Context, id int64) (subscriptions.IssuedLink, error) {
+func (f *FakeLinks) Link(_ context.Context, id int64, _ access.Scope) (subscriptions.IssuedLink, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, l := range f.links {
@@ -68,7 +70,7 @@ func (f *FakeLinks) Link(_ context.Context, id int64) (subscriptions.IssuedLink,
 	return subscriptions.IssuedLink{}, subscriptions.ErrLinkNotFound
 }
 
-func (f *FakeLinks) Issue(_ context.Context, _ *sqlx.Tx, name string, subscriptionID int64, _ string) (subscriptions.IssuedLink, error) {
+func (f *FakeLinks) Issue(_ context.Context, _ *sqlx.Tx, _ access.Who, name string, subscriptionID int64, _ string) (subscriptions.IssuedLink, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	name = strings.TrimSpace(name)
@@ -138,11 +140,11 @@ func newFakeRouters(now func() time.Time) *FakeRouters { return &FakeRouters{Now
 
 var fakeLists = []routing.RegistrarList{{ID: 1, Name: "Main", Default: true}, {ID: 2, Name: "Kids"}}
 
-func (f *FakeRouters) Lists(context.Context) ([]routing.RegistrarList, error) {
+func (f *FakeRouters) Lists(context.Context, access.Scope) ([]routing.RegistrarList, error) {
 	return append([]routing.RegistrarList(nil), fakeLists...), nil
 }
 
-func (f *FakeRouters) Routers(context.Context) ([]routing.RegisteredRouter, error) {
+func (f *FakeRouters) Routers(context.Context, access.Scope) ([]routing.RegisteredRouter, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	var out []routing.RegisteredRouter
@@ -155,7 +157,7 @@ func (f *FakeRouters) Routers(context.Context) ([]routing.RegisteredRouter, erro
 	return out, nil
 }
 
-func (f *FakeRouters) Router(_ context.Context, id int64) (routing.RegisteredRouter, error) {
+func (f *FakeRouters) Router(_ context.Context, id int64, _ access.Scope) (routing.RegisteredRouter, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, r := range f.routers {
@@ -166,13 +168,13 @@ func (f *FakeRouters) Router(_ context.Context, id int64) (routing.RegisteredRou
 	return routing.RegisteredRouter{}, routing.ErrRouterNotFound
 }
 
-func (f *FakeRouters) JumpHosts(context.Context) ([]routing.JumpHost, error) {
+func (f *FakeRouters) JumpHosts(context.Context, access.Scope) ([]routing.JumpHost, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	return append([]routing.JumpHost(nil), f.Jumps...), nil
 }
 
-func (f *FakeRouters) Register(_ context.Context, _ *sqlx.Tx, r routing.RouterRegistration, _ string) (routing.RegisteredRouter, error) {
+func (f *FakeRouters) Register(_ context.Context, _ *sqlx.Tx, _ access.Who, r routing.RouterRegistration, _ string) (routing.RegisteredRouter, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	fe := routing.FieldErrors{}

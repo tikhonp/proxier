@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery"
 	"github.com/tikhonp/proxier/internal/modules/routing/discovery/discoverytest"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestCatalogSuggestionsFirst(t *testing.T) {
@@ -18,12 +19,12 @@ func TestCatalogSuggestionsFirst(t *testing.T) {
 	refreshCatalog(t, h)
 	release := b.Block()
 	defer release()
-	id := start(t, h, discovery.Start{Website: "claude.ai", Via: discovery.ViaDirect})
+	id := start(t, h, discovery.Start{Owner: 1, Website: "claude.ai", Via: discovery.ViaDirect})
 	if !b.Entered(10 * time.Second) {
 		t.Fatal("the visit never started")
 	}
 	// the visit is still held: the suggestions are already there
-	r, err := h.Mod.Discovery.Get(bg, id)
+	r, err := h.Mod.Discovery.Get(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,7 +65,7 @@ func TestBlockedSiteAndVisitAgain(t *testing.T) {
 	b.Site(url, "nl-1", loaded(url, "Blocked at home",
 		req(url, "www.blocked.example"), req("https://static.blockedcdn.net/app.js", "static.blockedcdn.net")))
 
-	r := wait(t, h, start(t, h, discovery.Start{Website: "www.blocked.example", Via: discovery.ViaDirect}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "www.blocked.example", Via: discovery.ViaDirect}), discovery.Done)
 	if len(r.Visits) != 1 || r.Visits[0].Loaded || r.Visits[0].Error != "net::ERR_CONNECTION_RESET" || r.Visits[0].Failed != 2 {
 		t.Fatalf("direct visit: %+v", r.Visits)
 	}
@@ -80,7 +81,7 @@ func TestBlockedSiteAndVisitAgain(t *testing.T) {
 		t.Errorf("the site's group: %+v", g)
 	}
 
-	again, err := h.Mod.Discovery.Again(bg, r.ID, discovery.ViaServer, 1, "admin")
+	again, err := h.Mod.Discovery.Again(bg, r.ID, routingtest.Owner, discovery.ViaServer, 1, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +98,7 @@ func TestBlockedSiteAndVisitAgain(t *testing.T) {
 		t.Errorf("dialed %v", d)
 	}
 	// the first run is untouched
-	if r1, _ := h.Mod.Discovery.Get(bg, r.ID); r1.Visits[0].Loaded {
+	if r1, _ := h.Mod.Discovery.Get(bg, r.ID, access.All); r1.Visits[0].Loaded {
 		t.Error("the first run changed")
 	}
 }
@@ -112,7 +113,7 @@ func TestAutoRepeatsThroughServer(t *testing.T) {
 	b.Site(url, "", blocked(url))
 	b.Site(url, "de-1", loaded(url, "Blocked", req(url, "www.blocked.example"), req("https://api.blocked.example/v1", "api.blocked.example")))
 
-	r := wait(t, h, start(t, h, discovery.Start{Website: url, Via: discovery.ViaAuto}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: url, Via: discovery.ViaAuto}), discovery.Done)
 	if len(r.Visits) != 2 || r.Visits[0].Path != "direct" || r.Visits[0].Loaded || r.Visits[1].Path != "de-1" || !r.Visits[1].Loaded {
 		t.Fatalf("visits: %+v", r.Visits)
 	}
@@ -133,7 +134,7 @@ func TestAutoRepeatsThroughServer(t *testing.T) {
 	// a direct visit that loads cleanly isn't repeated
 	ok := "https://fine.example/"
 	b.Site(ok, "", loaded(ok, "Fine", req(ok, "fine.example")))
-	r = wait(t, h, start(t, h, discovery.Start{Website: ok, Via: discovery.ViaAuto}), discovery.Done)
+	r = wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: ok, Via: discovery.ViaAuto}), discovery.Done)
 	if len(r.Visits) != 1 || len(h.Servers.Dialed()) != 1 {
 		t.Errorf("a clean direct visit was repeated: %+v", r.Visits)
 	}
@@ -148,7 +149,7 @@ func TestHostCap(t *testing.T) {
 		res.Requests = append(res.Requests, req("https://"+host+"/x", host))
 	}
 	b.Site(url, "", res)
-	r := wait(t, h, start(t, h, discovery.Start{Website: url, Via: discovery.ViaDirect}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: url, Via: discovery.ViaDirect}), discovery.Done)
 	if !r.Capped || len(r.Hosts) != discovery.MaxHosts {
 		t.Fatalf("capped %v with %d hosts", r.Capped, len(r.Hosts))
 	}
@@ -167,7 +168,7 @@ func TestWithoutChromium(t *testing.T) {
 	h.StartJobs()
 	h.Up.V2fly("anthropic", "claude.ai\n")
 	refreshCatalog(t, h)
-	r := wait(t, h, start(t, h, discovery.Start{Website: "claude.ai", Via: discovery.ViaDirect}), discovery.Done)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "claude.ai", Via: discovery.ViaDirect}), discovery.Done)
 	if len(r.Visits) != 0 || len(r.Hosts) != 0 || len(r.Suggestions) != 1 {
 		t.Fatalf("run: %+v", r)
 	}
@@ -185,7 +186,7 @@ func TestChromiumFailsMidRun(t *testing.T) {
 	h.Up.V2fly("anthropic", "claude.ai\n")
 	refreshCatalog(t, h)
 	b.Fail(discoverytest.ErrUnreachable)
-	r := wait(t, h, start(t, h, discovery.Start{Website: "claude.ai", Via: discovery.ViaDirect}), discovery.Failed)
+	r := wait(t, h, start(t, h, discovery.Start{Owner: 1, Website: "claude.ai", Via: discovery.ViaDirect}), discovery.Failed)
 	if !strings.Contains(r.Error, "connection refused") || len(r.Suggestions) != 1 || r.FinishedAt.IsZero() {
 		t.Fatalf("run: %+v", r)
 	}
@@ -209,13 +210,13 @@ func TestOneRunAtATime(t *testing.T) {
 	h, b := newH(t)
 	release := b.Block()
 	defer release()
-	first := start(t, h, discovery.Start{Website: "one.example", Via: discovery.ViaDirect})
-	second := start(t, h, discovery.Start{Website: "two.example", Via: discovery.ViaDirect})
+	first := start(t, h, discovery.Start{Owner: 1, Website: "one.example", Via: discovery.ViaDirect})
+	second := start(t, h, discovery.Start{Owner: 1, Website: "two.example", Via: discovery.ViaDirect})
 	if !b.Entered(10 * time.Second) {
 		t.Fatal("no visit started")
 	}
 	time.Sleep(400 * time.Millisecond) // more than the workers' poll
-	if r, _ := h.Mod.Discovery.Get(bg, second); r.State != discovery.Queued {
+	if r, _ := h.Mod.Discovery.Get(bg, second, access.All); r.State != discovery.Queued {
 		t.Fatalf("the second run is %s while the first visits", r.State)
 	}
 	if v := b.Visits(); len(v) != 1 || v[0].URL != "https://one.example/" {

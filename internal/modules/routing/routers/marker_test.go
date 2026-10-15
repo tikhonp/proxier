@@ -6,6 +6,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestMarkerSkipsInactiveRouters(t *testing.T) {
@@ -14,7 +15,7 @@ func TestMarkerSkipsInactiveRouters(t *testing.T) {
 	_, active := h.Router("Active", 0)
 	_, paused := h.Router("Paused", 0)
 	h.Exec(`UPDATE routing_routers SET state = 'paused' WHERE id = ?`, paused)
-	untested, err := h.Mod.Routers.Create(bg, "Untested", main, routers.Connection{Host: "10.230.9.1"}, 0, "admin")
+	untested, err := h.Mod.Routers.Create(bg, routingtest.Owner, "Untested", main, routers.Connection{Host: "10.230.9.1"}, 0, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestMarkerSkipsInactiveRouters(t *testing.T) {
 		t.Fatalf("merged into the queued ones: %d", n)
 	}
 	// a router's own list change: never for one that is untested
-	if err := h.Mod.Routers.SetList(bg, untested, other, "admin"); err != nil {
+	if err := h.Mod.Routers.SetList(bg, untested, access.All, other, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if got := synced(); slices.Contains(got, untested) || slices.Contains(got, paused) {

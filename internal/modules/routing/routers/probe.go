@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sshx"
 )
@@ -74,7 +75,7 @@ func (s *Service) stepProbe(ctx context.Context, r *jobs.Run) error {
 	if err := r.Payload(&p); err != nil {
 		return jobs.Permanent(err)
 	}
-	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID)
+	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	} else if err != nil {
@@ -114,7 +115,7 @@ func (s *Service) stepProbe(ctx context.Context, r *jobs.Run) error {
 // activate ends a router's awaiting setup: active, connected, its initial
 // sync queued. A router no longer awaiting is left alone.
 func (s *Service) activate(ctx context.Context, tx *sqlx.Tx, id int64, version, board, actor string) error {
-	cur, err := store.GetRouter(ctx, tx, id)
+	cur, err := store.GetRouter(ctx, tx, id, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	} else if err != nil {

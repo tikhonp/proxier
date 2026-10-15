@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v5"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/httpx"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -33,7 +34,7 @@ func ErrorHandler(log *slog.Logger) echo.HTTPErrorHandler {
 			return
 		}
 		page := ui.ErrorPage(code)
-		var fe *ForbiddenError
+		var fe *access.ForbiddenError
 		if errors.As(err, &fe) {
 			page = ui.ForbiddenPage(fe.Area)
 			if c.Request().Header.Get("HX-Request") == "true" {

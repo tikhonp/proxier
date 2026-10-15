@@ -8,7 +8,6 @@ import (
 )
 
 // ------------------------------------------------------------------ the list
-
 templ linksPage(s ui.Shell, v linksView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -87,7 +86,6 @@ templ linksPage(s ui.Shell, v linksView) {
 }
 
 // ------------------------------------------------------------------ new link
-
 templ newLinkPage(s ui.Shell, v newLinkView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
@@ -177,7 +175,6 @@ templ expiryFields(e expiryForm, errs map[string]string, hint string) {
 }
 
 // ------------------------------------------------- pages styled as dialogs
-
 templ linkFormPage(s ui.Shell, v linkFormView) {
 	@ui.Layout(s) {
 		<div class="titleblock">

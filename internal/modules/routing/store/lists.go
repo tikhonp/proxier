@@ -4,31 +4,34 @@ import (
 	"context"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
 // List is a row of routing_lists.
 type List struct {
 	ID          int64   `db:"id"`
+	OwnerID     int64   `db:"owner_id"`
 	Name        string  `db:"name"`
 	Description string  `db:"description"`
 	IsDefault   bool    `db:"is_default"`
 	CreatedAt   db.Time `db:"created_at"`
 }
 
-const listCols = `id, name, description, is_default, created_at`
+const listCols = `id, owner_id, name, description, is_default, created_at`
 
-// Lists reads every routing list: the default first, then by name.
-func Lists(ctx context.Context, q sqlx.QueryerContext) ([]List, error) {
+// Lists reads every routing list within scope: the default first, then by
+// name.
+func Lists(ctx context.Context, q sqlx.QueryerContext, scope access.Scope) ([]List, error) {
 	var out []List
-	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+listCols+` FROM routing_lists ORDER BY is_default DESC, name`)
+	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+listCols+` FROM routing_lists WHERE ? IN (0, owner_id) ORDER BY is_default DESC, name`, scope)
 	return out, err
 }
 
-// GetList reads one by id.
-func GetList(ctx context.Context, q sqlx.QueryerContext, id int64) (List, error) {
+// GetList reads one by id within scope.
+func GetList(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (List, error) {
 	var l List
-	err := sqlx.GetContext(ctx, q, &l, `SELECT `+listCols+` FROM routing_lists WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &l, `SELECT `+listCols+` FROM routing_lists WHERE id = ? AND ? IN (0, owner_id)`, id, scope)
 	return l, notFound(err)
 }
 
@@ -48,8 +51,8 @@ func ListNameTaken(ctx context.Context, q sqlx.QueryerContext, name string, exce
 
 // InsertList adds a list and returns its id.
 func InsertList(ctx context.Context, x sqlx.ExtContext, l List) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_lists (name, description, is_default, created_at) VALUES (?, ?, 0, ?)`,
-		l.Name, l.Description, l.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_lists (owner_id, name, description, is_default, created_at) VALUES (?, ?, ?, 0, ?)`,
+		l.OwnerID, l.Name, l.Description, l.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
@@ -78,11 +81,11 @@ func DeleteList(ctx context.Context, x sqlx.ExtContext, id int64) error {
 	return err
 }
 
-// ListsOf names the routing lists that hold a service, by name.
-func ListsOf(ctx context.Context, q sqlx.QueryerContext, serviceID int64) ([]string, error) {
+// ListsOf names the routing lists within scope that hold a service, by name.
+func ListsOf(ctx context.Context, q sqlx.QueryerContext, serviceID int64, scope access.Scope) ([]string, error) {
 	var out []string
 	err := sqlx.SelectContext(ctx, q, &out, `SELECT l.name FROM routing_list_services m JOIN routing_lists l ON l.id = m.list_id
-		WHERE m.service_id = ? ORDER BY l.name`, serviceID)
+		WHERE m.service_id = ? AND ? IN (0, l.owner_id) ORDER BY l.name`, serviceID, scope)
 	return out, err
 }
 
@@ -97,6 +100,7 @@ func ListName(ctx context.Context, q sqlx.QueryerContext, id int64) (string, err
 type ListTarget struct {
 	Kind      string  `db:"kind"` // router, shadowrocket
 	ID        int64   `db:"id"`
+	OwnerID   int64   `db:"owner_id"`
 	Name      string  `db:"name"`
 	State     string  `db:"state"`
 	LastFetch db.Time `db:"last_fetch"` // Shadowrocket: the last fetch; zero for none and for routers
@@ -107,10 +111,10 @@ type ListTarget struct {
 func ListTargets(ctx context.Context, q sqlx.QueryerContext, listID int64) ([]ListTarget, error) {
 	var out []ListTarget
 	err := sqlx.SelectContext(ctx, q, &out, `
-		SELECT 'router' AS kind, id, name, state, NULL AS last_fetch FROM routing_routers WHERE list_id = ?
+		SELECT 'router' AS kind, id, owner_id, name, state, NULL AS last_fetch FROM routing_routers WHERE list_id = ?
 		UNION ALL
-		SELECT 'shadowrocket', id, name, CASE enabled WHEN 1 THEN 'enabled' ELSE 'disabled' END, last_fetch_at FROM routing_shadowrocket WHERE list_id = ?
-		ORDER BY 1, 3`, listID, listID)
+		SELECT 'shadowrocket', id, owner_id, name, CASE enabled WHEN 1 THEN 'enabled' ELSE 'disabled' END, last_fetch_at FROM routing_shadowrocket WHERE list_id = ?
+		ORDER BY 1, 4`, listID, listID)
 	return out, err
 }
 

@@ -20,6 +20,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -55,6 +56,7 @@ const MaxName = 60
 // Router is a router as the pages and jobs see it.
 type Router struct {
 	ID              int64
+	OwnerID         int64 // a member
 	Name            string
 	ListID          int64
 	List            string
@@ -96,7 +98,7 @@ func (r Router) Connected() bool { return !r.ConnectedAt.IsZero() }
 
 func routerOf(r store.Router) Router {
 	return Router{
-		ID: r.ID, Name: r.Name, ListID: r.ListID, List: r.List, State: r.State, Conn: connOf(r), Version: r.Version, Board: r.Board,
+		ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, ListID: r.ListID, List: r.List, State: r.State, Conn: connOf(r), Version: r.Version, Board: r.Board,
 		ConnectedAt: r.ConnectedAt.Time, LastSeenAt: r.LastSeenAt.Time, LastSyncAt: r.LastSyncAt.Time, LastResult: r.LastSyncResult,
 		LastError: r.LastSyncError, Failures: r.Failures, FailureNotified: r.FailureNotified, Untagged: r.Untagged, InfraPins: r.InfraPins,
 		ReadAt: r.ReadAt.Time, Drift: splitTags(r.Drift), DriftCheckedAt: r.DriftCheckedAt.Time, AwaitingUntil: r.AwaitingUntil.Time,
@@ -171,26 +173,41 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64,
 }
 
 // Get reads a router.
-func (s *Service) Get(ctx context.Context, id int64) (Router, error) {
-	r, err := store.GetRouter(ctx, s.d.DB.R, id)
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Router, error) {
+	r, err := store.GetRouter(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Router{}, ErrNotFound
 	}
 	return routerOf(r), err
+}
+
+// toChange loads a router to change it: ErrNotFound outside what scope
+// reads, so IDs don't tell what exists, and Forbidden for one it reads but
+// may not change. Actions that queue jobs check before their write; the
+// jobs then act on the router whoever owns it.
+func (s *Service) toChange(ctx context.Context, id int64, scope access.Scope) (Router, error) {
+	r, err := s.Get(ctx, id, scope)
+	if err != nil {
+		return r, err
+	}
+	if !scope.Writes(r.OwnerID) {
+		return r, access.Forbidden(access.Routing)
+	}
+	return r, nil
 }
 
 // GetIn reads a router inside q (a transaction that just wrote it).
 func (s *Service) GetIn(ctx context.Context, q sqlx.QueryerContext, id int64) (Router, error) {
-	r, err := store.GetRouter(ctx, q, id)
+	r, err := store.GetRouter(ctx, q, id, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return Router{}, ErrNotFound
 	}
 	return routerOf(r), err
 }
 
-// List reads every router by name.
-func (s *Service) List(ctx context.Context) ([]Router, error) {
-	rows, err := store.Routers(ctx, s.d.DB.R)
+// List reads every router within scope by name.
+func (s *Service) List(ctx context.Context, scope access.Scope) ([]Router, error) {
+	rows, err := store.Routers(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -234,8 +251,9 @@ func checkName(ctx context.Context, q sqlx.QueryerContext, name string, except i
 // Create saves a router. With testID the add form's latest test: when it
 // passed (or warned) with exactly these values, the router is connected and
 // its initial sync is queued; otherwise (testID 0 or other values) it is
-// saved untested and waits for a passing test.
-func (s *Service) Create(ctx context.Context, name string, listID int64, c Connection, testID int64, actor string) (int64, error) {
+// saved untested and waits for a passing test. The router is w's and
+// follows a list w may change.
+func (s *Service) Create(ctx context.Context, w access.Who, name string, listID int64, c Connection, testID int64, actor string) (int64, error) {
 	name = strings.TrimSpace(name)
 	c = c.Normalize()
 	fe := c.Validate()
@@ -244,7 +262,7 @@ func (s *Service) Create(ctx context.Context, name string, listID int64, c Conne
 	}
 	var tested *Test
 	if testID != 0 {
-		if t, err := s.Test(ctx, testID); err == nil && t.RouterID == 0 && t.Conn == c && (t.State == TestPassed || t.State == TestWarned) {
+		if t, err := s.Test(ctx, testID, access.Owner(w.Member)); err == nil && t.RouterID == 0 && t.Conn == c && (t.State == TestPassed || t.State == TestWarned) {
 			tested = &t
 		}
 	}
@@ -253,7 +271,7 @@ func (s *Service) Create(ctx context.Context, name string, listID int64, c Conne
 		if err := checkName(ctx, tx, name, 0, fe); err != nil {
 			return err
 		}
-		l, err := store.GetList(ctx, tx, listID)
+		l, err := store.GetList(ctx, tx, listID, w.Scope(access.Routing).Writable())
 		if errors.Is(err, store.ErrNotFound) {
 			fe["list"] = "routers.err.list"
 		} else if err != nil {
@@ -264,7 +282,7 @@ func (s *Service) Create(ctx context.Context, name string, listID int64, c Conne
 		}
 		now := s.now()
 		row := store.Router{
-			Name: name, ListID: listID, State: "active", Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
+			OwnerID: w.Member, Name: name, ListID: listID, State: "active", Host: c.Host, Port: c.Port, User: c.User, JumpHost: c.JumpHost,
 			JumpPort: c.JumpPort, JumpUser: c.JumpUser, Tailnet: c.Tailnet, AddressList: c.Names.List, Forwarder: c.Names.Forwarder,
 			CreatedBy: actor, CreatedAt: now,
 		}
@@ -299,7 +317,10 @@ func (s *Service) Create(ctx context.Context, name string, listID int64, c Conne
 
 // Edit changes a router's name, connection and names. A new address is
 // confirmed by the next test; new names mark the router for a sync.
-func (s *Service) Edit(ctx context.Context, id int64, name string, c Connection, actor string) (bool, error) {
+func (s *Service) Edit(ctx context.Context, id int64, scope access.Scope, name string, c Connection, actor string) (bool, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return false, err
+	}
 	name = strings.TrimSpace(name)
 	c = c.Normalize()
 	fe := c.Validate()
@@ -308,7 +329,7 @@ func (s *Service) Edit(ctx context.Context, id int64, name string, c Connection,
 	}
 	changed := false
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetRouter(ctx, tx, id)
+		cur, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
@@ -359,16 +380,20 @@ func (s *Service) Edit(ctx context.Context, id int64, name string, c Connection,
 	return changed, err
 }
 
-// SetList makes the router follow another list and marks it for a sync.
-func (s *Service) SetList(ctx context.Context, id, listID int64, actor string) error {
+// SetList makes the router follow another list, one scope may change, and
+// marks it for a sync.
+func (s *Service) SetList(ctx context.Context, id int64, scope access.Scope, listID int64, actor string) error {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return err
+	}
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		cur, err := store.GetRouter(ctx, tx, id)
+		cur, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {
 			return err
 		}
-		l, err := store.GetList(ctx, tx, listID)
+		l, err := store.GetList(ctx, tx, listID, scope.Writable())
 		if errors.Is(err, store.ErrNotFound) {
 			return store.FieldErrors{"list": "routers.err.list"}
 		} else if err != nil {

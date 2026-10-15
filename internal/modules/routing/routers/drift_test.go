@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // installed is a harness with Home following Main, which holds a custom
@@ -98,7 +99,7 @@ func TestDriftWithoutRepairNotifiesOnce(t *testing.T) {
 	}
 
 	h.StartJobs()
-	if _, err := h.Mod.Routers.Repair(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Routers.Repair(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -154,7 +155,7 @@ func TestDriftRoundSkips(t *testing.T) {
 	_, ok := h.Router("Ok", 0)
 	off, offline := h.Router("Offline", 0)
 	off.Offline(true)
-	if err := h.Mod.Routers.Pause(bg, paused, "admin"); err != nil {
+	if err := h.Mod.Routers.Pause(bg, paused, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.List("Other", h.Upstream("v2fly:a")) // Queued gets a sync 30 s later

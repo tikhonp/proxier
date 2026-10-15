@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestFirstSyncOfMtvpnRouterPushesNothing(t *testing.T) {
@@ -154,7 +155,7 @@ func TestRemovedServiceIsRemoved(t *testing.T) {
 	if !slices.Equal(r.Tags(), []string{"openai"}) {
 		t.Fatalf("installed: %v", r.Tags())
 	}
-	if err := h.Mod.Lists.Remove(bg, main, openai, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(bg, main, access.All, openai, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(31 * time.Second)
@@ -199,7 +200,7 @@ func TestGainingTagPushedFirst(t *testing.T) {
 			t.Error("claude.ai missing after an import")
 		}
 	})
-	if _, _, err := h.Mod.Lists.Move(bg, main, mine, false, "admin"); err != nil { // mine up
+	if _, _, err := h.Mod.Lists.Move(bg, main, access.All, mine, false, "admin"); err != nil { // mine up
 		t.Fatal(err)
 	}
 	h.Advance(31 * time.Second)
@@ -225,7 +226,7 @@ func TestNameNeverLostWhenOwnerLeaves(t *testing.T) {
 			t.Error("claude.ai missing after an import")
 		}
 	})
-	if err := h.Mod.Lists.Remove(bg, main, anthropic, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(bg, main, access.All, anthropic, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(31 * time.Second)
@@ -263,7 +264,7 @@ func TestSubdomainUnderAnotherServiceInstalled(t *testing.T) {
 		t.Errorf("address list: %+v", list)
 	}
 	imports := len(r.Imports())
-	if _, _, err := h.Mod.Lists.Move(bg, main, mine, false, "admin"); err != nil { // mine up
+	if _, _, err := h.Mod.Lists.Move(bg, main, access.All, mine, false, "admin"); err != nil { // mine up
 		t.Fatal(err)
 	}
 	h.Advance(31 * time.Second)
@@ -271,7 +272,7 @@ func TestSubdomainUnderAnotherServiceInstalled(t *testing.T) {
 	if n := len(r.Imports()); n != imports {
 		t.Errorf("a reorder pushed %d files", n-imports)
 	}
-	if err := h.Mod.Lists.Remove(bg, main, anthropic, "admin"); err != nil {
+	if err := h.Mod.Lists.Remove(bg, main, access.All, anthropic, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Advance(31 * time.Second)
@@ -428,7 +429,7 @@ func TestSyncNowRunsAtOnce(t *testing.T) {
 	h.StartJobs()
 	h.Up.V2fly("openai", "openai.com\n")
 	h.List("Main", h.Upstream("v2fly:openai"))
-	if _, err := h.Mod.Routers.SyncNow(bg, id, "admin"); err != nil {
+	if _, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()
@@ -464,7 +465,7 @@ func TestRestartDuringImport(t *testing.T) {
 	r, id := h.Router("Home", 0)
 	release := r.Hold(2)
 	h.StartJobs()
-	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -509,7 +510,7 @@ func TestNextSyncRemovesTheFileOfACancelledSync(t *testing.T) {
 	r, id := h.Router("Home", 0)
 	release := r.Hold(1)
 	h.StartJobs()
-	job, err := h.Mod.Routers.SyncNow(bg, id, "admin")
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
 	if err != nil {
 		t.Fatal(err)
 	}

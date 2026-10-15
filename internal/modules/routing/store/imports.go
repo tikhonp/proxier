@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 )
 
@@ -16,6 +17,7 @@ const ImportRetention = 30 * 24 * time.Hour
 // are JSON the mtvpn package reads; the file's text is never here.
 type Import struct {
 	ID           int64         `db:"id"`
+	OwnerID      int64         `db:"owner_id"`
 	State        string        `db:"state"`
 	ListID       sql.NullInt64 `db:"list_id"`
 	Rows         string        `db:"rows"`
@@ -29,23 +31,23 @@ type Import struct {
 	FinishedAt   db.Time       `db:"finished_at"`
 }
 
-const importCols = `id, state, list_id, rows, ignored, base, base_url, shadowrocket, list_failures, job_id, created_at, finished_at`
+const importCols = `id, owner_id, state, list_id, rows, ignored, base, base_url, shadowrocket, list_failures, job_id, created_at, finished_at`
 
 // InsertImport stores a preview and returns its id.
 func InsertImport(ctx context.Context, x sqlx.ExtContext, im Import) (int64, error) {
-	res, err := x.ExecContext(ctx, `INSERT INTO routing_imports (state, list_id, rows, ignored, base, base_url, shadowrocket, list_failures, created_at)
-		VALUES ('preview', ?, ?, ?, ?, ?, ?, ?, ?)`,
-		im.ListID, im.Rows, im.Ignored, im.Base, im.BaseURL, im.Shadowrocket, im.ListFailures, im.CreatedAt)
+	res, err := x.ExecContext(ctx, `INSERT INTO routing_imports (owner_id, state, list_id, rows, ignored, base, base_url, shadowrocket, list_failures, created_at)
+		VALUES (?, 'preview', ?, ?, ?, ?, ?, ?, ?, ?)`,
+		im.OwnerID, im.ListID, im.Rows, im.Ignored, im.Base, im.BaseURL, im.Shadowrocket, im.ListFailures, im.CreatedAt)
 	if err != nil {
 		return 0, err
 	}
 	return res.LastInsertId()
 }
 
-// GetImport reads one import.
-func GetImport(ctx context.Context, q sqlx.QueryerContext, id int64) (Import, error) {
+// GetImport reads one import within scope.
+func GetImport(ctx context.Context, q sqlx.QueryerContext, id int64, scope access.Scope) (Import, error) {
 	var im Import
-	err := sqlx.GetContext(ctx, q, &im, `SELECT `+importCols+` FROM routing_imports WHERE id = ?`, id)
+	err := sqlx.GetContext(ctx, q, &im, `SELECT `+importCols+` FROM routing_imports WHERE id = ? AND ? IN (0, owner_id)`, id, scope)
 	return im, notFound(err)
 }
 

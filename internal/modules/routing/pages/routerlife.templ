@@ -41,7 +41,7 @@ templ lifeBands(v routerView) {
 					<a class="sm" href={ templ.SafeURL(v.Removing.JobHref) }>{ i18n.T(ctx, "routers.band.removing_job") }</a>
 				}
 			</div>
-			if v.Removing.Failed {
+			if v.Removing.Failed && v.CanChange {
 				<div class="inline-fields">
 					@ui.ActionButton(ui.Action{ID: "routers.remove_retry", Label: "routers.remove.retry", Method: "POST", Href: routerHref(v.R.ID) + "/remove/retry", Small: true, Kind: ui.Primary})
 					@ui.ActionButton(ui.Action{
@@ -60,7 +60,7 @@ templ lifeBands(v routerView) {
 					<span class="sm">{ i18n.T(ctx, "routers.band.drift_repairs") }</span>
 				}
 			</div>
-			if v.Drift.Repair {
+			if v.Drift.Repair && v.CanChange {
 				@ui.ActionButton(ui.Action{ID: "routers.repair", Label: "routers.repair", Method: "POST", Href: routerHref(v.R.ID) + "/repair", Small: true, Kind: ui.Primary})
 			}
 		</section>
@@ -125,7 +125,8 @@ templ unmanagedRowView(v routerView, u unmanagedRow, ignored bool) {
 			}
 		</span>
 		<span class="inline-fields">
-			if ignored {
+			if !v.CanChange {
+			} else if ignored {
 				<form method="post" action={ templ.SafeURL(u.BaseHref + "/unignore") } class="inline">
 					<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 					<button type="submit" class="pc-btn pc-sm" data-action={ "routers.unignore." + u.Tag }>{ i18n.T(ctx, "routers.unmanaged.unignore") }</button>
@@ -139,7 +140,7 @@ templ unmanagedRowView(v routerView, u unmanagedRow, ignored bool) {
 					<button type="submit" class="pc-btn pc-sm pc-ghost" data-action={ "routers.ignore." + u.Tag }>{ i18n.T(ctx, "routers.unmanaged.ignore") }</button>
 				</form>
 			}
-			if v.R.State == "active" {
+			if v.R.State == "active" && v.CanChange {
 				@ui.ActionButton(ui.Action{
 					ID: "routers.unmanaged_remove." + u.Tag, Label: "routers.unmanaged.remove", Method: "POST", Href: u.BaseHref + "/remove", Small: true, Kind: ui.Danger,
 					Confirm: &ui.Confirm{Strength: 2, Title: u.RemoveTitle, Body: i18n.T(ctx, "routers.unmanaged.remove.body", i18n.Args{"router": v.R.Name})},

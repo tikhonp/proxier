@@ -53,7 +53,7 @@ func (s *Service) Search(ctx context.Context, q Query) (results []Result, more i
 	if err != nil {
 		return nil, 0, err
 	}
-	svcs, err := s.d.Services.List(ctx, services.Filter{})
+	svcs, err := s.d.Services.List(ctx, q.Scope, services.Filter{})
 	if err != nil {
 		return nil, 0, err
 	}

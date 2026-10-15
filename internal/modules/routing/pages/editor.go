@@ -73,7 +73,7 @@ func (h *handler) savedSet(ctx context.Context, id int64) (map[string]bool, []se
 }
 
 func (h *handler) loadCustom(c *echo.Context) (services.Item, error) {
-	it, err := h.load(c)
+	it, err := h.loadToChange(c)
 	if err != nil {
 		return it, err
 	}
@@ -123,7 +123,7 @@ func (h *handler) renderEditor(c *echo.Context, status int, v editorView) error 
 // installs instead ("not installed in Main: openai has it"), or covers with a
 // suffix above while the row is installed all the same, and words the footer.
 func (h *handler) coverHints(ctx context.Context, v *editorView) error {
-	ms, err := h.Lists.Memberships(ctx, v.It.ID)
+	ms, err := h.Lists.Memberships(ctx, v.It.ID, scope(ctx))
 	if err != nil || len(ms) == 0 {
 		return err
 	}
@@ -219,7 +219,7 @@ func (h *handler) edit(c *echo.Context) error {
 			rows = append(rows[:n-1], rows[n:]...)
 		}
 	default: // save, also ⌘↵ (no button)
-		res, err := h.Services.SaveCustom(ctx, it.ID, services.Edit{Name: v.Name, Tag: v.Tag, Description: v.Description, Rows: rows}, web.Actor(ctx))
+		res, err := h.Services.SaveCustom(ctx, it.ID, scope(ctx), services.Edit{Name: v.Name, Tag: v.Tag, Description: v.Description, Rows: rows}, web.Actor(ctx))
 		var ge *lists.GuardError
 		if errors.As(err, &ge) {
 			v.Rows = editorRows(rows, saved)

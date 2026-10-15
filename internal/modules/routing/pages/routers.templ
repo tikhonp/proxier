@@ -70,10 +70,14 @@ templ routersPage(s ui.Shell, rows []routerRow, notice string) {
 							}
 						</span>
 						<span class={ "sm", templ.KV("gold", r.Watched), templ.KV("subtle", !r.Watched) }>{ r.Watch }</span>
-						<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
-							<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
-							<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
-						</form>
+						if r.CanChange {
+							<form method="post" action={ templ.SafeURL(routerHref(r.ID) + "/sync") } class="inline">
+								<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+								<button type="submit" class="pc-btn pc-sm" data-key="s" data-row-only data-action={ "routers.sync_now." + i64(r.ID) }>{ i18n.T(ctx, "routers.sync_now") }</button>
+							</form>
+						} else {
+							<span></span>
+						}
 					</div>
 				}
 			</div>
@@ -310,7 +314,8 @@ templ routerPage(s ui.Shell, v routerView) {
 				<p class="subtle">{ v.Line }</p>
 			</div>
 			<div class="actions">
-				if v.R.State == "active" {
+				if !v.CanChange {
+				} else if v.R.State == "active" {
 					@ui.ActionButton(ui.Action{ID: "routers.sync_now", Label: "routers.sync_now", Method: "POST", Href: routerHref(v.R.ID) + "/sync", Key: "s", Kind: ui.Primary})
 					@ui.ActionButton(ui.Action{ID: "routers.preview", Label: "routers.preview", Method: "POST", Href: routerHref(v.R.ID) + "/preview", Key: "p"})
 					@ui.ActionButton(ui.Action{ID: "routers.pause", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause"})
@@ -384,10 +389,12 @@ templ routerPage(s ui.Shell, v routerView) {
 							<dd>{ v.Conn.Drift }</dd>
 						}
 					</dl>
-					<div class="area-body inline-fields">
-						@testButton(v.R.ID)
-						@ui.ActionButton(ui.Action{ID: "routers.edit", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true, Key: "e"})
-					</div>
+					if v.CanChange {
+						<div class="area-body inline-fields">
+							@testButton(v.R.ID)
+							@ui.ActionButton(ui.Action{ID: "routers.edit", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true, Key: "e"})
+						</div>
+					}
 				</section>
 				if v.Test != nil {
 					@testArea(*v.Test)
@@ -422,19 +429,8 @@ templ routerPage(s ui.Shell, v routerView) {
 						<p class="pager"><a href={ templ.SafeURL(v.OlderHref) }>{ i18n.T(ctx, "routers.history.older") }</a></p>
 					}
 				</section>
-				@ui.Area(i18n.T(ctx, "routers.area.actions"), "") {
-					<div class="act-rows">
-						@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
-						@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
-						if v.R.State == "active" {
-							@actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what"))
-						} else if v.R.State == "paused" {
-							@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
-						}
-						if v.R.State != "removing" {
-							@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
-						}
-					</div>
+				if v.CanChange {
+					@routerActions(v)
 				}
 				@ui.Area(i18n.T(ctx, "routers.area.activity"), "") {
 					if len(v.Activity) == 0 {
@@ -531,7 +527,7 @@ templ previewArea(v rtPreviewView) {
 					<button type="button" class="pc-btn pc-sm" data-copy-from="#preview-script">{ i18n.T(ctx, "routers.copy") }</button>
 					<a class="pc-btn pc-sm" href={ templ.SafeURL(v.ScriptHref) } download>{ i18n.T(ctx, "routers.preview.download") }</a>
 				}
-				if v.HasPushes {
+				if v.HasPushes && v.CanChange {
 					@ui.ActionButton(ui.Action{ID: "routers.run_preview", Label: "routers.preview.run", Method: "POST", Href: routerHref(v.RouterID) + "/sync", Small: true, Kind: ui.Primary})
 				}
 			</div>
@@ -545,7 +541,8 @@ templ routerSyncPage(s ui.Shell, v syncPageView, title string) {
 			<div class="head">
 				@routersCrumbs(v.R.ID, v.R.Name, title)
 				<h1>{ title }</h1>
-				<p class="subtle">{ v.Row.Time } · { v.Row.Word }
+				<p class="subtle">
+					{ v.Row.Time } · { v.Row.Word }
 					if v.Row.Detail != "" {
 						· { v.Row.Detail }
 					}
@@ -617,5 +614,23 @@ templ routerListPage(s ui.Shell, v listPickView, title string) {
 				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
+	}
+}
+
+// routerActions are what a member who may change the router does with it.
+templ routerActions(v routerView) {
+	@ui.Area(i18n.T(ctx, "routers.area.actions"), "") {
+		<div class="act-rows">
+			@actionRow(ui.Action{ID: "routers.set_list", Label: "routers.set_list", Method: "GET", Href: routerHref(v.R.ID) + "/list", Small: true}, i18n.T(ctx, "routers.set_list.what", i18n.Args{"list": v.R.List}))
+			@actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what"))
+			if v.R.State == "active" {
+				@actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what"))
+			} else if v.R.State == "paused" {
+				@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
+			}
+			if v.R.State != "removing" {
+				@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
+			}
+		</div>
 	}
 }

@@ -122,6 +122,7 @@ var messages = i18n.Messages{
 	"settings.members":  {EN: "Members", RU: "Участники"},
 
 	"members.note":               {EN: "Each member signs in on their own and has a level in each area.", RU: "Каждый участник входит сам и имеет уровень доступа в каждом разделе."},
+	"members.owner":              {EN: "owner {name}", RU: "владелец {name}"},
 	"members.new":                {EN: "Add member", RU: "Добавить участника"},
 	"members.new.note":           {EN: "Proxier makes a setup link that works once, for 24 hours. Send it to the new member: they choose their own password there.", RU: "Proxier создаст ссылку для настройки: она работает один раз, 24 часа. Отправьте её новому участнику — пароль он выберет сам."},
 	"members.add":                {EN: "Add member", RU: "Добавить участника"},

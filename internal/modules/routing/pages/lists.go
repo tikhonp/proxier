@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routing/lists"
+	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -46,11 +47,21 @@ func (h *handler) loadList(c *echo.Context) (lists.List, error) {
 	if err != nil {
 		return lists.List{}, echo.ErrNotFound
 	}
-	l, err := h.Lists.Get(c.Request().Context(), id)
+	l, err := h.Lists.Get(c.Request().Context(), id, scope(c.Request().Context()))
 	if errors.Is(err, lists.ErrNotFound) {
 		return l, echo.ErrNotFound
 	}
 	return l, err
+}
+
+// loadListToChange is loadList for a page that changes the list: Forbidden
+// for one the member reads but may not change.
+func (h *handler) loadListToChange(c *echo.Context) (lists.List, error) {
+	l, err := h.loadList(c)
+	if err != nil {
+		return l, err
+	}
+	return l, mayChange(c.Request().Context(), l.OwnerID)
 }
 
 // targetView is a target with its status marker.
@@ -69,8 +80,13 @@ func (h *handler) targetsOf(ctx context.Context, ts []lists.Target) ([]targetVie
 			kind = "off"
 		}
 		tv := targetView{Name: t.Name, Kind: kind, State: t.State, Word: i18n.T(ctx, "lists.target."+t.Kind) + " · " + t.State}
+		// another member's target is named, not opened: its page is theirs
+		if !scope(ctx).Reads(t.OwnerID) {
+			out = append(out, tv)
+			continue
+		}
 		if t.Kind == "router" && h.Routers != nil {
-			r, err := h.Routers.Get(ctx, t.ID)
+			r, err := h.Routers.Get(ctx, t.ID, scope(ctx))
 			if err != nil {
 				return nil, err
 			}
@@ -119,7 +135,7 @@ type listsView struct {
 func (h *handler) lists(c *echo.Context) error {
 	ctx := c.Request().Context()
 	loc := i18n.From(ctx)
-	rows, err := h.Lists.List(ctx)
+	rows, err := h.Lists.List(ctx, scope(ctx))
 	if err != nil {
 		return err
 	}
@@ -169,7 +185,7 @@ func (h *handler) renderListForm(c *echo.Context, status int, v listFormView) er
 func (h *handler) createList(c *echo.Context) error {
 	ctx := c.Request().Context()
 	v := listFormView{Name: c.FormValue("name"), Description: c.FormValue("description")}
-	id, err := h.Lists.Create(ctx, v.Name, v.Description, web.Actor(ctx))
+	id, err := h.Lists.Create(ctx, web.Who(ctx).Member, v.Name, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -182,7 +198,7 @@ func (h *handler) createList(c *echo.Context) error {
 }
 
 func (h *handler) editListPage(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -190,13 +206,13 @@ func (h *handler) editListPage(c *echo.Context) error {
 }
 
 func (h *handler) editList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 	v := listFormView{L: l, Name: c.FormValue("name"), Description: c.FormValue("description")}
-	_, err = h.Lists.Edit(ctx, l.ID, v.Name, v.Description, web.Actor(ctx))
+	_, err = h.Lists.Edit(ctx, l.ID, scope(ctx), v.Name, v.Description, web.Actor(ctx))
 	var fe store.FieldErrors
 	if errors.As(err, &fe) {
 		v.Errs = errText(ctx, fe)
@@ -209,11 +225,11 @@ func (h *handler) editList(c *echo.Context) error {
 }
 
 func (h *handler) makeDefault(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
-	if err := h.Lists.MakeDefault(c.Request().Context(), l.ID, web.Actor(c.Request().Context())); err != nil {
+	if err := h.Lists.MakeDefault(c.Request().Context(), l.ID, scope(c.Request().Context()), web.Actor(c.Request().Context())); err != nil {
 		return err
 	}
 	return web.Redirect(c, listHref(l.ID))
@@ -237,7 +253,7 @@ type addToListView struct {
 
 func (h *handler) addToListView(ctx context.Context, l lists.List, q string, checked map[int64]bool) (addToListView, error) {
 	v := addToListView{L: l, Q: strings.TrimSpace(q)}
-	rows, err := h.Services.List(ctx, servicesFilterAll)
+	rows, err := h.Services.List(ctx, scope(ctx), servicesFilterAll)
 	if err != nil {
 		return v, err
 	}
@@ -263,7 +279,7 @@ func (h *handler) addToListView(ctx context.Context, l lists.List, q string, che
 }
 
 func (h *handler) addToListPage(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -299,13 +315,16 @@ func guardText(ctx context.Context, ge *lists.GuardError) string {
 }
 
 func (h *handler) addToList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 	ids := formIDs(c, "service")
-	err = h.Lists.Add(ctx, l.ID, ids, web.Actor(ctx))
+	err = h.Lists.Add(ctx, l.ID, scope(ctx), ids, web.Actor(ctx))
+	if errors.Is(err, services.ErrNotFound) {
+		return echo.ErrNotFound // another member's custom service is private
+	}
 	var ge *lists.GuardError
 	if errors.As(err, &ge) {
 		checked := map[int64]bool{}
@@ -345,7 +364,7 @@ func (h *handler) deleteListView(ctx context.Context, l lists.List) (deleteListV
 	if v.Targets, err = h.targetsOf(ctx, ts); err != nil {
 		return v, err
 	}
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return v, err
 	}
@@ -362,7 +381,7 @@ func (h *handler) deleteListView(ctx context.Context, l lists.List) (deleteListV
 }
 
 func (h *handler) deleteListPage(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
@@ -379,13 +398,13 @@ func (h *handler) renderDeleteList(c *echo.Context, status int, v deleteListView
 }
 
 func (h *handler) deleteList(c *echo.Context) error {
-	l, err := h.loadList(c)
+	l, err := h.loadListToChange(c)
 	if err != nil {
 		return err
 	}
 	ctx := c.Request().Context()
 	moveTo, _ := strconv.ParseInt(c.FormValue("move_to"), 10, 64)
-	err = h.Lists.Delete(ctx, l.ID, moveTo, web.Actor(ctx))
+	err = h.Lists.Delete(ctx, l.ID, moveTo, scope(ctx), web.Actor(ctx))
 	var he *lists.HasTargetsError
 	switch {
 	case err == nil:
@@ -420,11 +439,11 @@ type serviceListsView struct {
 
 func (h *handler) serviceListsView(ctx context.Context, id int64, tag string) (serviceListsView, error) {
 	v := serviceListsView{ID: id, Tag: tag}
-	all, err := h.Lists.All(ctx)
+	all, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return v, err
 	}
-	ms, err := h.Lists.Memberships(ctx, id)
+	ms, err := h.Lists.Memberships(ctx, id, scope(ctx))
 	if err != nil {
 		return v, err
 	}
@@ -467,7 +486,7 @@ func (h *handler) serviceLists(c *echo.Context) error {
 	}
 	ctx := c.Request().Context()
 	for _, l := range formIDs(c, "list") {
-		err := h.Lists.Add(ctx, l, []int64{it.ID}, web.Actor(ctx))
+		err := h.Lists.Add(ctx, l, scope(ctx), []int64{it.ID}, web.Actor(ctx))
 		var ge *lists.GuardError
 		if errors.As(err, &ge) {
 			v, verr := h.serviceListsView(ctx, it.ID, it.Tag)
@@ -478,7 +497,7 @@ func (h *handler) serviceLists(c *echo.Context) error {
 			return h.renderServiceLists(c, http.StatusUnprocessableEntity, v)
 		}
 		if errors.Is(err, lists.ErrNotFound) {
-			continue // deleted meanwhile
+			continue // deleted meanwhile, or not the member's
 		}
 		if err != nil {
 			return err

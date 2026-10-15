@@ -240,9 +240,9 @@ func (*Module) Nav() []ui.NavItem {
 // their country's name in English or Russian. A member at servers: view
 // finds active servers by name or country only, leading to the list: the
 // rest is for who manages servers.
-func (m *Module) Search(ctx context.Context, g access.Grant, q string, limit int) ([]ui.SearchHit, error) {
+func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) ([]ui.SearchHit, error) {
 	q = strings.ToLower(strings.TrimSpace(q))
-	if !g.Can(access.Servers, access.LevelManage) {
+	if !w.Grant.Can(access.Servers, access.LevelManage) {
 		return m.searchBrief(ctx, q, limit)
 	}
 	var out []ui.SearchHit

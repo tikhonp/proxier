@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
@@ -47,7 +48,7 @@ func (s *Service) runRound(ctx context.Context, r *jobs.Run) error {
 		default:
 			logOutcome(r, out)
 			if out.Result == Failed {
-				cur, err := store.GetService(ctx, s.d.DB.R, id)
+				cur, err := store.GetService(ctx, s.d.DB.R, id, access.All)
 				if err != nil {
 					return err
 				}

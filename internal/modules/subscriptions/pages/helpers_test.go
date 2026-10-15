@@ -10,6 +10,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
 
@@ -17,7 +18,7 @@ type subsSettings = subs.Settings
 
 // formValues is the settings form of id as the page fills it.
 func formValues(h *substest.Harness, id int64) url.Values {
-	s, err := h.Mod.Subs.Get(h.T.Context(), id)
+	s, err := h.Mod.Subs.Get(h.T.Context(), id, access.All)
 	if err != nil {
 		h.T.Fatal(err)
 	}
@@ -53,7 +54,7 @@ func post(h *substest.Harness, path string, form url.Values) sitetest.Req {
 
 func order(t *testing.T, h *substest.Harness) string {
 	t.Helper()
-	ms, err := h.Mod.Subs.Members(t.Context(), 1)
+	ms, err := h.Mod.Subs.Members(t.Context(), 1, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}

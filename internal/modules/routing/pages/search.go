@@ -142,11 +142,12 @@ func (h *handler) searchView(c *echo.Context) (searchView, error) {
 	if v.Q == "" {
 		return v, nil
 	}
-	results, more, err := h.Catalog.Search(ctx, catalog.Query{Q: v.Q, Source: v.Source, Kind: v.Kind, Portal: v.Portal})
+	// a result's lists are those the member may add it to, as the count below
+	results, more, err := h.Catalog.Search(ctx, catalog.Query{Q: v.Q, Source: v.Source, Kind: v.Kind, Portal: v.Portal, Scope: scope(ctx).Writable()})
 	if err != nil {
 		return v, err
 	}
-	all2, err := h.Lists.All(ctx)
+	all2, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return v, err
 	}
@@ -189,6 +190,8 @@ func (h *handler) resultRow(ctx context.Context, v searchView, r catalog.Result,
 	row.PreviewHref = v.href(url.Values{"selector": {r.Selector}})
 	switch {
 	case !r.Selectable:
+	case r.Service == nil && !writesAll(ctx):
+		// a new v2fly or iplist service is shared: manage_all adds it
 	case r.Service == nil:
 		row.AddHref, row.AddLabel = listPath+"/add?selector="+url.QueryEscape(r.Selector), "catalog.add"
 	case len(r.Lists) < lists:
@@ -270,12 +273,12 @@ func (h *handler) previewOf(ctx context.Context, sel, closeHref string) previewV
 	}
 	set := p.Resolved.Set
 	if it, serr := h.Services.BySelector(ctx, v.Selector); serr == nil {
-		names, _ := h.Services.ListsOf(ctx, it.ID)
+		names, _ := h.Services.ListsOf(ctx, it.ID, scope(ctx))
 		v.Line = i18n.T(ctx, "catalog.preview.service", i18n.Args{"tag": it.Tag, "lists": inLists(ctx, names)})
 		v.OpenHref = svcHref(it.ID)
 	} else {
 		v.Line = i18n.T(ctx, "catalog.preview.new")
-		if err == nil {
+		if err == nil && writesAll(ctx) {
 			v.AddHref = listPath + "/add?selector=" + url.QueryEscape(v.Selector)
 			v.AddNote = i18n.T(ctx, "catalog.preview.creates", i18n.Args{"tag": p.Tag})
 		}

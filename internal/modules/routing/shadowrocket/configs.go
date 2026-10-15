@@ -16,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/selector"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/vault"
@@ -34,6 +35,7 @@ var nameShape = regexp.MustCompile(NameShape)
 // Config is a hosted Shadowrocket config.
 type Config struct {
 	ID          int64
+	OwnerID     int64 // a member
 	Name        string
 	ListID      int64
 	List        string
@@ -59,6 +61,7 @@ type Version struct {
 
 // New is what a new config is made of.
 type New struct {
+	Owner  int64 // the member it belongs to
 	Name   string
 	ListID int64
 	Policy string
@@ -114,7 +117,7 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64,
 
 func toConfig(r store.Shadowrocket) Config {
 	return Config{
-		ID: r.ID, Name: r.Name, ListID: r.ListID, List: r.List, Policy: r.Policy, Enabled: r.Enabled, Version: r.Version,
+		ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, ListID: r.ListID, List: r.List, Policy: r.Policy, Enabled: r.Enabled, Version: r.Version,
 		CreatedAt: r.CreatedAt.Time, LastFetchAt: r.LastFetchAt.Time, LastFetchUA: r.LastFetchUA,
 	}
 }
@@ -177,8 +180,9 @@ func checkNote(note string, fe store.FieldErrors) string {
 	return note
 }
 
-func checkList(ctx context.Context, q sqlx.QueryerContext, listID int64, fe store.FieldErrors) (store.List, error) {
-	l, err := store.GetList(ctx, q, listID)
+// checkList reads the list a config follows: one scope may change.
+func checkList(ctx context.Context, q sqlx.QueryerContext, listID int64, scope access.Scope, fe store.FieldErrors) (store.List, error) {
+	l, err := store.GetList(ctx, q, listID, scope.Writable())
 	if errors.Is(err, store.ErrNotFound) {
 		fe["list"] = "shadowrocket.err.list"
 		return l, nil
@@ -186,20 +190,23 @@ func checkList(ctx context.Context, q sqlx.QueryerContext, listID int64, fe stor
 	return l, err
 }
 
-// Create makes a config with base version 1 and a new token. Errors are
-// store.FieldErrors (nothing created).
-func (s *Service) Create(ctx context.Context, n New, actor string) (int64, error) {
+// Create makes a config of w's with base version 1 and a new token,
+// following a list w may change. Errors are store.FieldErrors (nothing
+// created).
+func (s *Service) Create(ctx context.Context, w access.Who, n New, actor string) (int64, error) {
+	n.Owner = w.Member
 	var id int64
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 		var err error
-		id, err = s.CreateTx(ctx, tx, n, actor)
+		id, err = s.CreateTx(ctx, tx, w.Scope(access.Routing), n, actor)
 		return err
 	})
 	return id, err
 }
 
-// CreateTx is Create in the caller's transaction (the import).
-func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string) (int64, error) {
+// CreateTx is Create in the caller's transaction (the import): the config is
+// n.Owner's and follows a list scope may change.
+func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, scope access.Scope, n New, actor string) (int64, error) {
 	fe := store.FieldErrors{}
 	name := CleanName(n.Name)
 	if err := CheckName(ctx, tx, name, 0, "name", fe); err != nil {
@@ -208,7 +215,7 @@ func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string
 	policy := checkPolicy(n.Policy, fe)
 	checkBase(n.Base, fe)
 	note := checkNote(n.Note, fe)
-	l, err := checkList(ctx, tx, n.ListID, fe)
+	l, err := checkList(ctx, tx, n.ListID, scope, fe)
 	if err != nil {
 		return 0, err
 	}
@@ -218,7 +225,7 @@ func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string
 	token := vault.NewToken()
 	lookup := s.d.Vault.Lookup(token)
 	now := db.At(s.d.Now())
-	id, err := store.InsertShadowrocket(ctx, tx, store.Shadowrocket{Name: name, ListID: l.ID, Policy: policy, CreatedAt: now}, lookup)
+	id, err := store.InsertShadowrocket(ctx, tx, store.Shadowrocket{OwnerID: n.Owner, Name: name, ListID: l.ID, Policy: policy, CreatedAt: now}, lookup)
 	if err != nil {
 		if store.Unique(err, "routing_shadowrocket.name") {
 			return 0, store.FieldErrors{"name": "shadowrocket.err.name_taken"}
@@ -234,9 +241,9 @@ func (s *Service) CreateTx(ctx context.Context, tx *sqlx.Tx, n New, actor string
 	return id, s.record(ctx, tx, "routing.shadowrocket_created", id, actor, map[string]any{"name": name, "list": l.Name, "policy": policy})
 }
 
-// Get reads one config with the number of rules it serves now.
-func (s *Service) Get(ctx context.Context, id int64) (Config, error) {
-	r, err := store.GetShadowrocket(ctx, s.d.DB.R, id)
+// Get reads one config within scope with the number of rules it serves now.
+func (s *Service) Get(ctx context.Context, id int64, scope access.Scope) (Config, error) {
+	r, err := store.GetShadowrocket(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return Config{}, ErrNotFound
 	}
@@ -249,9 +256,10 @@ func (s *Service) Get(ctx context.Context, id int64) (Config, error) {
 	return c, err
 }
 
-// List reads every config by name, each with the rules it serves now.
-func (s *Service) List(ctx context.Context) ([]Config, error) {
-	rows, err := store.ShadowrocketConfigs(ctx, s.d.DB.R)
+// List reads every config within scope by name, each with the rules it
+// serves now.
+func (s *Service) List(ctx context.Context, scope access.Scope) ([]Config, error) {
+	rows, err := store.ShadowrocketConfigs(ctx, s.d.DB.R, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -308,9 +316,10 @@ func (s *Service) token(ctx context.Context, id int64) (string, error) {
 	return s.d.Vault.OpenString(blob, tokenAAD(id))
 }
 
-// URL is a config's address with its token in clear: for its page only.
-func (s *Service) URL(ctx context.Context, id int64) (string, error) {
-	c, err := store.GetShadowrocket(ctx, s.d.DB.R, id)
+// URL is the address of a config within scope with its token in clear: for
+// its page only.
+func (s *Service) URL(ctx context.Context, id int64, scope access.Scope) (string, error) {
+	c, err := store.GetShadowrocket(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return "", ErrNotFound
 	}
@@ -336,15 +345,20 @@ func (s *Service) base() string {
 	return strings.TrimSuffix(s.d.BaseURL.String(), "/")
 }
 
-// change runs fn on a config inside one transaction.
-func (s *Service) change(ctx context.Context, id int64, fn func(tx *sqlx.Tx, c store.Shadowrocket) error) error {
+// change runs fn on a config scope may change inside one transaction:
+// ErrNotFound outside what scope reads, so IDs don't tell what exists,
+// Forbidden for one it reads but may not change.
+func (s *Service) change(ctx context.Context, id int64, scope access.Scope, fn func(tx *sqlx.Tx, c store.Shadowrocket) error) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		c, err := store.GetShadowrocket(ctx, tx, id)
+		c, err := store.GetShadowrocket(ctx, tx, id, scope)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		}
 		if err != nil {
 			return err
+		}
+		if !scope.Writes(c.OwnerID) {
+			return access.Forbidden(access.Routing)
 		}
 		return fn(tx, c)
 	})
@@ -352,12 +366,12 @@ func (s *Service) change(ctx context.Context, id int64, fn func(tx *sqlx.Tx, c s
 
 // Edit gives a config another routing list or policy, from the next fetch
 // on. Errors are store.FieldErrors; nothing changed records nothing.
-func (s *Service) Edit(ctx context.Context, id, listID int64, policy, actor string) (bool, error) {
+func (s *Service) Edit(ctx context.Context, id int64, scope access.Scope, listID int64, policy, actor string) (bool, error) {
 	changed := false
-	err := s.change(ctx, id, func(tx *sqlx.Tx, c store.Shadowrocket) error {
+	err := s.change(ctx, id, scope, func(tx *sqlx.Tx, c store.Shadowrocket) error {
 		fe := store.FieldErrors{}
 		policy = checkPolicy(policy, fe)
-		l, err := checkList(ctx, tx, listID, fe)
+		l, err := checkList(ctx, tx, listID, scope, fe)
 		if err != nil {
 			return err
 		}
@@ -388,9 +402,9 @@ func (s *Service) Edit(ctx context.Context, id, listID int64, policy, actor stri
 }
 
 // RegenerateToken gives the config a new URL; the old one answers 404 at once.
-func (s *Service) RegenerateToken(ctx context.Context, id int64, actor string) error {
+func (s *Service) RegenerateToken(ctx context.Context, id int64, scope access.Scope, actor string) error {
 	token := vault.NewToken()
-	return s.change(ctx, id, func(tx *sqlx.Tx, _ store.Shadowrocket) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, _ store.Shadowrocket) error {
 		if err := store.SetShadowrocketToken(ctx, tx, id, s.d.Vault.SealString(token, tokenAAD(id)), s.d.Vault.Lookup(token)); err != nil {
 			return err
 		}
@@ -400,8 +414,8 @@ func (s *Service) RegenerateToken(ctx context.Context, id int64, actor string) e
 
 // SetEnabled disables a config (its URL answers 404) or enables it again;
 // one already so records nothing.
-func (s *Service) SetEnabled(ctx context.Context, id int64, enabled bool, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, c store.Shadowrocket) error {
+func (s *Service) SetEnabled(ctx context.Context, id int64, scope access.Scope, enabled bool, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, c store.Shadowrocket) error {
 		if c.Enabled == enabled {
 			return nil
 		}
@@ -417,8 +431,8 @@ func (s *Service) SetEnabled(ctx context.Context, id int64, enabled bool, actor 
 }
 
 // Delete deletes a config with its versions and fetch log; its URL answers 404.
-func (s *Service) Delete(ctx context.Context, id int64, actor string) error {
-	return s.change(ctx, id, func(tx *sqlx.Tx, c store.Shadowrocket) error {
+func (s *Service) Delete(ctx context.Context, id int64, scope access.Scope, actor string) error {
+	return s.change(ctx, id, scope, func(tx *sqlx.Tx, c store.Shadowrocket) error {
 		if err := s.record(ctx, tx, "routing.shadowrocket_deleted", id, actor, map[string]any{"name": c.Name, "list": c.List}); err != nil {
 			return err
 		}
@@ -426,10 +440,10 @@ func (s *Service) Delete(ctx context.Context, id int64, actor string) error {
 	})
 }
 
-// Output is what a fetch of the config would answer now. Rendering it
-// records nothing.
-func (s *Service) Output(ctx context.Context, id int64) ([]byte, error) {
-	r, err := store.GetShadowrocket(ctx, s.d.DB.R, id)
+// Output is what a fetch of a config within scope would answer now.
+// Rendering it records nothing.
+func (s *Service) Output(ctx context.Context, id int64, scope access.Scope) ([]byte, error) {
+	r, err := store.GetShadowrocket(ctx, s.d.DB.R, id, scope)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil, ErrNotFound
 	}

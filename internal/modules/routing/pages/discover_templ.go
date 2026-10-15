@@ -1396,7 +1396,7 @@ func runAreas(v runView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		if !v.Active && len(v.Groups)+len(v.Run.IPs) > 0 {
+		if !v.Active && len(v.Groups)+len(v.Run.IPs) > 0 && v.CanChange {
 			templ_7745c5c3_Err = runPicks(v).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err

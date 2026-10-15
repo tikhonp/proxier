@@ -79,10 +79,10 @@ func TestFailingServiceList(t *testing.T) {
 		t.Errorf("no rule: %+v", im.Shadowrocket)
 	}
 	// an empty file and a broken one
-	if _, err := h.Mod.Import.Preview(bg(), " \n", "admin"); !errors.As(err, new(store.FieldErrors)) {
+	if _, err := h.Mod.Import.Preview(bg(), 1, " \n", "admin"); !errors.As(err, new(store.FieldErrors)) {
 		t.Errorf("empty: %v", err)
 	}
-	if _, err := h.Mod.Import.Preview(bg(), "services\n", "admin"); !errors.As(err, new(*mtvpn.ParseError)) {
+	if _, err := h.Mod.Import.Preview(bg(), 1, "services\n", "admin"); !errors.As(err, new(*mtvpn.ParseError)) {
 		t.Errorf("broken: %v", err)
 	}
 }

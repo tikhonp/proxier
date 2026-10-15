@@ -13,6 +13,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/module"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
@@ -54,15 +55,21 @@ func WithModules(t *testing.T) *Modules {
 	return &Modules{Harness: h, Subs: subs, Routing: rt, Catalog: cat, Up: up}
 }
 
-// Subscription creates one with nl-1; its id.
+// Subscription creates one of member 1 with nl-1; its id.
 func (m *Modules) Subscription(name string) int64 {
 	m.T.Helper()
+	return m.SubscriptionOf(1, name)
+}
+
+// SubscriptionOf creates one of member with nl-1; its id.
+func (m *Modules) SubscriptionOf(member int64, name string) int64 {
+	m.T.Helper()
 	ctx := context.Background()
-	id, err := m.Subs.Subs.Create(ctx, name, "", "", "admin")
+	id, err := m.Subs.Subs.Create(ctx, member, name, "", "", "admin")
 	if err != nil {
 		m.T.Fatal(err)
 	}
-	if err := m.Subs.Subs.AddServers(ctx, id, []int64{1}, "admin"); err != nil {
+	if err := m.Subs.Subs.AddServers(ctx, id, access.All, []int64{1}, "admin"); err != nil {
 		m.T.Fatal(err)
 	}
 	return id
@@ -71,7 +78,7 @@ func (m *Modules) Subscription(name string) int64 {
 // Link creates a link (English, no expiry) in the subscription; its id.
 func (m *Modules) Link(name string, sub int64) int64 {
 	m.T.Helper()
-	id, err := m.Subs.Links.Create(context.Background(), links.New{Name: name, SubscriptionID: sub, Lang: "en"}, "admin")
+	id, err := m.Subs.Links.Create(context.Background(), substest.Owner, links.New{Name: name, SubscriptionID: sub, Lang: "en"}, "admin")
 	if err != nil {
 		m.T.Fatal(err)
 	}

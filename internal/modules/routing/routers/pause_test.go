@@ -7,6 +7,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routers"
 	"github.com/tikhonp/proxier/internal/modules/routing/routingtest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 func TestPauseAndResume(t *testing.T) {
@@ -21,10 +22,10 @@ func TestPauseAndResume(t *testing.T) {
 		t.Fatalf("a delayed sync: %+v", queued)
 	}
 
-	if err := h.Mod.Routers.Pause(bg, id, "admin"); err != nil {
+	if err := h.Mod.Routers.Pause(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if err := h.Mod.Routers.Pause(bg, id, "admin"); err != nil {
+	if err := h.Mod.Routers.Pause(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if state, _ := h.Job(queued[0].ID); state != "cancelled" {
@@ -39,10 +40,10 @@ func TestPauseAndResume(t *testing.T) {
 	if len(h.JobsOf(routers.JobSync)) != 1 || len(r.Imports()) != 0 {
 		t.Fatal("no sync while paused")
 	}
-	if _, err := h.Mod.Routers.SyncNow(bg, id, "admin"); !errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin"); !errors.Is(err, routers.ErrNotActive) {
 		t.Fatalf("Sync now: %v", err)
 	}
-	if _, err := h.Mod.Routers.Preview(bg, id, "admin"); !errors.Is(err, routers.ErrNotActive) {
+	if _, err := h.Mod.Routers.Preview(bg, id, access.All, "admin"); !errors.Is(err, routers.ErrNotActive) {
 		t.Fatalf("Preview: %v", err)
 	}
 	h.RunSchedule(routers.JobDriftRound)
@@ -51,7 +52,7 @@ func TestPauseAndResume(t *testing.T) {
 		t.Fatal("no drift check")
 	}
 
-	if err := h.Mod.Routers.Resume(bg, id, "admin"); err != nil {
+	if err := h.Mod.Routers.Resume(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	h.Settle()

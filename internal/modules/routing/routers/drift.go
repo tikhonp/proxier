@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -79,7 +80,7 @@ func (s *Service) stepDrift(ctx context.Context, r *jobs.Run) error {
 	if err := r.Payload(&p); err != nil {
 		return jobs.Permanent(err)
 	}
-	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID)
+	rt, err := store.GetRouter(ctx, s.d.DB.R, p.RouterID, access.All)
 	if errors.Is(err, store.ErrNotFound) {
 		return nil
 	} else if err != nil {
@@ -193,7 +194,10 @@ func desiredTags(plan []TagPlan) map[string]bool {
 }
 
 // Repair queues a sync now for drift (routing.drift_repair off).
-func (s *Service) Repair(ctx context.Context, id int64, actor string) (int64, error) {
+func (s *Service) Repair(ctx context.Context, id int64, scope access.Scope, actor string) (int64, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return 0, err
+	}
 	return s.syncAtOnce(ctx, id, syncPayload{Trigger: TriggerDrift, Why: []string{"repair"}}, actor)
 }
 

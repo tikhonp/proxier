@@ -9,6 +9,7 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
@@ -47,12 +48,12 @@ func (s *Service) serve(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	g, err := s.row(ctx, u.GenerationID)
+	g, err := s.row(ctx, u.GenerationID, access.All)
 	if err != nil {
 		return err
 	}
 	// the file is made before the URL is spent: a failure leaves it working
-	body, err := s.Body(ctx, u.GenerationID)
+	body, err := s.Body(ctx, u.GenerationID, access.All)
 	if err != nil {
 		return err
 	}

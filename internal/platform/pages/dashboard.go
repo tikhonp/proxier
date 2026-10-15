@@ -40,7 +40,7 @@ func (h *handler) dashboard(c *echo.Context) error {
 	}
 	for _, d := range h.Dashboards {
 		// A module's failing query must not take the dashboard down with it.
-		areas, err := d.Dashboard(ctx)
+		areas, err := d.Dashboard(ctx, web.Who(ctx))
 		if err != nil {
 			h.Log.Error("pages: dashboard area", "error", err)
 			continue

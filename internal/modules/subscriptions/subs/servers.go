@@ -2,7 +2,6 @@ package subs
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"sort"
 	"strings"
@@ -10,11 +9,12 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/servers"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 )
 
 // Addable lists the servers the catalog serves that aren't members, by name.
-func (s *Service) Addable(ctx context.Context, id int64) ([]servers.ServerEndpoints, error) {
-	members, err := s.Members(ctx, id)
+func (s *Service) Addable(ctx context.Context, id int64, scope access.Scope) ([]servers.ServerEndpoints, error) {
+	members, err := s.Members(ctx, id, scope)
 	if err != nil || s.d.Catalog == nil {
 		return nil, err
 	}
@@ -35,8 +35,8 @@ func (s *Service) Addable(ctx context.Context, id int64) ([]servers.ServerEndpoi
 // AddServers appends the servers at the end, by name. A server the catalog
 // doesn't serve refuses the whole save (ErrNotServed); members already in it
 // are left where they are.
-func (s *Service) AddServers(ctx context.Context, id int64, serverIDs []int64, actor string) error {
-	if _, err := s.Get(ctx, id); err != nil {
+func (s *Service) AddServers(ctx context.Context, id int64, scope access.Scope, serverIDs []int64, actor string) error {
+	if _, err := toChange(ctx, s.d.DB.R, id, scope); err != nil {
 		return err
 	}
 	if s.d.Catalog == nil {
@@ -59,6 +59,9 @@ func (s *Service) AddServers(ctx context.Context, id int64, serverIDs []int64, a
 	}
 	sort.Slice(add, func(i, j int) bool { return add[i].Name < add[j].Name })
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
+		if _, err := toChange(ctx, tx, id, scope); err != nil {
+			return err
+		}
 		_, err := s.append(ctx, tx, id, add, actor, map[string]any{})
 		return err
 	})
@@ -93,11 +96,9 @@ func (s *Service) append(ctx context.Context, tx *sqlx.Tx, id int64, add []serve
 }
 
 // RemoveServer takes a server out of the subscription; the others close up.
-func (s *Service) RemoveServer(ctx context.Context, id, serverID int64, actor string) error {
+func (s *Service) RemoveServer(ctx context.Context, id int64, scope access.Scope, serverID int64, actor string) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := store.GetSubscription(ctx, tx, id); errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		} else if err != nil {
+		if _, err := toChange(ctx, tx, id, scope); err != nil {
 			return err
 		}
 		removed, err := s.remove(ctx, tx, id, serverID, actor, nil)
@@ -142,8 +143,8 @@ func ids(members []store.Member) []int64 {
 
 // Move swaps a server with its neighbour below (down) or above; at an end
 // nothing changes and nothing is recorded.
-func (s *Service) Move(ctx context.Context, id, serverID int64, down bool, actor string) error {
-	return s.reorder(ctx, id, actor, func(cur []int64) ([]int64, error) {
+func (s *Service) Move(ctx context.Context, id int64, scope access.Scope, serverID int64, down bool, actor string) error {
+	return s.reorder(ctx, id, scope, actor, func(cur []int64) ([]int64, error) {
 		i := slices.Index(cur, serverID)
 		if i < 0 {
 			return nil, ErrStaleOrder
@@ -162,8 +163,8 @@ func (s *Service) Move(ctx context.Context, id, serverID int64, down bool, actor
 
 // SetOrder writes the whole order; it must be a permutation of the members,
 // else ErrStaleOrder.
-func (s *Service) SetOrder(ctx context.Context, id int64, serverIDs []int64, actor string) error {
-	return s.reorder(ctx, id, actor, func(cur []int64) ([]int64, error) {
+func (s *Service) SetOrder(ctx context.Context, id int64, scope access.Scope, serverIDs []int64, actor string) error {
+	return s.reorder(ctx, id, scope, actor, func(cur []int64) ([]int64, error) {
 		a, b := slices.Clone(cur), slices.Clone(serverIDs)
 		slices.Sort(a)
 		slices.Sort(b)
@@ -174,11 +175,9 @@ func (s *Service) SetOrder(ctx context.Context, id int64, serverIDs []int64, act
 	})
 }
 
-func (s *Service) reorder(ctx context.Context, id int64, actor string, next func(cur []int64) ([]int64, error)) error {
+func (s *Service) reorder(ctx context.Context, id int64, scope access.Scope, actor string, next func(cur []int64) ([]int64, error)) error {
 	return s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		if _, err := store.GetSubscription(ctx, tx, id); errors.Is(err, store.ErrNotFound) {
-			return ErrNotFound
-		} else if err != nil {
+		if _, err := toChange(ctx, tx, id, scope); err != nil {
 			return err
 		}
 		members, err := store.Members(ctx, tx, id)

@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/services"
 	"github.com/tikhonp/proxier/internal/modules/routing/sources"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -48,6 +49,9 @@ type Result struct {
 type Query struct {
 	Q, Source, Kind, Portal string
 	Limit                   int
+	// Scope is the searching member's: the lists a result's service is in
+	// are those it reads. The zero Scope names none.
+	Scope access.Scope
 }
 
 // SourceStatus is a source's catalog.

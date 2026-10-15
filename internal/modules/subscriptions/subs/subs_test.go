@@ -10,6 +10,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/subs"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
 
@@ -29,7 +30,7 @@ func settingsOf(s subs.Subscription) subs.Settings {
 
 func get(t *testing.T, h *substest.Harness, id int64) subs.Subscription {
 	t.Helper()
-	s, err := h.Mod.Subs.Get(bg, id)
+	s, err := h.Mod.Subs.Get(bg, id, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -44,7 +45,7 @@ func TestCreateAndPreview(t *testing.T) {
 		strings.Join(s.Hide.States, ",") != "blocked,down" || s.Hide.Grace != 30*time.Minute || s.AutoAdd {
 		t.Fatalf("defaults: %+v", s)
 	}
-	resp, members, err := h.Mod.Subs.Preview(en(h), id, "", false)
+	resp, members, err := h.Mod.Subs.Preview(en(h), id, access.All, "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,7 +58,7 @@ func TestCreateAndPreview(t *testing.T) {
 	if resp.Headers[0].Value != "base64:RmFtaWx5" { // "Family"
 		t.Errorf("title header: %+v", resp.Headers[0])
 	}
-	if ev := h.Events("subscription.created"); len(ev) != 1 || ev[0].Payload["name"] != "Family" || ev[0].Actor != "admin" || ev[0].Subject.String() != "subscription:1" {
+	if ev := h.Events("subscription.created"); len(ev) != 1 || ev[0].Payload["name"] != "Family" || ev[0].Actor != "member:1" || ev[0].Subject.String() != "subscription:1" {
 		t.Errorf("created: %+v", ev)
 	}
 }
@@ -71,20 +72,20 @@ func TestSubscriptionNameRules(t *testing.T) {
 		"Family":                "subs.err.name_taken",
 		" Family ":              "subs.err.name_taken",
 	} {
-		_, err := h.Mod.Subs.Create(bg, name, "", "", "admin")
+		_, err := h.Mod.Subs.Create(bg, 1, name, "", "", "admin")
 		var fe store.FieldErrors
 		if !errors.As(err, &fe) || fe["name"] != want {
 			t.Errorf("%q: %v, want %s", name, err, want)
 		}
 	}
 	// 60 characters and another letter case are fine
-	if _, err := h.Mod.Subs.Create(bg, strings.Repeat("я", 60), "", "", "admin"); err != nil {
+	if _, err := h.Mod.Subs.Create(bg, 1, strings.Repeat("я", 60), "", "", "admin"); err != nil {
 		t.Error(err)
 	}
-	if _, err := h.Mod.Subs.Create(bg, "family", strings.Repeat("t", 61), "", "admin"); err == nil {
+	if _, err := h.Mod.Subs.Create(bg, 1, "family", strings.Repeat("t", 61), "", "admin"); err == nil {
 		t.Error("a 61-character title was accepted")
 	}
-	if _, err := h.Mod.Subs.Create(bg, "family", "", "", "admin"); err != nil {
+	if _, err := h.Mod.Subs.Create(bg, 1, "family", "", "", "admin"); err != nil {
 		t.Errorf("another letter case: %v", err)
 	}
 	if n := len(h.Events("subscription.created")); n != 3 {
@@ -95,7 +96,7 @@ func TestSubscriptionNameRules(t *testing.T) {
 	st := settingsOf(get(t, h, friends))
 	st.Name = "Family"
 	var fe store.FieldErrors
-	if _, err := h.Mod.Subs.Update(bg, friends, st, "admin"); !errors.As(err, &fe) || fe["name"] != "subs.err.name_taken" {
+	if _, err := h.Mod.Subs.Update(bg, friends, access.All, st, "admin"); !errors.As(err, &fe) || fe["name"] != "subs.err.name_taken" {
 		t.Errorf("rename onto a taken name: %v", err)
 	}
 	if get(t, h, friends).Name != "Friends" {
@@ -108,17 +109,17 @@ func TestDefaultFormatMustBeAllowed(t *testing.T) {
 	id := h.Subscription("Family")
 	st := settingsOf(get(t, h, id))
 	st.Formats = []string{"uri-base64"}
-	_, err := h.Mod.Subs.Update(bg, id, st, "admin")
+	_, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin")
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) || fe["default_format"] != "subs.err.default_not_allowed" {
 		t.Fatalf("turning off the default: %v", err)
 	}
 	st.Formats = nil
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); !errors.As(err, &fe) || fe["formats"] != "subs.err.no_format" {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); !errors.As(err, &fe) || fe["formats"] != "subs.err.no_format" {
 		t.Fatalf("no format: %v", err)
 	}
 	st.Formats, st.DefaultFormat = []string{"uri-base64"}, "uri-base64"
-	if changed, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil || !changed {
+	if changed, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil || !changed {
 		t.Fatalf("with base64 as the default: %v %v", changed, err)
 	}
 	if s := get(t, h, id); strings.Join(s.Formats, ",") != "uri-base64" || s.DefaultFormat != "uri-base64" {
@@ -132,7 +133,7 @@ func TestUpdateRecordsChanges(t *testing.T) {
 	st := settingsOf(get(t, h, id))
 	st.Title, st.UpdateHours, st.HideOn, st.GraceMinutes = "Семья", 24, true, 45
 	st.HideStates = []string{"down", "blocked", "unknown"} // stored in their own order
-	changed, err := h.Mod.Subs.Update(bg, id, st, "admin")
+	changed, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin")
 	if err != nil || !changed {
 		t.Fatal(changed, err)
 	}
@@ -143,7 +144,7 @@ func TestUpdateRecordsChanges(t *testing.T) {
 	if s := get(t, h, id); strings.Join(s.Hide.States, ",") != "blocked,down,unknown" {
 		t.Errorf("states %v", s.Hide.States)
 	}
-	if changed, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil || changed {
+	if changed, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil || changed {
 		t.Fatalf("again: %v %v", changed, err)
 	}
 	if n := len(h.Events("subscription.updated")); n != 1 {
@@ -163,7 +164,7 @@ func TestUpdateRecordsChanges(t *testing.T) {
 	} {
 		x := st
 		c.mut(&x)
-		_, err := h.Mod.Subs.Update(bg, id, x, "admin")
+		_, err := h.Mod.Subs.Update(bg, id, access.All, x, "admin")
 		var fe store.FieldErrors
 		if !errors.As(err, &fe) || fe[c.field] == "" {
 			t.Errorf("%s: %v", c.field, err)
@@ -172,21 +173,21 @@ func TestUpdateRecordsChanges(t *testing.T) {
 	// auto add records when it was turned on, and forgets it when off
 	st.AutoAdd = true
 	h.Advance(time.Hour)
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if s := get(t, h, id); !s.AutoAdd || !s.AutoAddSince.Equal(h.Now) {
 		t.Errorf("auto add since %v, want %v", s.AutoAddSince, h.Now)
 	}
 	h.Advance(time.Hour)
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if s := get(t, h, id); !s.AutoAddSince.Equal(h.Now.Add(-time.Hour)) {
 		t.Error("saving again moved auto_add_since")
 	}
 	st.AutoAdd = false
-	if _, err := h.Mod.Subs.Update(bg, id, st, "admin"); err != nil {
+	if _, err := h.Mod.Subs.Update(bg, id, access.All, st, "admin"); err != nil {
 		t.Fatal(err)
 	}
 	if s := get(t, h, id); s.AutoAdd || !s.AutoAddSince.IsZero() {
@@ -202,14 +203,14 @@ func TestDeleteWaitsForLinksAndTombstones(t *testing.T) {
 	ins := `INSERT INTO subs_links (subscription_id, name, state, language, created_at, deleted_at) VALUES (?, ?, ?, 'ru', ?, ?)`
 
 	h.Exec(ins, id, "Mom", "active", at(40*day), nil)
-	if err := h.Mod.Subs.Delete(bg, id, "admin"); !errors.Is(err, subs.ErrHasLinks) {
+	if err := h.Mod.Subs.Delete(bg, id, access.All, "admin"); !errors.Is(err, subs.ErrHasLinks) {
 		t.Fatalf("with a live link: %v", err)
 	}
 	h.Exec(`UPDATE subs_links SET state = 'deleted', deleted_at = ? WHERE name = 'Mom'`, at(10*day))
-	if err := h.Mod.Subs.Delete(bg, id, "admin"); !errors.Is(err, subs.ErrHasLinks) {
+	if err := h.Mod.Subs.Delete(bg, id, access.All, "admin"); !errors.Is(err, subs.ErrHasLinks) {
 		t.Fatalf("with a link deleted 10 days ago: %v", err)
 	}
-	holders, err := h.Mod.Subs.Holders(bg, id)
+	holders, err := h.Mod.Subs.Holders(bg, id, access.All)
 	if err != nil || len(holders) != 1 || !holders[0].Ends.Equal(h.Now.Add(20*day)) {
 		t.Fatalf("holders: %+v %v", holders, err)
 	}
@@ -220,14 +221,14 @@ func TestDeleteWaitsForLinksAndTombstones(t *testing.T) {
 	if err := h.App.Settings.Set(bg, "admin", "subscriptions", map[string]string{"subscriptions.tombstone": "168h0m0s"}); err != nil {
 		t.Fatal(err)
 	}
-	if holders, _ := h.Mod.Subs.Holders(bg, id); len(holders) != 0 {
+	if holders, _ := h.Mod.Subs.Holders(bg, id, access.All); len(holders) != 0 {
 		t.Errorf("with a 7-day tombstone: %+v", holders)
 	}
 	if err := h.App.Settings.Set(bg, "admin", "subscriptions", map[string]string{"subscriptions.tombstone": "720h0m0s"}); err != nil {
 		t.Fatal(err)
 	}
 	h.Exec(`UPDATE subs_links SET deleted_at = ? WHERE name = 'Mom'`, at(31*day))
-	if err := h.Mod.Subs.Delete(bg, id, "admin"); err != nil {
+	if err := h.Mod.Subs.Delete(bg, id, access.All, "admin"); err != nil {
 		t.Fatalf("with only a link deleted 31 days ago: %v", err)
 	}
 	if ev := h.Events("subscription.deleted"); len(ev) != 1 || ev[0].Payload["name"] != "Family" {
@@ -240,7 +241,7 @@ func TestDeleteWaitsForLinksAndTombstones(t *testing.T) {
 	if err := h.App.DB.R.Get(&n, `SELECT count(*) FROM subs_subscription_servers`); err != nil || n != 0 {
 		t.Errorf("members left: %d", n)
 	}
-	if _, err := h.Mod.Subs.Get(bg, id); !errors.Is(err, subs.ErrNotFound) {
+	if _, err := h.Mod.Subs.Get(bg, id, access.All); !errors.Is(err, subs.ErrNotFound) {
 		t.Errorf("get after delete: %v", err)
 	}
 }

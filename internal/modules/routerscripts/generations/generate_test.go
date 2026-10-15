@@ -12,13 +12,14 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/scripts"
 	"github.com/tikhonp/proxier/internal/modules/routerscripts/store"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 )
 
 // generate runs Generate and fails on any error.
 func generate(t *testing.T, h *rscriptstest.Harness, id int64, f generations.Form) int64 {
 	t.Helper()
-	gid, err := h.Mod.Generations.Generate(bg, id, f, events.MemberActor(1))
+	gid, err := h.Mod.Generations.Generate(bg, rscriptstest.Owner, id, f, events.MemberActor(1))
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
@@ -28,7 +29,7 @@ func generate(t *testing.T, h *rscriptstest.Harness, id int64, f generations.For
 // refused runs Generate and returns its field errors.
 func refused(t *testing.T, h *rscriptstest.Harness, id int64, f generations.Form) store.FieldErrors {
 	t.Helper()
-	_, err := h.Mod.Generations.Generate(bg, id, f, events.MemberActor(1))
+	_, err := h.Mod.Generations.Generate(bg, rscriptstest.Owner, id, f, events.MemberActor(1))
 	var fe store.FieldErrors
 	if !errors.As(err, &fe) {
 		t.Fatalf("want field errors, got %v", err)
@@ -47,7 +48,7 @@ func count(t *testing.T, h *rscriptstest.Harness, q string) int {
 
 func body(t *testing.T, h *rscriptstest.Harness, gid int64) string {
 	t.Helper()
-	b, err := h.Mod.Generations.Body(bg, gid)
+	b, err := h.Mod.Generations.Body(bg, gid, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +91,7 @@ func TestOnlyChangedLinesDiffer(t *testing.T) {
 	if len(got) != 1 || got[0] != `:local lanNet "10.40.1"` {
 		t.Fatalf("differing lines: %q", got)
 	}
-	g, err := h.Mod.Generations.Get(bg, gid)
+	g, err := h.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || len(g.Changed) != 1 || g.Changed[0] != "lanNet" || g.FileName != "fresh-router-Dacha-v1.rsc" || g.Router != nil || g.RouterID != 0 {
 		t.Fatalf("generation: %+v %v", g, err)
 	}
@@ -136,7 +137,7 @@ func realForm(t *testing.T, m *rscriptstest.Modules, id, sub int64, host string)
 // linkRows and routerRows count the links and routers of the real modules.
 func linkRows(t *testing.T, m *rscriptstest.Modules) int {
 	t.Helper()
-	rows, err := m.Subs.Links.List(bg, links.Filter{State: "all"})
+	rows, err := m.Subs.Links.List(bg, access.All, links.Filter{State: "all"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,7 +146,7 @@ func linkRows(t *testing.T, m *rscriptstest.Modules) int {
 
 func routerRows(t *testing.T, m *rscriptstest.Modules) int {
 	t.Helper()
-	rows, err := m.Routing.Routers.List(bg)
+	rows, err := m.Routing.Routers.List(bg, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -179,11 +180,11 @@ func TestCreateLinkForTheRouter(t *testing.T) {
 	f.Router.Mode = generations.RouterNone
 	gid := generate(t, m.Harness, id, f)
 
-	list, err := m.Mod.Generations.Get(bg, gid)
+	list, err := m.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || list.Link == nil || list.Link.Name != "Router — Parents" || list.Link.Subscription != "Family" || list.Link.State != "active" || !list.LinkCreated {
 		t.Fatalf("the link: %+v %v", list.Link, err)
 	}
-	token, err := m.Subs.Links.Token(bg, list.LinkID)
+	token, err := m.Subs.Links.Token(bg, list.LinkID, access.All)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -208,18 +209,18 @@ func TestRegisterForRouting(t *testing.T) {
 	id := m.Script("fresh-router", b)
 	f := realForm(t, m, id, 0, "10.230.3.1")
 	f.Link.Mode = generations.LinkType
-	v, err := m.Mod.Generations.Check(bg, id, f)
+	v, err := m.Mod.Generations.Check(bg, rscriptstest.Owner, id, f)
 	if err != nil || v.Locked["vpnList"] != "router" || v.LockedValues["vpnList"] != "to_vpn_list" || v.LockedValues["dohForwarder"] != "vpn-doh" {
 		t.Fatalf("locked to the new router's names: %+v %v", v.LockedValues, err)
 	}
 	f.Values["vpnList"] = "typed_list" // a locked field's post is ignored
 	gid := generate(t, m.Harness, id, f)
 
-	g, err := m.Mod.Generations.Get(bg, gid)
+	g, err := m.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || g.Router == nil || g.Router.Name != "Parents" || g.Router.State != "awaiting" || g.Router.List != "Main" || !g.RouterRegistered {
 		t.Fatalf("the router: %+v %v", g.Router, err)
 	}
-	rt, err := m.Routing.Routers.Get(bg, g.RouterID)
+	rt, err := m.Routing.Routers.Get(bg, g.RouterID, access.All)
 	if err != nil || rt.CreatedBy != "routerscripts" || rt.Conn.Host != "10.230.3.1" {
 		t.Fatalf("routing's router: %+v %v", rt, err)
 	}
@@ -269,11 +270,11 @@ func TestGenerateAgainReusesLinkAndRouter(t *testing.T) {
 	f.Values["image"], f.Values["lanNet"] = "registry.example/mihomo:1", "10.230.3"
 	first := generate(t, m.Harness, id, f)
 
-	v, err := m.Mod.Generations.Form(bg, id, 0, first)
+	v, err := m.Mod.Generations.Form(bg, rscriptstest.Owner, id, 0, first)
 	if err != nil {
 		t.Fatal(err)
 	}
-	g1, _ := m.Mod.Generations.Get(bg, first)
+	g1, _ := m.Mod.Generations.Get(bg, first, access.All)
 	if v.Form.RouterName != "Parents" || v.Form.Link.Mode != generations.LinkExisting || v.Form.Link.LinkID != g1.LinkID ||
 		v.Form.Router.Mode != generations.RouterExisting || v.Form.Router.RouterID != g1.RouterID || v.Form.Values["lanNet"] != "10.230.3" {
 		t.Fatalf("the form again: %+v", v.Form)
@@ -285,7 +286,7 @@ func TestGenerateAgainReusesLinkAndRouter(t *testing.T) {
 	if linkRows(t, m) != 1 || routerRows(t, m) != 1 {
 		t.Fatal("created twice")
 	}
-	g2, err := m.Mod.Generations.Get(bg, second)
+	g2, err := m.Mod.Generations.Get(bg, second, access.All)
 	if err != nil || g2.LinkID != g1.LinkID || g2.RouterID != g1.RouterID || g2.LinkCreated || g2.RouterRegistered || g2.RouterName != "Parents" {
 		t.Fatalf("second: %+v %v", g2, err)
 	}
@@ -305,7 +306,7 @@ func TestWithoutPorts(t *testing.T) {
 	id := h.Script("fresh-router", paramstest.Annotated())
 	f := form(t, h, id).Form
 	f.RouterName, f.Values["vpnList"], f.Values["subUrl"] = "Dacha", "kids_list", "https://example.org/sub"
-	v, err := h.Mod.Generations.Check(bg, id, f)
+	v, err := h.Mod.Generations.Check(bg, rscriptstest.Owner, id, f)
 	if err != nil || len(v.Plan.Errors) != 0 || v.Locked["vpnList"] != "" || v.Locked["subUrl"] != "" {
 		t.Fatalf("ordinary fields: %+v %+v %v", v.Locked, v.Plan.Errors, err)
 	}
@@ -314,7 +315,7 @@ func TestWithoutPorts(t *testing.T) {
 	if !strings.Contains(got, `:local vpnList "kids_list"`) || !strings.Contains(got, `:local subUrl "https://example.org/sub"`) {
 		t.Fatal("typed values")
 	}
-	g, err := h.Mod.Generations.Get(bg, gid)
+	g, err := h.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || g.Router != nil || g.Link != nil || g.RouterID != 0 || g.LinkID != 0 {
 		t.Fatalf("generation: %+v %v", g, err)
 	}
@@ -339,7 +340,7 @@ func TestProxierKeyFilled(t *testing.T) {
 	if !strings.Contains(body(t, h, gid), `:local proxierKey "`+line+`"`) {
 		t.Fatal("the key isn't filled")
 	}
-	g, err := h.Mod.Generations.Get(bg, gid)
+	g, err := h.Mod.Generations.Get(bg, gid, access.All)
 	if err != nil || g.KeyChanged || !g.HasKey {
 		t.Fatalf("generation: %+v %v", g, err)
 	}
@@ -351,7 +352,7 @@ func TestProxierKeyFilled(t *testing.T) {
 	if err := h.App.SSH.Regenerate(bg, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if g, _ := h.Mod.Generations.Get(bg, gid); !g.KeyChanged {
+	if g, _ := h.Mod.Generations.Get(bg, gid, access.All); !g.KeyChanged {
 		t.Fatal("the key changed")
 	}
 	if page := h.Login.Get("/router-scripts/generations/1").Body.String(); !strings.Contains(page, "Proxier&#39;s SSH key changed after this generation") {
@@ -376,20 +377,20 @@ func TestCurrentVersionIsTheDefault(t *testing.T) {
 	f := v.Form
 	f.RouterName, f.Router.Mode = "Dacha", generations.RouterNone
 	gid := generate(t, h, id, f)
-	if g, _ := h.Mod.Generations.Get(bg, gid); g.Version != 3 || g.Current != 3 || g.FileName != "fresh-router-Dacha-v3.rsc" {
+	if g, _ := h.Mod.Generations.Get(bg, gid, access.All); g.Version != 3 || g.Current != 3 || g.FileName != "fresh-router-Dacha-v3.rsc" {
 		t.Fatalf("generation: %+v", g)
 	}
 	// another version on request; an archived script can't generate
-	if v, err := h.Mod.Generations.Form(bg, id, 4, 0); err != nil || v.Form.Version != 4 {
+	if v, err := h.Mod.Generations.Form(bg, rscriptstest.Owner, id, 4, 0); err != nil || v.Form.Version != 4 {
 		t.Fatalf("v4: %v", err)
 	}
 	if err := h.Mod.Scripts.Archive(bg, id, true, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := h.Mod.Generations.Form(bg, id, 0, 0); !errors.Is(err, generations.ErrCantGenerate) || !errors.Is(err, scripts.ErrArchived) {
+	if _, err := h.Mod.Generations.Form(bg, rscriptstest.Owner, id, 0, 0); !errors.Is(err, generations.ErrCantGenerate) || !errors.Is(err, scripts.ErrArchived) {
 		t.Fatalf("archived: %v", err)
 	}
-	if _, err := h.Mod.Generations.Generate(bg, id, f, "admin"); !errors.Is(err, scripts.ErrArchived) {
+	if _, err := h.Mod.Generations.Generate(bg, rscriptstest.Owner, id, f, "admin"); !errors.Is(err, scripts.ErrArchived) {
 		t.Fatalf("archived generate: %v", err)
 	}
 }
@@ -402,8 +403,8 @@ func TestSecretsNeverInPlainText(t *testing.T) {
 	f.RouterName, f.Values["image"], f.Values["lanNet"] = "Dacha", "s3cr3t-image-value", "10.40.1"
 	f.Link = generations.LinkChoice{Mode: generations.LinkCreate, SubscriptionID: 1}
 	gid := generate(t, h, id, f)
-	g, _ := h.Mod.Generations.Get(bg, gid)
-	l, _ := h.Links().Link(bg, g.LinkID)
+	g, _ := h.Mod.Generations.Get(bg, gid, access.All)
+	l, _ := h.Links().Link(bg, g.LinkID, access.All)
 	if l.URL == "" {
 		t.Fatal("no link URL")
 	}
@@ -450,24 +451,24 @@ func TestLinkChangedAfterGeneration(t *testing.T) {
 	f := realForm(t, m, id, m.Subscription("Family"), "")
 	f.Router.Mode = generations.RouterNone
 	gid := generate(t, m.Harness, id, f)
-	g, _ := m.Mod.Generations.Get(bg, gid)
+	g, _ := m.Mod.Generations.Get(bg, gid, access.All)
 	if g.LinkChanged || g.LinkGone {
 		t.Fatalf("fresh: %+v", g)
 	}
-	if err := m.Subs.Links.RegenerateToken(bg, g.LinkID, "admin"); err != nil {
+	if err := m.Subs.Links.RegenerateToken(bg, g.LinkID, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if g, _ = m.Mod.Generations.Get(bg, gid); !g.LinkChanged || g.LinkGone || g.Link == nil {
+	if g, _ = m.Mod.Generations.Get(bg, gid, access.All); !g.LinkChanged || g.LinkGone || g.Link == nil {
 		t.Fatalf("regenerated: %+v", g)
 	}
 	page := m.Login.Get("/router-scripts/generations/1").Body.String()
 	if !strings.Contains(page, "Router — Parents&#39;s URL changed after this generation") {
 		t.Error("no URL-changed band")
 	}
-	if err := m.Subs.Links.Delete(bg, g.LinkID, "admin"); err != nil {
+	if err := m.Subs.Links.Delete(bg, g.LinkID, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	if g, _ = m.Mod.Generations.Get(bg, gid); !g.LinkChanged || !g.LinkGone || g.Link != nil {
+	if g, _ = m.Mod.Generations.Get(bg, gid, access.All); !g.LinkChanged || !g.LinkGone || g.Link != nil {
 		t.Fatalf("deleted: %+v", g)
 	}
 	page = m.Login.Get("/router-scripts/generations/1").Body.String()

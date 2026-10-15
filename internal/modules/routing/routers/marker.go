@@ -11,6 +11,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/routing/change"
 	"github.com/tikhonp/proxier/internal/modules/routing/conf"
 	"github.com/tikhonp/proxier/internal/modules/routing/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
@@ -112,7 +113,10 @@ func (m marker) Mark(ctx context.Context, tx *sqlx.Tx, c change.Change) error {
 }
 
 // SyncNow queues a sync at once; one merged into a delayed sync starts it now.
-func (s *Service) SyncNow(ctx context.Context, id int64, actor string) (int64, error) {
+func (s *Service) SyncNow(ctx context.Context, id int64, scope access.Scope, actor string) (int64, error) {
+	if _, err := s.toChange(ctx, id, scope); err != nil {
+		return 0, err
+	}
 	return s.syncAtOnce(ctx, id, syncPayload{Trigger: TriggerManual, Manual: true}, actor)
 }
 
@@ -121,7 +125,7 @@ func (s *Service) SyncNow(ctx context.Context, id int64, actor string) (int64, e
 func (s *Service) syncAtOnce(ctx context.Context, id int64, p syncPayload, actor string) (int64, error) {
 	var e jobs.Enqueued
 	err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
-		r, err := store.GetRouter(ctx, tx, id)
+		r, err := store.GetRouter(ctx, tx, id, access.All)
 		if errors.Is(err, store.ErrNotFound) {
 			return ErrNotFound
 		} else if err != nil {

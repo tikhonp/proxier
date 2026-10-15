@@ -16,6 +16,7 @@ var Events = []events.Type{
 	{Name: "routerscript.fetch_url_created", Description: "A generation got a single-use fetch URL."},
 	{Name: "routerscript.fetched", Notify: true, Emoji: "📥", Description: "A router fetched its generated script."},
 	{Name: "routerscript.fetch_url_expired", Description: "A fetch URL ended unused."},
+	{Name: "routerscript.handed_over", Description: "A removed member's generations went to their heir (subject: the removed member)."},
 	{Name: "routerscript.agent_session_opened", Notify: true, Emoji: "🤖", Description: "A script's draft was handed to an agent: anyone holding the prompt can edit it until the session ends."},
 	{Name: "routerscript.agent_session_closed", Description: "An agent session ended (expired, revoked, published, discarded, replaced)."},
 }
