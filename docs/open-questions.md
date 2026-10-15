@@ -38,6 +38,10 @@ One router (hEX S, 7.24.5, behind a jump host) ran a 370 KiB import in full and 
 
 Checked with a software passkey in tests, Chrome's virtual authenticator and Bitwarden ([sign-in](./processes/platform/sign-in.md#steps-passkeys)). Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in 1Password, on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted, and the phone's clock drift staying within one 30 s step.
 
+## The browser page's apps
+
+None of the [browser page](./integrations/subscription-format.md#browser-page)'s deep links and none of its manual steps were tried on a real device: whether each **Add to {app}** button opens its app and adds the link under the subscription's title, and whether the loose words of each manual import ("tap + and choose to import from the clipboard") match what the app shows. The Shadowrocket, Streisand and Happ link syntax comes from other panels' code, not from the apps' makers. Which apps are in the Russian App Store changes month to month: re-check with `https://itunes.apple.com/lookup?id=<id>&country=ru` (an empty `results` means not there) and update the notes. Not seen either: the page on a real phone (tabs, Copy link over https, the QR code scanned by another phone) and the tab an iPad opens.
+
 ## Not yet seen on real devices
 
 - Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.

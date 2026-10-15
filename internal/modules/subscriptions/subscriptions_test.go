@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/linkpage"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/substest"
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -236,6 +237,9 @@ func TestEveryUsedMessageKeyExists(t *testing.T) {
 		}
 	}
 	built = append(built, "links.lang.en", "links.lang.ru")
+	for _, sh := range linkpage.Shelves {
+		built = append(built, "links.page.platform."+string(sh.Platform))
+	}
 	for _, k := range built {
 		if !h.App.I18n.Has(k) {
 			t.Errorf("%s is missing", k)

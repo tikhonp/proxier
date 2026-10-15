@@ -37,7 +37,7 @@ Modules are enabled in this order: `servers`, `subscriptions`, `routing`, `route
 | `migrations` | the module's schema |
 | `store` | every SQL statement of the module, `FieldErrors` (i18n keys), retention constants |
 | one package per area | services and their job types (`servers/provision`, `subscriptions/links`, `routing/routers`, `routerscripts/generations`, …) |
-| pure packages | no database, no clock of their own: `servers/render`, `subscriptions/output`, `routing/domain`, `selector`, `snapshot`, `own`, `routeros`, `routerscripts/params` |
+| pure packages | no database, no clock of their own: `servers/render`, `subscriptions/output`, `subscriptions/linkpage`, `routing/domain`, `selector`, `snapshot`, `own`, `routeros`, `routerscripts/params` |
 | `pages` | handlers and templ files |
 | `<module>test` | the test harness (below) |
 
@@ -123,7 +123,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 
 ## Pages
 
-- `r.Shell` + `ui.Layout`, rendered with `web.Render`. Every button is a `ui.Action` (it shows up in the `:` pop-up; one drawn elsewhere, like Settings in the sidebar, stays there as a `Hidden` action in the header); confirmations through `ui.Confirm`; an action that needs fields is a **page styled as a dialog**; secondary actions in an **Actions** area (no "More ▾" menu).
+- `r.Shell` + `ui.Layout`, rendered with `web.Render`. A public page for people who never sign in (a link's page) is `ui.Standalone`: the logo bar and the page, without htmx and `proxier.js`, with its own script. Every button is a `ui.Action` (it shows up in the `:` pop-up; one drawn elsewhere, like Settings in the sidebar, stays there as a `Hidden` action in the header); confirmations through `ui.Confirm`; an action that needs fields is a **page styled as a dialog**; secondary actions in an **Actions** area (no "More ▾" menu).
 - A strict CSP: no inline `style` or `script` (`TestPagesHaveNoInlineScriptOrStyle`); shared classes go into the platform's `app.css`. Never name a row class `app` (the shell's `.app` is 100 vh).
 - htmx 2 doesn't swap 4xx with the platform's config: htmx answers that must re-render are 200 with a notice; plain posts get 409. A refusal for the member's grant is the exception: 403 with a `.forbidden` fragment, which `proxier.js` says in the key line.
 - A table is a `.colhead` and its `.row`s inside a `<div class="tbl">` (`TestEveryTableIsInATableBox`). Every column in its `grid-template-columns` has a real minimum (`minmax(120px, 1fr)`, never `minmax(0, …)`, whose columns collide when zoomed in). Cells are one line ending in "…", so give a long value a `title`; a message cell that must wrap gets `.wrap` (`.wrap.clamp` stops it after three lines, its `title` holding the rest). Two-column page layouts stack in the `max-width: 1100px` block at the end of `app.css`; one whose table needs more room beside its panel gets its own earlier block after its rules (`.tgrid` at 1270 px). A layout that changes again on a phone puts its narrower rules before its 760 px block, since the 1100 px block at the end would override them (`TestTemplatePagesHoldUpWhenZoomed`).
