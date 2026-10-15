@@ -2,7 +2,7 @@
 
 **Actors**: a member with `subscriptions` access; subscriptions module; servers (through `EndpointCatalog` and its events).
 
-A subscription is the set of servers a group of links gets: "Family", "Friends", "Me — everything". The admin chooses and orders the servers, and sets how the output is written and whether broken servers disappear from it on their own. Links then just point at a subscription ([link lifecycle](./link-lifecycle.md)).
+A subscription is the set of servers a group of links gets: "Family", "Friends", "Me — everything". Its owner chooses and orders the servers, and sets how the output is written and whether broken servers disappear from it on their own. Links then just point at a subscription ([link lifecycle](./link-lifecycle.md)).
 
 ## Steps: creating and editing
 

@@ -140,7 +140,8 @@ func (s *Service) PlanCutOff(ctx context.Context, linkID int64, scope access.Sco
 		if m.InService {
 			ps.Health = m.Server.Health
 		}
-		if _, ps.Reason, err = s.request(ctx, m.ServerID, "admin"); err != nil {
+		// only the reason counts: the request is never enqueued, so it has no actor
+		if _, ps.Reason, err = s.request(ctx, m.ServerID, ""); err != nil {
 			return CutOffPlan{}, err
 		}
 		if ps.Reason != "" {

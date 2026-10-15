@@ -15,7 +15,7 @@ func TestPublishWithErrorsCreatesNothing(t *testing.T) {
 	ctx := context.Background()
 	id := e.create("errors")
 	d, _ := e.Svc.Draft(ctx, id)
-	rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin")
+	rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin")
 	_, err := e.Svc.Publish(ctx, id, rev, "notes", true, "admin")
 	var ve *templates.ValidationError
 	if !errors.As(err, &ve) || ve.Report.OK() {
@@ -40,7 +40,7 @@ func TestPublishWarningsNeedConfirmation(t *testing.T) {
 	d, _ := e.Svc.Draft(ctx, id)
 	files := map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"],
 		"compose.yaml": []byte(strings.Replace(string(d.Files["compose.yaml"]), "nginx:stable-alpine", "nginx:latest", 1))}
-	rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, files, "admin", "admin")
+	rev, _ := e.Svc.SaveDraft(ctx, id, d.Revision, files, "member", "admin")
 	_, err := e.Svc.Publish(ctx, id, rev, "n", false, "admin")
 	var we *templates.WarningsError
 	if !errors.As(err, &we) || len(we.Report.Warnings()) != 1 {
@@ -96,7 +96,7 @@ func TestPublishThenEditAgain(t *testing.T) {
 		t.Error("editing an existing draft must change nothing")
 	}
 	// publishing the new draft is version 2, based on 1
-	rev, _ := e.Svc.SaveDraft(ctx, id, nd.Revision, map[string][]byte{"manifest.yaml": nd.Files["manifest.yaml"], "compose.yaml": append(nd.Files["compose.yaml"], '#')}, "admin", "admin")
+	rev, _ := e.Svc.SaveDraft(ctx, id, nd.Revision, map[string][]byte{"manifest.yaml": nd.Files["manifest.yaml"], "compose.yaml": append(nd.Files["compose.yaml"], '#')}, "member", "admin")
 	if v, err := e.Svc.Publish(ctx, id, rev, "second", false, "admin"); err != nil || v != 2 {
 		t.Fatalf("second publish: %d %v", v, err)
 	}
@@ -158,12 +158,12 @@ func TestVersionNumbersHaveNoGaps(t *testing.T) {
 	}
 	// a failed publish in between burns no number
 	d, _ := e.Svc.EditDraft(ctx, id, "admin")
-	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "admin", "admin")
+	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"]}, "member", "admin")
 	d, _ = e.Svc.Draft(ctx, id)
 	if _, err := e.Svc.Publish(ctx, id, d.Revision, "bad", true, "admin"); err == nil {
 		t.Fatal("a draft with a missing file must not publish")
 	}
-	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"], "compose.yaml": []byte("services:\n  w:\n    image: nginx:1\n")}, "admin", "admin")
+	_, _ = e.Svc.SaveDraft(ctx, id, d.Revision, map[string][]byte{"manifest.yaml": d.Files["manifest.yaml"], "compose.yaml": []byte("services:\n  w:\n    image: nginx:1\n")}, "member", "admin")
 	d, _ = e.Svc.Draft(ctx, id)
 	if v, err := e.Svc.Publish(ctx, id, d.Revision, "ok", false, "admin"); err != nil || v != 5 {
 		t.Errorf("after a failed publish: %d %v", v, err)

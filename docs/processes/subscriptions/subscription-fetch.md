@@ -14,8 +14,8 @@ This is the only thing link holders ever touch. An app requests the link's URL a
    | Link | Output | Fetch outcome |
    |---|---|---|
    | deleted (within tombstone) | stub "⛔ Link removed" | `stub-deleted` |
-   | disabled | stub "⛔ Link disabled · contact {admin contact}" | `stub-disabled` |
-   | expired | stub "⏳ Expired on {date} · contact {admin contact}" | `stub-expired` |
+   | disabled | stub "⛔ Link disabled · contact {contact}" | `stub-disabled` |
+   | expired | stub "⏳ Expired on {date} · contact {contact}" | `stub-expired` |
    | the subscription has no servers | stub "⚠️ No servers yet" | `stub-empty` |
    | otherwise | the servers' connection URIs | `ok` |
 
@@ -45,7 +45,7 @@ Stub entries are served with the same headers and a `200`, so apps accept them a
 
 - A response never reveals whether a token exists beyond what its output says: unknown tokens all get the same `404`.
 - The output is computed fresh on every request. No caching anywhere, including the gateway (`no-store`).
-- The output never contains anything but connection URIs: no comments, no admin data.
+- The output never contains anything but connection URIs: no comments, nothing about members.
 - The client IP is `X-Real-IP` when the request comes from a trusted proxy, otherwise the socket address.
 - `HEAD` returns the same headers as `GET` without a body, and doesn't record a fetch.
 - Tokens are case-sensitive, and a trailing slash is not part of the token (`/s/{token}/` is the same URL).

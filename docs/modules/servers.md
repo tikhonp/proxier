@@ -8,13 +8,13 @@ The servers module turns a freshly issued VPS into a working proxy server from a
 - A new server gets the **server name** `<code in lower case>-<number>` (`nl-2`), where the number is one more than the highest number its name prefix has ever used. Numbers are **never reused**, not even after a failed provisioning or a retirement: a server is never deleted, so its row keeps its number taken. A name means one server for good. A server created when servers had locations keeps its name and its location's code as its prefix (`ams-1` in NL); new servers of that country count under the country's code.
 - The **management hostname** comes from the hostname pattern in Settings, default `{country}-{number}.hosts.tikhonnnnn.com` → `nl-1.hosts.tikhonnnnn.com`. `{country}` is the name prefix; `{location}`, its earlier spelling, still works in a saved pattern.
 - The **proxy hostname** is the name in connection URIs and the TLS certificate. It is always the management hostname. The two are separate fields, so proxy hostnames on other domains would need no data migration ([DNS](#dns)).
-- When the admin pastes an IP into the new-server form, Proxier looks up the IP's country and preselects it in the country picker. It is only a suggestion.
+- When a member pastes an IP into the new-server form, Proxier looks up the IP's country and preselects it in the country picker. It is only a suggestion.
 
 ## Templates
 
 A **template** is a named definition of a server's stack. Templates are stored in Proxier, edited in the UI, versioned, and validated when published ([ADR 0003](../adr/0003-proxier-rendered-stack-templates.md)). Proxier generates the secrets, renders every file and runs every step itself. It always knows the server's real configuration, so it can redeploy, upgrade and rotate later.
 
-A **template version** is a **manifest** (`manifest.yaml`) plus files. Versions are immutable and numbered 1, 2, 3… Editing happens in a **draft** based on the latest version, and publishing the draft creates the next version. Each template has a **default version** used for new servers. A newer version never touches existing servers by itself: they show "update available" until the admin upgrades them.
+A **template version** is a **manifest** (`manifest.yaml`) plus files. Versions are immutable and numbered 1, 2, 3… Editing happens in a **draft** based on the latest version, and publishing the draft creates the next version. Each template has a **default version** used for new servers. A newer version never touches existing servers by itself: they show "update available" until a member upgrades them.
 
 Lifecycle and validation: [template authoring](../processes/servers/template-authoring.md).
 
@@ -217,7 +217,7 @@ The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {coun
 DNS is a driver; Cloudflare is the one there is ([Cloudflare integration](../integrations/cloudflare.md)).
 
 - Provisioning creates an **A record** for the management hostname (and for the proxy hostname, once they differ) pointing to the server's IP. It is **DNS-only, never proxied**: clients and Let's Encrypt must reach the server directly. TTL is 60 s, and the record carries the comment `proxier:<server name>`.
-- Proxier only ever changes or deletes records that carry its comment. A different record already at that name stops provisioning with a conflict, unless the admin confirms an overwrite.
+- Proxier only ever changes or deletes records that carry its comment. A different record already at that name stops provisioning with a conflict, unless a member confirms an overwrite.
 - After writing, Proxier waits until 1.1.1.1 and 8.8.8.8 both return the IP (timeout 10 min) before anything needs the name, for example the certificate. It asks them over DNS-over-HTTPS, and over plain UDP port 53 only when DoH cannot be reached, because the home router may intercept port 53.
 - Retirement deletes the records, if they still point to the server's IP.
 - **Accepted risk:** each server's certificate names its hostname, and every certificate is published in certificate-transparency logs. Anyone, including a censor, can list `*.hosts.tikhonnnnn.com` on crt.sh. The fix in the [backlog](../overview.md#backlog) is wildcard certificates issued centrally through Cloudflare DNS-01 and uploaded to servers, optionally with proxy hostnames on unlinked cover domains. Management and proxy hostnames are separate fields, so it needs no data migration.

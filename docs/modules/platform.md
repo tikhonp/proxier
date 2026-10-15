@@ -25,7 +25,7 @@ Settings are grouped by module. Each module declares its own section, fields, de
 
 | Section | Contents |
 |---|---|
-| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (a new member's language, and the sign-in page's when the browser asks for neither English nor Russian), admin contact shown in stub entries (e.g. `@tikhonp`); then **Language**, the member's own language. A member without `settings: manage` sees only the read-only lines and their language. |
+| General | Instance name, public base URL (read-only, from env), the running version (read-only, `APP_VERSION` baked into the build; also at the sidebar's foot), display time zone, default language (a new member's language, and the sign-in page's when the browser asks for neither English nor Russian), **Admin contact**, the contact link holders see in stub entries (e.g. `@tikhonp`); then **Language**, the member's own language. A member without `settings: manage` sees only the read-only lines and their language. |
 | Security | Passkeys, the authenticator app, change password, sessions (each the member's own), lockout parameters (`security.lockout_failures` 5, `security.lockout_window` 15m, `security.lockout_duration` 15m; `settings: manage` only). |
 | Members | Every member with their access and state (active, waiting for setup, removed); **Add member**; a member's page with their levels, their setup link (**Copy link**, **New setup link…**) and **Remove member**. `settings: manage` only. |
 | SSH | Proxier's public key (copy; **Regenerate** with a warning that every server, jump host and router must get the new key), your personal public keys installed on new servers, known hosts (fingerprints, **Forget**, **Accept new key** when one changed). |
@@ -43,13 +43,13 @@ Settings are grouped by module. Each module declares its own section, fields, de
 - One **master key** from the environment encrypts every secret with AES-256-GCM: generated values, link and config tokens, deployed files that contain secrets, setting secrets, Proxier's SSH private key ([ADR 0012](../adr/0012-secrets-encrypted-root-password-never-stored.md)).
 - The **root password** of a new VPS exists only inside its provisioning job, encrypted, and is erased as soon as Proxier's key login works. It is never logged, never shown again, and never written into an event.
 - Lookups by secret use an HMAC of the value under a key derived from the master key, so a token is never stored in plain text or compared in plain text.
-- **Redaction**: every job registers the secrets it handles, and log lines are scrubbed before they are stored. Values the UI must show (a link URL, a connection URI) appear on the object's own page, where the admin opens them deliberately.
+- **Redaction**: every job registers the secrets it handles, and log lines are scrubbed before they are stored. Values the UI must show (a link URL, a connection URI) appear on the object's own page, where a member who may see it opens them deliberately.
 
 ## SSH
 
-- Proxier has **one ed25519 key pair**, generated on first start. It is installed on every server at provisioning, and installed by the admin on jump hosts and routers.
+- Proxier has **one ed25519 key pair**, generated on first start. It is installed on every server at provisioning, and installed by hand on jump hosts and routers.
 - Your **personal public keys** (Settings → SSH) are added to every new server alongside Proxier's, so you can always log in yourself. They are one settings field: one `authorized_keys` line per line, each checked when saved (a bad line is named by its number).
-- **Host keys are pinned on first contact** (trust on first use), per address, one key type each (the client offers only that type, so a server with several host keys never looks changed). Two first-contact modes: servers are pinned when the handshake succeeds (nobody could have confirmed a fingerprint at provisioning), while routers and jump hosts stop with the fingerprint, which the admin confirms before it is pinned. When a pinned key changes, every job touching that host fails with "host key changed", a notification is sent once, and the known host shows the old and new fingerprints with **Accept new key** or **Forget**. Nothing reconnects until one is clicked ([ADR 0007](../adr/0007-agentless-ssh-with-pinned-host-keys.md)). Retiring a server forgets its pins, so a provider reusing the address is a first contact.
+- **Host keys are pinned on first contact** (trust on first use), per address, one key type each (the client offers only that type, so a server with several host keys never looks changed). Two first-contact modes: servers are pinned when the handshake succeeds (nobody could have confirmed a fingerprint at provisioning), while routers and jump hosts stop with the fingerprint, which a member confirms before it is pinned. When a pinned key changes, every job touching that host fails with "host key changed", a notification is sent once, and the known host shows the old and new fingerprints with **Accept new key** or **Forget**. Nothing reconnects until one is clicked ([ADR 0007](../adr/0007-agentless-ssh-with-pinned-host-keys.md)). Retiring a server forgets its pins, so a provider reusing the address is a first contact.
 - **Regenerate** replaces Proxier's key (type `regenerate` to confirm) and notifies; every server, jump host and router must be given the new one.
 - **Jump hosts**: a connection to a router can go through one jump host. Both hops use Proxier's key, and both host keys are pinned. Each hop has its own first-contact rule (`Target.FirstContact` for the last hop, `Target.JumpFirstContact` for the jump host; the zero value is pin-on-first-contact, so a caller sets both). An awaiting router's probe pins the router on first contact but refuses an unknown jump host.
 - Commands run with timeouts. Output is streamed into the job log (redacted).
@@ -65,7 +65,7 @@ Queues, states, steps, keys, retries, cancellation and logs are described in [ar
 - **Jobs page**: every job, newest first, filterable by queue, state, type and subject. Running jobs show their current step. Failed jobs show the error line.
 - **Job page**: steps with state and duration, the live log (in its own scrolling box: follow mode, expand, copy, download), payload summary (redacted), attempts, **Cancel** and **Retry**. The subject (server, router…) is linked.
 - **Header indicator**: the number of running jobs, opening a list of the running ones with their progress. Failed jobs since the last visit are marked.
-- Objects (server, router, discovery run) embed their latest job's progress, so the admin rarely needs the Jobs page itself.
+- Objects (server, router, discovery run) embed their latest job's progress, so a member rarely needs the Jobs page itself.
 
 Default schedules:
 
@@ -87,7 +87,7 @@ Flow and edge cases: [jobs](../processes/platform/jobs.md).
 
 ## Events and Activity
 
-Events are described in [architecture](../architecture.md#events-and-history) and catalogued in [events.md](../events.md). The **Activity page** shows them newest first. Filters: module, event type, subject, actor, time range. Each row reads as a sentence ("tikhon rotated credentials of nl-1") with a link to the subject. A member is named by username, whether the row says `member:<id>` or, from before members, `admin` (member 1). Each object page has an **Activity** tab with the same list filtered to it. At `activity: own` the Activity page, the Jobs page and the header's jobs cell show only the member's own: events and jobs they caused, or whose subject is their member or a thing they own (each owning module lists its subjects through `SubjectOwner`); another member's job by URL is a 404.
+Events are described in [architecture](../architecture.md#events-and-history) and catalogued in [events.md](../events.md). The **Activity page** shows them newest first. Filters: module, event type, subject, actor (`member:1` and the old `admin` find each other's rows), time range. Each row reads as a sentence ("tikhon rotated credentials of nl-1") with a link to the subject. A member is named by username, whether the row says `member:<id>` or, from before members, `admin` (member 1). Each object page has an **Activity** tab with the same list filtered to it. At `activity: own` the Activity page, the Jobs page and the header's jobs cell show only the member's own: events and jobs they caused, or whose subject is their member or a thing they own (each owning module lists its subjects through `SubjectOwner`); another member's job by URL is a 404.
 
 ## Notifications
 

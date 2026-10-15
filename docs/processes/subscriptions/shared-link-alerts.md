@@ -1,6 +1,6 @@
 # Shared-link alerts
 
-**Actors**: the shared-link scan (queue `maintenance`, every 15 min); Admin; the notifier.
+**Actors**: the shared-link scan (queue `maintenance`, every 15 min); the link's owner and members with `subscriptions: manage_all`; the notifier.
 
 A link is meant for one person or device. If it is fetched from many networks or by many different apps, it has probably been passed on. Credentials are shared, so Proxier can't see who actually connects. What it does see is who fetches each link, and that is enough to notice sharing and act: regenerate the token, disable, or cut off.
 

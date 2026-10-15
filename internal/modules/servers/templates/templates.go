@@ -236,7 +236,7 @@ func (s *Service) EditDraft(ctx context.Context, templateID int64, actor string)
 			return err
 		}
 		if _, err := s.ev.Record(ctx, tx, events.Event{Type: "template.draft_saved", Subject: subject(templateID), Actor: actor,
-			Payload: map[string]any{"by": "admin", "files": len(files), "from_version": latest}}); err != nil {
+			Payload: map[string]any{"by": ByMember, "files": len(files), "from_version": latest}}); err != nil {
 			return err
 		}
 		out, err = readDraft(ctx, tx, templateID)

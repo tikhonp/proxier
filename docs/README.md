@@ -1,6 +1,6 @@
 # Proxier documentation
 
-Proxier is a self-hosted control panel for one person's proxy setup. It builds VPS proxy servers from templates and checks whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
+Proxier is a self-hosted control panel for one person's proxy setup, shared with the members they add. It builds VPS proxy servers from templates and checks whether they work from Russia. It gives people and devices subscription links, keeps domain-based routing on MikroTik routers and the Shadowrocket config in sync, and hosts the router setup script.
 
 Every module is built and runs on the real deployment. The facts that only real hardware, accounts or phones can confirm are listed in [open questions](./open-questions.md).
 

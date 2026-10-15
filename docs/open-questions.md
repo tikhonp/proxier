@@ -20,7 +20,7 @@ The node joins headscale 0.29 with a pre-auth key and survives restarts on its s
 
 ## A reset router's first fetch
 
-After `/system reset-configuration no-defaults=yes` a router has no internet, so `/tool fetch` needs a DHCP client on the WAN port first, and the script then adds its own (`/ip dhcp-client add interface=$wanIface`). RouterOS may refuse a second client on the port and stop the import. Seen: a file uploaded by hand imports whole on 7.24.5, the script's own DHCP client comes up, and the router connects and syncs 2 to 10 minutes later. Not tried: `/tool fetch` itself (its user agent, the "was fetched" notification, the `404` of a second fetch) and a hand-added DHCP client beside the script's. Until then the generation page tells the admin to give the WAN port a DHCP client before fetching ([script generation](./processes/router-scripts/script-generation.md)).
+After `/system reset-configuration no-defaults=yes` a router has no internet, so `/tool fetch` needs a DHCP client on the WAN port first, and the script then adds its own (`/ip dhcp-client add interface=$wanIface`). RouterOS may refuse a second client on the port and stop the import. Seen: a file uploaded by hand imports whole on 7.24.5, the script's own DHCP client comes up, and the router connects and syncs 2 to 10 minutes later. Not tried: `/tool fetch` itself (its user agent, the "was fetched" notification, the `404` of a second fetch) and a hand-added DHCP client beside the script's. Until then the generation page tells the member to give the WAN port a DHCP client before fetching ([script generation](./processes/router-scripts/script-generation.md)).
 
 ## Proxier's user from the add page
 

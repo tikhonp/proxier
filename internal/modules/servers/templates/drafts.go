@@ -16,11 +16,18 @@ import (
 // maxEventFiles caps the file names an event carries.
 const maxEventFiles = 50
 
+// The "by" of template.draft_saved and template.draft_validated: who edited
+// the draft. Rows from before members say "admin".
+const (
+	ByMember = "member"
+	ByAgent  = "agent"
+)
+
 // SaveDraft stores a new revision of the draft with exactly these files. It
 // carries the revision it was based on: another save in between (a second
 // browser tab, an agent) makes it ErrDraftChanged and nothing is written. A
 // save that changes no file records nothing and keeps the revision. by is
-// "admin" or "agent".
+// ByMember or ByAgent.
 func (s *Service) SaveDraft(ctx context.Context, templateID int64, revision int, files map[string][]byte, by, actor string) (newRevision int, err error) {
 	return s.SaveDraftIn(ctx, templateID, revision, files, by, actor, nil)
 }

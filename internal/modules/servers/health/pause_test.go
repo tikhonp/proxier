@@ -83,8 +83,8 @@ func TestManualResumeCancelsResumeJob(t *testing.T) {
 	if j, _ := f.App.Jobs.Job(bg, first[0].ID); j.State != jobs.Cancelled {
 		t.Fatalf("the old resume job is %s", j.State)
 	}
-	if n := len(f.Events("server.checks_resumed")); n != 1 {
-		t.Fatalf("%d checks_resumed events", n)
+	if ev := f.Events("server.checks_resumed"); len(ev) != 1 || ev[0].Payload["by"] != "member" {
+		t.Fatalf("checks_resumed by hand: %+v", ev)
 	}
 	f.Drain()
 	if got := f.Health().Health; got != health.Healthy {
@@ -97,6 +97,9 @@ func TestManualResumeCancelsResumeJob(t *testing.T) {
 	// after an hour the new pause ends, not after 24
 	f.Tick(time.Hour + time.Second)
 	f.WaitFor("the one hour pause to end", func() bool { return len(f.Events("server.checks_resumed")) == 2 })
+	if ev := f.Events("server.checks_resumed"); ev[0].Payload["by"] != "timer" {
+		t.Errorf("checks_resumed at the end of the pause: %+v", ev[0])
+	}
 	f.Drain()
 	if got := f.Health().Health; got != health.Healthy {
 		t.Fatalf("health %s", got)

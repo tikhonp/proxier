@@ -4,7 +4,7 @@ Proxier must let modules (servers, subscriptions, routing, router scripts) be sw
 
 ## Considered options
 
-- **Go runtime plugins or separate services**: Go plugins are fragile across builds, and services would bring network APIs, deployment and versioning for a single-user tool.
+- **Go runtime plugins or separate services**: Go plugins are fragile across builds, and services would bring network APIs, deployment and versioning for a tool a few members use.
 - **One shared schema with foreign keys everywhere**: simpler queries, but every module then depends on every other module's tables, and "swappable" stops being true.
 
 ## Consequences

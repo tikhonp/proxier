@@ -12,12 +12,12 @@ Before Proxier, every part of the proxy setup was manual and lived in a differen
 | `mtvpn.py` (a CLI) filled the MikroTik address list from v2fly, iplist and URL sources over SSH, rendered the Shadowrocket config and uploaded it to copyparty. The service lists were text files on copyparty. | It ran only when run. Upstream changes reached routers only after a manual `update`. Finding a new site's domains was guesswork. |
 | `fresh-router.rsc` was edited by hand for every new router. | Its current version and parameters lived in memory and git history. |
 
-Proxier does all of this as one always-on service: a web UI for the admin, background jobs for long work, and public URLs for client apps, routers and phones.
+Proxier does all of this as one always-on service: a web UI for its members, background jobs for long work, and public URLs for client apps, routers and phones.
 
 ## Who uses it
 
-- **Members** sign in, each on their own, with a level of access in each area ([members](./processes/platform/members.md)); the first one is the owner. Everything happens in the web UI, on a desktop or a phone, with Telegram notifications.
-- **Link holders** (family, friends, the admin's own devices) never sign in. They see only what their app gets from their link: connection URIs, a title and an expiry date.
+- **Members** sign in, each on their own, with a level of access in each area ([members](./processes/platform/members.md), [ADR 0018](./adr/0018-several-members-with-per-area-access.md)); the first one has the Owner preset and adds the others. Everything happens in the web UI, on a desktop or a phone, with Telegram notifications.
+- **Link holders** (family, friends, members' own devices) never sign in. They see only what their app gets from their link: connection URIs, a title and an expiry date.
 - **Routers** are MikroTiks that Proxier reaches over SSH, directly or through a jump host on the tailnet, to keep their domain lists in sync. A new router downloads its filled-in setup script from a fetch URL.
 - **Shadowrocket** on the phone subscribes to a hosted config URL.
 
@@ -55,10 +55,11 @@ flowchart LR
 6. Typing a site's address finds its domains.
 7. A new router is set up from a filled-in, versioned `fresh-router.rsc` that it fetches itself.
 8. The UI speaks English and Russian.
+9. Several members share one Proxier, each with a level in each area, their own things and their own Telegram notifications.
 
 ## Out of scope
 
-- Roles beyond a level per area, or anything multi-tenant: one site, whose servers every member shares. Selling access, payments, traffic accounting.
+- Roles beyond a level per area, or anything multi-tenant: one site, whose servers every member shares ([ADR 0018](./adr/0018-several-members-with-per-area-access.md)). Selling access, payments, traffic accounting.
 - Per-link credentials on servers. Credentials are shared per endpoint ([ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md)).
 - Ordering, paying for or cancelling VPSes through provider APIs.
 - Managing a router beyond its tunneled-domain list (DHCP, VLANs, firewall).
@@ -82,6 +83,6 @@ Not built, roughly in order of value. Each needs an extension point or a new flo
 ## Assumptions
 
 - The blocking Proxier must detect is Russian. Home, where Proxier runs, is in Russia, so Proxier is itself a Russian vantage point ([ADR 0005](./adr/0005-home-is-the-russian-vantage-point.md)).
-- Proxier runs on the home server (blackberry) behind the sh-main gateway. The admin UI and the public URLs share one public host with password sign-in ([ADR 0006](./adr/0006-one-public-host-for-admin-and-public-urls.md)).
+- Proxier runs on the home server (blackberry) behind the sh-main gateway. The UI and the public URLs share one public host with password sign-in ([ADR 0006](./adr/0006-one-public-host-for-admin-and-public-urls.md)).
 - DNS is Cloudflare. Notifications go to Telegram. Servers run Debian or Ubuntu with Docker.
 - Go and SQLite in one binary ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)), images built by Forgejo Actions on code.tikhonnnnn.com, a server-rendered UI with templ and htmx ([ADR 0014](./adr/0014-server-rendered-ui-templ-htmx.md)).

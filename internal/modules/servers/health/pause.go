@@ -83,7 +83,7 @@ func (s *Service) Resume(ctx context.Context, id int64, actor string) error {
 		if _, err := s.Jobs.CancelQueued(ctx, tx, JobResume, store.ServerSubject(id), actor); err != nil {
 			return err
 		}
-		return s.resumeTx(ctx, tx, id, actor, "admin")
+		return s.resumeTx(ctx, tx, id, actor, "member")
 	})
 	if err == nil {
 		s.Jobs.Kick()

@@ -1,6 +1,6 @@
 # Server health
 
-**Actors**: Scheduler; check jobs (queue `checks`); the embedded proxy client; check-host.net; Admin; subscriptions (through `EndpointCatalog`); the notifier.
+**Actors**: Scheduler; check jobs (queue `checks`); the embedded proxy client; check-host.net; a member with `servers: manage` (`servers: view` sees only the health state on the list); subscriptions (through `EndpointCatalog`); the notifier.
 
 Health answers one question per active server: **can people in Russia use it right now, and if not, why?** Proxier runs at home in Russia, so its own proxy test is the ground truth for "usable from Russia" ([ADR 0005](../../adr/0005-home-is-the-russian-vantage-point.md)). The self-check over SSH says whether the server itself works. check-host.net nodes abroad say whether it is reachable from outside Russia. Together they separate **down** (the server is broken or gone) from **blocked** (the server is fine, but Russia can't use it).
 

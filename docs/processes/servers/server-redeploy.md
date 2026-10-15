@@ -1,12 +1,12 @@
 # Server redeploy
 
-**Actors**: Admin; the redeploy job (queue `provisioning`); the server.
+**Actors**: a member with `servers: manage`; the redeploy job (queue `provisioning`); the server.
 
 Because Proxier renders every file itself, it can change a server after provisioning by rendering again and applying only the difference. This covers **redeploy** (same version), **upgrade** (another version, alone or rolled out across many servers), **parameter changes**, and the lighter stack operations (**restart stack**, **update images**, **reboot**, **container logs**). Rotation is its own flow ([credential rotation](./credential-rotation.md)) but reuses this one.
 
 ## Steps: redeploy, upgrade, parameter change
 
-1. The admin chooses an action on an **active** server's page:
+1. The member chooses an action on an **active** server's page:
    - **Redeploy**: the current version.
    - **Upgrade**: pick a newer (or older) version. The form asks for parameters the target version adds that have no default, and shows ones it removes.
    - **Edit parameters**: the current version with changed values.

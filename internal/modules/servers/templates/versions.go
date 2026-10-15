@@ -241,7 +241,7 @@ func (s *Service) DraftFromVersion(ctx context.Context, templateID int64, versio
 			return err
 		}
 		_, err = s.ev.Record(ctx, tx, events.Event{Type: "template.draft_saved", Subject: subject(templateID), Actor: actor,
-			Payload: map[string]any{"by": "admin", "files": len(files), "from_version": version}})
+			Payload: map[string]any{"by": ByMember, "files": len(files), "from_version": version}})
 		return err
 	})
 	return revision, err

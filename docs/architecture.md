@@ -2,13 +2,13 @@
 
 ## Runtime shape
 
-Proxier is **one Go binary** (`proxier`) in one container, with its data in one SQLite file ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). It runs on blackberry. Only discovery uses the headless Chromium sidecar. `proxier serve` runs the HTTP server, the scheduler and every worker pool in one process. `proxier manage …` holds the one-off admin commands (create the admin, reset the password, run migrations, back up).
+Proxier is **one Go binary** (`proxier`) in one container, with its data in one SQLite file ([ADR 0001](./adr/0001-single-binary-sqlite-in-process-jobs.md)). It runs on blackberry. Only discovery uses the headless Chromium sidecar. `proxier serve` runs the HTTP server, the scheduler and every worker pool in one process. `proxier manage …` holds the one-off commands (create the first member, reset a member's password or second factor, run migrations, back up).
 
 ```mermaid
 flowchart LR
     subgraph Internet
         APPS[Client apps<br/>Happ, v2RayTun, Shadowrocket…]
-        ADMINB[Admin browser]
+        ADMINB[Members' browsers]
         TG[Telegram Bot API]
         CF[Cloudflare API]
         CH[check-host.net]
@@ -138,7 +138,7 @@ Servers and targets follow one pattern: Proxier holds the **desired state**, rem
 | Shadowrocket config | Base config + routing list rules | Rendered on request | (no remote side) |
 | Subscription output | Subscription servers, their endpoints and health | Computed on every fetch | (no remote side) |
 
-Comparing desired with applied gives a **plan**. The admin can preview the plan before it runs (redeploy diff, router sync preview), and the job only touches what differs.
+Comparing desired with applied gives a **plan**. A member can preview the plan before it runs (redeploy diff, router sync preview), and the job only touches what differs.
 
 ## Data
 
@@ -182,12 +182,12 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 
 ## Security model (summary)
 
-- Members sign in on a public host, each on their own, with a level in each area; every signed-in route checks its area's level, and every query of owned things (subscriptions, links, routing lists, routers, Shadowrocket configs, custom services, generations) takes an `access.Scope`, so a member at `own` reaches only their own and another's ID answers 404 ([members](./processes/platform/members.md#ownership)). A new member chooses their password at a single-use setup link, so nobody else handles it. Password sign-in, with an optional authenticator app code; optional passkeys sign in alone ([ADR 0017](./adr/0017-passkeys-sign-in-alone.md)). Mitigations: login lockout per IP across passwords, codes and passkeys, a notification to the member on sign-in from a new IP and on every change to their ways in, notifications only to the members an event concerns (the owner of its subject and who manages its area: [recipients](./processes/platform/notifications.md#recipients)), short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
+- Members sign in on a public host, each on their own, with a level in each area; every signed-in route checks its area's level, and every query of owned things (subscriptions, links, routing lists, routers, Shadowrocket configs, custom services, generations) takes an `access.Scope`, so a member at `own` reaches only their own and another's ID answers 404 ([members](./processes/platform/members.md#ownership), [ADR 0018](./adr/0018-several-members-with-per-area-access.md)). A new member chooses their password at a single-use setup link, so nobody else handles it. Password sign-in, with an optional authenticator app code; optional passkeys sign in alone ([ADR 0017](./adr/0017-passkeys-sign-in-alone.md)). Mitigations: login lockout per IP across passwords, codes and passkeys, a notification to the member on sign-in from a new IP and on every change to their ways in, notifications only to the members an event concerns (the owner of its subject and who manages its area: [recipients](./processes/platform/notifications.md#recipients)), short idle sessions, secure cookies, CSRF on every change ([sign-in](./processes/platform/sign-in.md)).
 - Secrets encrypted at rest. The root password of a new VPS is kept, encrypted, only until Proxier's key is installed, then erased ([ADR 0012](./adr/0012-secrets-encrypted-root-password-never-stored.md)).
-- SSH host keys are pinned on first contact. A changed key stops all work with that host until the admin accepts the new key ([ADR 0007](./adr/0007-agentless-ssh-with-pinned-host-keys.md)).
+- SSH host keys are pinned on first contact. A changed key stops all work with that host until a member with `settings: manage` accepts the new key on Settings → SSH ([ADR 0007](./adr/0007-agentless-ssh-with-pinned-host-keys.md)).
 - Proxier never gets the Docker socket of the machine it runs on ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)).
 - Tokens are long (≥ 128 bits), random, compared through HMAC lookups, and regenerable.
-- Job logs and UI never show a secret unless the admin explicitly reveals it.
+- Job logs and UI never show a secret unless a member who may see it reveals it on purpose (a server's secrets need `servers: manage`).
 
 ## Observability
 
@@ -204,7 +204,7 @@ Environment variables hold what Proxier needs before the database is readable, a
 | `PROXIER_DATA_DIR` | Database, tailnet state, backups | `/data` |
 | `PROXIER_MASTER_KEY` | 32-byte key (base64) that encrypts every secret. Losing it loses the secrets. | required |
 | `PROXIER_LISTEN` | HTTP listen address | `:8080` |
-| `PROXIER_BASE_URL` | Public base URL for admin and public routes | required, e.g. `https://proxier.tikhonnnnn.com` |
+| `PROXIER_BASE_URL` | Public base URL for the UI and public routes | required, e.g. `https://proxier.tikhonnnnn.com` |
 | `PROXIER_TRUSTED_PROXIES` | Addresses whose `X-Real-IP` is believed | the tunnel's address |
 | `PROXIER_TS_CONTROL_URL` | headscale URL for the tailnet node | `https://hs.tikhonnnnn.com` |
 | `PROXIER_TS_AUTHKEY` | Pre-auth key for the first tailnet login | empty: tailnet off |

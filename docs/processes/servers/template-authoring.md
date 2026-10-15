@@ -1,6 +1,6 @@
 # Template authoring
 
-**Actors**: Admin; Proxier (validators).
+**Actors**: a member with `servers: manage`; Proxier (validators).
 
 A template defines a server's stack ([servers module](../../modules/servers.md#templates)). This flow covers writing it, checking it before it can reach a server, and keeping its versions. A version that fails validation can't be published. A published version can't change.
 
@@ -30,9 +30,9 @@ A template defines a server's stack ([servers module](../../modules/servers.md#t
 
 ## Steps: handing the draft to an agent
 
-A coding agent on the admin's machine (Claude Code, Codex or similar) can fix a draft remotely. Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
+A coding agent on the member's machine (Claude Code, Codex or similar) can fix a draft remotely. Proxier never runs the agent. It gives the agent a prompt and a short-lived key that only reaches this draft.
 
-1. In the editor or on the template page, the admin chooses **Hand off to an agent…** and fills in:
+1. In the editor or on the template page, the member chooses **Hand off to an agent…** and fills in:
    - what the problem is and what the agent should do, as free text;
    - which context to include:
      - the latest validation report;
@@ -49,7 +49,7 @@ A coding agent on the admin's machine (Claude Code, Codex or similar) can fix a 
    - a validation → `template.draft_validated{by: agent}`.
 4. While a session is open, the template page and the editor show a band: who opened it and for what, how many saves and validations, when it expires, **What it changed** (the activity filtered to this session) and **Revoke access**.
 5. The session ends on expiry, on **Revoke access**, when the draft is published or discarded, when a new hand-off for the same draft replaces it (`replaced`), or after the 8-hour maximum. A request after that gets `401` with "session ended"; so does one with an unknown token, so an ended session can't be told from one that never existed. → `template.agent_session_closed{reason, saves}`
-6. The admin reviews the draft (diff against the base version, validation, preview) and publishes as usual. Publishing is never done by the agent.
+6. The member reviews the draft (diff against the base version, validation, preview) and publishes as usual. Publishing is never done by the agent.
 
 The **agent API** lives under `/agent/v1`. It accepts only an agent token, never a session cookie.
 
@@ -73,7 +73,7 @@ Rules:
   - read a secret value: generated values and secret parameters render as `•••`, and job logs are the redacted ones.
 - **ETags.** A file's ETag is `"<draft revision>-<first 16 hex digits of the content's SHA-256>"`; the draft's is `"<revision>"`. Every save bumps the revision, so every file's ETag changes: read again before the next write.
 - **Rate limit.** 600 requests per session, and 60 per minute (a fixed minute); over either gets `429` with `Retry-After`. Files keep the editor's size limit (1 MiB a file, 10 MiB the draft; a larger request gets `413`).
-- **Editing alongside the agent.** The admin's open editor gets "the draft changed" after an agent save and offers to reload, the same as two browser tabs.
+- **Editing alongside the agent.** A member's open editor gets "the draft changed" after an agent save and offers to reload, the same as two browser tabs.
 - **The prompt is a secret.** The dialog says so, and the token is shown masked in its preview. Copying it again later isn't possible: the token is shown once. A new hand-off makes a new session.
 
 ## Validation

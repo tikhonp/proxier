@@ -69,7 +69,7 @@ func TestDraftFromOldVersionPublishesNext(t *testing.T) {
 	if string(got.Files["compose.yaml"]) != string(v1.Files["compose.yaml"]) {
 		t.Error("the draft does not hold version 1's files")
 	}
-	if _, err := e.Svc.SaveDraft(ctx, id, d.Revision, got.Files, "admin", "admin"); !errors.Is(err, templates.ErrDraftChanged) {
+	if _, err := e.Svc.SaveDraft(ctx, id, d.Revision, got.Files, "member", "admin"); !errors.Is(err, templates.ErrDraftChanged) {
 		t.Errorf("a tab that still has the replaced draft: %v", err)
 	}
 

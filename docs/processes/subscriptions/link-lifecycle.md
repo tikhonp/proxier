@@ -14,7 +14,7 @@ A link is what you hand to one person or device: a name and a secret URL serving
    - **note**.
    The subscriptions offered are those the member may change: their own, or every one at `subscriptions: manage_all`.
 2. Proxier generates the token and creates the link as **active**, owned by the member who made it ([ownership](../platform/members.md#ownership)). The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
-3. The admin sends the URL, or shows the QR to be scanned in the app.
+3. The member sends the URL, or shows the QR to be scanned in the app.
 
 ## Steps: changing a link
 
@@ -55,7 +55,7 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - A deleted link's page is read-only: "Deleted on 8 Oct 2026. Its URL serves “⛔ Link removed” until 7 Nov 2026." (or, after that, the day its tombstone ended). The tombstone period is the setting `subscriptions.tombstone` (30 days by default), the one in force at fetch time.
 - A disabled link keeps its expiry. Enabling an expired link still serves the "expired" stub entry.
 - Deleting is softer than it sounds and stronger than a `404`. The tombstone's stub entry makes refreshing apps drop the servers, which a `404` wouldn't (apps keep their last list on errors).
-- What the link holder sees is the stub entry's name in their app, in the link's language, with the admin contact from Settings.
+- What the link holder sees is the stub entry's name in their app, in the link's language, with the contact from Settings → General (**Admin contact**).
 
 ## Edge cases (each is a test)
 

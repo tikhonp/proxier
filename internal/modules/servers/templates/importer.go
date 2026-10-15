@@ -67,7 +67,7 @@ func (s *Service) Import(ctx context.Context, into ImportTarget, files map[strin
 			return err
 		}
 		_, err := s.ev.Record(ctx, tx, events.Event{Type: "template.draft_saved", Subject: subject(id), Actor: actor,
-			Payload: map[string]any{"by": "admin", "files": len(files), "source": src.Kind}})
+			Payload: map[string]any{"by": ByMember, "files": len(files), "source": src.Kind}})
 		return err
 	})
 	if err != nil {

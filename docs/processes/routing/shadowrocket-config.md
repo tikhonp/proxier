@@ -1,8 +1,8 @@
 # Shadowrocket config
 
-**Actors**: Admin; Shadowrocket on the phone (through `GET /r/{token}/{name}.conf`); routing module.
+**Actors**: a member with `routing: own` or more; Shadowrocket on the phone (through `GET /r/{token}/{name}.conf`); routing module.
 
-The phone, away from home, should tunnel the same domains as the home router. Proxier hosts a Shadowrocket config for that: the admin's hand-written base config, with the routing list's rules spliced into `[Rule]`. Shadowrocket subscribes to its URL once, and every routing change reaches the phone on its next refresh. It replaced `mtvpn.py shadowrocket` and the copyparty upload. Format rules: [Shadowrocket integration](../../integrations/shadowrocket.md).
+The phone, away from home, should tunnel the same domains as the home router. Proxier hosts a Shadowrocket config for that: the member's hand-written base config, with the routing list's rules spliced into `[Rule]`. Shadowrocket subscribes to its URL once, and every routing change reaches the phone on its next refresh. It replaced `mtvpn.py shadowrocket` and the copyparty upload. Format rules: [Shadowrocket integration](../../integrations/shadowrocket.md).
 
 ## Steps: creating
 

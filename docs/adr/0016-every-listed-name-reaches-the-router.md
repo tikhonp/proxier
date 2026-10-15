@@ -2,7 +2,7 @@
 
 Supersedes the coverage part of [ADR 0013](./0013-one-owner-service-per-domain.md): Proxier no longer drops a name because another service in the list has a suffix above it, and a custom service no longer absorbs its own names under its suffixes. A router installs every name its services list, for every service, upstream or custom. Only the same name is still given to one owner: in the same form, the first service in list order; as both a suffix and an exact name, the suffix.
 
-A suffix entry doesn't make a MikroTik resolve the names under it. The router resolves only the names it is given: each address-list hostname entry is resolved by the router itself, and each FWD entry puts what it resolves into the address list. A subdomain the admin adds on purpose, as in the domain-list files mtvpn installed, is there so the router fetches its addresses too, for example for a client that doesn't ask the router's DNS. mtvpn never dropped such names on routers; it only dropped them from the Shadowrocket export. Proxier had applied that export's rule to routers as well, so a deliberately added `console.anthropic.com` never reached the router while `anthropic.com` was in another service.
+A suffix entry doesn't make a MikroTik resolve the names under it. The router resolves only the names it is given: each address-list hostname entry is resolved by the router itself, and each FWD entry puts what it resolves into the address list. A subdomain a member adds on purpose, as in the domain-list files mtvpn installed, is there so the router fetches its addresses too, for example for a client that doesn't ask the router's DNS. mtvpn never dropped such names on routers; it only dropped them from the Shadowrocket export. Proxier had applied that export's rule to routers as well, so a deliberately added `console.anthropic.com` never reached the router while `anthropic.com` was in another service.
 
 The same name stays with one owner because a router holds one entry per name: the service block removes every other entry with its names, so two tags claiming one name would take it from each other on every sync ([RouterOS integration](../integrations/routeros.md#service-block)).
 
@@ -15,5 +15,5 @@ The same name stays with one owner because a router holds one entry per name: th
 
 ## Rejected
 
-- **Only custom services' names**: the admin's own lists kept as URL sources by the mtvpn import, and upstream lists, have such names too, and mtvpn installed them all.
+- **Only custom services' names**: the hand-written lists kept as URL sources by the mtvpn import, and upstream lists, have such names too, and mtvpn installed them all.
 - **A per-name "force" flag**: a schema change and a choice to make on every name, for what is the right default.

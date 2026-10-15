@@ -2,7 +2,7 @@
 
 **Actors**: a member with `settings: manage`; the new member; any member; Proxier.
 
-Several people sign in to one Proxier. Each is a **member** with their own password, sessions, authenticator app and passkeys ([sign-in](./sign-in.md)), and a **level** in each **area**. A member at `none` in an area doesn't see it at all: its pages answer 403, and navigation, the `:` search, the dashboard and Settings leave it out.
+Several people sign in to one Proxier. Each is a **member** with their own password, sessions, authenticator app and passkeys ([sign-in](./sign-in.md)), and a **level** in each **area** ([ADR 0018](../../adr/0018-several-members-with-per-area-access.md)). A member at `none` in an area doesn't see it at all: its pages answer 403, and navigation, the `:` search, the dashboard and Settings leave it out.
 
 ## Areas and levels
 
