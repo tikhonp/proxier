@@ -9,7 +9,7 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 	@ui.Layout(s) {
 		@ui.TitleBlock(i18n.T(ctx, "nav.dashboard")) {
 			<div class="status">
-				if !v.NotConfigured && len(v.Failed) == 0 && len(v.Areas) == 0 {
+				if v.quiet() {
 					<span>{ i18n.T(ctx, "dash.quiet") }</span>
 				}
 			</div>
@@ -20,6 +20,14 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 				<span>{ i18n.T(ctx, "dash.notifications_not_configured.text") }</span>
 				<span class="flex1"></span>
 				@ui.ActionButton(ui.Action{ID: "telegram.configure", Label: "dash.configure_telegram", Method: "GET", Href: "/settings/integrations/telegram", Small: true})
+			}
+		}
+		if v.NoChat {
+			@ui.Band("gold") {
+				<span class="bold">{ i18n.T(ctx, "dash.no_chat") }</span>
+				<span>{ i18n.T(ctx, "dash.no_chat.text") }</span>
+				<span class="flex1"></span>
+				@ui.ActionButton(ui.Action{ID: "telegram.choose_chat", Label: "dash.choose_chat", Method: "GET", Href: "/settings/notifications", Small: true})
 			}
 		}
 		if len(v.Failed) > 0 {
@@ -51,7 +59,7 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 				@a.Body
 			}
 		}
-		if !v.NotConfigured && len(v.Failed) == 0 && len(v.Areas) == 0 {
+		if v.quiet() {
 			@ui.EmptyState(i18n.T(ctx, "dash.empty"), i18n.T(ctx, "dash.empty_next"))
 		}
 	}

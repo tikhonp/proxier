@@ -1,9 +1,10 @@
-// Package notify tells the admin about events that need attention
+// Package notify tells members about events that need attention
 // (docs/processes/platform/notifications.md). The notifier is an event
-// subscriber: for a committed event whose rule is on it renders the message in
-// the admin's language and queues a delivery job. A channel (Telegram) sends
-// it. Notifications live in their own table; only a failed delivery is an
-// event, and it is never notified about.
+// subscriber: for a committed event it finds the members in its audience
+// who have its rule on, renders the message in each one's language and
+// queues one delivery job each. A channel (Telegram) sends it to the
+// member's own address there. Notifications live in their own table; only a
+// failed delivery is an event, and it is never notified about.
 package notify
 
 import (
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -32,6 +34,13 @@ import (
 var FailedEvent = events.Type{
 	Name: "notification.failed", Module: "platform",
 	Description: "A notification could not be delivered.",
+	// Those from before members name no recipient.
+	Variant: func(p map[string]any) string {
+		if _, ok := p["to"]; ok {
+			return "to"
+		}
+		return ""
+	},
 }
 
 // Prefix of the event types that are never notifiable.
@@ -50,9 +59,14 @@ type Message struct {
 // Channel delivers messages somewhere.
 type Channel interface {
 	Name() string // "telegram"
+	// Configured reports whether the channel can send at all (Telegram: a
+	// bot token).
 	Configured(ctx context.Context) (bool, error)
-	// Send delivers m. *RateLimitedError asks to wait; other errors are retried.
-	Send(ctx context.Context, m Message) error
+	// Address is where m receives on this channel, "" for nowhere.
+	Address(m auth.Member) string
+	// Send delivers m to an address. *RateLimitedError asks to wait; other
+	// errors are retried.
+	Send(ctx context.Context, to string, m Message) error
 }
 
 // RateLimitedError asks the sender to wait before trying again.
@@ -82,9 +96,10 @@ type Rule struct {
 	Default bool
 }
 
-// Notification is a stored message and how its delivery went.
+// Notification is a stored message to one member and how its delivery went.
 type Notification struct {
 	ID, EventID, JobID int64
+	MemberID           int64 // the recipient
 	Channel, State     string
 	Message            Message
 	Attempts           int
@@ -123,6 +138,7 @@ type Service struct {
 	channels  []Channel
 	renderers map[string]Renderer
 	namers    map[string]SubjectNamer
+	owners    []SubjectOwner
 }
 
 // New returns a service with no channels. st supplies the display time zone.
@@ -200,13 +216,14 @@ func (s *Service) Configured(ctx context.Context) (bool, error) {
 	return false, nil
 }
 
-// Rules lists the rule of every notifiable event type, by name.
-func (s *Service) Rules(ctx context.Context) ([]Rule, error) {
+// Rules lists a member's rule of every event type they may get, by name:
+// those of areas the grant g doesn't reach are not theirs to choose.
+func (s *Service) Rules(ctx context.Context, member int64, g access.Grant) ([]Rule, error) {
 	var rows []struct {
 		Type    string `db:"event_type"`
 		Enabled bool   `db:"enabled"`
 	}
-	if err := s.d.R.SelectContext(ctx, &rows, `SELECT event_type, enabled FROM notification_rules`); err != nil {
+	if err := s.d.R.SelectContext(ctx, &rows, `SELECT event_type, enabled FROM notification_rules WHERE member_id = ?`, member); err != nil {
 		return nil, fmt.Errorf("notify: rules: %w", err)
 	}
 	set := map[string]bool{}
@@ -215,7 +232,7 @@ func (s *Service) Rules(ctx context.Context) ([]Rule, error) {
 	}
 	var out []Rule
 	for _, t := range s.ev.Types() {
-		if strings.HasPrefix(t.Name, eventPrefix) {
+		if strings.HasPrefix(t.Name, eventPrefix) || !mayReceive(t, g) {
 			continue
 		}
 		on, changed := set[t.Name]
@@ -227,18 +244,18 @@ func (s *Service) Rules(ctx context.Context) ([]Rule, error) {
 	return out, nil
 }
 
-// SetRule turns an event type's notification on or off. A rule back at its
-// default deletes its row, so a changed default reaches whoever never touched
-// it. A change records settings.changed on settings:notifications.
-func (s *Service) SetRule(ctx context.Context, eventType string, enabled bool, actor string) error {
+// SetRule turns one of a member's rules on or off. A rule back at its
+// default deletes its row, so a changed default reaches whoever never
+// touched it. A change records member.notifications_changed.
+func (s *Service) SetRule(ctx context.Context, member int64, g access.Grant, eventType string, enabled bool) error {
 	t, ok := s.ev.Lookup(eventType)
-	if !ok || strings.HasPrefix(eventType, eventPrefix) {
+	if !ok || strings.HasPrefix(eventType, eventPrefix) || !mayReceive(t, g) {
 		return fmt.Errorf("%w: %q", ErrUnknownRule, eventType)
 	}
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
 		cur := t.Notify
 		var stored bool
-		switch err := tx.GetContext(ctx, &stored, `SELECT enabled FROM notification_rules WHERE event_type = ?`, eventType); {
+		switch err := tx.GetContext(ctx, &stored, `SELECT enabled FROM notification_rules WHERE member_id = ? AND event_type = ?`, member, eventType); {
 		case err == nil:
 			cur = stored
 		case !errors.Is(err, sql.ErrNoRows):
@@ -249,32 +266,32 @@ func (s *Service) SetRule(ctx context.Context, eventType string, enabled bool, a
 		}
 		var err error
 		if enabled == t.Notify {
-			_, err = tx.ExecContext(ctx, `DELETE FROM notification_rules WHERE event_type = ?`, eventType)
+			_, err = tx.ExecContext(ctx, `DELETE FROM notification_rules WHERE member_id = ? AND event_type = ?`, member, eventType)
 		} else {
 			_, err = tx.ExecContext(ctx, `
-				INSERT INTO notification_rules (event_type, enabled, updated_at) VALUES (?, ?, ?)
-				ON CONFLICT (event_type) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`,
-				eventType, enabled, db.At(s.Now()))
+				INSERT INTO notification_rules (member_id, event_type, enabled, updated_at) VALUES (?, ?, ?, ?)
+				ON CONFLICT (member_id, event_type) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at`,
+				member, eventType, enabled, db.At(s.Now()))
 		}
 		if err != nil {
 			return err
 		}
 		_, err = s.ev.Record(ctx, tx, events.Event{
-			Type: settings.ChangedEvent.Name, Actor: actor,
-			Subject: events.Subject{Type: "settings", ID: "notifications"},
-			Payload: map[string]any{"keys": []string{"notifications." + eventType}},
+			Type: auth.NotificationsChangedEvent, Actor: events.MemberActor(member), Subject: auth.MemberSubject(member),
+			Payload: map[string]any{"keys": "notifications." + eventType},
 		})
 		return err
 	})
 }
 
-const notificationColumns = `id, event_id, COALESCE(job_id, 0) AS job_id, channel, state, message, attempts, last_error, created_at, sent_at`
+const notificationColumns = `id, event_id, COALESCE(job_id, 0) AS job_id, channel, member_id, state, message, attempts, last_error, created_at, sent_at`
 
 type notificationRow struct {
 	ID        int64   `db:"id"`
 	EventID   int64   `db:"event_id"`
 	JobID     int64   `db:"job_id"`
 	Channel   string  `db:"channel"`
+	MemberID  int64   `db:"member_id"`
 	State     string  `db:"state"`
 	Message   string  `db:"message"`
 	Attempts  int     `db:"attempts"`
@@ -284,7 +301,7 @@ type notificationRow struct {
 }
 
 func (r notificationRow) notification() (Notification, error) {
-	n := Notification{ID: r.ID, EventID: r.EventID, JobID: r.JobID, Channel: r.Channel, State: r.State,
+	n := Notification{ID: r.ID, EventID: r.EventID, JobID: r.JobID, Channel: r.Channel, MemberID: r.MemberID, State: r.State,
 		Attempts: r.Attempts, LastError: r.LastError, CreatedAt: r.CreatedAt, SentAt: r.SentAt}
 	if err := unmarshalMessage(r.Message, &n.Message); err != nil {
 		return Notification{}, fmt.Errorf("notify: message of notification %d: %w", r.ID, err)
@@ -301,12 +318,13 @@ func (s *Service) Get(ctx context.Context, id int64) (Notification, error) {
 	return r.notification()
 }
 
-// Failed lists notifications that failed since the given time, newest first.
-func (s *Service) Failed(ctx context.Context, since time.Time, limit int) ([]Notification, error) {
+// Failed lists a member's notifications that failed since the given time,
+// newest first.
+func (s *Service) Failed(ctx context.Context, member int64, since time.Time, limit int) ([]Notification, error) {
 	var rows []notificationRow
 	if err := s.d.R.SelectContext(ctx, &rows, `
 		SELECT `+notificationColumns+` FROM notifications
-		WHERE state = 'failed' AND created_at >= ? ORDER BY id DESC LIMIT ?`, db.At(since), limit); err != nil {
+		WHERE member_id = ? AND state = 'failed' AND created_at >= ? ORDER BY id DESC LIMIT ?`, member, db.At(since), limit); err != nil {
 		return nil, fmt.Errorf("notify: failed list: %w", err)
 	}
 	out := make([]Notification, 0, len(rows))
@@ -320,20 +338,21 @@ func (s *Service) Failed(ctx context.Context, since time.Time, limit int) ([]Not
 	return out, nil
 }
 
-// LatestFailed reports whether the newest finished notification failed. It is
-// the header's "Telegram failing".
-func (s *Service) LatestFailed(ctx context.Context) (bool, error) {
+// LatestFailed reports whether a member's newest finished notification
+// failed. It is the header's "Telegram failing".
+func (s *Service) LatestFailed(ctx context.Context, member int64) (bool, error) {
 	var state string
-	err := s.d.R.GetContext(ctx, &state, `SELECT state FROM notifications WHERE state != 'queued' ORDER BY id DESC LIMIT 1`)
+	err := s.d.R.GetContext(ctx, &state, `SELECT state FROM notifications WHERE member_id = ? AND state != 'queued' ORDER BY id DESC LIMIT 1`, member)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
 	}
 	return state == Failed, err
 }
 
-// Retry sends a failed notification again, as a new linked job; a grouped one
-// goes again with its whole group.
-func (s *Service) Retry(ctx context.Context, id int64, actor string) error {
+// Retry sends a member's failed notification again, as a new linked job; a
+// grouped one goes again with its whole group. Another member's is not
+// theirs to retry.
+func (s *Service) Retry(ctx context.Context, member, id int64) error {
 	n, err := s.Get(ctx, id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return ErrNotFailed
@@ -341,10 +360,10 @@ func (s *Service) Retry(ctx context.Context, id int64, actor string) error {
 	if err != nil {
 		return err
 	}
-	if n.State != Failed || n.JobID == 0 {
+	if n.State != Failed || n.JobID == 0 || n.MemberID != member {
 		return ErrNotFailed
 	}
-	newID, err := s.j.Retry(ctx, n.JobID, actor)
+	newID, err := s.j.Retry(ctx, n.JobID, events.MemberActor(member))
 	if err != nil {
 		return err
 	}

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -22,8 +23,9 @@ import (
 var bg = context.Background()
 
 const (
-	token = "123456:TEST-token"
-	chat  = "-1001"
+	token    = "123456:TEST-token"
+	chat     = "-1001"
+	password = "correct horse battery"
 )
 
 // clock is the channel's clock: its Sleep moves it, so pacing is visible
@@ -68,6 +70,7 @@ var testTypes = []events.Type{
 	{Name: "test.server_down", Module: "test", Notify: true, Emoji: "🔴", Description: "A server is down."},
 	{Name: "test.server_degraded", Module: "test", Emoji: "🟡", Description: "A server is degraded."},
 	{Name: "test.custom", Module: "test", Notify: true, Emoji: "🧭", Description: "Rendered by its module."},
+	{Name: "test.link_shared", Module: "subscriptions", Notify: true, Emoji: "🔗", Description: "A link looks shared."},
 	{Name: "test.health", Module: "test", Notify: true, Emoji: "🟣", Description: "Grouped by the state reached.",
 		Group: func(p map[string]any) string { s, _ := p["to"].(string); return s }, GroupHref: "/servers"},
 }
@@ -81,6 +84,8 @@ var testMessages = i18n.Messages{
 	"notify.auth.locked":               {EN: "{failures} failed sign-ins from {ip}", RU: "Неудачных входов с {ip}: {failures}"},
 	"notify.auth.password_changed":     {EN: "The admin password was changed", RU: "Пароль администратора изменён"},
 	"notify.test.health":               {EN: "{subject} is {to}", RU: "{subject}: {to}"},
+	"notify.test.link_shared":          {EN: "{subject} looks shared", RU: "{subject}: похоже, ссылкой делятся"},
+	"notify.member.added":              {EN: "{username} was added", RU: "Добавлен участник {username}"},
 	"notify.test.health.body":          {EN: "Because {why}.", RU: "Потому что {why}."},
 	"notify.test.health.group.blocked": {EN: "{n} server is blocked|{n} servers are blocked", RU: "{n} сервер заблокирован|{n} сервера заблокированы|{n} серверов заблокированы"},
 	"notify.group":                     {EN: "{n} notification|{n} notifications", RU: "{n} уведомление|{n} уведомления|{n} уведомлений"},
@@ -90,18 +95,20 @@ var testMessages = i18n.Messages{
 type Options struct {
 	NoDispatcher bool // the test calls the subscriber itself
 	NoJobs       bool // the test starts the job pools with StartJobs
-	NotSetUp     bool // no token and chat saved
+	NotSetUp     bool // no bot token, and member 1 has no chat
 }
 
 type env struct {
-	t     *testing.T
-	h     *jobstest.Harness
-	svc   *notify.Service
-	auth  *auth.Service
-	tg    *telegram.Fake
-	ch    *telegram.Channel
-	clk   *clock
-	names *names
+	t      *testing.T
+	h      *jobstest.Harness
+	svc    *notify.Service
+	auth   *auth.Service
+	tg     *telegram.Fake
+	ch     *telegram.Channel
+	clk    *clock
+	names  *names
+	owners *owners
+	mark   int // messages sent before fresh
 }
 
 func newEnv(t *testing.T, o Options) *env {
@@ -115,12 +122,14 @@ func newEnv(t *testing.T, o Options) *env {
 
 	e.auth = auth.New(h.DB, h.Vault, h.Events, h.Settings)
 	e.auth.Params = auth.Params{Memory: 1024, Time: 1, Threads: 1}
-	must(t, e.auth.CreateFirstMember(bg, "admin", "correct horse battery"))
+	must(t, e.auth.CreateFirstMember(bg, "admin", password))
 
 	base, _ := url.Parse("https://proxier.test")
 	e.svc = notify.New(h.DB, h.Events, cat, h.Sys, e.auth, h.Settings, base, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	e.svc.Now = h.Clock.Now
 	must(t, e.svc.AddNamer(e.names))
+	e.owners = &owners{by: map[string]int64{}}
+	e.svc.AddOwner(e.owners)
 	must(t, h.Sys.Register("platform", e.svc.JobType()))
 
 	e.tg = telegram.NewFake(t, token)
@@ -168,11 +177,66 @@ func must(t testing.TB, err error) {
 	}
 }
 
+// configure sets the bot up and gives member 1 their chat.
 func (e *env) configure() {
 	e.t.Helper()
-	must(e.t, e.h.Settings.Set(bg, "admin", "telegram", map[string]string{
-		"telegram.bot_token": token, "telegram.bot_username": "proxier_test_bot", "telegram.chat_id": chat, "telegram.chat_title": "tikhon",
+	must(e.t, e.h.Settings.Set(bg, events.MemberActor(1), "telegram", map[string]string{
+		"telegram.bot_token": token, "telegram.bot_username": "proxier_test_bot",
 	}))
+	must(e.t, e.auth.SetTelegramChat(bg, 1, chat, "tikhon"))
+}
+
+// join adds a member with grant g through a setup link, in language lang,
+// with chatID as their chat ("" for none); it returns their ID.
+func (e *env) join(username string, g access.Grant, lang i18n.Lang, chatID string) int64 {
+	e.t.Helper()
+	id, setup, err := e.auth.AddMember(bg, auth.Session{MemberID: 1}, password, username, g)
+	must(e.t, err)
+	_, err = e.auth.CompleteSetup(bg, setup, password, lang, "192.0.2.1", "test")
+	must(e.t, err)
+	if chatID != "" {
+		must(e.t, e.auth.SetTelegramChat(bg, id, chatID, username))
+	}
+	return id
+}
+
+// owners is a SubjectOwner of "link" subjects the tests hand out.
+type owners struct {
+	mu sync.Mutex
+	by map[string]int64
+}
+
+func (o *owners) Owner(_ context.Context, s events.Subject) (int64, bool, error) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	id, ok := o.by[s.String()]
+	return id, ok, nil
+}
+
+func (o *owners) give(s events.Subject, member int64) {
+	o.mu.Lock()
+	o.by[s.String()] = member
+	o.mu.Unlock()
+}
+
+// fresh lets every recorded event through and forgets what was sent so far
+// (members joining notify), so sent and to see only what follows.
+func (e *env) fresh() {
+	e.t.Helper()
+	e.settle()
+	e.h.Drain()
+	e.mark = len(e.tg.Sent())
+}
+
+// to are the messages sent to one chat since fresh.
+func (e *env) to(chatID string) []telegram.Sent {
+	var out []telegram.Sent
+	for _, m := range e.tg.Sent()[e.mark:] {
+		if m.ChatID == chatID {
+			out = append(out, m)
+		}
+	}
+	return out
 }
 
 // record writes an event, as a state change would, and returns its id.
@@ -205,10 +269,11 @@ func (e *env) settle() {
 	})
 }
 
+// sent waits for n messages since fresh and returns them all.
 func (e *env) sent(n int) []telegram.Sent {
 	e.t.Helper()
-	e.h.WaitFor("messages to be sent", func() bool { return len(e.tg.Sent()) >= n })
-	return e.tg.Sent()
+	e.h.WaitFor("messages to be sent", func() bool { return len(e.tg.Sent()) >= e.mark+n })
+	return e.tg.Sent()[e.mark:]
 }
 
 func (e *env) count(q string, args ...any) int {

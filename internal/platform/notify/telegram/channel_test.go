@@ -1,6 +1,7 @@
 package telegram_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/platform/notify"
@@ -21,22 +22,14 @@ func TestFormatEscapesHTML(t *testing.T) {
 }
 
 func TestChatIDValidation(t *testing.T) {
-	for _, bad := range []string{"abc", "12 3", "@", "1.5"} {
-		found := false
-		for _, f := range telegram.Section.Fields {
-			if f.Key == "telegram.chat_id" && f.Validate(bad) != nil {
-				found = true
-			}
-		}
-		if !found {
+	for _, bad := range []string{"abc", "12 3", "@", "1.5", "@" + strings.Repeat("a", 64)} {
+		if telegram.ValidChatID(bad) == nil {
 			t.Errorf("%q accepted as a chat", bad)
 		}
 	}
 	for _, ok := range []string{"", "5", "-1001234", "@alerts"} {
-		for _, f := range telegram.Section.Fields {
-			if f.Key == "telegram.chat_id" && f.Validate(ok) != nil {
-				t.Errorf("%q refused", ok)
-			}
+		if err := telegram.ValidChatID(ok); err != nil {
+			t.Errorf("%q refused: %v", ok, err)
 		}
 	}
 }

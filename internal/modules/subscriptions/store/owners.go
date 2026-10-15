@@ -2,6 +2,8 @@ package store
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -31,4 +33,22 @@ func Owned(ctx context.Context, q sqlx.QueryerContext, owner int64) (subs, links
 	}
 	err = sqlx.SelectContext(ctx, q, &links, `SELECT id FROM subs_links WHERE owner_id = ? ORDER BY id`, owner)
 	return subs, links, err
+}
+
+// ownerTables are the tables of the event subject types whose things have an
+// owner.
+var ownerTables = map[string]string{"subscription": "subs_subscriptions", "link": "subs_links"}
+
+// OwnerOf is the owner of the subscription or link an event's subject names;
+// ok is false for another subject type or a thing that is gone.
+func OwnerOf(ctx context.Context, q sqlx.QueryerContext, subjectType string, id int64) (owner int64, ok bool, err error) {
+	table, known := ownerTables[subjectType]
+	if !known {
+		return 0, false, nil
+	}
+	err = sqlx.GetContext(ctx, q, &owner, `SELECT owner_id FROM `+table+` WHERE id = ?`, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, false, nil
+	}
+	return owner, err == nil, err
 }

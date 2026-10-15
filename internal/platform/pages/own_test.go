@@ -35,6 +35,15 @@ func (thingModule) OwnedSubjects(_ context.Context, member int64) ([]events.Subj
 	}
 	return nil, nil
 }
+func (thingModule) Owner(_ context.Context, s events.Subject) (int64, bool, error) {
+	switch s.String() {
+	case "thing:5":
+		return 2, true, nil
+	case "thing:6":
+		return 1, true, nil
+	}
+	return 0, false, nil
+}
 
 // At activity: own a member sees the events and jobs they caused or whose
 // subject is theirs, and nobody else's; another member's job by URL is 404.

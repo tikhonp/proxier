@@ -101,11 +101,11 @@ func TestOutageFailsAfterRetriesAndLaterMessagesTry(t *testing.T) {
 	if n.State != "failed" || n.Attempts != 4 || n.Err == "" {
 		t.Fatalf("%+v", n)
 	}
-	failed, err := e.svc.Failed(bg, e.h.Clock.Now().Add(-time.Hour), 10)
+	failed, err := e.svc.Failed(bg, 1, e.h.Clock.Now().Add(-time.Hour), 10)
 	if err != nil || len(failed) != 1 || failed[0].EventID != first {
 		t.Fatalf("failed list: %+v %v", failed, err)
 	}
-	if bad, _ := e.svc.LatestFailed(bg); !bad {
+	if bad, _ := e.svc.LatestFailed(bg, 1); !bad {
 		t.Fatal("the header should warn")
 	}
 
@@ -117,12 +117,12 @@ func TestOutageFailsAfterRetriesAndLaterMessagesTry(t *testing.T) {
 		t.Fatalf("%+v", got)
 	}
 	e.h.Drain()
-	if bad, _ := e.svc.LatestFailed(bg); bad {
+	if bad, _ := e.svc.LatestFailed(bg, 1); bad {
 		t.Fatal("the warning outlived a delivered message")
 	}
 
 	// Retry resends the failed one.
-	if err := e.svc.Retry(bg, failed[0].ID, events.MemberActor(1)); err != nil {
+	if err := e.svc.Retry(bg, 1, failed[0].ID); err != nil {
 		t.Fatal(err)
 	}
 	if got := e.sent(2); len(got) != 2 || !strings.Contains(got[1].Text, "nl-2 is down") {

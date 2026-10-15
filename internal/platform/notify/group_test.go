@@ -4,7 +4,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/notify"
 )
 
@@ -79,12 +78,12 @@ func TestFailedGroupIsRetriedWhole(t *testing.T) {
 	if n := e.count(`SELECT count(*) FROM notifications WHERE state = 'failed' AND attempts = 4`); n != 2 {
 		t.Fatalf("%d failed notifications", n)
 	}
-	failed, err := e.svc.Failed(bg, e.h.Clock.Now().Add(-notify.GroupWindow*100), 10)
+	failed, err := e.svc.Failed(bg, 1, e.h.Clock.Now().Add(-notify.GroupWindow*100), 10)
 	if err != nil || len(failed) != 2 {
 		t.Fatalf("%+v %v", failed, err)
 	}
 	e.tg.SetDown(false)
-	must(t, e.svc.Retry(bg, failed[1].ID, events.MemberActor(1)))
+	must(t, e.svc.Retry(bg, 1, failed[1].ID))
 	got := e.sent(1)
 	if len(got) != 1 || !strings.HasPrefix(got[0].Text, "🟣 <b>2 servers are blocked</b>") {
 		t.Fatalf("%+v", got)

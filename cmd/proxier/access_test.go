@@ -35,6 +35,12 @@ var everyMember = []string{
 	"POST /settings/security/passkeys/:id/remove",
 	"POST /settings/security/sessions/:id/sign-out",
 	"POST /settings/security/sessions/sign-out-everywhere",
+	"GET /settings/notifications",
+	"POST /settings/notifications/:type",
+	"POST /settings/notifications/telegram/detect",
+	"POST /settings/notifications/telegram/chat",
+	"POST /settings/notifications/telegram/test",
+	"POST /notifications/:id/retry",
 }
 
 type route struct{ method, path string }

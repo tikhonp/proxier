@@ -28,19 +28,24 @@ func TestDashboardShowsNotificationHealth(t *testing.T) {
 	}
 
 	saveToken(t, l)
-	if rec := l.Post("/settings/integrations/telegram/chat", url.Values{"chat_id": {"5"}}); rec.Code != 303 {
+	page = l.Get("/").Body.String()
+	if strings.Contains(page, "not configured") || !strings.Contains(page, "Your notifications have nowhere to go") {
+		t.Error("with a bot, the band should ask for the member's chat instead")
+	}
+	if rec := l.Post("/settings/notifications/telegram/chat", url.Values{"chat_id": {"5"}}); rec.Code != 303 {
 		t.Fatal(rec.Code)
 	}
-	page = l.Get("/").Body.String()
-	if strings.Contains(page, "not configured") {
-		t.Error("the band stays after setup")
+	if page := l.Get("/").Body.String(); strings.Contains(page, "nowhere to go") {
+		t.Error("the band stays after the chat was chosen")
 	}
 
-	// A failed delivery: listed with its error and Retry, and the header warns.
+	// A failed delivery: listed with its error and Retry, and the header
+	// warns its own recipient only.
+	anna := s.Join("anna", access.PresetOperator.Grant(), "198.51.100.2:1")
 	now := db.Now()
 	_, err := s.App.DB.W.Exec(`
-		INSERT INTO notifications (event_id, channel, lang, message, state, attempts, last_error, created_at)
-		VALUES (7, 'telegram', 'en', '{"emoji":"🔴","title":"nl-2 is down","body":"","url":"","button":""}', 'failed', 4, 'telegram: 502 Bad Gateway', ?)`, now)
+		INSERT INTO notifications (event_id, channel, member_id, lang, message, state, attempts, last_error, created_at)
+		VALUES (7, 'telegram', 1, 'en', '{"emoji":"🔴","title":"nl-2 is down","body":"","url":"","button":""}', 'failed', 4, 'telegram: 502 Bad Gateway', ?)`, now)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,6 +54,16 @@ func TestDashboardShowsNotificationHealth(t *testing.T) {
 		if !strings.Contains(page, want) {
 			t.Errorf("the dashboard lacks %q", want)
 		}
+	}
+	if page := anna.Get("/").Body.String(); strings.Contains(page, "Failed notifications") || strings.Contains(page, "Telegram failing") {
+		t.Error("anna is shown member 1's failed notification")
+	}
+	if rec := anna.Post("/notifications/1/retry", nil); rec.Code != 303 {
+		t.Fatalf("%d", rec.Code)
+	}
+	var state string
+	if err := s.App.DB.R.Get(&state, `SELECT state FROM notifications WHERE id = 1`); err != nil || state != "failed" {
+		t.Fatalf("anna retried member 1's notification: %q %v", state, err)
 	}
 	// Failures older than a week drop off the list.
 	_, err = s.App.DB.W.Exec(`UPDATE notifications SET created_at = ?`, db.At(time.Now().Add(-8*24*time.Hour)))

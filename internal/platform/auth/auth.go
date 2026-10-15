@@ -73,26 +73,31 @@ const SignedInEvent = "auth.signed_in"
 
 // Events are the event types auth records.
 var Events = []events.Type{
-	{Name: "member.added", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was added (the first one from the command line)."},
-	{Name: "member.access_changed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member's access levels changed."},
-	{Name: "member.removed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was removed."},
-	{Name: "member.setup_link_created", Module: "platform", Description: "A setup link was made for a new member."},
-	{Name: "member.setup_completed", Module: "platform", Description: "A new member chose their password at their setup link."},
+	{Name: "member.added", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was added (the first one from the command line).", Audience: events.AudienceSettings},
+	{Name: "member.access_changed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member's access levels changed.", Audience: events.AudienceSettings},
+	{Name: "member.removed", Module: "platform", Notify: true, Emoji: "👤", Description: "A member was removed.", Audience: events.AudienceSettings},
+	{Name: "member.setup_link_created", Module: "platform", Description: "A setup link was made for a new member.", Audience: events.AudienceSettings},
+	{Name: "member.setup_completed", Module: "platform", Description: "A new member chose their password at their setup link.", Audience: events.AudienceSettings},
 	// Notifies only when the payload has new_ip: true (NotifyIf).
-	{Name: SignedInEvent, Module: "platform", Notify: true, Emoji: "🔐", Description: "Signed in from a new IP.",
+	{Name: SignedInEvent, Module: "platform", Notify: true, Emoji: "🔐", Description: "Signed in from a new IP.", Audience: events.AudienceSubject,
 		NotifyIf: func(p map[string]any) bool { b, _ := p["new_ip"].(bool); return b }},
 	{Name: "auth.sign_in_failed", Module: "platform", Description: "A sign-in failed."},
 	{Name: "auth.locked", Module: "platform", Notify: true, Emoji: "🔐", Description: "An IP was locked out after failed sign-ins."},
-	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A password was changed."},
-	{Name: "auth.totp_enabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned on."},
-	{Name: "auth.totp_disabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned off."},
-	{Name: "auth.passkey_added", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was added."},
-	{Name: "auth.passkey_removed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was removed."},
-	{Name: "auth.second_factor_reset", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app and passkeys were removed from the command line."},
-	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended."},
-	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended."},
-	{Name: "member.language_changed", Module: "platform", Description: "A member changed the interface language."},
+	{Name: "auth.password_changed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A password was changed.", Audience: events.AudienceSubject},
+	{Name: "auth.totp_enabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned on.", Audience: events.AudienceSubject},
+	{Name: "auth.totp_disabled", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app was turned off.", Audience: events.AudienceSubject},
+	{Name: "auth.passkey_added", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was added.", Audience: events.AudienceSubject},
+	{Name: "auth.passkey_removed", Module: "platform", Notify: true, Emoji: "🔐", Description: "A passkey was removed.", Audience: events.AudienceSubject},
+	{Name: "auth.second_factor_reset", Module: "platform", Notify: true, Emoji: "🔐", Description: "The authenticator app and passkeys were removed from the command line.", Audience: events.AudienceSubject},
+	{Name: "auth.signed_out", Module: "platform", Description: "One session was ended.", Audience: events.AudienceSubject},
+	{Name: "auth.signed_out_everywhere", Module: "platform", Description: "Every session was ended.", Audience: events.AudienceSubject},
+	{Name: "member.language_changed", Module: "platform", Description: "A member changed the interface language.", Audience: events.AudienceSubject},
+	{Name: NotificationsChangedEvent, Module: "platform", Description: "A member changed their Telegram chat or a notification rule.", Audience: events.AudienceSubject},
 }
+
+// NotificationsChangedEvent is a member's own notification setup changing:
+// their chat (auth) or one of their rules (notify).
+const NotificationsChangedEvent = "member.notifications_changed"
 
 // SecuritySection is Settings → Security's lockout fields.
 var SecuritySection = settings.Section{
@@ -112,6 +117,9 @@ type Member struct {
 	CreatedBy         string  // an actor
 	PasswordChangedAt db.Time // zero until the member finishes setup
 	RemovedAt         db.Time // zero while the member is in
+	// TelegramChatID is where the member's notifications go: an integer or
+	// @channel, "" for nowhere. TelegramChatTitle names it.
+	TelegramChatID, TelegramChatTitle string
 }
 
 // SetUp reports whether the member has chosen a password: one added in

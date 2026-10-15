@@ -10,24 +10,27 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/notify"
 	"github.com/tikhonp/proxier/internal/platform/settings"
 )
 
-// Section is Settings → Integrations → Telegram. The page does not use the
+// Section is Settings → Integrations → Telegram: the one bot. Each member's
+// chat is their own (auth.Member.TelegramChatID). The page does not use the
 // generic form.
 var Section = settings.Section{
 	Name: "telegram", Module: "platform",
 	Fields: []settings.Field{
 		{Key: "telegram.bot_token", Kind: settings.Secret, MaxLen: 200},
 		{Key: "telegram.bot_username", Kind: settings.String, MaxLen: 64},
-		// An integer, or @channel.
-		{Key: "telegram.chat_id", Kind: settings.String, MaxLen: 64, Validate: validChatID},
-		{Key: "telegram.chat_title", Kind: settings.String, MaxLen: 128},
 	},
 }
 
-func validChatID(s string) error {
+// ValidChatID checks a chat ID: an integer, or @channel. "" is no chat.
+func ValidChatID(s string) error {
+	if len(s) > 64 {
+		return errors.New("at most 64 characters")
+	}
 	if s == "" {
 		return nil
 	}
@@ -43,8 +46,8 @@ func validChatID(s string) error {
 // minGap is the pause between two messages: Telegram's per-chat limit.
 const minGap = time.Second
 
-// Channel sends notifications through the bot in settings. It reads the token
-// and the chat on every send, so a change applies at once.
+// Channel sends notifications through the bot in settings to each member's
+// own chat. It reads the token on every send, so a change applies at once.
 type Channel struct {
 	Now   func() time.Time
 	Sleep func(ctx context.Context, d time.Duration) error
@@ -83,28 +86,26 @@ func (c *Channel) Client(token string) *Client {
 	return &Client{BaseURL: c.BaseURL, Token: token, HTTP: c.HTTP}
 }
 
-// Configured is true with a token and a chat.
+// Configured is true with a bot token.
 func (c *Channel) Configured(ctx context.Context) (bool, error) {
-	token, chat, err := c.credentials(ctx)
-	return token != "" && chat != "", err
+	token, err := c.st.Get(ctx, "telegram.bot_token")
+	return token != "", err
 }
 
-func (c *Channel) credentials(ctx context.Context) (token, chat string, err error) {
-	if token, err = c.st.Get(ctx, "telegram.bot_token"); err != nil {
-		return "", "", err
-	}
-	chat, err = c.st.Get(ctx, "telegram.chat_id")
-	return token, chat, err
-}
+// Address is the member's own chat.
+func (c *Channel) Address(m auth.Member) string { return m.TelegramChatID }
 
-// Send delivers m, at most once a second.
-func (c *Channel) Send(ctx context.Context, m notify.Message) error {
-	token, chat, err := c.credentials(ctx)
+// Send delivers m to chat, at most one message a second whatever the chat.
+func (c *Channel) Send(ctx context.Context, chat string, m notify.Message) error {
+	token, err := c.st.Get(ctx, "telegram.bot_token")
 	if err != nil {
 		return err
 	}
-	if token == "" || chat == "" {
+	if token == "" {
 		return errors.New("telegram is not configured")
+	}
+	if chat == "" {
+		return errors.New("no chat")
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()

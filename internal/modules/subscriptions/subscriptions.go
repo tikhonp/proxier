@@ -177,6 +177,12 @@ func (m *Module) OwnedSubjects(ctx context.Context, member int64) ([]events.Subj
 	return m.Subs.OwnedSubjects(ctx, member)
 }
 
+// Owner is the member who owns a subscription or link subject, for its
+// notification's recipients.
+func (m *Module) Owner(ctx context.Context, s events.Subject) (int64, bool, error) {
+	return m.Subs.Owner(ctx, s)
+}
+
 // NameSubjects names subscriptions for Activity, Jobs and notifications.
 // Activity shows only what the member may see, so every one is named.
 func (m *Module) NameSubjects(ctx context.Context, typ string, ids []string) (map[string]ui.SubjectRef, error) {

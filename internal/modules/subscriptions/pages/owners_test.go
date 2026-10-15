@@ -154,6 +154,24 @@ func TestRemovedMembersThingsGoToTheHeir(t *testing.T) {
 	annaW := access.Who{Member: 2, Grant: ownSubs}
 	sub := h.SubscriptionOf(annaW, "Anna home", 1)
 	link, token := h.LinkOf(annaW, sub, "Anna phone")
+	// The notifier asks who owns a subject: anna, and after the handover
+	// her heir.
+	owner := func(s events.Subject) int64 {
+		t.Helper()
+		id, ok, err := h.Mod.Owner(t.Context(), s)
+		if err != nil || !ok {
+			t.Fatalf("owner of %s: %v %v", s, ok, err)
+		}
+		return id
+	}
+	linkSubject := events.Subject{Type: "link", ID: strconv.FormatInt(link, 10)}
+	subSubject := events.Subject{Type: "subscription", ID: strconv.FormatInt(sub, 10)}
+	if owner(linkSubject) != 2 || owner(subSubject) != 2 {
+		t.Fatal("anna's link and subscription aren't hers to be told about")
+	}
+	if _, ok, _ := h.Mod.Owner(t.Context(), events.Subject{Type: "server", ID: "1"}); ok {
+		t.Error("a server has an owner")
+	}
 	if _, err := h.App.Auth.RemoveMember(t.Context(), 1, 2); err != nil {
 		t.Fatal(err)
 	}
@@ -177,6 +195,9 @@ func TestRemovedMembersThingsGoToTheHeir(t *testing.T) {
 	}
 	if l, err := h.Mod.Links.Get(t.Context(), link, access.Owner(1)); err != nil || l.OwnerID != 1 {
 		t.Errorf("the link isn't the heir's: %v", err)
+	}
+	if owner(linkSubject) != 1 || owner(subSubject) != 1 {
+		t.Error("the heir isn't told about what is now theirs")
 	}
 	if rec := h.Fetch("GET", "/s/"+token, "", "Happ/1.0"); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "vless://") {
 		t.Errorf("the removed member's link stopped serving: %d", rec.Code)

@@ -12,14 +12,8 @@ templ notificationsPage(s ui.Shell, pages []ui.SettingsPage, v notificationsView
 		<div class="set-head">
 			<h2>{ i18n.T(ctx, "settings.notifications") }</h2>
 			<p>{ i18n.T(ctx, "settings.notifications.note") }</p>
-			<p>
-				if v.Status.Configured {
-					<a href="/settings/integrations/telegram">{ i18n.T(ctx, "notifications.status", i18n.Args{"chat": v.Status.chatLabel()}) }</a>
-				} else {
-					<a href="/settings/integrations/telegram">{ i18n.T(ctx, "notifications.not_configured") }</a>
-				}
-			</p>
 		</div>
+		@chatForms(v.Chat)
 		for _, g := range v.Groups {
 			<details class="rules" open aria-label={ moduleLabel(ctx, g.Module) }>
 				<summary class="pc-title">

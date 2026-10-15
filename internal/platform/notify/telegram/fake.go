@@ -83,6 +83,13 @@ func (f *Fake) Block(chatID string) {
 	f.mu.Unlock()
 }
 
+// Unblock lets sendMessage to chatID through again.
+func (f *Fake) Unblock(chatID string) {
+	f.mu.Lock()
+	delete(f.blocked, chatID)
+	f.mu.Unlock()
+}
+
 // SetDown makes every call answer 502, an outage.
 func (f *Fake) SetDown(down bool) {
 	f.mu.Lock()

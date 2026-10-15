@@ -42,5 +42,6 @@ Checked with a software passkey in tests and Chrome's virtual authenticator, not
 
 - Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.
 - Telegram delivery of every notification text.
+- Several members on one real bot: **Detect chat** for each member's own chat (and a group chat), and each one's messages reaching only their chat.
 - The IP country lookup (ipinfo.io) from the deployment.
 - An agent session (`/agent/v1`) driven by a real Claude Code or Codex run.

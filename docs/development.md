@@ -65,7 +65,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 | `JobDeclarer` | `JobTypes()`, `Schedules()` |
 | `SubscriberDeclarer` | `Subscribers() []events.Subscriber` |
 | `SubjectNamer` | names and links for `type:id` subjects in Activity and Jobs |
-| `SubjectOwner` | `OwnedSubjects(ctx, member)`: the subjects of the things a member owns, for Activity and Jobs at `activity: own` |
+| `SubjectOwner` | `OwnedSubjects(ctx, member)`: the subjects of the things a member owns, for Activity and Jobs at `activity: own`; `Owner(ctx, subject)`: the member who owns one subject (not ok for a type the module doesn't own, a shared thing or one gone), for a notification's recipients |
 | `NotificationRenderer` | the module's own notification texts |
 | `DashboardDeclarer` | `Dashboard(ctx, who)`: dashboard areas of what `who.Scope(area)` reads, sorted by `Order`, each with its `Area` (and `Level`) |
 
@@ -89,6 +89,7 @@ All in `internal/platform/module`, found by type assertion; the platform impleme
 - Actors: `member:<id>` (`events.MemberActor`; a handler takes the signed-in member's from `web.Actor(ctx)`), `system` (reactions, public fetches), `cli`, `job:<id>`, `agent:<session>`. A job's `created_by` adds `schedule:<name>` and `event:<id>`. Rows from before members say `admin`, which is member 1 (`events.ActorMember` reads both); the UI names a member by username with `web.ActorName`.
 - Payloads carry names, not ids, for other things (`list: "Main"`), lists as one comma-joined string, times as `db.Time` strings (`""` for none), and never a secret.
 - Every event type needs `event.<type>` messages; a notifying one `notify.<type>` too; every job type `job.<type>` (tests enforce all three).
+- An event type's `Audience` says who its notification may go to ([recipients](./processes/platform/notifications.md#recipients)): by default the subject's owner and the members who manage the area; `AudienceSubject` for a member's own sign-ins and ways in; `AudienceSettings` for changes to members. A new owned thing's subject type gets an answer from its module's `SubjectOwner.Owner`, or its owner hears nothing of it.
 
 **Access** ([members](./processes/platform/members.md))
 

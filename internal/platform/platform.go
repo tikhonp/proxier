@@ -159,6 +159,9 @@ func Open(cfg *config.Config, log *slog.Logger, modules ...module.Module) (*App,
 		if n, ok := m.(module.SubjectNamer); ok {
 			errs = append(errs, a.Notify.AddNamer(n))
 		}
+		if o, ok := m.(module.SubjectOwner); ok {
+			a.Notify.AddOwner(o)
+		}
 	}
 	errs = append(errs, a.Notify.AddChannel(a.Telegram), a.Jobs.Register(Name, a.Notify.JobType()),
 		a.Dispatcher.Subscribe(a.Notify.Subscriber()),
@@ -348,7 +351,8 @@ func (core) SettingsPages() []ui.SettingsPage {
 		{Slug: "security", Area: access.EveryMember, Title: "settings.security", Order: 20},
 		{Slug: "members", Area: access.Settings, Title: "settings.members", Order: 25},
 		{Slug: "integrations", Area: access.Settings, Title: "settings.integrations", Order: 40},
-		{Slug: "notifications", Area: access.Settings, Title: "settings.notifications", Order: 50},
+		// every member has their own chat and rules
+		{Slug: "notifications", Area: access.EveryMember, Title: "settings.notifications", Order: 22},
 	}
 }
 

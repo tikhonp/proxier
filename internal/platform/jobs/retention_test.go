@@ -126,7 +126,7 @@ func TestRetentionKeepsNotificationsNinetyDays(t *testing.T) {
 	h := newH(t)
 	add := func(event int, state string, d time.Duration) {
 		t.Helper()
-		_, err := h.DB.W.Exec(`INSERT INTO notifications (event_id, channel, lang, message, state, created_at) VALUES (?, 'telegram', 'en', '{}', ?, ?)`,
+		_, err := h.DB.W.Exec(`INSERT INTO notifications (event_id, channel, member_id, lang, message, state, created_at) VALUES (?, 'telegram', 1, 'en', '{}', ?, ?)`,
 			event, state, ago(h, d))
 		if err != nil {
 			t.Fatal(err)
