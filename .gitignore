@@ -11,6 +11,5 @@ data/
 .vscode/
 
 CONTEXT.md
-CLAUDE.md
 !internal/modules/servers/seed/files/.env
 /proxier
