@@ -15,7 +15,20 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
+
+      # Each job keeps a Go build cache of its own. With setup-go's cache the
+      # two jobs shared one key, saved once per go.sum by whichever finished
+      # first, so the other always started from a cache built for something
+      # else: lint's for the -race builds, or the tests' for golangci-lint,
+      # which needs its own (on a laptop: 2m20s cold, 18s with it).
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-test-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: go-test-${{ runner.os }}-
 
       - name: Generated templ files are up to date
         run: |
@@ -53,12 +66,22 @@ jobs:
       - uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
+      - uses: actions/cache@v6
+        with:
+          path: |
+            ~/go/pkg/mod
+            ~/.cache/go-build
+          key: go-lint-${{ runner.os }}-${{ hashFiles('go.mod', 'go.sum') }}
+          restore-keys: go-lint-${{ runner.os }}-
+
+      # The version of the Dockerfile's lint stage: a new release would
+      # throw the cache away and bring new findings unasked.
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.14.0
 
       # Fails on every vulnerability our code reaches.
       - name: govulncheck
