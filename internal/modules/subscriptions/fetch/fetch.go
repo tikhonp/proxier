@@ -69,7 +69,7 @@ func (s *Service) serve(c *echo.Context) error {
 	} else if ended {
 		return echo.ErrNotFound
 	}
-	resp, format, err := s.d.Links.Serve(ctx, l, c.QueryParam("format"), false)
+	sv, err := s.d.Links.Serve(ctx, l, c.QueryParam("format"), false)
 	if errors.Is(err, output.ErrBadFormat) {
 		return echo.NewHTTPError(http.StatusBadRequest, http.StatusText(http.StatusBadRequest))
 	}
@@ -79,17 +79,17 @@ func (s *Service) serve(c *echo.Context) error {
 	head := c.Request().Method == http.MethodHead
 	if !head {
 		// apps must not lose their list over a log: a failed write is logged
-		if err := s.record(c, l, format, resp); err != nil {
+		if err := s.record(c, l, sv.Format, sv.Response); err != nil {
 			s.d.Log.Error("subscriptions: record fetch", "link", l.ID, "error", err)
 		}
 	}
 	h := c.Response().Header()
-	for _, hd := range resp.Headers {
+	for _, hd := range sv.Headers {
 		h[hd.Name] = []string{hd.Value} // lower case as written: Set would capitalise
 	}
 	h.Set("Content-Type", "text/plain; charset=utf-8")
 	if head {
 		return c.NoContent(http.StatusOK)
 	}
-	return c.Blob(http.StatusOK, "text/plain; charset=utf-8", resp.Body)
+	return c.Blob(http.StatusOK, "text/plain; charset=utf-8", sv.Body)
 }

@@ -5,25 +5,36 @@ import (
 
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
 	"github.com/tikhonp/proxier/internal/platform/access"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 )
+
+// Served is what a link gets now, with what a page about it shows besides.
+type Served struct {
+	output.Response
+	Format  string // the format picked
+	Title   string // the subscription's
+	Contact string // general.admin_contact
+	// Loc is the link's language in the display zone.
+	Loc *i18n.Localizer
+}
 
 // Serve builds what the link gets now with ?format=query: the stub texts in
 // the link's language, dates in the display zone, the members the catalog
-// serves at this moment. Nothing is cached. It also returns the format
-// picked; output.ErrBadFormat for a query the subscription doesn't allow.
-func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) (output.Response, string, error) {
+// serves at this moment. Nothing is cached. output.ErrBadFormat for a query
+// the subscription doesn't allow.
+func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) (Served, error) {
 	// The link is already found; its subscription may be another member's.
 	sub, err := s.d.Subs.Get(ctx, l.SubscriptionID, access.All)
 	if err != nil {
-		return output.Response{}, "", err
+		return Served{}, err
 	}
 	format, err := output.PickFormat(query, sub.Formats, sub.DefaultFormat, l.Format)
 	if err != nil {
-		return output.Response{}, "", err
+		return Served{}, err
 	}
 	members, err := s.d.Subs.Members(ctx, sub.ID, access.All)
 	if err != nil {
-		return output.Response{}, "", err
+		return Served{}, err
 	}
 	var served []output.Server
 	for _, m := range members {
@@ -33,12 +44,15 @@ func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) 
 	}
 	contact, err := s.d.Settings.Get(ctx, "general.admin_contact")
 	if err != nil {
-		return output.Response{}, "", err
+		return Served{}, err
 	}
 	loc := s.d.I18n.Localizer(l.Lang, s.Zone(ctx))
 	resp, err := output.Build(loc, output.Request{
 		Link: output.Link{State: l.State, Expires: l.Expires}, Title: sub.Title, UpdateHours: sub.UpdateHours,
 		Format: format, Servers: served, Hide: sub.Hide, Contact: contact, Now: s.d.Now(), Masked: masked,
 	})
-	return resp, format, err
+	if err != nil {
+		return Served{}, err
+	}
+	return Served{Response: resp, Format: format, Title: sub.Title, Contact: contact, Loc: loc}, nil
 }
