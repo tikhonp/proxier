@@ -57,7 +57,7 @@ cmd/proxier/                  serve | manage <command> | version | healthcheck; 
 internal/platform/            App: Open(cfg, log, modules...) → Migrate → Serve; the platform is itself module "platform"
   config obs db vault events settings migrations httpx      the base
   access auth web ui pages i18n sitetest                    areas and levels, sign-in and members, HTTP, templ shell, EN/RU
-  jobs notify sshx tailnet backup geoip                     jobs + scheduler, Telegram, SSH, tsnet, backups
+  jobs notify bot sshx tailnet backup geoip                 jobs + scheduler, Telegram, the bot's commands, SSH, tsnet, backups
   agentapi                    the agent hand-off's shared token, limits and form
   module/                     Module and its optional interfaces (docs/development.md#module-interfaces)
 internal/modules/servers      templates, provisioning, deploys, rotation, health, stats, retirement, /agent/v1

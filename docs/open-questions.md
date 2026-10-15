@@ -47,5 +47,6 @@ None of the [browser page](./integrations/subscription-format.md#browser-page)'s
 - Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.
 - Telegram delivery of every notification text.
 - Several members on one real bot: **Detect chat** for each member's own chat (and a group chat), and each one's messages reaching only their chat.
+- The bot on a real phone: `/link` from the command menu, the subscription buttons, the URL copied with a tap from the `<code>` block, and long polling from home holding up for days (through the router's tunnel too, if `api.telegram.org` goes there).
 - The IP country lookup (ipinfo.io) from the deployment.
 - An agent session (`/agent/v1`) driven by a real Claude Code or Codex run.

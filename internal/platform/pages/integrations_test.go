@@ -22,6 +22,14 @@ func telegramSite(t *testing.T) (*sitetest.Site, *sitetest.Login, *telegram.Fake
 	return s, s.SignIn(""), f
 }
 
+// poll has the bot read what the fake holds, as its loop would.
+func poll(t *testing.T, s *sitetest.Site) {
+	t.Helper()
+	if err := s.App.Bot.Poll(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func saveToken(t *testing.T, l *sitetest.Login) {
 	t.Helper()
 	if rec := l.Post("/settings/integrations/telegram/token", url.Values{"token": {tgToken}}); rec.Code != 303 {
@@ -78,6 +86,7 @@ func TestDetectChatWithoutUpdates(t *testing.T) {
 
 	// After /start the chat is offered, and choosing it makes it the member's.
 	f.AddUpdate(`{"update_id":1,"message":{"chat":{"id":5,"type":"private","first_name":"Tikhon"}}}`)
+	poll(t, s)
 	body = l.Post("/settings/notifications/telegram/detect", nil).Body.String()
 	if !strings.Contains(body, "Tikhon") || !strings.Contains(body, `name="chat_id" value="5"`) || !strings.Contains(body, `action="/settings/notifications/telegram/chat"`) {
 		t.Fatalf("%s", body)
@@ -104,6 +113,7 @@ func TestDetectChatLeavesOutOtherMembersChats(t *testing.T) {
 	anna := s.Join("anna", access.PresetViewer.Grant(), "198.51.100.2:1")
 	f.AddUpdate(`{"update_id":1,"message":{"chat":{"id":5,"type":"private","first_name":"Tikhon"}}}`)
 	f.AddUpdate(`{"update_id":2,"message":{"chat":{"id":6,"type":"private","first_name":"Anna"}}}`)
+	poll(t, s)
 	body := anna.Post("/settings/notifications/telegram/detect", nil).Body.String()
 	if strings.Contains(body, "Tikhon") || strings.Contains(body, `value="5"`) || !strings.Contains(body, "Anna") {
 		t.Fatalf("anna is offered:\n%s", body)

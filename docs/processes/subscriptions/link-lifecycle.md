@@ -16,7 +16,19 @@ A link is what you hand to one person or device: a name and a secret URL serving
 2. Proxier generates the token and creates the link as **active**, owned by the member who made it ([ownership](../platform/members.md#ownership)). The link page opens with the URL, **Copy URL** and **Show QR**, under the band "Link created. Share the URL or let them scan the code." On screen the URL stays masked until **Reveal**; the Copy button holds it, so copying is one tap. → `link.created{subscription, expiry}`
 3. The member sends the URL, or shows the QR to be scanned in the app.
 
-## Steps: changing a link
+## Steps: from Telegram
+
+A member can make a link from their own Telegram chat ([telegram bot](../platform/telegram-bot.md)), with `subscriptions: own` or more.
+
+1. The member writes `/link` to the bot. With no subscription they may change, the bot says so and stops. Otherwise it asks for the name (`/link Mom — iPhone` gives it at once).
+2. The member sends the name. The bot offers the subscriptions they may change, by name, each with its number of servers.
+3. The member taps one. Proxier creates the link as on the page: active, no expiry, in the default link language (`subscriptions.link_language`), owned by the member. → `link.created{subscription, expiry}`
+4. The bot's answer replaces the buttons: the link's name and subscription, the URL (tap to copy), and **Open in Proxier** for the link page and its QR code.
+
+- A name the link can't have (taken, too long) → the reason, and the bot asks for another name; the subscription chosen stays.
+- A subscription deleted, or no longer the member's to change, between the buttons and the tap → the bot says so and offers the subscriptions left.
+
+
 
 | Action | Steps | Event |
 |---|---|---|
@@ -48,7 +60,7 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - A link belongs to a member. At `own` a member sees and changes only their own links; `view_all` reads everyone's and changes their own; `manage_all` changes every link. Another member's link outside what the member reads is a 404; one they read but may not change shows its URL, state and fetches without the actions, and a forged action is refused with 403.
 - **Cut off** rotates servers every member's links share, so it needs `servers: manage` as well as the right to change the link. Without it the action isn't shown and its page and POST answer 403; **Disable** still works.
 - Names are unique among non-deleted links, whoever owns them.
-- A token is shown only on the link page. It is never in a notification, an event or a log.
+- A token is shown only on the link page, and in the bot's answer to the member who made the link from Telegram ([ADR 0019](../../adr/0019-members-give-the-bot-commands-in-their-own-chat.md)). It is never in a notification, an event or a log.
 - Exactly one subscription per link.
 - "Expired" isn't a separate state: it is an active link past its expiry. Clearing or extending the expiry is enough to bring it back.
 - The expiry is stored as the **first moment the link is expired**: a date alone (1 Dec in Europe/Moscow) is 00:00 of the next day there; a date and time is that minute.
@@ -76,3 +88,9 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 - `view_all` on another member's link → shown with "owner …" and no actions; disable, delete, edit or alert limits forged → 403, nothing changed.
 - New link with another member's subscription forged in the form → refused, no link created.
 - Cut off without `servers: manage` → not offered; the cut-off page and POST → 403, the link stays active.
+- `/link`, a name, a tap → an active link of the member in that subscription, `link.created` by `member:<id>`, and the answer with its working URL and the link page's button (`TestLinkFromTelegram`).
+- `/link Dad — Mac` → the name is taken from the command (`TestLinkNameAfterTheCommandSkipsTheQuestion`).
+- A taken or too-long name from Telegram → asked again, keeping the subscription (`TestTakenLinkNameAsksForAnotherAndKeepsTheSubscription`).
+- From Telegram, only the subscriptions the member may change are offered; at `view_all` with none of their own → "There is no subscription you can add a link to." (`TestLinkOffersOnlySubscriptionsTheMemberMayChange`).
+- A subscription deleted between the buttons and the tap → said, and the rest offered (`TestLinkToASubscriptionGoneMeanwhileOffersTheRest`).
+- `/link` at `subscriptions: none` → refused, nothing made (`TestLinkCommandNeedsSubscriptionsAccess`).

@@ -20,6 +20,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
+	"github.com/tikhonp/proxier/internal/platform/bot"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
@@ -171,3 +172,7 @@ type NotificationRenderer interface {
 type DashboardDeclarer interface {
 	Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardArea, error)
 }
+
+// BotCommandDeclarer is a module with commands a member can give the
+// Telegram bot in their own chat (docs/processes/platform/telegram-bot.md).
+type BotCommandDeclarer interface{ BotCommands() []bot.Command }

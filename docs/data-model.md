@@ -21,6 +21,7 @@ The logical model: entities, their important fields and relations. The exact col
 | **Event** | id, time, module, type, subject type + id, actor, payload | Append-only. |
 | **Subscriber cursor** | subscriber name, last delivered event id | At-least-once delivery. |
 | **Notification rule** | member, event type, enabled | Each member's own. Defaults come from [events.md](./events.md). A row exists only where the member's choice differs from the default; setting it back deletes the row. The rules from before members are member 1's. |
+| **Telegram chat** | chat ID, type (private / group / supergroup / channel), title, @name, heard at | The chats the bot heard from, the newest 100, for **Detect chat**: the bot confirms every update it reads, so Telegram no longer holds them. Bookkeeping, no events. |
 | **Notification** | event, channel, member (the recipient), language, message (JSON: emoji, title, body, link, button), state (queued / sent / failed), attempts, last error, job, sent at | One per event, channel and recipient. The message is rendered when queued, in the recipient's language. Neither the event nor the member has a foreign key: events can be pruned, and the notification keeps its own text. Kept 90 days. |
 | **Schedule** | name, enabled, next run, last run, last job, skips | Run-time state only. The interval or time of day is declared in code (a setting may override it), so it isn't stored. |
 

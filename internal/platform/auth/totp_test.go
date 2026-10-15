@@ -279,12 +279,7 @@ func TestResetSecondFactorRemovesEverythingAndEndsSessions(t *testing.T) {
 // after the upgrade: its secret is still sealed as "admin:totp".
 func TestAppSetUpBeforeMembersStillWorks(t *testing.T) {
 	d := dbtest.Open(t)
-	// back to before members: 00009, 00008 and 00007
-	for range 3 {
-		if err := db.MigrateDown(context.Background(), d, dbtest.Discard, dbtest.Platform); err != nil {
-			t.Fatal(err)
-		}
-	}
+	dbtest.DownTo(t, d, dbtest.Platform, 6) // before members
 	v, err := vault.New(make([]byte, 32))
 	if err != nil {
 		t.Fatal(err)

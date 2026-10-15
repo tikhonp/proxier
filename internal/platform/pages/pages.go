@@ -12,6 +12,7 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/auth"
 	"github.com/tikhonp/proxier/internal/platform/backup"
+	"github.com/tikhonp/proxier/internal/platform/bot"
 	"github.com/tikhonp/proxier/internal/platform/config"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -65,6 +66,7 @@ type Deps struct {
 	Events     *events.Catalog
 	Notify     *notify.Service
 	Telegram   *telegram.Channel
+	Bot        *bot.Service
 	SSH        *sshx.SSH
 	Tailnet    *tailnet.Node
 	Backup     *backup.Service

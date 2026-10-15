@@ -1,6 +1,6 @@
-# Telegram (notification channel)
+# Telegram (notification channel and bot)
 
-The notification channel. The bot only sends; commands are in the [backlog](../overview.md#backlog).
+The notification channel, and the bot members give commands to in their own chat ([telegram bot](../processes/platform/telegram-bot.md)).
 
 ## Setup
 
@@ -8,10 +8,15 @@ One bot serves every member; each member has their own chat.
 
 1. Create a bot with @BotFather and copy its token.
 2. Settings → Integrations → Telegram (`settings: manage`): paste the token. Proxier calls `getMe` and shows the bot's username.
-3. Each member, on their own Settings → Notifications: send `/start` to the bot from the account (or group) that should receive their notifications, then click **Detect chat**. Proxier calls `getUpdates`, lists the chats it finds except those other members already have, and stores the chosen chat ID as the member's. A chat ID can also be typed.
+3. Each member, on their own Settings → Notifications: send `/start` to the bot from the account (or group) that should receive their notifications, then click **Detect chat**. Proxier lists the chats the bot heard from (kept by the poller, below) except those other members already have, and stores the chosen chat ID as the member's. A chat ID can also be typed.
 4. **Send test**, to the member's chat.
 
-`getUpdates` only works while the bot has no webhook. Proxier never sets one.
+## Receiving
+
+- `getUpdates` long polling (`timeout` 25 s), with `offset` one past the last update read, which confirms it: Telegram then drops it. `allowed_updates`: `message`, `channel_post`, `my_chat_member`, `callback_query`. It only works while the bot has no webhook; Proxier never sets one. Two Proxiers polling one bot get `409 Conflict`; each logs it and tries again after 10 s.
+- Every update's chat goes into `telegram_chats` (the newest 100) for **Detect chat**.
+- Messages and button taps in private chats are answered ([telegram bot](../processes/platform/telegram-bot.md)): `sendMessage` (HTML, escaped, with callback buttons whose `callback_data` is `c<conversation>.<choice>`), `editMessageText` for the answer to a tap, `answerCallbackQuery` for every tap.
+- `setMyCommands` on the first poll for a token: the default menu in English, and one for `language_code` `ru`.
 
 ## Sending
 

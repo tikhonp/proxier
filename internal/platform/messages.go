@@ -480,6 +480,17 @@ var messages = i18n.Messages{
 	"telegram.test.title":          {EN: "Proxier can reach this chat", RU: "Proxier может писать в этот чат"},
 	"telegram.test.body":           {EN: "This is a test message.", RU: "Это тестовое сообщение."},
 	"telegram.test.sent":           {EN: "Sent. Check the chat.", RU: "Отправлено. Проверьте чат."},
+	"telegram.bot.unknown_chat": {
+		EN: "This chat isn't a Proxier member's. To use it, choose it in Proxier: Settings → Notifications → Detect chat.",
+		RU: "Этот чат не принадлежит участнику Proxier. Чтобы пользоваться им, выберите его в Proxier: Настройки → Уведомления → Найти чат.",
+	},
+	"telegram.bot.help":        {EN: "What I can do:", RU: "Что я умею:"},
+	"telegram.bot.help.none":   {EN: "Your notifications come to this chat. There are no commands for you here.", RU: "Сюда приходят ваши уведомления. Команд для вас здесь нет."},
+	"telegram.bot.cancel.help": {EN: "Stop what you started", RU: "Прервать начатое"},
+	"telegram.bot.cancelled":   {EN: "Stopped.", RU: "Прервано."},
+	"telegram.bot.forbidden":   {EN: "Your access in Proxier doesn't allow this.", RU: "Ваш доступ в Proxier этого не позволяет."},
+	"telegram.bot.expired":     {EN: "This has expired. Start again.", RU: "Это устарело. Начните заново."},
+	"telegram.bot.failed":      {EN: "Something went wrong. Try again, or do it in Proxier.", RU: "Что-то пошло не так. Повторите или сделайте это в Proxier."},
 
 	// Settings → Notifications
 	"settings.notifications":        {EN: "Notifications", RU: "Уведомления"},

@@ -151,3 +151,19 @@ func migrated(sources []db.MigrationSource) ([]byte, error) {
 	}
 	return os.ReadFile(path)
 }
+
+// DownTo rolls src back until its migration v is the newest applied, so a
+// test of an old schema holds when later migrations are added: a count back
+// from the newest would change meaning with each one.
+func DownTo(t testing.TB, d *db.DB, src db.MigrationSource, v int) {
+	t.Helper()
+	files, err := fs.Glob(src.Migrations(), "*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range len(files) - v {
+		if err := db.MigrateDown(context.Background(), d, Discard, src); err != nil {
+			t.Fatalf("down to %d: %v", v, err)
+		}
+	}
+}

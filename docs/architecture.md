@@ -173,7 +173,7 @@ Public routes never set cookies, always send `Cache-Control: no-store` and `X-Ro
 | Routers (via jump hosts) | sync, drift checks | SSH over the embedded tailnet node ([ADR 0008](./adr/0008-tsnet-node-for-router-reachability.md)) |
 | Cloudflare API | DNS records | HTTPS, API token |
 | check-host.net | external checks | HTTPS API |
-| Telegram Bot API | notifications | HTTPS |
+| Telegram Bot API | notifications, bot commands (long polling) | HTTPS |
 | raw.githubusercontent.com, api.github.com, codeload.github.com | v2fly lists, catalog, reverse index | HTTPS |
 | iplist portals (main, beta, russia) | iplist lists and catalog | HTTPS |
 | Public DNS resolvers (1.1.1.1, 8.8.8.8) | DNS propagation wait | DNS / DoH |
