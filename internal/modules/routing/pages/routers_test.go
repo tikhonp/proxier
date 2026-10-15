@@ -236,7 +236,8 @@ func TestRoutersListAndTargets(t *testing.T) {
 	lp := h.Login.Get("/routing/lists/1").Body.String()
 	has(t, "list targets", lp, `href="/routing/routers/`+strconv.FormatInt(home, 10)+`"`, "router · waits 30 s", ">Parents<")
 	lists := h.Login.Get("/routing/lists").Body.String()
-	has(t, "lists page", lists, ">Home<", "router · waits 30 s")
+	// the name and its word are inline siblings: the space between them is in the word, or the page reads "Homerouter"
+	has(t, "lists page", lists, ">Home<", `<span class="subtle"> router · waits 30 s</span>`)
 	_ = parents
 
 	// the custom editor names the routers that re-sync
