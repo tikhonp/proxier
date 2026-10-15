@@ -60,14 +60,14 @@ func TestActivityNamesMembersAndTheOldAdmin(t *testing.T) {
 	record(t, s, "auth.totp_enabled", events.Subject{Type: "member", ID: "1"}, events.MemberActor(1), nil)
 	body := strings.Join(strings.Fields(l.Get("/activity").Body.String()), " ")
 	for _, want := range []string{
-		`<span class="">tikhon</span> <span class="subtle">Changed the password of <a href="/settings/members/1" class="text">tikhon</a>`,
-		`<span class="">tikhon</span> <span class="subtle">Turned on the authenticator app of <a href="/settings/members/1" class="text">tikhon</a>`,
+		`<span class="actor" title="tikhon">tikhon</span> <span class="subtle">Changed the password of <a href="/settings/members/1" class="text">tikhon</a>`,
+		`<span class="actor" title="tikhon">tikhon</span> <span class="subtle">Turned on the authenticator app of <a href="/settings/members/1" class="text">tikhon</a>`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("missing %s:\n%s", want, body)
 		}
 	}
-	if strings.Contains(body, "member:1") || strings.Contains(body, `<span class="">admin</span>`) {
+	if strings.Contains(body, "member:1") || strings.Contains(body, `<span class="actor" title="admin">admin</span>`) {
 		t.Errorf("an actor shown as stored:\n%s", body)
 	}
 }
