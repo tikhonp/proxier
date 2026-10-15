@@ -99,8 +99,10 @@ Each fetch's user agent is mapped to an app family for the fetch log and [shared
 | v2rayNG | `v2rayng` |
 | v2rayN | `v2rayn` |
 | FoXray | `foxray` |
+| Throne | `throne` |
 | NekoBox / NekoRay | `nekobox`, `nekoray` |
 | Karing | `karing` |
+| INCY | `incy` |
 | Stash | `stash` |
 | sing-box | `sing-box`, `sfi`, `sfa`, `sfm` |
 | Clash / mihomo | `clash`, `mihomo`, `meta` |
