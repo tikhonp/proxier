@@ -17,28 +17,32 @@ templ activityPage(s ui.Shell, v activityView) {
 		if len(v.Days) == 0 {
 			@ui.EmptyState(i18n.T(ctx, "activity.empty"), "")
 		}
-		for _, d := range v.Days {
-			<div class="dayhead">{ d.Day }</div>
-			for _, r := range d.Rows {
-				<div class="row actrow pc-row" data-row={ r.Time + r.Actor }>
-					<span class="caret" aria-hidden="true">›</span>
-					<span class="subtle">{ r.Time }</span>
-					<span class={ templ.KV("subtle", r.Actor == "system") }>{ r.Actor }</span>
-					<span class="subtle">
-						if r.Plain != "" {
-							{ r.Plain }
-						} else {
-							{ r.Pre }
-							if r.Subject.Href != "" {
-								<a href={ templ.SafeURL(r.Subject.Href) } class="text">{ r.Subject.Label }</a>
-							} else {
-								<span class="text">{ r.Subject.Label }</span>
-							}
-							{ r.Post }
-						}
-					</span>
-				</div>
-			}
+		if len(v.Days) > 0 {
+			<div class="actfeed">
+				for _, d := range v.Days {
+					<div class="dayhead">{ d.Day }</div>
+					for _, r := range d.Rows {
+						<div class="row actrow pc-row" data-row={ r.Time + r.Actor }>
+							<span class="caret" aria-hidden="true">›</span>
+							<span class="subtle">{ r.Time }</span>
+							<span class={ "actor", templ.KV("subtle", r.Actor == "system") } title={ r.Actor }>{ r.Actor }</span>
+							<span class="subtle">
+								if r.Plain != "" {
+									{ r.Plain }
+								} else {
+									{ r.Pre }
+									if r.Subject.Href != "" {
+										<a href={ templ.SafeURL(r.Subject.Href) } class="text">{ r.Subject.Label }</a>
+									} else {
+										<span class="text">{ r.Subject.Label }</span>
+									}
+									{ r.Post }
+								}
+							</span>
+						</div>
+					}
+				}
+			</div>
 		}
 		@ui.Pager(v.Info, v.Older)
 	}

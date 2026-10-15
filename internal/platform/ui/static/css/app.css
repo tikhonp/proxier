@@ -276,7 +276,12 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
 .ll-warn { color: var(--gold); }
 .ll-debug { color: var(--muted); }
 .ll-marker { color: var(--subtle); font-style: italic; }
-.actrow { grid-template-columns: 72px 110px minmax(0, 1fr); }
+/* the actor column is as wide as the page's longest actor, up to 260 px (a fixed 110 px let a member's
+   email run over the sentence); rows share it (subgrid), a longer one ends in "…" with its title */
+.actfeed { display: grid; grid-template-columns: 72px fit-content(260px) minmax(0, 1fr); }
+.actfeed > * { grid-column: 1 / -1; }
+.actrow { grid-template-columns: subgrid; }
+.actrow .actor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dayhead { padding: 14px 16px 4px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); }
 .stat { display: inline-flex; align-items: center; gap: 7px; }
 @media (max-width: 760px) {
@@ -291,6 +296,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .jobcols { grid-template-columns: minmax(0, 1fr); }
   .jobside { border-right: 0; }
   .jobmain.log-full { height: 100vh; } /* no key line on a phone */
+  .actfeed { display: block; }
   .actrow { grid-template-columns: minmax(0, 1fr); gap: 2px; }
 }
 

@@ -953,6 +953,34 @@ func TestActionRowsShareAButtonColumn(t *testing.T) {
 	}
 }
 
+// Activity's actor column was a fixed 110 px, and a member named by their
+// email ran over the sentence beside it. The rows share one column as wide
+// as the longest actor, up to 260 px, and a longer one ends in "…".
+func TestActivityActorsKeepToTheirColumn(t *testing.T) {
+	css := appCSS(t)
+	for _, want := range []string{
+		`.actfeed { display: grid; grid-template-columns: 72px fit-content(260px) minmax(0, 1fr); }`,
+		`.actrow { grid-template-columns: subgrid; }`,
+		`.actrow .actor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`,
+	} {
+		if !strings.Contains(css, want) {
+			t.Errorf("app.css lacks %q", want)
+		}
+	}
+	b, err := os.ReadFile(filepath.Join("..", "pages", "activity.templ"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	page := string(b)
+	feed, row := strings.Index(page, `<div class="actfeed">`), strings.Index(page, `class="row actrow`)
+	if feed < 0 || row < feed {
+		t.Error("Activity's rows are not inside .actfeed")
+	}
+	if !strings.Contains(page, `<span class={ "actor", templ.KV("subtle", r.Actor == "system") } title={ r.Actor }>`) {
+		t.Error("the actor cell lacks its class or its title")
+	}
+}
+
 // g's which-key strip lies over the page right above the key line. It was a
 // sticky block after the line, 28 px tall as the line (.pc-keys) with 36 px
 // cells: its cells ran 8 px down over the line's hints, a second row in a
