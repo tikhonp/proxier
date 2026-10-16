@@ -31,8 +31,8 @@ var Section = settings.Section{
 	Fields: []settings.Field{
 		{Key: LinkLanguage, Kind: settings.Enum, Default: "ru", Options: []string{"en", "ru"}},
 		{Key: ExpiryWarning, Kind: settings.Duration, Default: "72h0m0s", Min: int64(time.Hour), Max: int64(30 * day)},
-		{Key: AlertNetworks, Kind: settings.Int, Default: "4", Min: 1, Max: 1000},
-		{Key: AlertApps, Kind: settings.Int, Default: "3", Min: 1, Max: 1000},
+		{Key: AlertNetworks, Kind: settings.Int, Default: "10", Min: 1, Max: 1000},
+		{Key: AlertApps, Kind: settings.Int, Default: "5", Min: 1, Max: 1000},
 		// Empty turns country lookups off.
 		{Key: NetworkCountryURL, Kind: settings.String, Default: "https://ipinfo.io/{ip}/country", MaxLen: 300,
 			Validate: func(v string) error {

@@ -97,7 +97,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 <span style="font-size:12px;color:#908caa" title="Mon 5 Oct 2026, 11:15 MSK">today 11:15</span>
 </div>
 <div style="padding:8px 16px 12px;display:flex;flex-direction:column;gap:4px">
-<p>Fetched from 6 networks and 4 apps in the last 24 h. The limits are more than 4 networks or more than 3 apps.</p>
+<p>Fetched from 12 networks and 4 apps in the last 24 h. The limits are more than 10 networks or more than 5 apps.</p>
 <p style="color:#908caa">One person's devices rarely explain that. The URL has probably been passed on.</p>
 </div>
 <div style="display:flex;flex-wrap:wrap;gap:8px;padding:0 16px 14px">
@@ -133,7 +133,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:16px;align-items:center;padding:4px 16px"><span style="color:#908caa">Subscription</span><span style="display:flex;flex-wrap:wrap;gap:4px 14px"><a href="RP-Subscription.dc.html">Friends</a><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>nl-1</span><span style="display:inline-flex;align-items:center;gap:7px;color:#908caa"><span aria-hidden="true" style="width:8px;height:8px;flex:none;border-radius:50%;background:#31748f"></span>se-1</span></span><button type="button" class="pc-btn pc-sm">Change…</button></div>
 <div style="display:grid;grid-template-columns:120px minmax(0,1fr) auto;gap:16px;align-items:center;padding:4px 16px"><span style="color:#908caa">Expiry</span><span>none</span><button type="button" class="pc-btn pc-sm">Set…</button></div>
 <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Language</span><span>English</span></div>
-<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Alert limits</span><span>defaults <span style="color:#908caa">· more than 4 networks or 3 apps in 24 h</span></span></div>
+<div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Alert limits</span><span>defaults <span style="color:#908caa">· more than 10 networks or 5 apps in 24 h</span></span></div>
 <div style="display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;padding:6px 16px"><span style="color:#908caa">Last fetch</span><span>12 min ago <span style="color:#908caa">· v2RayTun · 2001:db8:4f2::/48</span></span></div>
 </div>
 </section>
@@ -148,8 +148,8 @@ button:disabled{cursor:not-allowed;opacity:.45}
 </div>
 <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(280px,100%),1fr));gap:1px;background:#26233a">
 <div style="background:#000000;padding:8px 0">
-<div style="display:flex;justify-content:space-between;padding:4px 16px;font-size:12px;color:#908caa"><span>Networks · 6</span><span>fetches</span></div>
-<sc-for list="{{nets}}" as="x" hint-placeholder-count="6">
+<div style="display:flex;justify-content:space-between;padding:4px 16px;font-size:12px;color:#908caa"><span>Networks · 12</span><span>fetches</span></div>
+<sc-for list="{{nets}}" as="x" hint-placeholder-count="12">
 <div style="display:grid;grid-template-columns:minmax(0,1fr) 32px 40px;gap:12px;padding:4px 16px">
 <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{x.net}}</span>
 <span style="color:#908caa">{{x.cc}}</span>
@@ -306,7 +306,13 @@ class Component extends DCLogic {
         { net: '2001:db8:4f2::/48', cc: 'RU', n: 6 },
         { net: '2001:db8:91::/48', cc: 'RU', n: 3 },
         { net: '192.0.2.0/24', cc: 'KZ', n: 2 },
-        { net: '2001:db8:c3::/48', cc: 'TR', n: 2 }
+        { net: '2001:db8:c3::/48', cc: 'TR', n: 2 },
+        { net: '2001:db8:5e::/48', cc: 'RU', n: 2 },
+        { net: '2001:db8:a07::/48', cc: 'RU', n: 2 },
+        { net: '2001:db8:1d4::/48', cc: 'AM', n: 1 },
+        { net: '2001:db8:2b::/48', cc: 'RU', n: 1 },
+        { net: '2001:db8:e90::/48', cc: 'GE', n: 1 },
+        { net: '2001:db8:77::/48', cc: 'RU', n: 1 }
       ],
       apps: [
         { app: 'v2RayTun', n: 14 },

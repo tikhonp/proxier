@@ -76,7 +76,7 @@ func TestNotificationTexts(t *testing.T) {
 
 	// link.shared_suspected: counts in the plural forms, never an IP
 	alex, _ := h.Link(sub, "Alex")
-	for i := range 6 {
+	for i := range 11 {
 		h.FetchAt(alex, h.Now, fmt.Sprintf("198.51.%d.7", i), "Happ/1.6")
 	}
 	if err := h.Mod.Alerts.Scan(ctx, h.Now, "job:2"); err != nil {
@@ -84,8 +84,8 @@ func TestNotificationTexts(t *testing.T) {
 	}
 	e := h.Events("link.shared_suspected")[0]
 	for loc, want := range map[*i18n.Localizer][2]string{
-		en: {"Alex looks shared", "Fetched from 6 networks and 1 app in 24 h."},
-		ru: {"Ссылкой Alex, похоже, поделились", "За сутки её запросили из 6 сетей и 1 приложения."},
+		en: {"Alex looks shared", "Fetched from 11 networks and 1 app in 24 h."},
+		ru: {"Ссылкой Alex, похоже, поделились", "За сутки её запросили из 11 сетей и 1 приложения."},
 	} {
 		msg, ok, err := h.Mod.RenderNotification(ctx, e, loc)
 		if err != nil || !ok || msg.Title != want[0] || msg.Body != want[1] {

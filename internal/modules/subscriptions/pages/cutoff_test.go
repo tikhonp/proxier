@@ -78,7 +78,7 @@ func TestCutOffPages(t *testing.T) {
 
 	// The alert band offers Cut off too, naming the servers it rotates.
 	alex2, _ := h.Link(family, "Alex 2")
-	shared(t, h, alex2, 6)
+	shared(t, h, alex2, 11)
 	body = page(t, h, fmt.Sprintf("/links/%d", alex2))
 	mustContain(t, body, "Cut off Alex 2…", "Disables the link and rotates nl-1, de-1, so copied URIs stop working too.")
 
@@ -100,7 +100,7 @@ func TestCutOffPages(t *testing.T) {
 	// Without a rotator no Cut off is offered anywhere.
 	h2 := substest.New(t, substest.NoRotator())
 	id2, _ := h2.Link(h2.Subscription("Family", 1), "Alex")
-	shared(t, h2, id2, 6)
+	shared(t, h2, id2, 11)
 	body = page(t, h2, fmt.Sprintf("/links/%d", id2))
 	mustContain(t, body, "Shared-link alert")
 	mustNotContain(t, body, "Cut off", "/cutoff")

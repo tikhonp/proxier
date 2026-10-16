@@ -25,9 +25,9 @@ func TestLinksDashboardArea(t *testing.T) {
 	if err := h.Mod.Links.SetExpiry(t.Context(), masha, access.All, h.Now.Add(4*24*time.Hour+time.Hour), "admin"); err != nil {
 		t.Fatal(err)
 	}
-	shared(t, h, alex, 6)
+	shared(t, h, alex, 12)
 	body := page(t, h, "/")
-	mustContain(t, body, "Links →", ">Alex<", "alert", "6 networks, 4 apps in 24 h", ">Masha — Pixel<", "expiring", "in 4 days")
+	mustContain(t, body, "Links →", ">Alex<", "alert", "12 networks, 4 apps in 24 h", ">Masha — Pixel<", "expiring", "in 4 days")
 	mustNotContain(t, body, ">Later<")
 	if strings.Index(body, ">Alex<") > strings.Index(body, ">Masha — Pixel<") {
 		t.Error("alerts come first")

@@ -61,8 +61,8 @@ func TestModuleIsWired(t *testing.T) {
 	// the settings section: every key with its default, texts, bounds
 	ctx := context.Background()
 	for key, want := range map[string]string{
-		"subscriptions.link_language": "ru", "subscriptions.expiry_warning": "72h0m0s", "subscriptions.alert_networks": "4",
-		"subscriptions.alert_apps": "3", "subscriptions.network_country_url": "https://ipinfo.io/{ip}/country",
+		"subscriptions.link_language": "ru", "subscriptions.expiry_warning": "72h0m0s", "subscriptions.alert_networks": "10",
+		"subscriptions.alert_apps": "5", "subscriptions.network_country_url": "https://ipinfo.io/{ip}/country",
 		"subscriptions.tombstone": "720h0m0s", "subscriptions.fetch_retention": "2160h0m0s",
 	} {
 		v, err := app.Settings.Lookup(ctx, key)

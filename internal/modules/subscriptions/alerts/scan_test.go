@@ -17,8 +17,8 @@ import (
 
 var bg = context.Background()
 
-// apps are user agents of four different families.
-var apps = []string{"Happ/1.6.1", "v2RayTun/4.0", "HiddifyNext/2.5", "Shadowrocket/2.2"}
+// apps are user agents of six different families.
+var apps = []string{"Happ/1.6.1", "v2RayTun/4.0", "HiddifyNext/2.5", "Shadowrocket/2.2", "Streisand/1.6", "v2rayNG/1.9"}
 
 func link(t *testing.T, h *substest.Harness) int64 {
 	t.Helper()
@@ -54,24 +54,24 @@ func TestSameNetworkCountsOnce(t *testing.T) {
 	}
 }
 
-func TestFiveNetworksAlert(t *testing.T) {
+func TestElevenNetworksAlert(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	for i := range 4 {
+	for i := range 10 {
 		h.FetchAt(id, h.Now.Add(-time.Hour), net(i), apps[0])
 	}
 	scan(t, h)
 	if n := len(alertsOf(h)); n != 0 {
-		t.Fatalf("4 networks alerted")
+		t.Fatalf("10 networks alerted")
 	}
-	h.FetchAt(id, h.Now, net(4), apps[0])
+	h.FetchAt(id, h.Now, net(10), apps[0])
 	scan(t, h)
 	evs := alertsOf(h)
 	if len(evs) != 1 {
-		t.Fatalf("5 networks: %d alerts", len(evs))
+		t.Fatalf("11 networks: %d alerts", len(evs))
 	}
 	e := evs[0]
-	if e.Actor != "job:1" || e.Payload["networks"] != float64(5) || e.Payload["apps"] != float64(1) || e.Payload["window"] != "24h" {
+	if e.Actor != "job:1" || e.Payload["networks"] != float64(11) || e.Payload["apps"] != float64(1) || e.Payload["window"] != "24h" {
 		t.Errorf("event: %+v", e.Payload)
 	}
 	if strings.Contains(fmt.Sprint(e.Payload), "198.51.") {
@@ -83,16 +83,21 @@ func TestFiveNetworksAlert(t *testing.T) {
 	}
 }
 
-func TestFourAppsAlert(t *testing.T) {
+func TestSixAppsAlert(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	for i, ua := range apps {
+	for i, ua := range apps[:5] {
 		h.FetchAt(id, h.Now.Add(-time.Hour), net(i), ua)
 	}
 	scan(t, h)
+	if n := len(alertsOf(h)); n != 0 {
+		t.Fatalf("5 apps alerted")
+	}
+	h.FetchAt(id, h.Now, net(5), apps[5])
+	scan(t, h)
 	evs := alertsOf(h)
-	if len(evs) != 1 || evs[0].Payload["networks"] != float64(4) || evs[0].Payload["apps"] != float64(4) {
-		t.Fatalf("4 apps: %+v", evs)
+	if len(evs) != 1 || evs[0].Payload["networks"] != float64(6) || evs[0].Payload["apps"] != float64(6) {
+		t.Fatalf("6 apps: %+v", evs)
 	}
 }
 
@@ -101,7 +106,7 @@ func TestOneAlertPerDay(t *testing.T) {
 	h.Now = time.Date(2026, 10, 7, 10, 0, 0, 0, time.UTC)
 	id := link(t, h)
 	over := func() {
-		for i := range 5 {
+		for i := range 11 {
 			h.FetchAt(id, h.Now, net(i), apps[0])
 		}
 	}
@@ -126,19 +131,19 @@ func TestOneAlertPerDay(t *testing.T) {
 func TestPerLinkOverride(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	if err := h.Mod.Alerts.SetLimits(bg, id, access.All, 10, 0, false, "admin"); err != nil {
+	if err := h.Mod.Alerts.SetLimits(bg, id, access.All, 20, 0, false, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 6 {
+	for i := range 12 {
 		h.FetchAt(id, h.Now, net(i), apps[0])
 	}
 	scan(t, h)
 	if n := len(alertsOf(h)); n != 0 {
-		t.Errorf("6 networks under an override of 10: %d alerts", n)
+		t.Errorf("12 networks under an override of 20: %d alerts", n)
 	}
 	l, _ := h.Mod.Links.Get(bg, id, access.All)
 	lim, err := h.Mod.Alerts.Limits(bg, l)
-	if err != nil || lim.Networks != 10 || lim.Apps != 3 || lim.Default {
+	if err != nil || lim.Networks != 20 || lim.Apps != 5 || lim.Default {
 		t.Errorf("limits: %+v %v", lim, err)
 	}
 }
@@ -150,14 +155,14 @@ func TestMutedLinkNoAlert(t *testing.T) {
 		t.Fatal(err)
 	}
 	for i := range 20 {
-		h.FetchAt(id, h.Now, net(i), apps[i%4])
+		h.FetchAt(id, h.Now, net(i), apps[i%len(apps)])
 	}
 	scan(t, h)
 	if n := len(alertsOf(h)); n != 0 {
 		t.Errorf("muted: %d alerts", n)
 	}
 	c, err := h.Mod.Alerts.Counts(bg, id, h.Now.Add(-alerts.Window))
-	if err != nil || len(c.Networks) != 20 || len(c.Apps) != 4 {
+	if err != nil || len(c.Networks) != 20 || len(c.Apps) != 6 {
 		t.Errorf("the counts still show: %d networks, %d apps, %v", len(c.Networks), len(c.Apps), err)
 	}
 }
@@ -167,9 +172,13 @@ func TestWindowIsTwentyFourHours(t *testing.T) {
 	start := time.Date(2026, 10, 7, 0, 0, 0, 0, time.UTC)
 	h.Now = start
 	id := link(t, h)
-	plan := map[time.Duration]string{ // minutes after midnight → network
-		5 * time.Minute: net(1), 10 * time.Minute: net(2), 15 * time.Minute: net(3),
-		24*time.Hour + 30*time.Minute: net(4), 24*time.Hour + 45*time.Minute: net(5),
+	// time after midnight → network: 6 in the first hour, 5 in the last
+	plan := map[time.Duration]string{}
+	for i := range 6 {
+		plan[time.Duration(5+5*i)*time.Minute] = net(i)
+	}
+	for i := range 5 {
+		plan[24*time.Hour+time.Duration(35+5*i)*time.Minute] = net(6 + i)
 	}
 	maxSeen := 0
 	for h.Now = start; !h.Now.After(start.Add(25 * time.Hour)); h.Advance(5 * time.Minute) {
@@ -186,8 +195,8 @@ func TestWindowIsTwentyFourHours(t *testing.T) {
 		}
 		maxSeen = max(maxSeen, len(c.Networks))
 	}
-	if maxSeen != 3 {
-		t.Errorf("at most %d networks in a window, want 3", maxSeen)
+	if maxSeen != 6 {
+		t.Errorf("at most %d networks in a window, want 6", maxSeen)
 	}
 	if n := len(alertsOf(h)); n != 0 {
 		t.Errorf("alerted: %d", n)
@@ -200,12 +209,12 @@ func TestDisabledLinkAlerts(t *testing.T) {
 	if err := h.Mod.Links.Disable(bg, id, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	for i := range 6 {
+	for i := range 11 {
 		h.FetchAt(id, h.Now, net(i), apps[0])
 	}
 	scan(t, h)
 	if n := len(alertsOf(h)); n != 1 {
-		t.Errorf("disabled with 6 networks: %d alerts", n)
+		t.Errorf("disabled with 11 networks: %d alerts", n)
 	}
 }
 
@@ -224,8 +233,8 @@ func TestUnknownAgentsCountByText(t *testing.T) {
 func TestQuietLinkNotEvaluated(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)
-	for i := range 10 {
-		h.FetchAt(id, h.Now.Add(-25*time.Hour), net(i), apps[i%4])
+	for i := range 20 {
+		h.FetchAt(id, h.Now.Add(-25*time.Hour), net(i), apps[i%len(apps)])
 	}
 	scan(t, h)
 	if n := len(alertsOf(h)); n != 0 {
@@ -249,7 +258,7 @@ func TestSharedScanJob(t *testing.T) {
 		t.Fatal("the shared scan is not scheduled every 15 minutes")
 	}
 	id := link(t, h)
-	for i := range 5 {
+	for i := range 11 {
 		h.FetchAt(id, h.Now, net(i), apps[0])
 	}
 	h.StartJobs()

@@ -31,28 +31,28 @@ func TestLinkAlertPanels(t *testing.T) {
 	id, _ := h.Link(h.Subscription("Friends", 1), "Alex")
 	h.Exec(`INSERT INTO subs_network_countries (network, country, looked_up_at) VALUES ('198.51.0.0/24', 'NL', ?)`, h.Now.UTC().Format("2006-01-02T15:04:05.000Z"))
 	h.FetchAt(id, h.Now.Add(-3*24*time.Hour), "203.0.113.9", "okhttp/4.12") // only in the 7 days
-	shared(t, h, id, 6)
+	shared(t, h, id, 12)
 	href := fmt.Sprintf("/links/%d", id)
 
 	body := page(t, h, href)
 	mustContain(t, body, "Shared-link alert", "looks shared",
-		"Fetched from 6 networks and 4 apps in the last 24 h. The limits are more than 4 networks or more than 3 apps.",
+		"Fetched from 12 networks and 4 apps in the last 24 h. The limits are more than 10 networks or more than 5 apps.",
 		"One person&#39;s devices rarely explain that.", "Regenerate token…", "Disable…", "Raise limits", "Mute alerts",
 		`href="`+href+`/alerts"`, `name="action" value="mute"`, "No more alerts for this link.",
-		"Alert limits", "defaults · more than 4 networks or 3 apps in 24 h",
-		"Who fetches it", "Networks · 6", "Apps · 4", "198.51.0.0/24", "🇳🇱 NL", ">Hiddify<", `href="`+href+`?window=7d"`)
-	mustNotContain(t, body, "203.0.113.0/24", "Networks · 7")
+		"Alert limits", "defaults · more than 10 networks or 5 apps in 24 h",
+		"Who fetches it", "Networks · 12", "Apps · 4", "198.51.0.0/24", "🇳🇱 NL", ">Hiddify<", `href="`+href+`?window=7d"`)
+	mustNotContain(t, body, "203.0.113.0/24", "Networks · 13")
 	noInline(t, body)
 
 	// 7 days: the older network and its unknown app too; the band still counts 24 h
 	week := page(t, h, href+"?window=7d")
-	mustContain(t, week, "Networks · 7", "Apps · 5", "203.0.113.0/24", "Other: okhttp/4.12",
-		"Fetched from 6 networks and 4 apps in the last 24 h.")
+	mustContain(t, week, "Networks · 13", "Apps · 5", "203.0.113.0/24", "Other: okhttp/4.12",
+		"Fetched from 12 networks and 4 apps in the last 24 h.")
 
 	// the band's counts are the ones of now
 	h.Advance(10 * time.Minute)
 	h.FetchAt(id, h.Now, "198.51.50.7", alertApps[0])
-	mustContain(t, page(t, h, href), "Fetched from 7 networks and 4 apps in the last 24 h.")
+	mustContain(t, page(t, h, href), "Fetched from 13 networks and 4 apps in the last 24 h.")
 
 	// muted: no band, no marker, the counts still show
 	if err := h.Mod.Alerts.SetLimits(t.Context(), id, access.All, 0, 0, true, "admin"); err != nil {
@@ -60,7 +60,7 @@ func TestLinkAlertPanels(t *testing.T) {
 	}
 	body = page(t, h, href)
 	mustNotContain(t, body, "Shared-link alert", "looks shared")
-	mustContain(t, body, "Who fetches it", "Networks · 7", "Alert limits", "muted")
+	mustContain(t, body, "Who fetches it", "Networks · 13", "Alert limits", "muted")
 
 	// a day after the alert, unmuted: the alert has passed
 	if err := h.Mod.Alerts.SetLimits(t.Context(), id, access.All, 0, 0, false, "admin"); err != nil {
@@ -74,11 +74,11 @@ func TestLinkAlertPanels(t *testing.T) {
 func TestAlertLimitsPage(t *testing.T) {
 	h := substest.New(t)
 	id, _ := h.Link(h.Subscription("Friends", 1), "Alex")
-	shared(t, h, id, 5)
+	shared(t, h, id, 11)
 	href := fmt.Sprintf("/links/%d", id)
 
 	body := page(t, h, href+"/alerts")
-	mustContain(t, body, "Alert limits of Alex", `name="networks"`, `placeholder="4"`, `placeholder="3"`, "Mute alerts for this link")
+	mustContain(t, body, "Alert limits of Alex", `name="networks"`, `placeholder="10"`, `placeholder="5"`, "Mute alerts for this link")
 	noInline(t, body)
 
 	// refused inline, nothing saved
@@ -90,12 +90,12 @@ func TestAlertLimitsPage(t *testing.T) {
 		t.Fatalf("a refused save recorded %d events", n)
 	}
 
-	rec = h.Login.Post(href+"/alerts", url.Values{"networks": {"10"}, "apps": {""}})
+	rec = h.Login.Post(href+"/alerts", url.Values{"networks": {"20"}, "apps": {""}})
 	if rec.Code != http.StatusSeeOther || rec.Header().Get("Location") != href {
 		t.Fatalf("save: %d %q", rec.Code, rec.Header().Get("Location"))
 	}
 	l, _ := h.Mod.Links.Get(t.Context(), id, access.All)
-	if l.AlertNetworks != 10 || l.AlertApps != 0 || l.AlertsMuted {
+	if l.AlertNetworks != 20 || l.AlertApps != 0 || l.AlertsMuted {
 		t.Errorf("saved: %+v", l)
 	}
 	evs := h.Events("link.changed")
@@ -106,9 +106,9 @@ func TestAlertLimitsPage(t *testing.T) {
 	if l.AlertedAt.IsZero() || !strings.Contains(page(t, h, href), "Shared-link alert") {
 		t.Error("raising the limits cleared the alert")
 	}
-	mustContain(t, page(t, h, href), "this link&#39;s · more than 10 networks or 3 apps in 24 h")
+	mustContain(t, page(t, h, href), "this link&#39;s · more than 20 networks or 5 apps in 24 h")
 	// the same values again: nothing recorded
-	h.Login.Post(href+"/alerts", url.Values{"networks": {"10"}, "apps": {""}})
+	h.Login.Post(href+"/alerts", url.Values{"networks": {"20"}, "apps": {""}})
 	if n := len(h.Events("link.changed")); n != 1 {
 		t.Errorf("an unchanged save recorded: %d", n)
 	}
@@ -116,13 +116,13 @@ func TestAlertLimitsPage(t *testing.T) {
 	// Mute alerts from the band keeps the limits
 	h.Login.Post(href+"/alerts", url.Values{"action": {"mute"}})
 	l, _ = h.Mod.Links.Get(t.Context(), id, access.All)
-	if !l.AlertsMuted || l.AlertNetworks != 10 {
+	if !l.AlertsMuted || l.AlertNetworks != 20 {
 		t.Errorf("mute: %+v", l)
 	}
 	mustContain(t, page(t, h, href+"/alerts"), "Alerts are muted for this link", "Unmute")
 	h.Login.Post(href+"/alerts", url.Values{"action": {"unmute"}})
 	l, _ = h.Mod.Links.Get(t.Context(), id, access.All)
-	if l.AlertsMuted || l.AlertNetworks != 10 {
+	if l.AlertsMuted || l.AlertNetworks != 20 {
 		t.Errorf("unmute: %+v", l)
 	}
 	evs = h.Events("link.changed")

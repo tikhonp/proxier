@@ -86,7 +86,7 @@ Flows: [link lifecycle](../processes/subscriptions/link-lifecycle.md).
 
 Every fetch of a link is recorded: time, IP, network (IPv4 /24, IPv6 /48), user agent, the app detected from it, the format (`page` for a view of the link's page in a browser, which counts like any fetch), and the outcome. The link page shows the log, distinct networks and apps over 24 h and 7 d, and the last fetch.
 
-A link fetched from more networks or apps than one person's devices explain raises a **shared-link alert** (defaults: more than 4 networks or more than 3 apps in 24 hours, at most one alert per link per day): [shared-link alerts](../processes/subscriptions/shared-link-alerts.md).
+A link fetched from more networks or apps than one person's devices explain raises a **shared-link alert** (defaults: more than 10 networks or more than 5 apps in 24 hours, at most one alert per link per day): [shared-link alerts](../processes/subscriptions/shared-link-alerts.md).
 
 ## Pages
 
@@ -94,7 +94,7 @@ A link fetched from more networks or apps than one person's devices explain rais
 - **Subscription**: the server list (drag to reorder; add from active servers; each row shows health and whether it is hidden right now), settings, a **preview** of exactly what a link gets right now, the links of this subscription, and activity.
 - **Links**: every link. Columns: name, subscription, state (active / disabled / expired / deleted), expiry, last fetch with app icon, fetches in 24 h, alert badge. Filters: subscription, state, expiring within 7 days, with alerts.
 - **Link**: URL (copy, QR, regenerate), state and expiry, subscription, the preview of its current output, the alert band while it has an alert, **Who fetches it** (networks with their country and apps, over 24 h or 7 d), the alert limits, the fetch log, actions, activity. **Alert limits** (a page styled as a dialog) raises the limits of one link or mutes its alerts.
-- **Dashboard → Links**: links with a shared-link alert ("Alex · alert · 6 networks, 4 apps in 24 h"), then active links expiring within 7 days ("Masha — Pixel · expiring · 9 Oct · in 4 days"), with **Links →**. Nothing to show, no area.
+- **Dashboard → Links**: links with a shared-link alert ("Alex · alert · 12 networks, 4 apps in 24 h"), then active links expiring within 7 days ("Masha — Pixel · expiring · 9 Oct · in 4 days"), with **Links →**. Nothing to show, no area.
 - **New link**: a small dialog (name, subscription, optional expiry, language). It ends on the link page with the URL and QR ready to share.
 - **`/link` in Telegram** (`bot.go`, the module's `BotCommands`): the same from the member's own chat, asking the name, then offering the subscriptions they may change; the answer holds the URL and a button to the link page ([steps](../processes/subscriptions/link-lifecycle.md#steps-from-telegram)).
 - **The link's own page** (public, at the link's URL in a browser): see [What a link serves](#what-a-link-serves). The fetch log shows its views with format `page` and app Browser.
@@ -107,8 +107,8 @@ Section `subscriptions`, on **Settings → Subscriptions**:
 |---|---|---|
 | `subscriptions.link_language` | `ru` | Language of new links' stub entries. |
 | `subscriptions.expiry_warning` | 72 h | `link.expiring_soon` this long before an expiry (1–720 h). |
-| `subscriptions.alert_networks` | 4 | Shared-link alert above this many networks in 24 h. |
-| `subscriptions.alert_apps` | 3 | The same for apps. |
+| `subscriptions.alert_networks` | 10 | Shared-link alert above this many networks in 24 h. |
+| `subscriptions.alert_apps` | 5 | The same for apps. |
 | `subscriptions.network_country_url` | `https://ipinfo.io/{ip}/country` | Country lookup of a network's first address; empty turns it off. |
 | `subscriptions.tombstone` | 30 days | How long a deleted link serves "⛔ Link removed" (and holds its subscription) before it answers `404` (1–365 days). |
 | `subscriptions.fetch_retention` | 90 days | Fetches older than this are deleted (at least 7 days). |

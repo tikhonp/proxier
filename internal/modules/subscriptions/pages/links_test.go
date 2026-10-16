@@ -360,7 +360,7 @@ func TestLinkListAlerts(t *testing.T) {
 	sub := h.Subscription("Friends", 1)
 	alex, _ := h.Link(sub, "Alex")
 	h.Link(sub, "Mom")
-	shared(t, h, alex, 5)
+	shared(t, h, alex, 11)
 
 	body := page(t, h, "/links")
 	mustContain(t, body, "2 active · 0 expiring this week · 1 with an alert", "With alerts", `href="/links?alerts=1"`, ">Mom<", ">Alex<")
