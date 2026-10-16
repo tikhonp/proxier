@@ -1,6 +1,6 @@
 APP_VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
-TEMPL_VERSION := v0.3.1020
-GOVULNCHECK_VERSION := v1.8.0
+TEMPL_VERSION := v0.3.1070
+GOVULNCHECK_VERSION := v1.9.0
 
 .PHONY: dev build-dev fdev shell manage migrate-status test check templ editor check-editor lint vuln build build-image
 

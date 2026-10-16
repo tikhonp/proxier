@@ -175,7 +175,13 @@ templ EmptyState(what, next string) {
 
 // Time shows a time relative to now, with the absolute time in its title.
 templ Time(t time.Time) {
-	<time datetime={ t.UTC().Format(time.RFC3339) } title={ i18n.From(ctx).Time(t) }>{ i18n.From(ctx).Ago(t) }</time>
+	@TimeThen(t, "")
+}
+
+// TimeThen is Time with text right after it ("in 30 min. To end it…"): text
+// on the line after a component call starts with a space.
+templ TimeThen(t time.Time, after string) {
+	<time datetime={ t.UTC().Format(time.RFC3339) } title={ i18n.From(ctx).Time(t) }>{ i18n.From(ctx).Ago(t) }</time>{ after }
 }
 
 // Alert is a one-line message. kind: love | gold | iris | pine | "" (quiet).

@@ -115,8 +115,7 @@ templ agentResultPage(s ui.Shell, v agentResultView) {
 					<p>
 						<b>{ i18n.T(ctx, "agent.secret.warn") }</b>
 						{ i18n.T(ctx, "agent.secret.expires") + " " }
-						@ui.Time(v.ExpiresAt)
-						{ ". " + i18n.T(ctx, "rscripts.agent.secret.revoke") }
+						@ui.TimeThen(v.ExpiresAt, ". "+i18n.T(ctx, "rscripts.agent.secret.revoke"))
 					</p>
 				}
 				<div class="form-actions">

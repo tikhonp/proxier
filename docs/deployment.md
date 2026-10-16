@@ -43,7 +43,7 @@ services:
       - discovery
 
   chromium:
-    image: chromedp/headless-shell:156.0.8078.12   # pinned
+    image: chromedp/headless-shell:156.0.8078.36   # pinned
     restart: unless-stopped
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

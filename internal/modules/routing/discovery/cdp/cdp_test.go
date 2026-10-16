@@ -36,7 +36,10 @@ func TestRealChromium(t *testing.T) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<!doctype html><title>Test page</title><h1>hello</h1>
-<img src="/pixel.gif"><script src="http://no-such-host.invalid/x.js"></script>`))
+<img src="/pixel.gif"><img src="/moved.gif"><script src="http://no-such-host.invalid/x.js"></script>`))
+	})
+	mux.HandleFunc("/moved.gif", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/pixel.gif?moved", http.StatusFound)
 	})
 	mux.HandleFunc("/pixel.gif", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/gif")
@@ -67,12 +70,14 @@ func TestRealChromium(t *testing.T) {
 	if !bytes.HasPrefix(res.Pages[0].Screenshot, []byte{0xff, 0xd8}) {
 		t.Error("the screenshot isn't a JPEG")
 	}
-	var gif, failed bool
+	var gif, moved, landed, failed bool
 	for _, q := range res.Requests {
 		gif = gif || strings.HasSuffix(q.URL, "/pixel.gif") && q.Status == 200 && q.Host == pageHost
+		moved = moved || strings.HasSuffix(q.URL, "/moved.gif") && q.Status == 302
+		landed = landed || strings.HasSuffix(q.URL, "/pixel.gif?moved") && q.Status == 200
 		failed = failed || q.Host == "no-such-host.invalid" && strings.HasPrefix(q.Failed, "net::ERR_")
 	}
-	if !gif || !failed {
+	if !gif || !moved || !landed || !failed {
 		t.Errorf("requests: %+v", res.Requests)
 	}
 }

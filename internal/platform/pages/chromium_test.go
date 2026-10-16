@@ -10,10 +10,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/chromedp/cdproto/cdp"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/cdproto/page"
 	"github.com/chromedp/cdproto/webauthn"
 	"github.com/chromedp/chromedp"
+	"github.com/chromedp/chromedp/remote"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 	"github.com/tikhonp/proxier/internal/platform/web"
 )
@@ -46,38 +48,47 @@ func TestPasskeyInRealChromium(t *testing.T) {
 	defer func() { _ = srv.Close() }()
 	l := s.SignIn("")
 
-	actx, cancel := chromedp.NewRemoteAllocator(context.Background(), raw)
+	actx, cancel := remote.NewAllocator(context.Background(), raw)
 	defer cancel()
 	ctx, cancel := chromedp.NewContext(actx)
 	defer cancel()
 	ctx, cancel = context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	step := func(d time.Duration, actions ...chromedp.Action) error {
+	step := func(d time.Duration, actions ...chromedp.Action[chromedp.Void]) error {
 		sctx, cancel := context.WithTimeout(ctx, d)
 		defer cancel()
-		return chromedp.Run(sctx, actions...)
+		return chromedp.Do(sctx, actions...)
 	}
 
 	var location, rows string
-	err = chromedp.Run(ctx,
-		webauthn.Enable(),
-		chromedp.ActionFunc(func(ctx context.Context) error {
-			_, err := webauthn.AddVirtualAuthenticator(&webauthn.VirtualAuthenticatorOptions{
+	err = chromedp.Do(ctx,
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+			if _, err := cdp.Call(ctx, t, webauthn.Enable, webauthn.EnableParams{}); err != nil {
+				return err
+			}
+			if _, err := cdp.Call(ctx, t, webauthn.AddVirtualAuthenticator, webauthn.AddVirtualAuthenticatorParams{Options: &webauthn.VirtualAuthenticatorOptions{
 				Protocol: webauthn.AuthenticatorProtocolCtap2, Ctap2version: webauthn.Ctap2versionCtap21,
 				Transport: webauthn.AuthenticatorTransportInternal, HasResidentKey: true, HasUserVerification: true,
 				IsUserVerified: true, AutomaticPresenceSimulation: true,
-			}).Do(ctx)
+			}}); err != nil {
+				return err
+			}
+			_, err := cdp.Call(ctx, t, network.SetCookie, network.SetCookieParams{Name: web.CookieName(false), Value: l.Token, URL: base.String() + "/"})
 			return err
 		}),
-		network.SetCookie(web.CookieName(false), l.Token).WithURL(base.String()+"/"),
 		chromedp.Navigate(base.String()+"/settings/security"),
 		chromedp.WaitEnabled(`form[data-passkey-add] button[type=submit]`),
 		chromedp.SendKeys(`#pk-name`, "Chromium"),
 		chromedp.SendKeys(`#pk-pw`, sitetest.Password),
-		chromedp.Evaluate(`document.querySelector('form[data-passkey-add]').requestSubmit()`, nil),
+		chromedp.Evaluate[chromedp.Void](`document.querySelector('form[data-passkey-add]').requestSubmit()`),
 		chromedp.WaitVisible(`#passkeys`),
-		chromedp.Location(&location),
-		chromedp.OuterHTML(`#passkeys`, &rows),
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) (err error) {
+			if location, err = chromedp.Location()(ctx, t); err != nil {
+				return err
+			}
+			rows, err = chromedp.OuterHTML(`#passkeys`)(ctx, t)
+			return err
+		}),
 	)
 	if err != nil {
 		t.Fatalf("add: %v", err)
@@ -86,19 +97,25 @@ func TestPasskeyInRealChromium(t *testing.T) {
 		t.Fatalf("after adding: %s\n%s", location, rows)
 	}
 
-	signOut := chromedp.Evaluate(`document.querySelector('[data-action="auth.sign_out"]').click()`, nil)
+	signOut := chromedp.Evaluate[chromedp.Void](`document.querySelector('[data-action="auth.sign_out"]').click()`)
 	state := func() string {
-		var st string
-		_ = chromedp.Run(ctx, chromedp.Evaluate(`location.href + " | " + ((document.getElementById('pk-msg')||{}).textContent||"")`, &st))
+		st, _ := chromedp.Run(ctx, chromedp.Evaluate[string](`location.href + " | " + ((document.getElementById('pk-msg')||{}).textContent||"")`))
 		return st
 	}
+	readLocation := chromedp.Func(func(ctx context.Context, t *chromedp.Target) (err error) {
+		location, err = chromedp.Location()(ctx, t)
+		return err
+	})
 
 	// The button: with autofill's quiet request out of the way, the button
 	// opens the browser's prompt.
 	var noAutofill page.ScriptIdentifier
 	err = step(20*time.Second,
-		chromedp.ActionFunc(func(ctx context.Context) (err error) {
-			noAutofill, err = page.AddScriptToEvaluateOnNewDocument(`PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false)`).Do(ctx)
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+			res, err := cdp.Call(ctx, t, page.AddScriptToEvaluateOnNewDocument, page.AddScriptToEvaluateOnNewDocumentParams{
+				Source: `PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false)`,
+			})
+			noAutofill = res.Identifier
 			return err
 		}),
 		signOut,
@@ -107,7 +124,7 @@ func TestPasskeyInRealChromium(t *testing.T) {
 		chromedp.WaitVisible(`[data-passkey-signin]`),
 		chromedp.Click(`[data-passkey-signin]`),
 		chromedp.WaitVisible(`#app`),
-		chromedp.Location(&location),
+		readLocation,
 	)
 	if err != nil || !strings.HasSuffix(location, "/settings/security") {
 		t.Fatalf("sign in with the button: %v (%s)", err, state())
@@ -116,10 +133,13 @@ func TestPasskeyInRealChromium(t *testing.T) {
 	// Autofill: the virtual authenticator answers the quiet request at once,
 	// as a real browser does when the admin picks the passkey.
 	err = step(20*time.Second,
-		page.RemoveScriptToEvaluateOnNewDocument(noAutofill),
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+			_, err := cdp.Call(ctx, t, page.RemoveScriptToEvaluateOnNewDocument, page.RemoveScriptToEvaluateOnNewDocumentParams{Identifier: noAutofill})
+			return err
+		}),
 		signOut,
 		chromedp.WaitVisible(`#app`),
-		chromedp.Location(&location),
+		readLocation,
 	)
 	if err != nil || !strings.HasSuffix(location, "/") {
 		t.Fatalf("sign in from autofill: %v (%s)", err, state())

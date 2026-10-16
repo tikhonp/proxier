@@ -29,7 +29,7 @@ jobs:
 
       - name: Generated templ files are up to date
         run: |
-          go run github.com/a-h/templ/cmd/templ@v0.3.1020 generate
+          go run github.com/a-h/templ/cmd/templ@v0.3.1070 generate
           git diff --exit-code -- '*_templ.go' || (echo "::error::run templ generate and commit the result" && exit 1)
 
       - name: gofmt
@@ -81,7 +81,7 @@ jobs:
 
       # Fails on every vulnerability our code reaches.
       - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.8.0 ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
   # Images are built only from a commit whose tests and lint passed
   # (docs/deployment.md#images-and-ci): a push to main tags :<sha>, :main and
