@@ -115,8 +115,9 @@ func isCurrent(path, href string) bool {
 	return path == href || (len(path) > len(href) && path[:len(href)] == href && path[len(href)] == '/')
 }
 
-// header ends with the admin's name and Sign out, a cell of its own so a long
-// name gives way and never pushes it off the screen. Settings has no cell: it
+// header ends with the admin's name and Sign out, a square icon cell of its
+// own so a long name gives way and never pushes it off the screen; its label
+// is screen-reader text, which the : pop-up reads too. Settings has no cell: it
 // is in the sidebar, and its hidden action keeps it in the : pop-up.
 templ header(s Shell) {
 	<header class="hdr">
@@ -135,9 +136,12 @@ templ header(s Shell) {
 			<a href={ templ.SafeURL(s.Warning.Href) } class="hdr-cell hdr-warn pc-seg pc-hide-s"><span class="st st-look" aria-hidden="true"></span>{ s.Warning.Text }</a>
 		}
 		<div class="hdr-cell hdr-admin"><span class="admin-name" title={ s.Member }>{ s.Member }</span></div>
-		<div class="hdr-out">
-			@ActionButton(Action{ID: "auth.sign_out", Label: "auth.sign_out", Method: "POST", Href: "/logout", Small: true})
-		</div>
+		<form method="post" action="/logout" class="hdr-out">
+			<input type="hidden" name="_csrf" value={ CSRF(ctx) }/>
+			<button type="submit" class="hdr-out-btn pc-seg" data-action="auth.sign_out" data-key="" title={ i18n.T(ctx, "auth.sign_out") }>
+				<svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M6.5 2.5h-3v11h3M10 5l3 3-3 3M13 8H6.5"></path></svg><span class="sr">{ i18n.T(ctx, "auth.sign_out") }</span>
+			</button>
+		</form>
 		@ActionButton(Action{ID: "nav.settings", Label: "nav.settings", Method: "GET", Href: "/settings", Hidden: true})
 	</header>
 }

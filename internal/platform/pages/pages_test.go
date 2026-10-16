@@ -177,8 +177,8 @@ func TestNoLanguageSwitchOutsideSettings(t *testing.T) {
 	}
 }
 
-// The header ends with the admin's name as plain text and Sign out, one
-// click (a POST with the CSRF token, no dialog); there is no account menu.
+// The header ends with the admin's name as plain text and Sign out, an
+// icon cell, one click (a POST with the CSRF token, no dialog); there is no account menu.
 // Settings, which the menu held, is in the sidebar (g ,) and stays in the
 // : pop-up through a hidden action.
 func TestHeaderShowsNameAndSignOut(t *testing.T) {
@@ -190,11 +190,12 @@ func TestHeaderShowsNameAndSignOut(t *testing.T) {
 		if !strings.Contains(hdr, `<div class="hdr-cell hdr-admin"><span class="admin-name" title="admin">admin</span></div>`) {
 			t.Errorf("%s: the admin's name is not plain text in the header", path)
 		}
-		out := hdr[strings.Index(hdr, `<div class="hdr-out">`):]
+		out := hdr[strings.Index(hdr, `<form method="post" action="/logout" class="hdr-out">`):]
+		// an icon alone; the label, screen-reader text, is also its title in the : pop-up
 		for _, want := range []string{
-			`<form method="post" action="/logout"`,
 			`name="_csrf" value="` + l.CSRF + `"`,
-			`<button type="submit" class="pc-btn pc-sm" data-action="auth.sign_out" data-key="">Sign out</button>`,
+			`<button type="submit" class="hdr-out-btn pc-seg" data-action="auth.sign_out" data-key="" title="Sign out"><svg`,
+			`</svg><span class="sr">Sign out</span></button>`,
 		} {
 			if !strings.Contains(out, want) {
 				t.Errorf("%s: the header's Sign out cell lacks %s", path, want)

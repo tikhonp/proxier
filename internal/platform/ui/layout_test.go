@@ -535,28 +535,27 @@ func directChildren(lines []string, i int) []int {
 	return out
 }
 
-// The header ends with the admin's name and a small Sign out, not a menu. A
-// long name (an email) gives way and ends in "…", sharing what is left with
-// the search, and Sign out, a cell that never shrinks, stays on the screen at
-// any width, also on a phone, where buttons may otherwise wrap.
+// The header ends with the admin's name and Sign out, a square icon cell
+// with a border on its left like the other header cells, not a menu. A long
+// name (an email) gives way and ends in "…", sharing what is left with the
+// search, and Sign out, a cell that never shrinks, stays on the screen at any
+// width, also on a phone.
 func TestSignOutStaysInTheHeader(t *testing.T) {
 	css := appCSS(t)
 	for _, want := range []string{
 		`.hdr-search { flex: 1 1 160px; min-width: 0;`,
-		`.hdr-admin { min-width: 0; padding-right: 12px; }`,
+		`.hdr-admin { min-width: 0; }`,
 		`.admin-name, .hdr-ph { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }`,
 		`.admin-name { max-width: 32ch; color: var(--subtle); }`,
-		`.hdr-out { flex: none; display: flex; align-items: center; padding-right: 16px; }`,
+		`.hdr-out { flex: none; display: flex; }`,
+		`.hdr-out .hdr-out-btn { width: 48px; display: flex; align-items: center; justify-content: center; padding: 0; border-left: 1px solid var(--overlay);`,
 	} {
 		if !strings.Contains(css, want) {
 			t.Errorf("app.css lacks %q", want)
 		}
 	}
-	// on a phone a button's label may wrap; Sign out's must not, and the rule
-	// comes after the one it overrides
-	wrap, keep := strings.Index(css, `white-space: normal; text-align: center; }`), strings.Index(css, `.hdr-out .pc-btn { padding: 0 10px; white-space: nowrap; }`)
-	if keep < 0 || keep < wrap {
-		t.Error("on a phone Sign out may wrap")
+	if strings.Contains(css, ".hdr-out .pc-btn") {
+		t.Error("Sign out is still styled as a button")
 	}
 	b, err := fs.ReadFile(ui.StaticFS, "js/proxier.js")
 	if err != nil {
