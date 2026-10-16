@@ -9,6 +9,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
+	"github.com/tikhonp/proxier/internal/platform/testwait"
 )
 
 func TestWaitHTTPResolvePort(t *testing.T) {
@@ -45,9 +46,13 @@ func TestWaitHTTPRetriesThenTimesOut(t *testing.T) {
 	v.HTTPStatus["https://h.example/"] = "502"
 	slept := 0
 	e := remote.Env{Poll: time.Millisecond, Sleep: func(context.Context, time.Duration) error { slept++; time.Sleep(3 * time.Millisecond); return nil }}
-	step := manifest.Step{Kind: "wait-http", Args: map[string]any{"url": "https://h.example/", "resolve": "127.0.0.1", "status": 200, "timeout": "10ms"}}
+	// Longer than one request through the fake, or the wait times out
+	// before its first retry: on the CI runner a request can take more
+	// than 10 ms.
+	timeout := testwait.For(50 * time.Millisecond).String()
+	step := manifest.Step{Kind: "wait-http", Args: map[string]any{"url": "https://h.example/", "resolve": "127.0.0.1", "status": 200, "timeout": timeout}}
 	err := remote.RunStep(context.Background(), e, c, stackDir, step)
-	if err == nil || !strings.Contains(err.Error(), "did not answer 200 within 10ms (last: 502)") || slept == 0 {
+	if err == nil || !strings.Contains(err.Error(), "did not answer 200 within "+timeout+" (last: 502)") || slept == 0 {
 		t.Fatalf("err=%v slept=%d", err, slept)
 	}
 	// A cancelled context ends the wait at once.
