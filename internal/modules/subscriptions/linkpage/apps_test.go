@@ -31,22 +31,39 @@ func appNamed(t *testing.T, name string) *App {
 func TestDeepLinksAreExact(t *testing.T) {
 	for name, want := range map[string]string{
 		"Happ":         "happ://add/" + testURL,
-		"v2RayTun":     "v2raytun://import/" + testURL,
 		"Hiddify":      "hiddify://import/" + testURL + "#" + encTitle,
 		"v2rayNG":      "v2rayng://install-sub?url=" + encURL + "#" + encTitle,
-		"Karing":       "karing://install-config?url=" + encURL + "&name=" + encTitle,
 		"INCY":         "incy://import/" + testURL,
 		"Shadowrocket": "shadowrocket://add/sub://aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXo=?remark=" + encTitle,
-		"Streisand":    "streisand://import/" + testURL + "#" + encTitle,
-		"Throne":       "throne://addsub/aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXoj0KHQtdC80YzRjyDQvNCw0LzQsA==",
 	} {
 		app := appNamed(t, name)
 		if got := app.Import(testURL, testTitle); !app.HasImport() || got != want {
 			t.Errorf("%s:\n got %s\nwant %s", name, got, want)
 		}
 	}
-	if v2rayn := appNamed(t, "v2rayN"); v2rayn.HasImport() || v2rayn.Import(testURL, testTitle) != "" {
-		t.Error("v2rayN has no deep link")
+}
+
+// TestAnAppWithoutADeepLink: an app with no import has no Add button and
+// renders no link, so the page falls back to its manual import.
+func TestAnAppWithoutADeepLink(t *testing.T) {
+	shelves, err := load([]byte(strings.Replace(string(appsYAML), `, import: "incy://import/{{.URL}}"}`, "}", 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := false
+	for _, sh := range shelves {
+		for _, o := range sh.Offers {
+			if o.App.Name != "INCY" {
+				continue
+			}
+			seen = true
+			if o.App.HasImport() || o.App.Import(testURL, testTitle) != "" {
+				t.Errorf("%s: INCY without an import has a deep link", sh.Platform)
+			}
+		}
+	}
+	if !seen {
+		t.Error("no INCY on any tab")
 	}
 }
 
@@ -54,12 +71,12 @@ func TestDeepLinksAreExact(t *testing.T) {
 // promises, the first of each recommended.
 func TestShelvesFollowTheList(t *testing.T) {
 	want := map[Platform]string{
-		IOS:     "Shadowrocket Karing INCY Happ Streisand",
-		Android: "Happ v2RayTun Hiddify v2rayNG",
-		MacOS:   "Happ Hiddify Karing v2rayN",
-		Windows: "Happ Hiddify v2rayN Throne",
-		Linux:   "Happ Hiddify v2rayN Throne",
-		TV:      "Happ v2rayNG",
+		IOS:     "Shadowrocket Hiddify INCY Happ",
+		Android: "Hiddify Happ v2rayNG",
+		MacOS:   "Shadowrocket Hiddify Happ",
+		Windows: "Hiddify Happ",
+		Linux:   "Hiddify Happ",
+		TV:      "Shadowrocket Happ v2rayNG",
 	}
 	var order []string
 	for _, s := range Shelves {
@@ -102,7 +119,7 @@ func TestLoadRefusesABadList(t *testing.T) {
 		"a note without Russian":  {`ru: "Есть и в российском App Store."`, `ru: ""`, "ios, incy: the note needs both en and ru"},
 		"a label without English": {`apk: {en: "APK file",`, `apk: {en: "",`, "apk: needs both en and ru"},
 		"an unknown label":        {"{label: testflight,", "{label: tf,", `label "tf": no such label`},
-		"an unknown manual":       {"manual: throne", "manual: thorne", `manual "thorne": no such manual`},
+		"an unknown manual":       {"manual: tv", "manual: telly", `manual "telly": no such manual`},
 		"a plain http download":   {`"https://testflight.apple.com`, `"http://testflight.apple.com`, "is not an https URL"},
 		"a platform twice":        {"- platform: linux", "- platform: windows", "platform windows: twice"},
 		"an unknown platform":     {"- platform: tv", "- platform: tvos", `platform "tvos": not one of`},

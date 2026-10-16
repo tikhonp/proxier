@@ -62,26 +62,21 @@ The apps and their deep links (`<url>` is the link's URL, `<title>` the subscrip
 | App | Deep link | Downloads |
 |---|---|---|
 | Happ | `happ://add/<url>` | iOS and macOS: App Store (not in the Russian store) and TestFlight (works with a Russian Apple ID); Apple TV: App Store (in the Russian store); Android: Google Play, APK; Windows `.exe`, macOS `.dmg`, Linux `.deb` from GitHub |
-| v2RayTun | `v2raytun://import/<url>` | Android: Google Play |
-| Hiddify | `hiddify://import/<url>#<title>` | Android: Google Play; every desktop and the Android APK: GitHub releases |
+| Hiddify | `hiddify://import/<url>#<title>` | iOS: App Store (not in the Russian store); Android: Google Play; every desktop and the Android APK: GitHub releases |
 | v2rayNG | `v2rayng://install-sub?url=<url>#<title>` | Android and Android TV: GitHub releases |
-| v2rayN | none: copy, import share links from the clipboard, update subscriptions | Windows, macOS, Linux: GitHub releases |
-| Karing | `karing://install-config?url=<url>&name=<title>` | iOS and macOS: App Store (in the Russian store, free) |
 | INCY | `incy://import/<url>` | iOS: App Store (in the Russian store) |
-| Shadowrocket | `shadowrocket://add/sub://<base64 of url>?remark=<title>` | iOS: App Store (paid, in the Russian store) |
-| Streisand | `streisand://import/<url>#<title>` | iOS: App Store (not in the Russian store) |
-| Throne | `throne://addsub/<base64 of "url#title">` | Windows, macOS, Linux: GitHub releases |
+| Shadowrocket | `shadowrocket://add/sub://<base64 of url>?remark=<title>` | iOS, macOS and Apple TV: App Store (paid, in the Russian store) |
 
 The URL goes into a path as it is, since it has no `?` or `#`. In a query or a fragment, the URL and the title are percent-encoded byte by byte like the stub entry's name (a space is `%20`, never `+`). Base64 is the standard alphabet with padding, over the raw text.
 
 | Tab | Apps, the first recommended |
 |---|---|
-| iPhone & iPad | Shadowrocket (known to work with Proxier's servers), Karing, INCY, Happ, Streisand |
-| Android | Happ, v2RayTun, Hiddify, v2rayNG |
-| macOS | Happ, Hiddify, Karing, v2rayN |
-| Windows | Happ, Hiddify, v2rayN, Throne |
-| Linux | Happ, Hiddify, v2rayN, Throne |
-| TV | Happ (Apple TV, Android TV), v2rayNG (Android TV) |
+| iPhone & iPad | Shadowrocket (known to work with Proxier's servers), Hiddify, INCY, Happ |
+| Android | Hiddify, Happ, v2rayNG |
+| macOS | Shadowrocket, Hiddify, Happ |
+| Windows | Hiddify, Happ |
+| Linux | Hiddify, Happ |
+| TV | Shadowrocket (Apple TV), Happ (Apple TV, Android TV), v2rayNG (Android TV) |
 
 Left out on purpose: the official sing-box apps and NekoBox, which have no XHTTP; Clash Verge Rev, Stash and Clash Mi, which need Clash YAML (a backlog format); FoXray, which is gone. The apps, their order on each tab, notes, download buttons, manual imports (in English and Russian) and deep links (Go templates over the URL and the title) are one file, `internal/modules/subscriptions/linkpage/apps.yaml`: adding, removing or reordering an app changes only it. It is compiled in and checked when the package loads (every tab once with an app, known apps, labels and manual imports, both languages, https downloads, deep links that render), so a mistake in it fails the tests. Which of these links and steps work on real devices is in [open questions](../open-questions.md#the-browser-pages-apps).
 

@@ -1,7 +1,6 @@
 package fetch_test
 
 import (
-	"html"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -78,9 +77,9 @@ func TestBrowserGetsThePage(t *testing.T) {
 	u := h.Mod.Links.URL(token)
 	for _, want := range []string{
 		`<html lang="en">`, "<h1>Семья мама</h1>", "Recommended", "Copy link", `class="qr"`,
-		// the recommended app's deep link, and Karing's with its & escaped for HTML
+		// the recommended app's deep link, and Hiddify's with the title encoded
 		`href="shadowrocket://add/sub://`,
-		html.EscapeString("karing://install-config?url=" + output.Escape(u) + "&name=" + output.Escape("Семья мама")),
+		`href="hiddify://import/` + u + "#" + output.Escape("Семья мама") + `"`,
 		`data-lp-copy="` + u + `"`, "Questions? Write to @tikhonp.",
 		"/js/linkpage.js",
 	} {
