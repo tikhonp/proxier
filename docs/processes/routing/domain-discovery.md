@@ -18,10 +18,10 @@ A member types a website, and Proxier finds the domains it uses so they can be t
 2. **Catalog lookup**: search the reverse index for the host, the registrable domain and their parent domains. Show every selector containing them: exact, suffix, or a suffix above. Each suggestion shows its domain count and whether it is already a service and in which lists. This step takes milliseconds and is shown first.
 3. **Headless visit** (when Chromium is configured):
    1. Open a fresh, isolated browser context: no cookies, no storage. For **through a server**, the context's proxy is a SOCKS5 listener Proxier opens for this visit only, on the address that routes to the Chromium sidecar, relaying every connection through `ProxyDialer` (that server's endpoint). Chrome can't authenticate to a SOCKS proxy, so the listener accepts connections **only from the sidecar's address**. Names reach the server unresolved, so they resolve at its end.
-   2. Load the page. Wait until the network has been idle for 2 s (at most 30 s), scroll to the bottom, then wait 3 s more.
+   2. Load the page. Wait until no request has started or ended for 1 s (at most 10 s), scroll to the bottom, then wait 1 s more. A request still in flight doesn't hold the wait: some never end in the tab's events (a cross-site iframe's document, beacons, keepalive fetches), and every request's host is recorded when it starts.
    3. Record every request, service-worker and websocket ones included: host, resource type, status, redirect chain, and failure (DNS error, refused, reset, timeout).
    4. Take a screenshot of the top of the page, scrolled back up (JPEG, 1280×800). Screenshots are files, `<data dir>/discovery/<run>/<visit>-<page>.jpg`, not rows.
-   5. For depth > 0: pick up to 5 distinct links to the same registrable domain and visit each the same way.
+   5. For depth > 0: pick up to 5 distinct links to the same registrable domain and visit them the same way, side by side, each in a tab of its own in the visit's context. The home page's tab is emptied first. Their requests count against the run's hostnames in page order.
    6. Limits: 90 s per page, 300 distinct hostnames per run.
 4. **Classify** each hostname:
 

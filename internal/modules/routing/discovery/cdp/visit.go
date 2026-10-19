@@ -22,14 +22,14 @@ import (
 
 // The waits of a page (docs/processes/routing/domain-discovery.md, step 3).
 const (
-	idleFor     = 2 * time.Second
-	idleAtMost  = 30 * time.Second
-	afterScroll = 3 * time.Second
+	idleFor     = time.Second
+	idleAtMost  = 10 * time.Second
+	afterScroll = time.Second
 )
 
 // Visit opens a fresh browser context (through v.Proxy when set), loads the
-// page and up to v.Links same-site links in one tab, and records every
-// request with its host, type, status and failure.
+// page, then up to v.Links same-site links side by side, each in a tab of its
+// own, and records every request with its host, type, status and failure.
 func (b *Browser) Visit(ctx context.Context, v discovery.Visit) (discovery.Result, error) {
 	_, ws, err := b.endpoint(ctx)
 	if err != nil {
@@ -41,54 +41,108 @@ func (b *Browser) Visit(ctx context.Context, v discovery.Visit) (discovery.Resul
 		p.ProxyServer = v.Proxy
 	}))
 	defer cancel()
-
-	rec := newRecorder(v.MaxHosts)
-	rec.listen(tab)
-	if _, err := chromedp.Call(tab, network.Enable, network.EnableParams{}); err != nil {
-		return discovery.Result{}, fmt.Errorf("cdp: open a tab: %w", err)
-	}
-	if _, err := chromedp.Call(tab, emulation.SetDeviceMetricsOverride, emulation.SetDeviceMetricsOverrideParams{Width: 1280, Height: 800, DeviceScaleFactor: 1}); err != nil {
-		return discovery.Result{}, fmt.Errorf("cdp: open a tab: %w", err)
-	}
 	timeout := v.PageTimeout
 	if timeout <= 0 {
 		timeout = discovery.PageTimeout
 	}
-	var res discovery.Result
-	queue := []string{v.URL}
-	visited := map[string]bool{}
-	for len(queue) > 0 {
-		u := queue[0]
-		queue = queue[1:]
-		visited[strings.SplitN(u, "#", 2)[0]] = true
-		rec.setPage(len(res.Pages))
-		pg, title, links, err := b.page(tab, u, timeout, rec)
-		if err != nil {
-			return res, err
+	home, err := b.open(tab, v.URL, 0, v.MaxHosts, timeout)
+	if err != nil {
+		return discovery.Result{}, err
+	}
+	pages := []loaded{home}
+	if home.page.Loaded {
+		links := sameSiteLinks(home.links, v.URL, v.Site, v.Links)
+		rest := make([]loaded, len(links))
+		errs := make([]error, len(links))
+		// the home page's scripts would go on running beside the links
+		if _, err := chromedp.Call(tab, page.Navigate, page.NavigateParams{URL: "about:blank"}); err != nil {
+			return discovery.Result{}, fmt.Errorf("cdp: leave the page: %w", err)
 		}
-		res.Pages = append(res.Pages, pg)
-		if len(res.Pages) == 1 {
-			res.Title = title
-			if !pg.Loaded {
-				break
-			}
-			for _, l := range links {
-				if len(queue) >= v.Links {
-					break
-				}
-				lu, err := url.Parse(l)
-				if err != nil || lu.Scheme != "http" && lu.Scheme != "https" || !sameSite(strings.ToLower(lu.Hostname()), v.Site) {
+		var wg sync.WaitGroup
+		for i, l := range links {
+			wg.Go(func() {
+				// a new tab of the parent's browser context, closed when done
+				t, cancel := chromedp.NewContext(tab)
+				defer cancel()
+				rest[i], errs[i] = b.open(t, l, i+1, v.MaxHosts, timeout)
+			})
+		}
+		wg.Wait()
+		if err := errors.Join(errs...); err != nil {
+			return discovery.Result{}, err
+		}
+		pages = append(pages, rest...)
+	}
+	return combine(pages, v.MaxHosts), nil
+}
+
+// combine is the visit's result from its pages, in order. The tabs share the
+// visit's hostnames: a new host over maxHosts is left out.
+func combine(pages []loaded, maxHosts int) discovery.Result {
+	res := discovery.Result{Title: pages[0].title}
+	hosts := map[string]bool{}
+	for _, l := range pages {
+		res.Pages = append(res.Pages, l.page)
+		res.Capped = res.Capped || l.capped
+		for _, q := range l.reqs {
+			if !hosts[q.Host] {
+				if len(hosts) >= maxHosts {
+					res.Capped = true
 					continue
 				}
-				lu.Fragment = ""
-				if s := lu.String(); !visited[s] && !slices.Contains(queue, s) {
-					queue = append(queue, s)
-				}
+				hosts[q.Host] = true
 			}
+			res.Requests = append(res.Requests, q)
 		}
 	}
-	res.Requests, res.Capped = rec.result()
-	return res, nil
+	return res
+}
+
+// loaded is one page of a visit and what its tab requested until it was read.
+type loaded struct {
+	page   discovery.Page
+	title  string
+	links  []string
+	reqs   []discovery.Request
+	capped bool
+}
+
+// open loads u, the visit's page n, in tab, a tab of its own.
+func (b *Browser) open(tab context.Context, u string, n, maxHosts int, timeout time.Duration) (loaded, error) {
+	rec := newRecorder(maxHosts, n)
+	rec.listen(tab)
+	if _, err := chromedp.Call(tab, network.Enable, network.EnableParams{}); err != nil {
+		return loaded{}, fmt.Errorf("cdp: open a tab: %w", err)
+	}
+	if _, err := chromedp.Call(tab, emulation.SetDeviceMetricsOverride, emulation.SetDeviceMetricsOverrideParams{Width: 1280, Height: 800, DeviceScaleFactor: 1}); err != nil {
+		return loaded{}, fmt.Errorf("cdp: open a tab: %w", err)
+	}
+	pg, title, links, err := b.page(tab, u, timeout, rec)
+	if err != nil {
+		return loaded{}, err
+	}
+	reqs, capped := rec.result()
+	return loaded{page: pg, title: title, links: links, reqs: reqs, capped: capped}, nil
+}
+
+// sameSiteLinks is the first n distinct http(s) links to the site, other
+// than home, without their fragments.
+func sameSiteLinks(links []string, home, site string, n int) []string {
+	var out []string
+	for _, l := range links {
+		if len(out) >= n {
+			break
+		}
+		lu, err := url.Parse(l)
+		if err != nil || lu.Scheme != "http" && lu.Scheme != "https" || !sameSite(strings.ToLower(lu.Hostname()), site) {
+			continue
+		}
+		lu.Fragment = ""
+		if s := lu.String(); s != strings.SplitN(home, "#", 2)[0] && !slices.Contains(out, s) {
+			out = append(out, s)
+		}
+	}
+	return out
 }
 
 // page loads one URL in the tab. A page that doesn't load is not an error;
@@ -158,18 +212,16 @@ type recorder struct {
 	capped bool
 	reqs   []discovery.Request
 	byID   map[network.RequestID]int // the index of the request's last hop
-	open   map[network.RequestID]bool
-	ended  map[network.RequestID]bool
 	final  map[network.RequestID]int
 	failed map[network.RequestID]string
 	last   time.Time
 	pageNo int
 }
 
-func newRecorder(maxHosts int) *recorder {
+func newRecorder(maxHosts, page int) *recorder {
 	return &recorder{
-		max: maxHosts, hosts: map[string]bool{}, byID: map[network.RequestID]int{}, open: map[network.RequestID]bool{},
-		ended: map[network.RequestID]bool{}, final: map[network.RequestID]int{}, failed: map[network.RequestID]string{}, last: time.Now(),
+		pageNo: page, max: maxHosts, hosts: map[string]bool{}, byID: map[network.RequestID]int{}, final: map[network.RequestID]int{},
+		failed: map[network.RequestID]string{}, last: time.Now(),
 	}
 }
 
@@ -182,16 +234,16 @@ func (r *recorder) listen(tab context.Context) {
 			r.final[e.RequestID] = int(e.Response.Status)
 		}
 	})
-	on(tab, r, network.LoadingFinished, func(e network.EventLoadingFinished) { r.end(e.RequestID) })
+	on(tab, r, network.LoadingFinished, func(network.EventLoadingFinished) { r.end() })
 	on(tab, r, network.LoadingFailed, func(e network.EventLoadingFailed) {
 		if !e.Canceled {
 			r.failed[e.RequestID] = e.ErrorText
 		}
-		r.end(e.RequestID)
+		r.end()
 	})
 	on(tab, r, network.WebSocketCreated, func(e network.EventWebSocketCreated) {
 		r.add(e.RequestID, e.URL, "WebSocket")
-		r.end(e.RequestID)
+		r.end()
 	})
 	on(tab, r, network.WebSocketFrameError, func(e network.EventWebSocketFrameError) { r.failed[e.RequestID] = e.ErrorMessage })
 }
@@ -209,12 +261,6 @@ func on[E any](tab context.Context, r *recorder, ev cdp.Event[E], f func(E)) {
 			r.mu.Unlock()
 		}
 	}()
-}
-
-func (r *recorder) setPage(n int) {
-	r.mu.Lock()
-	r.pageNo = n
-	r.mu.Unlock()
 }
 
 func (r *recorder) requestWillBeSent(e network.EventRequestWillBeSent) {
@@ -243,30 +289,31 @@ func (r *recorder) add(id network.RequestID, rawURL, typ string) {
 			r.capped = true
 			// a redirect to the left-out host: the earlier hop keeps its status
 			delete(r.byID, id)
-			delete(r.open, id)
 			return
 		}
 		r.hosts[host] = true
 	}
 	r.byID[id] = len(r.reqs)
 	r.reqs = append(r.reqs, discovery.Request{URL: rawURL, Host: host, Type: typ, Page: r.pageNo})
-	if !r.ended[id] {
-		r.open[id] = true
-	}
 }
 
-func (r *recorder) end(id network.RequestID) {
-	r.ended[id] = true
-	delete(r.open, id)
+func (r *recorder) end() {
 	r.last = time.Now()
 }
 
-// waitIdle waits until no request has been in flight for idleFor, at most idleAtMost.
+// waitIdle waits until no request has started or ended for idleFor, at most
+// idleAtMost, counting from now. Requests still in flight don't hold it:
+// some never end in the tab's events (a cross-site iframe's document,
+// beacons and keepalive fetches), and a request's host is recorded when it
+// starts.
 func (r *recorder) waitIdle(ctx context.Context) {
+	r.mu.Lock()
+	r.last = time.Now()
+	r.mu.Unlock()
 	deadline := time.Now().Add(idleAtMost)
 	for time.Now().Before(deadline) && ctx.Err() == nil {
 		r.mu.Lock()
-		idle := len(r.open) == 0 && time.Since(r.last) >= idleFor
+		idle := time.Since(r.last) >= idleFor
 		r.mu.Unlock()
 		if idle {
 			return

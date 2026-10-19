@@ -36,8 +36,15 @@ func TestRealChromium(t *testing.T) {
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/html")
 		_, _ = w.Write([]byte(`<!doctype html><title>Test page</title><h1>hello</h1>
-<img src="/pixel.gif"><img src="/moved.gif"><script src="http://no-such-host.invalid/x.js"></script>`))
+<img src="/pixel.gif"><img src="/moved.gif"><script src="http://no-such-host.invalid/x.js"></script>
+<a href="/a">a</a><a href="/b#top">b</a><a href="/b">b again</a><a href="http://elsewhere.invalid/">away</a>`))
 	})
+	for _, p := range []string{"a", "b"} {
+		mux.HandleFunc("/"+p, func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/html")
+			_, _ = w.Write([]byte(`<!doctype html><title>` + p + `</title><img src="/pixel.gif?` + p + `">`))
+		})
+	}
 	mux.HandleFunc("/moved.gif", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/pixel.gif?moved", http.StatusFound)
 	})
@@ -60,18 +67,28 @@ func TestRealChromium(t *testing.T) {
 		t.Fatalf("version %q: %v", v, err)
 	}
 	page := "http://" + net.JoinHostPort(pageHost, port) + "/"
-	res, err := b.Visit(ctx, discovery.Visit{URL: page, Path: "direct", MaxHosts: 300, Site: pageHost, PageTimeout: 30 * time.Second})
+	res, err := b.Visit(ctx, discovery.Visit{URL: page, Path: "direct", Links: discovery.Links, MaxHosts: 300, Site: pageHost, PageTimeout: 30 * time.Second})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if res.Title != "Test page" || len(res.Pages) != 1 || !res.Pages[0].Loaded || res.Pages[0].Status != 200 {
+	if res.Title != "Test page" || len(res.Pages) != 3 || res.Pages[1].URL != page+"a" || res.Pages[2].URL != page+"b" {
 		t.Fatalf("result: %q %+v", res.Title, res.Pages)
+	}
+	for _, pg := range res.Pages {
+		if !pg.Loaded || pg.Status != 200 {
+			t.Errorf("page %s: loaded %v, status %d", pg.URL, pg.Loaded, pg.Status)
+		}
 	}
 	if !bytes.HasPrefix(res.Pages[0].Screenshot, []byte{0xff, 0xd8}) {
 		t.Error("the screenshot isn't a JPEG")
 	}
 	var gif, moved, landed, failed bool
 	for _, q := range res.Requests {
+		for i, p := range []string{"", "a", "b"} {
+			if q.URL == page+p && q.Page != i {
+				t.Errorf("%s is on page %d, want %d", q.URL, q.Page, i)
+			}
+		}
 		gif = gif || strings.HasSuffix(q.URL, "/pixel.gif") && q.Status == 200 && q.Host == pageHost
 		moved = moved || strings.HasSuffix(q.URL, "/moved.gif") && q.Status == 302
 		landed = landed || strings.HasSuffix(q.URL, "/pixel.gif?moved") && q.Status == 200
