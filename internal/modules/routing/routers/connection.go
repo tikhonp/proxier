@@ -152,13 +152,14 @@ func JumpSubject(address string) string { return "jump:" + address }
 
 // Target is where sshx connects: the router through its jump host, the
 // first hop direct or over the tailnet, every first contact confirmed by the
-// admin.
+// admin. RouterOS can't take a keepalive, so only the jump host is probed.
 func (c Connection) Target(routerID int64) sshx.Target {
 	t := sshx.Target{
 		Hop:              sshx.Hop{Address: c.Address(), User: c.User, Subject: RouterSubject(routerID)},
 		Network:          sshx.Direct,
 		FirstContact:     sshx.ConfirmFirstContact,
 		JumpFirstContact: sshx.ConfirmFirstContact,
+		NoGlobalRequests: true,
 	}
 	if c.Tailnet {
 		t.Network = sshx.Tailnet

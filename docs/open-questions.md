@@ -32,9 +32,7 @@ A name under another service's suffix (`console.anthropic.com` in `mine`, `anthr
 
 ## RouterOS ending a long `/import`
 
-Every connection to a RouterOS 7.24.5 router breaks at its first keepalive, 30 s after it opens, direct or behind a jump host. Every "remote command exited without exit status or exit signal" in production (12 of them, on a direct router and one behind a jump host) came 30.2–31.0 s into the sync step, and no router step has ever succeeded past 30 s. So an `/import` (or a re-read) still running then ends without an exit status. The likely cause is RouterOS answering `keepalive@openssh.com` with `SSH_MSG_UNIMPLEMENTED`, which Go's SSH client takes for a broken connection. Not confirmed: the first such failure since this was found logs "The connection broke: …" with the client's reason. If that is the answer, a probe RouterOS answers properly, or no keepalive while a command runs, would let a long import finish on the first attempt. Whether RouterOS finishes an `/import` after its session ends: the retries found every tag landed.
-
-On a direct router the broken connection failed the next command at once. Behind a jump host it didn't: the next session waited for good, and four syncs on the two routers behind jump hosts hung until a restart. Proxier now closes a connection whose session ended without an exit status, and bounds every wait after a close ([router sync](./processes/routing/router-sync.md#rules)).
+RouterOS 7.24.5 answers an SSH global request (`keepalive@openssh.com`) with `SSH_MSG_UNIMPLEMENTED`, which ends Go's SSH packet loop ("ssh: unexpected message type 3"). Every command still running at the first keepalive, 30 s in, ended without an exit status, direct or behind a jump host, and once reading a router took over 30 s, every sync failed. Proxier sends routers no keepalive, only their jump hosts ([router sync](./processes/routing/router-sync.md#rules)). Not seen yet on a real router: a read or `/import` past 30 s ending with its exit status. Whether RouterOS finishes an `/import` after its session ends: the retries found every tag landed.
 
 ## Passkeys and the authenticator app on real devices
 

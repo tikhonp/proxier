@@ -21,7 +21,8 @@ import (
 
 // Router is a fake RouterOS 7. New routers come set up as fresh-router.rsc
 // leaves them: the forwarder vpn-doh, the pins dns.google (mtvpn:doh) and
-// core.telegram.org (mtvpn:tg-fetch).
+// core.telegram.org (mtvpn:tg-fetch). A keepalive breaks its connection, as
+// RouterOS 7.24.5's answer to one does (sshxtest.Server.BreakOnGlobalRequest).
 type Router struct {
 	Server *sshxtest.Server
 	Addr   string
@@ -55,6 +56,7 @@ type failAt struct {
 func New(t *testing.T, authorized ssh.PublicKey) *Router {
 	t.Helper()
 	srv := sshxtest.NewServer(t, authorized)
+	srv.BreakOnGlobalRequest(true)
 	r := &Router{
 		Server: srv, Addr: srv.Addr, t: t,
 		version: "7.24.5 (stable)", board: "RB5009UG+S+", identity: "MikroTik",
@@ -349,8 +351,8 @@ func (r *Router) ForgetImport(n int) {
 }
 
 // LoseImport makes the nth import run in full and then end its session
-// without an exit status, as RouterOS 7.24.5's sessions end when its answer
-// to the 30 s keepalive breaks Proxier's connection.
+// without an exit status, as RouterOS 7.24.5's sessions do when its answer to
+// a keepalive breaks Proxier's connection.
 func (r *Router) LoseImport(n int) {
 	r.mu.Lock()
 	r.lose[n] = true

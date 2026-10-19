@@ -64,6 +64,7 @@ type Server struct {
 	matchers   []matcher
 	forwarding bool
 	refusing   bool // new connections are closed at once
+	noGlobal   bool // a global request closes the connection
 	noUploads  bool // SFTP writes fail
 	onUpload   func(path string)
 	thaw       chan struct{} // non-nil while frozen; closed by Freeze(false)
@@ -249,6 +250,17 @@ func (s *Server) Refuse(refuse bool) {
 	s.mu.Unlock()
 }
 
+// BreakOnGlobalRequest makes a global request (a keepalive) close the
+// connection it came on, standing in for RouterOS 7.24.5: it answers one
+// with SSH_MSG_UNIMPLEMENTED, which ends the client's packet loop. The client
+// sees EOF instead, to the same effect: every command on the connection ends
+// without an exit status.
+func (s *Server) BreakOnGlobalRequest(on bool) {
+	s.mu.Lock()
+	s.noGlobal = on
+	s.mu.Unlock()
+}
+
 // RefuseUploads makes SFTP writes fail with a permission error, as RouterOS
 // does for a user whose group lacks the ftp policy.
 func (s *Server) RefuseUploads(refuse bool) {
@@ -425,7 +437,7 @@ func (s *Server) serve(conn *gatedConn) {
 		return
 	}
 	defer func() { _ = sc.Close() }()
-	go ssh.DiscardRequests(reqs)
+	go s.globalRequests(sc, reqs)
 	var wg sync.WaitGroup
 	defer wg.Wait()
 	for nc := range chans {
@@ -445,6 +457,22 @@ func (s *Server) serve(conn *gatedConn) {
 			go func() { defer wg.Done(); s.forward(nc) }()
 		default:
 			_ = nc.Reject(ssh.UnknownChannelType, "unsupported")
+		}
+	}
+}
+
+func (s *Server) globalRequests(sc *ssh.ServerConn, reqs <-chan *ssh.Request) {
+	for req := range reqs {
+		s.mu.Lock()
+		breaks := s.noGlobal
+		s.mu.Unlock()
+		if breaks {
+			_ = sc.Close()
+			go ssh.DiscardRequests(reqs)
+			return
+		}
+		if req.WantReply {
+			_ = req.Reply(false, nil)
 		}
 	}
 }

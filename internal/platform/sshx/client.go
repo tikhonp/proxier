@@ -67,7 +67,13 @@ func (s *SSH) Connect(ctx context.Context, t Target, log *jobs.Logger) (*Client,
 		return nil, permanentIfFinal(&HopError{Address: NormalizeAddress(t.Address), Err: err})
 	}
 	cl := &Client{ssh: c, jump: jump, log: log, closeGrace: s.CloseGrace, stop: make(chan struct{})}
-	go s.keepAlive(cl)
+	probe := c
+	if t.NoGlobalRequests {
+		probe = jump
+	}
+	if probe != nil {
+		go s.keepAlive(cl, probe)
+	}
 	return cl, nil
 }
 
@@ -270,11 +276,12 @@ func (s *SSH) handshake(ctx context.Context, conn net.Conn, address string, cfg 
 	return ssh.NewClient(c, chans, reqs), nil
 }
 
-// keepAlive probes the connection; three misses in a row close it, so a dead
-// peer fails the next command at once and not after the TCP timeout. A probe
-// that fails at once closes it too: the connection's packet loop is gone (it
-// answers io.EOF then), and a session opened on it would wait for good.
-func (s *SSH) keepAlive(c *Client) {
+// keepAlive probes c over probe (the target's connection, or the jump host's);
+// three misses in a row close c, so a dead peer fails the next command at
+// once and not after the TCP timeout. A probe that fails at once closes it
+// too: the connection's packet loop is gone (it answers io.EOF then), and a
+// session opened on it would wait for good.
+func (s *SSH) keepAlive(c *Client, probe *ssh.Client) {
 	t := time.NewTicker(s.KeepAlive)
 	defer t.Stop()
 	misses := 0
@@ -285,7 +292,7 @@ func (s *SSH) keepAlive(c *Client) {
 		case <-t.C:
 		}
 		done := make(chan error, 1)
-		go func() { _, _, err := c.ssh.SendRequest("keepalive@openssh.com", true, nil); done <- err }()
+		go func() { _, _, err := probe.SendRequest("keepalive@openssh.com", true, nil); done <- err }()
 		select {
 		case err := <-done:
 			if err == nil {
@@ -421,7 +428,13 @@ func lost(err error) bool {
 func (c *Client) drop() {
 	_ = c.Close()
 	why := make(chan error, 1)
-	go func() { why <- c.ssh.Wait() }()
+	go func() {
+		err := c.ssh.Wait()
+		if lost(err) && c.jump != nil {
+			err = c.jump.Wait() // the target's connection ran over the jump host's
+		}
+		why <- err
+	}()
 	select {
 	case err := <-why:
 		if err != nil && !lost(err) && c.log != nil {

@@ -68,6 +68,11 @@ type Target struct {
 	// jump host that confirms keys sets both.
 	FirstContact     FirstContact
 	JumpFirstContact FirstContact
+	// NoGlobalRequests: Hop answers an SSH global request with
+	// SSH_MSG_UNIMPLEMENTED (RouterOS 7.24.5), which ends x/crypto's packet
+	// loop and every command on the connection. The keepalive probes the jump
+	// host instead, or nothing when there is none.
+	NoGlobalRequests bool
 }
 
 // HostKeyChangedError is returned while an address's key differs from the
@@ -127,7 +132,8 @@ type SSH struct {
 	Now func() time.Time
 	// DialTimeout and HandshakeTimeout bound a connection (15 s each).
 	DialTimeout, HandshakeTimeout time.Duration
-	// KeepAlive is how often an idle connection is probed; three misses close it.
+	// KeepAlive is how often a connection is probed (its jump host's, for a
+	// target with NoGlobalRequests); three misses close it.
 	KeepAlive time.Duration
 	// CloseGrace is how long Run waits, once it has ended a command, for the
 	// host to close the command's session; then it closes the connection (5 s).

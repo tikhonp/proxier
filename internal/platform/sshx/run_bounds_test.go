@@ -168,15 +168,16 @@ func TestRunTimesOutWhenTheJumpHostStopsForwarding(t *testing.T) {
 
 // viaDyingJump connects to target through a jump host; kill makes the link
 // to the jump host die silently.
-func (e *env) viaDyingJump(target *sshxtest.Server) (c *Client, kill func()) {
+func (e *env) viaDyingJump(target *sshxtest.Server, noGlobalRequests bool) (c *Client, kill func()) {
 	e.t.Helper()
 	jump := e.server()
 	jump.AllowForwarding()
 	links := sshxtest.NewLinks()
 	e.ssh.Dial = links.Dial
 	c = e.mustConnect(Target{
-		Hop:  Hop{Address: target.Addr, User: "proxier", Subject: "router:2"},
-		Jump: &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"},
+		Hop:              Hop{Address: target.Addr, User: "proxier", Subject: "router:2"},
+		Jump:             &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"},
+		NoGlobalRequests: noGlobalRequests,
 	})
 	return c, func() { links.Stall(jump.Addr) }
 }
@@ -199,7 +200,7 @@ func TestRunTimesOutWhenTheJumpLinkDiesSilently(t *testing.T) {
 	e.boundedSSH()
 	target := e.server()
 	started := e.longCommand(target, "/import file-name=x.rsc")
-	c, kill := e.viaDyingJump(target)
+	c, kill := e.viaDyingJump(target, false)
 	go func() { <-started; kill() }()
 
 	_, took, err := runWithin(t, 3*time.Second, func() (Result, error) {
@@ -219,7 +220,7 @@ func TestRunReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
 	e.boundedSSH()
 	target := e.server()
 	started := e.longCommand(target, "/import file-name=x.rsc")
-	c, kill := e.viaDyingJump(target)
+	c, kill := e.viaDyingJump(target, false)
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() { <-started; kill(); time.Sleep(boundTimeout); cancel() }()
 
@@ -232,30 +233,36 @@ func TestRunReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
 	assertConnectionClosed(t, c)
 }
 
+// A target that can't take a keepalive has its jump host probed instead,
+// which catches the dead link as well.
 func TestKeepAliveEndsACommandWhoseJumpLinkDiedSilently(t *testing.T) {
-	e := newEnv(t)
-	e.boundedSSH()
-	e.ssh.KeepAlive = 20 * time.Millisecond
-	target := e.server()
-	started := e.longCommand(target, "/import file-name=x.rsc")
-	c, kill := e.viaDyingJump(target)
-	go func() { <-started; kill() }()
+	for name, noGlobal := range map[string]bool{"target probed": false, "jump host probed": true} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			e.boundedSSH()
+			e.ssh.KeepAlive = 20 * time.Millisecond
+			target := e.server()
+			started := e.longCommand(target, "/import file-name=x.rsc")
+			c, kill := e.viaDyingJump(target, noGlobal)
+			go func() { <-started; kill() }()
 
-	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
-		return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Hour})
-	})
-	if err == nil || errors.Is(err, ErrTimeout) {
-		t.Fatalf("the keepalive ends the command on the dead link, got %v", err)
-	}
-	if !c.Closed() {
-		t.Fatal("the keepalive closed the connection")
+			_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+				return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Hour})
+			})
+			if err == nil || errors.Is(err, ErrTimeout) {
+				t.Fatalf("the keepalive ends the command on the dead link, got %v", err)
+			}
+			if !c.Closed() {
+				t.Fatal("the keepalive closed the connection")
+			}
+		})
 	}
 }
 
 func TestCloseReturnsWhenTheJumpLinkDiedSilently(t *testing.T) {
 	e := newEnv(t)
 	e.boundedSSH()
-	c, kill := e.viaDyingJump(e.server())
+	c, kill := e.viaDyingJump(e.server(), false)
 	kill()
 
 	_, _, _ = runWithin(t, 2*time.Second, func() (Result, error) { return Result{}, c.Close() })
@@ -265,7 +272,7 @@ func TestCloseReturnsWhenTheJumpLinkDiedSilently(t *testing.T) {
 func TestPutReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
 	e := newEnv(t)
 	e.boundedSSH()
-	c, kill := e.viaDyingJump(e.server())
+	c, kill := e.viaDyingJump(e.server(), false)
 	kill()
 	ctx, cancel := context.WithTimeout(context.Background(), boundTimeout)
 	defer cancel()
@@ -282,7 +289,7 @@ func TestPutReturnsOnCancelWhenTheJumpLinkDiesSilently(t *testing.T) {
 func TestPutTimesOutWhenTheJumpLinkDiesSilently(t *testing.T) {
 	e := newEnv(t)
 	e.boundedSSH()
-	c, kill := e.viaDyingJump(e.server())
+	c, kill := e.viaDyingJump(e.server(), false)
 	kill()
 
 	_, took, err := runWithin(t, 3*time.Second, func() (Result, error) {
@@ -301,7 +308,7 @@ func TestUploadTimesOutWhenTheJumpLinkDiesMidTransfer(t *testing.T) {
 	e := newEnv(t)
 	e.boundedSSH()
 	target := e.server()
-	c, kill := e.viaDyingJump(target)
+	c, kill := e.viaDyingJump(target, false)
 	// SFTP is running when the link dies: the upload is past its start.
 	if err := c.Upload(context.Background(), filepath.Join(target.Dir(), "before"), []byte("x"), 0o600, TransferOptions{}); err != nil {
 		t.Fatal(err)
@@ -333,8 +340,8 @@ func TestPutWithinItsTimeoutUploads(t *testing.T) {
 	}
 }
 
-// RouterOS 7.24.5 answers the 30 s keepalive in a way that ends the client's
-// packet loop. Behind a jump host the connection doesn't know it yet: its
+// A connection's packet loop can end under a session (RouterOS 7.24.5's
+// answer to a keepalive ends it). Behind a jump host the connection doesn't know it yet: its
 // socket is a channel that ends only when the jump host answers the close. A
 // sync once opened its next session in that window and waited for good.
 
@@ -444,5 +451,68 @@ func TestAKeepAliveThatFailsClosesTheConnectionAtOnce(t *testing.T) {
 			t.Fatal("the first failed probe closes the connection")
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// RouterOS 7.24.5 answers a keepalive with SSH_MSG_UNIMPLEMENTED, which ends
+// the packet loop and every command on the connection (the fake closes the
+// connection instead). A target flagged NoGlobalRequests is never probed, so
+// a command outlasting several keepalive periods ends on its own, direct and
+// behind a jump host; an unflagged one loses its exit status, as in
+// production.
+
+// routerOSLike is a target that breaks on a global request and runs cmd for
+// 100 ms, five keepalive periods.
+func (e *env) routerOSLike(cmd string) *sshxtest.Server {
+	srv := e.server()
+	srv.BreakOnGlobalRequest(true)
+	srv.Handle(cmd, func(io.Reader, io.Writer, io.Writer) int {
+		time.Sleep(100 * time.Millisecond)
+		return 0
+	})
+	return srv
+}
+
+func TestACommandOutlastingTheKeepAliveEndsOnATargetThatCannotTakeIt(t *testing.T) {
+	for name, viaJump := range map[string]bool{"direct": false, "behind a jump host": true} {
+		t.Run(name, func(t *testing.T) {
+			e := newEnv(t)
+			e.ssh.KeepAlive = 20 * time.Millisecond
+			srv := e.routerOSLike("/import file-name=x.rsc")
+			target := e.target(srv, "router:1")
+			target.NoGlobalRequests = true
+			if viaJump {
+				jump := e.server()
+				jump.AllowForwarding()
+				target.Jump = &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"}
+			}
+			c := e.mustConnect(target)
+
+			res, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+				return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Minute})
+			})
+			if err != nil || res.ExitCode != 0 {
+				t.Fatalf("the command ends with its exit status, got %+v, %v", res, err)
+			}
+			if c.Closed() {
+				t.Fatal("the connection stays open")
+			}
+		})
+	}
+}
+
+func TestAKeepAliveBreaksATargetThatCannotTakeItWhenNotFlagged(t *testing.T) {
+	e := newEnv(t)
+	e.ssh.KeepAlive = 20 * time.Millisecond
+	c := e.mustConnect(e.target(e.routerOSLike("/import file-name=x.rsc"), "router:1"))
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Minute})
+	})
+	if err == nil {
+		t.Fatal("the keepalive ends the command without an exit status")
+	}
+	if !c.Closed() {
+		t.Fatal("the lost session closes the connection")
 	}
 }

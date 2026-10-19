@@ -229,8 +229,8 @@ func TestJumpLinkThatDiesDuringTheUploadFailsTheAttemptAndTheRetryPushes(t *test
 }
 
 // The /import runs in full but its session ends without an exit status, as
-// every RouterOS 7.24.5 command still running when the 30 s keepalive breaks
-// the connection does. Behind a jump host the connection can't be trusted
+// every RouterOS 7.24.5 command still running did when a keepalive reached the
+// router and broke the connection. Behind a jump host the connection can't be trusted
 // after that (a sync once opened its next session on it and waited for good):
 // Proxier connects again to delete the file and re-read.
 func TestImportWhoseSessionIsLostConnectsAgainAndTheRetryRecordsIt(t *testing.T) {
