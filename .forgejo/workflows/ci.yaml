@@ -77,7 +77,7 @@ jobs:
         timeout-minutes: 20
         uses: golangci/golangci-lint-action@v9
         with:
-          version: v2.14.0
+          version: v2.15.0
 
       # Fails on every vulnerability our code reaches.
       - name: govulncheck

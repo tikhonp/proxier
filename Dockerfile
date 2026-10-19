@@ -18,7 +18,7 @@ CMD ["air", "-c", ".air.toml"]
 # lint: `make lint` builds this stage. The module and golangci-lint caches are
 # BuildKit cache mounts, so dependencies are fetched once and only changed
 # packages are analyzed again. Keep the version equal to the CI action's.
-FROM golangci/golangci-lint:v2.14.0 AS lint
+FROM golangci/golangci-lint:v2.15.0 AS lint
 WORKDIR /src
 RUN --mount=type=cache,target=/go/pkg/mod/ \
     --mount=type=cache,target=/root/.cache \

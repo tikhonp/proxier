@@ -468,17 +468,23 @@ func (c *Client) end(opened <-chan *ssh.Session, done <-chan error) {
 			_ = sess.Signal(ssh.SIGKILL) // not every server honours it; closing the session ends the rest
 			_ = sess.Close()
 		}()
-		select {
-		case <-done:
+		if ended, _ := waitEnd(done, c.closeGrace); ended {
 			return
-		case <-time.After(c.closeGrace):
 		}
 	default:
 	}
 	_ = c.Close()
+	_, _ = waitEnd(done, c.closeGrace)
+}
+
+// waitEnd waits up to d for the goroutine behind done to end, and returns
+// whether it did and what it sent.
+func waitEnd(done <-chan error, d time.Duration) (ended bool, err error) {
 	select {
-	case <-done:
-	case <-time.After(c.closeGrace):
+	case err = <-done:
+		return true, err
+	case <-time.After(d):
+		return false, nil
 	}
 }
 
@@ -538,17 +544,12 @@ func (c *Client) transfer(ctx context.Context, timeout time.Duration, fn func(*s
 	mu.Unlock()
 	if s != nil {
 		go func() { _ = s.Close() }() // a write too: a dead link blocks it
-		select {
-		case <-done:
+		if ended, _ := waitEnd(done, c.closeGrace); ended {
 			return ending
-		case <-time.After(c.closeGrace):
 		}
 	}
 	_ = c.Close()
-	select {
-	case <-done:
-	case <-time.After(c.closeGrace):
-	}
+	_, _ = waitEnd(done, c.closeGrace)
 	return ending
 }
 

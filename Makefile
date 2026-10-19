@@ -47,7 +47,7 @@ templ:
 # The template editor's CodeMirror bundle (web/editor) is built in Docker, so
 # the host needs no Node; the result is committed. Docker Desktop must be running.
 editor:
-	docker run --rm -v "$$PWD":/app -w /app/web/editor node:22-alpine sh ./build.sh
+	docker run --rm -v "$$PWD":/app -w /app/web/editor node:24-alpine sh ./build.sh
 
 # Fails when the committed bundle is not what `make editor` builds.
 check-editor: editor

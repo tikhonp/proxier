@@ -1,6 +1,6 @@
 #!/bin/sh
 # Rebuilds internal/platform/ui/static/js/editor.bundle.js from editor.js.
-# Run it through `make editor`: it expects node:22-alpine (npm, no host Node).
+# Run it through `make editor`: it expects node:24-alpine (npm, no host Node).
 # node_modules lives in a temporary directory, never in the repository.
 set -eu
 src=$(cd "$(dirname "$0")" && pwd)
