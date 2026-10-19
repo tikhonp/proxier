@@ -36,9 +36,13 @@ type Client struct {
 	jump       *ssh.Client
 	log        *jobs.Logger
 	closeGrace time.Duration
+	// opening, when set, runs before each session opens; tests block in it to
+	// stand for an open that never returns.
+	opening func()
 
 	stop     chan struct{}
 	stopOnce sync.Once
+	broke    sync.Once // the reason the connection broke is logged once
 }
 
 // Connect opens a connection to t. Failures that no retry can fix
@@ -267,7 +271,9 @@ func (s *SSH) handshake(ctx context.Context, conn net.Conn, address string, cfg 
 }
 
 // keepAlive probes the connection; three misses in a row close it, so a dead
-// peer fails the next command at once and not after the TCP timeout.
+// peer fails the next command at once and not after the TCP timeout. A probe
+// that fails at once closes it too: the connection's packet loop is gone (it
+// answers io.EOF then), and a session opened on it would wait for good.
 func (s *SSH) keepAlive(c *Client) {
 	t := time.NewTicker(s.KeepAlive)
 	defer t.Stop()
@@ -286,6 +292,8 @@ func (s *SSH) keepAlive(c *Client) {
 				misses = 0
 				continue
 			}
+			c.drop()
+			return
 		case <-time.After(s.KeepAlive):
 		case <-c.stop:
 			return
@@ -314,10 +322,14 @@ type Result struct {
 // as warnings), which redacts it; the Result keeps it unredacted for the
 // caller to parse. A command that exits non-zero is not an error: look at
 // ExitCode. A command over its timeout is killed and returns ErrTimeout.
-// Run returns within the timeout (or ctx) plus CloseGrace: a host that never
-// confirms the end of the session gets the whole connection closed, so the
-// client is unusable after that.
+// Run returns within the timeout (or ctx) plus twice CloseGrace: a host that
+// never confirms the end of the session gets the whole connection closed, so
+// the client is unusable after that. So does a session that ends without an
+// exit status: the connection may be broken without knowing it yet.
 func (c *Client) Run(ctx context.Context, cmd string, o RunOptions) (Result, error) {
+	if c.Closed() {
+		return Result{ExitCode: -1}, ErrClosed
+	}
 	out, errOut := &capWriter{max: OutputCap}, &capWriter{max: OutputCap}
 	var stdout, stderr io.Writer = out, errOut
 	var closers []io.Closer
@@ -326,19 +338,24 @@ func (c *Client) Run(ctx context.Context, cmd string, o RunOptions) (Result, err
 		stdout, stderr = io.MultiWriter(out, lo), io.MultiWriter(errOut, le)
 		closers = append(closers, lo, le)
 	}
+	// A session Run gave up on may still write after it returns.
+	gOut, gErr := &gate{w: stdout}, &gate{w: stderr}
 
 	// Opening the session, starting the command and waiting for it each wait
 	// for the host's answer, so all three run apart from the timeout.
 	opened := make(chan *ssh.Session, 1)
 	done := make(chan error, 1)
 	go func() {
+		if c.opening != nil {
+			c.opening()
+		}
 		sess, err := c.ssh.NewSession()
 		if err != nil {
 			done <- err
 			return
 		}
 		defer func() { _ = sess.Close() }()
-		sess.Stdout, sess.Stderr, sess.Stdin = stdout, stderr, o.Stdin
+		sess.Stdout, sess.Stderr, sess.Stdin = gOut, gErr, o.Stdin
 		opened <- sess
 		if err := sess.Start(cmd); err != nil {
 			done <- err
@@ -362,8 +379,10 @@ func (c *Client) Run(ctx context.Context, cmd string, o RunOptions) (Result, err
 		ending = ctx.Err()
 	}
 	if ending != nil {
-		c.end(opened, done) // the output copiers end with the session; nothing writes after this
+		c.end(opened, done)
 	}
+	gOut.shut()
+	gErr.shut()
 	for _, cl := range closers {
 		_ = cl.Close()
 	}
@@ -378,17 +397,70 @@ func (c *Client) Run(ctx context.Context, cmd string, o RunOptions) (Result, err
 	case errors.As(waitErr, &exit):
 		res.ExitCode = exit.ExitStatus()
 	default:
+		if lost(waitErr) {
+			c.drop()
+		}
 		return res, waitErr
 	}
 	return res, nil
 }
 
-// end ends a command Run gave up on and returns once its session is gone.
-// It closes the session and waits CloseGrace for the host to confirm; a host
-// that never does (RouterOS can drop a command's channel and keep the
-// connection), or a session still opening, costs the whole connection. The
-// kill and the close are writes, which a dead link blocks for good, so they
-// don't hold up the wait.
+// lost reports whether err says a session ended without the host ending it.
+// The connection's packet loop may be gone without the transport knowing yet:
+// behind a jump host its socket is a channel that ends only when the jump host
+// answers the close, and a session opened in the meantime is never answered
+// (a router once broke the loop with its answer to a keepalive).
+func lost(err error) bool {
+	var missing *ssh.ExitMissingError
+	return errors.As(err, &missing) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) ||
+		errors.Is(err, net.ErrClosed) || errors.Is(err, sftp.ErrSSHFxConnectionLost)
+}
+
+// drop closes a connection whose session was lost and logs why the
+// connection broke, when it broke on its own.
+func (c *Client) drop() {
+	_ = c.Close()
+	why := make(chan error, 1)
+	go func() { why <- c.ssh.Wait() }()
+	select {
+	case err := <-why:
+		if err != nil && !lost(err) && c.log != nil {
+			c.broke.Do(func() { c.log.Warn("The connection broke: %v.", err) })
+		}
+	case <-time.After(c.closeGrace):
+	}
+}
+
+// gate passes writes on until it is shut.
+type gate struct {
+	mu     sync.Mutex
+	w      io.Writer
+	closed bool
+}
+
+func (g *gate) Write(p []byte) (int, error) {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	if g.closed {
+		return len(p), nil
+	}
+	return g.w.Write(p)
+}
+
+func (g *gate) shut() {
+	g.mu.Lock()
+	g.closed = true
+	g.mu.Unlock()
+}
+
+// end ends a command Run gave up on. It closes the session and waits
+// CloseGrace for the host to confirm; a host that never does (RouterOS can
+// drop a command's channel and keep the connection), or a session still
+// opening, costs the whole connection, and CloseGrace more for the session to
+// go. A session opened on a connection whose packet loop is gone outlives the
+// close (nothing tracks it), so after that it is left behind. The kill and the
+// close are writes, which a dead link blocks for good, so they don't hold up
+// the wait.
 func (c *Client) end(opened <-chan *ssh.Session, done <-chan error) {
 	select {
 	case sess := <-opened:
@@ -404,7 +476,10 @@ func (c *Client) end(opened <-chan *ssh.Session, done <-chan error) {
 	default:
 	}
 	_ = c.Close()
-	<-done
+	select {
+	case <-done:
+	case <-time.After(c.closeGrace):
+	}
 }
 
 // TransferOptions tune one upload.
@@ -414,13 +489,20 @@ type TransferOptions struct {
 
 // transfer runs fn on a new SFTP client, bounded like Run: once the timeout
 // or ctx ends it, the SFTP client is closed and given CloseGrace, then the
-// whole connection is closed. Starting SFTP waits for the host's answer too,
-// so it runs inside the bound.
+// whole connection is closed and given CloseGrace more. Starting SFTP waits
+// for the host's answer too, so it runs inside the bound. A lost SFTP session
+// costs the connection, as a lost command does.
 func (c *Client) transfer(ctx context.Context, timeout time.Duration, fn func(*sftp.Client) error) error {
+	if c.Closed() {
+		return ErrClosed
+	}
 	var mu sync.Mutex
 	var sc *sftp.Client
 	done := make(chan error, 1)
 	go func() {
+		if c.opening != nil {
+			c.opening()
+		}
 		s, err := sftp.NewClient(c.ssh)
 		if err != nil {
 			done <- fmt.Errorf("sshx: start SFTP: %w", err)
@@ -442,6 +524,9 @@ func (c *Client) transfer(ctx context.Context, timeout time.Duration, fn func(*s
 	var ending error
 	select {
 	case err := <-done:
+		if err != nil && lost(err) {
+			c.drop()
+		}
 		return err
 	case <-timer.C:
 		ending = ErrTimeout
@@ -460,7 +545,10 @@ func (c *Client) transfer(ctx context.Context, timeout time.Duration, fn func(*s
 		}
 	}
 	_ = c.Close()
-	<-done
+	select {
+	case <-done:
+	case <-time.After(c.closeGrace):
+	}
 	return ending
 }
 
@@ -525,7 +613,8 @@ func (c *Client) Put(ctx context.Context, path string, data []byte, o TransferOp
 }
 
 // Closed reports whether the connection was closed: by Close, by the
-// keepalive, or by Run giving up on a session the host never ended.
+// keepalive, by Run giving up on a session the host never ended, or by a
+// session that was lost.
 func (c *Client) Closed() bool {
 	select {
 	case <-c.stop:

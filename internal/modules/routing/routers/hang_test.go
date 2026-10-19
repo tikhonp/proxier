@@ -227,3 +227,46 @@ func TestJumpLinkThatDiesDuringTheUploadFailsTheAttemptAndTheRetryPushes(t *test
 		t.Fatalf("no file is left: %v", f)
 	}
 }
+
+// The /import runs in full but its session ends without an exit status, as
+// every RouterOS 7.24.5 command still running when the 30 s keepalive breaks
+// the connection does. Behind a jump host the connection can't be trusted
+// after that (a sync once opened its next session on it and waited for good):
+// Proxier connects again to delete the file and re-read.
+func TestImportWhoseSessionIsLostConnectsAgainAndTheRetryRecordsIt(t *testing.T) {
+	h := routingtest.New(t)
+	h.App.SSH.CloseGrace = 100 * time.Millisecond
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Telepat", 0, routingtest.ViaJump())
+	r.LoseImport(1)
+	job := syncNow(t, h, id)
+
+	if st, _ := h.Job(job); st != "queued" {
+		t.Fatalf("the attempt fails and waits for its retry: %s", st)
+	}
+	ev := h.Events("routing.router_sync_failed")
+	if len(ev) != 1 || ev[0].Payload["step"] != "push" || truthy(ev[0].Payload["final"]) ||
+		!strings.Contains(ev[0].Payload["error"].(string), "without exit status") {
+		t.Fatalf("one failure at push, not final: %+v", ev)
+	}
+	log := jobLog(t, h, job)
+	if !strings.Contains(log, "ended without an answer from the router; connecting again") {
+		t.Fatalf("the lost connection is not reused: %s", log)
+	}
+	if f := r.Files(); len(f) != 0 {
+		t.Fatalf("the file is removed over a new connection: %v", f)
+	}
+	if applied(t, h, id)["openai"].Hash != openaiHash || !strings.Contains(log, "openai: installed before the failure.") {
+		t.Fatal("the import ran in full: the re-read records it")
+	}
+
+	h.Advance(5 * time.Minute)
+	h.Settle()
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("the retry: %s %s", st, e)
+	}
+	if imp := r.Imports(); len(imp) != 1 {
+		t.Fatalf("nothing left to push: %v", imp)
+	}
+}

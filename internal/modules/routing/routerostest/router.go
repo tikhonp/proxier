@@ -41,6 +41,7 @@ type Router struct {
 	dropAdds map[string]int
 	holds    map[int]chan struct{}
 	forget   map[int]bool
+	lose     map[int]bool
 	commands []string
 	onImport func(n int)
 }
@@ -59,7 +60,7 @@ func New(t *testing.T, authorized ssh.PublicKey) *Router {
 		version: "7.24.5 (stable)", board: "RB5009UG+S+", identity: "MikroTik",
 		forwarders: map[string]bool{routeros.Defaults.Forwarder: true},
 		outputs:    map[int]string{}, failAt: map[int]failAt{}, dropAdds: map[string]int{}, holds: map[int]chan struct{}{},
-		forget: map[int]bool{},
+		forget: map[int]bool{}, lose: map[int]bool{},
 	}
 	r.list = []listRow{
 		{List: routeros.Defaults.List, Address: "dns.google", Comment: "mtvpn:doh"},
@@ -134,13 +135,16 @@ func (r *Router) handle(s *sshxtest.Session) int {
 		_, _ = io.WriteString(s.Stdout, r.runImport(call.File))
 		r.mu.Lock()
 		hook, n := r.onImport, len(r.imports)
-		forget := r.forget[n]
+		forget, lose := r.forget[n], r.lose[n]
 		r.mu.Unlock()
 		if hook != nil {
 			hook(n)
 		}
 		if forget {
 			s.Freeze()
+		}
+		if lose {
+			return sshxtest.NoExitStatus
 		}
 	case "remove-file":
 		_ = os.Remove(filepath.Join(r.Server.Dir(), call.File))
@@ -341,6 +345,15 @@ func (r *Router) Hold(n int) (release func()) {
 func (r *Router) ForgetImport(n int) {
 	r.mu.Lock()
 	r.forget[n] = true
+	r.mu.Unlock()
+}
+
+// LoseImport makes the nth import run in full and then end its session
+// without an exit status, as RouterOS 7.24.5's sessions end when its answer
+// to the 30 s keepalive breaks Proxier's connection.
+func (r *Router) LoseImport(n int) {
+	r.mu.Lock()
+	r.lose[n] = true
 	r.mu.Unlock()
 }
 

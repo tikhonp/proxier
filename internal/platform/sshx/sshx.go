@@ -103,6 +103,8 @@ var (
 	// ErrTimeout is returned by Run when the command ran over its timeout; the
 	// exit code is unknown.
 	ErrTimeout = errors.New("sshx: command timed out")
+	// ErrClosed is returned by Run and the uploads on a closed connection.
+	ErrClosed = errors.New("sshx: the connection is closed")
 	// ErrAuth is returned when the host refused Proxier's key.
 	ErrAuth = errors.New("sshx: the host refused Proxier's key")
 	// ErrNoIdentity is returned before EnsureIdentity has run.

@@ -55,9 +55,10 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			return ctx.Err() // a shutdown or a cancel: the resume or the next sync removes the file
 		}
 		if err != nil && cl.Closed() {
-			// Run gave up on a session the router never ended and closed the
-			// connection: remove the file and re-read over a new one.
-			log.Warn("The router never ended the import of %s; connecting again.", f.Name)
+			// Run gave up on a session the router never ended, or the session
+			// was lost, and closed the connection: remove the file and re-read
+			// over a new one.
+			log.Warn("The import of %s ended without an answer from the router; connecting again.", f.Name)
 			again, cerr := s.connect(ctx, r, rt)
 			if cerr != nil {
 				log.Warn("Connecting again: %v", cerr) // the next attempt removes the file

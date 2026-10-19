@@ -11,6 +11,7 @@ import (
 
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
 	"github.com/tikhonp/proxier/internal/platform/testwait"
+	"golang.org/x/crypto/ssh"
 )
 
 // These cover a host that stops answering a command's session: it never sends
@@ -329,5 +330,119 @@ func TestPutWithinItsTimeoutUploads(t *testing.T) {
 	}
 	if c.Closed() {
 		t.Fatal("an upload in time keeps the connection")
+	}
+}
+
+// RouterOS 7.24.5 answers the 30 s keepalive in a way that ends the client's
+// packet loop. Behind a jump host the connection doesn't know it yet: its
+// socket is a channel that ends only when the jump host answers the close. A
+// sync once opened its next session in that window and waited for good.
+
+// neverOpens makes every session and SFTP client of c wait to open until the
+// test ends, as one opened on a connection whose packet loop is gone: closing
+// the connection doesn't end it.
+func neverOpens(t *testing.T, c *Client) {
+	release := make(chan struct{})
+	t.Cleanup(func() { close(release) })
+	c.opening = func() { <-release }
+}
+
+func TestRunTimesOutWhenTheSessionNeverOpensAndClosingCannotEndIt(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	c := e.mustConnect(e.target(e.server(), "router:1"))
+	neverOpens(t, c)
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/file/remove x.rsc", RunOptions{Timeout: boundTimeout})
+	})
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("want ErrTimeout, got %v", err)
+	}
+	if !c.Closed() {
+		t.Fatal("the connection Run gave up on is closed")
+	}
+}
+
+func TestPutTimesOutWhenSFTPNeverStartsAndClosingCannotEndIt(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	c := e.mustConnect(e.target(e.server(), "router:1"))
+	neverOpens(t, c)
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return Result{}, c.Put(context.Background(), "x.rsc", []byte("x\n"), TransferOptions{Timeout: boundTimeout})
+	})
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("want ErrTimeout, got %v", err)
+	}
+	if !c.Closed() {
+		t.Fatal("the connection Put gave up on is closed")
+	}
+}
+
+func TestASessionLostBehindAJumpHostClosesTheConnection(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	jump, target := e.server(), e.server()
+	jump.AllowForwarding()
+	target.Handle("/import file-name=x.rsc", func(io.Reader, io.Writer, io.Writer) int { return sshxtest.NoExitStatus })
+	c := e.mustConnect(Target{
+		Hop:  Hop{Address: target.Addr, User: "proxier", Subject: "router:2"},
+		Jump: &Hop{Address: jump.Addr, User: "pi", Subject: "jump:pi"},
+	})
+
+	_, _, err := runWithin(t, 3*time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/import file-name=x.rsc", RunOptions{Timeout: time.Minute})
+	})
+	var missing *ssh.ExitMissingError
+	if !errors.As(err, &missing) {
+		t.Fatalf("want the missing exit status, got %v", err)
+	}
+	if !c.Closed() {
+		t.Fatal("a lost session closes the connection")
+	}
+	// No session is opened on it again: the next command fails at once.
+	_, _, err = runWithin(t, time.Second, func() (Result, error) {
+		return c.Run(context.Background(), "/file/remove x.rsc", RunOptions{Timeout: time.Minute})
+	})
+	if !errors.Is(err, ErrClosed) {
+		t.Fatalf("want ErrClosed, got %v", err)
+	}
+	if err := c.Put(context.Background(), "x.rsc", []byte("x\n"), TransferOptions{}); !errors.Is(err, ErrClosed) {
+		t.Fatalf("want ErrClosed from Put, got %v", err)
+	}
+}
+
+func TestACommandWithAnExitStatusKeepsTheConnection(t *testing.T) {
+	e := newEnv(t)
+	e.boundedSSH()
+	srv := e.server()
+	srv.Handle("false", func(io.Reader, io.Writer, io.Writer) int { return 1 })
+	c := e.mustConnect(e.target(srv, "router:1"))
+
+	res, err := c.Run(context.Background(), "false", RunOptions{Timeout: time.Minute})
+	if err != nil || res.ExitCode != 1 {
+		t.Fatalf("want exit code 1, got %+v, %v", res, err)
+	}
+	if c.Closed() {
+		t.Fatal("a command that failed on its own keeps the connection")
+	}
+}
+
+func TestAKeepAliveThatFailsClosesTheConnectionAtOnce(t *testing.T) {
+	e := newEnv(t)
+	e.ssh.KeepAlive = 300 * time.Millisecond
+	srv := e.server()
+	c := e.mustConnect(e.target(srv, "router:1"))
+	srv.Close()
+
+	// Three misses would take 600 ms past the first failed probe.
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for !c.Closed() {
+		if time.Now().After(deadline) {
+			t.Fatal("the first failed probe closes the connection")
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
 }

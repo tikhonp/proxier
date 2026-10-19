@@ -25,6 +25,10 @@ import (
 // returns the exit code.
 type Handler func(stdin io.Reader, stdout, stderr io.Writer) int
 
+// NoExitStatus, returned as a command's exit code, ends its session without
+// one, as a session the client's connection lost under it ends.
+const NoExitStatus = -1
+
 // Session is one command a client asked for, with who asked.
 type Session struct {
 	User    string
@@ -481,7 +485,9 @@ func (s *Server) session(nc ssh.NewChannel, user string, freeze func()) {
 			default:
 				_, _ = io.WriteString(ch.Stderr(), "sshxtest: no such command: "+p.Command+"\n")
 			}
-			_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(code)}))
+			if code != NoExitStatus {
+				_, _ = ch.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{uint32(code)}))
+			}
 			return
 		case "subsystem":
 			var p struct{ Name string }
