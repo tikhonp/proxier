@@ -36,8 +36,15 @@ var openaiHash = routeros.EntriesHash(entries("openai.com", "chatgpt.com"))
 
 func TestImportThatNeverEndsFailsTheAttemptAndTheRetryRecordsIt(t *testing.T) {
 	h, r, id := forgottenImport(t)
-	h.Mod.Routers.ImportTimeout = 300 * time.Millisecond
+	var names []int
+	h.Mod.Routers.ImportTimeout = func(n int) time.Duration {
+		names = append(names, n)
+		return 300 * time.Millisecond
+	}
 	job := syncNow(t, h, id)
+	if len(names) == 0 || names[0] != 2 {
+		t.Fatalf("the timeout is sized by the file's names (openai's 2): %v", names)
+	}
 
 	if st, _ := h.Job(job); st != "queued" {
 		t.Fatalf("the attempt fails and waits for its retry: %s", st)

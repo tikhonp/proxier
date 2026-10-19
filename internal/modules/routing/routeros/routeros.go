@@ -31,10 +31,16 @@ const (
 	TelegramTag = "telegram-cidr"
 	// MaxDomains is the most names one pushed file holds.
 	MaxDomains = 2000
-	// ImportTimeout bounds one /import: a client timeout mid-import would
-	// leave a tag half-installed.
-	ImportTimeout = 30 * time.Minute
 )
+
+// ImportTimeout bounds the /import of a file of names names: a minute, and
+// 150 ms per name on top, so a full file (MaxDomains) gets about 6 min. A hEX
+// S took about 30 ms per name (64 names in 7.9 s, one in 6 s), so the bound
+// is five times that. A client timeout mid-import leaves a tag half-installed
+// until the retry, which heals it: the block is idempotent.
+func ImportTimeout(names int) time.Duration {
+	return time.Minute + time.Duration(names)*150*time.Millisecond
+}
 
 // UploadTimeout bounds the upload of a file of size bytes: a minute, and a
 // second per KiB on top, so a slow link behind a jump host still carries a

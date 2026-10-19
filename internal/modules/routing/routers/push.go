@@ -47,7 +47,7 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			}
 			return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s failed (%v): does Proxier's group have the ftp policy?", f.Name, err), err: err}
 		}
-		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: s.ImportTimeout, Log: log})
+		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: s.ImportTimeout(f.Domains), Log: log})
 		if err == nil {
 			err = routeros.ScanImport(res.ExitCode, append(append([]byte{}, res.Stdout...), res.Stderr...))
 		}
@@ -100,7 +100,7 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 func (s *Service) importFailure(f routeros.File, err error) *failure {
 	text := strings.TrimPrefix(err.Error(), "import: ")
 	if errors.Is(err, sshx.ErrTimeout) {
-		text = fmt.Sprintf("the import did not end within %s", s.ImportTimeout)
+		text = fmt.Sprintf("the import did not end within %s", s.ImportTimeout(f.Domains))
 	}
 	return &failure{step: StepPush, text: f.Name + ": " + text, err: err}
 }

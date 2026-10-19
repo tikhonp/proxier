@@ -137,9 +137,9 @@ type Deps struct {
 // Service is router sync.
 type Service struct {
 	d Deps
-	// ImportTimeout bounds one /import (routeros.ImportTimeout); tests
-	// shorten it.
-	ImportTimeout time.Duration
+	// ImportTimeout bounds the /import of a file of names names
+	// (routeros.ImportTimeout); tests shorten it.
+	ImportTimeout func(names int) time.Duration
 }
 
 // New builds the service.

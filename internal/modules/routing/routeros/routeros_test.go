@@ -22,3 +22,15 @@ func TestUploadTimeoutGrowsWithTheFile(t *testing.T) {
 		t.Fatalf("a full file: %s", got)
 	}
 }
+
+func TestImportTimeoutGrowsWithTheNames(t *testing.T) {
+	for names, want := range map[int]time.Duration{
+		0:          time.Minute,
+		64:         time.Minute + 9600*time.Millisecond,
+		MaxDomains: 6 * time.Minute,
+	} {
+		if got := ImportTimeout(names); got != want {
+			t.Errorf("%d names: %s, want %s", names, got, want)
+		}
+	}
+}
