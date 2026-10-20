@@ -41,7 +41,7 @@ func TestParseScriptInvertsBlocks(t *testing.T) {
 		strings.Join(RemovalBlock(n, "old")[:1], "\n"), // half a removal
 		strings.Replace(strings.Join(block, "\n"), `:set ($ours->"a.com") 1`, "", 1),               // a name missing from the array
 		strings.Replace(strings.Join(block, "\n"), "match-subdomain=yes", "match-subdomain=no", 1), // add ≠ array order
-		strings.Replace(strings.Join(block, "\n"), "/ip firewall address-list remove $e", "/ip firewall address-list remove", 1),
+		strings.Replace(strings.Join(block, "\n"), `/ip firewall address-list remove ($e->".id")`, "/ip firewall address-list remove", 1),
 		"{\n}",
 	} {
 		if _, err := ParseScript([]byte(bad)); err == nil {
@@ -64,6 +64,7 @@ func TestParseCommands(t *testing.T) {
 		{CmdImport("proxier-sync-12-1.rsc"), Call{Kind: "import", File: "proxier-sync-12-1.rsc"}},
 		{CmdRemoveFile("proxier-sync-12-1.rsc"), Call{Kind: "remove-file", File: "proxier-sync-12-1.rsc"}},
 		{CmdRemoveSyncFiles(), Call{Kind: "remove-sync-files"}},
+		{CmdEndJobs("proxier"), Call{Kind: "end-jobs", User: "proxier"}},
 	} {
 		got, ok := Parse(c.cmd)
 		if !ok || got != c.want {

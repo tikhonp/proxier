@@ -277,3 +277,91 @@ func TestImportWhoseSessionIsLostConnectsAgainAndTheRetryRecordsIt(t *testing.T)
 		t.Fatalf("nothing left to push: %v", imp)
 	}
 }
+
+// RouterOS runs an /import on after its session ends: the fake's held import
+// stands in for it, and runs on until its user's jobs are ended.
+
+func TestImportThatOutlastsItsTimeoutIsEndedBeforeTheReRead(t *testing.T) {
+	h := routingtest.New(t)
+	h.App.SSH.CloseGrace = 100 * time.Millisecond
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Telepat", 0)
+	r.Hold(1)
+	h.Mod.Routers.ImportTimeout = func(int) time.Duration { return 300 * time.Millisecond }
+	job := syncNow(t, h, id)
+
+	if ev := h.Events("routing.router_sync_failed"); len(ev) != 1 || ev[0].Payload["step"] != "push" {
+		t.Fatalf("the attempt fails at push: %+v", ev)
+	}
+	if e := r.Ended(); !slices.Equal(e, []int{1}) {
+		t.Fatalf("the import is ended: %v", e)
+	}
+	if tags := r.Tags(); len(tags) != 0 {
+		t.Fatalf("the ended import installs nothing: %v", tags)
+	}
+	if _, ok := applied(t, h, id)["openai"]; ok {
+		t.Fatal("nothing landed to record")
+	}
+
+	h.Advance(5 * time.Minute)
+	h.Settle()
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("the retry: %s %s", st, e)
+	}
+	if dns, list := r.Tag("openai"); len(r.Imports()) != 2 || len(dns) != 2 || len(list) != 2 {
+		t.Fatalf("the retry installs openai once: imports %v, dns %+v, list %+v", r.Imports(), dns, list)
+	}
+}
+
+func TestNextSyncEndsTheImportOfACancelledSync(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Telepat", 0, routingtest.ViaJump())
+	r.Hold(1)
+	h.StartJobs()
+	job, err := h.Mod.Routers.SyncNow(bg, id, access.All, "admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.WaitFor("the import", func() bool { return len(r.Imports()) == 1 })
+	if err := h.App.Jobs.Cancel(bg, job, "admin"); err != nil {
+		t.Fatal(err)
+	}
+	h.Settle()
+	if len(r.Ended()) != 0 {
+		t.Fatal("a cancel leaves the import running")
+	}
+
+	before := len(r.Commands())
+	next := syncNow(t, h, id)
+	if st, e := h.Job(next); st != "succeeded" {
+		t.Fatalf("next sync: %s %s", st, e)
+	}
+	if e := r.Ended(); !slices.Equal(e, []int{1}) {
+		t.Fatalf("the next sync ends it: %v", e)
+	}
+	cmds := r.Commands()[before:]
+	if i, j := slices.Index(cmds, "end-jobs"), slices.Index(cmds, "read-dns"); i < 0 || i > j {
+		t.Fatalf("ended before the read: %v", cmds)
+	}
+	if dns, _ := r.Tag("openai"); len(r.Imports()) != 2 || len(dns) != 2 {
+		t.Fatalf("the next sync installs openai once: imports %v, dns %+v", r.Imports(), dns)
+	}
+}
+
+func TestSyncGoesOnWhenLeftoverCommandsCantBeEnded(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Home", 0)
+	r.DenyEndJobs()
+	job := syncNow(t, h, id)
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("sync: %s %s", st, e)
+	}
+	if l := jobLog(t, h, job); !strings.Contains(l, "Ending leftover commands failed: not enough permissions") {
+		t.Fatalf("logged:\n%s", l)
+	}
+}

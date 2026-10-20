@@ -7,7 +7,8 @@ import (
 )
 
 // The commands, as templates: %[1]s is the address list, %[2]s the
-// forwarder, %[3]s a file or a job. Parse matches the same templates.
+// forwarder, %[3]s a file or a job, %[4]s Proxier's user. Parse matches the
+// same templates.
 const (
 	tmplCheck = `:put ("version|" . [/system resource get version]); :put ("board|" . [/system resource get board-name]); ` +
 		`:put ("identity|" . [/system identity get name]); :put ("forwarder|" . [:len [/ip dns forwarders find where name="%[2]s"]]); ` +
@@ -22,47 +23,56 @@ const (
 		`[:tostr ($e->"type")] . "|" . [:tostr ($e->"forward-to")])}`
 	tmplReadList = `:foreach e in=[/ip firewall address-list print as-value proplist=comment,address where list="%[1]s" dynamic=no] do={:put ([:tostr ` +
 		`($e->"comment")] . "|" . [:tostr ($e->"address")])}`
+	// The user's newest job is this command itself: removed with the rest,
+	// it would end before them.
+	tmplEndJobs = `:local j [/system script job find where owner="%[4]s" type=command]; ` +
+		`:if ([:len $j]>1) do={/system script job remove [:pick $j 0 ([:len $j]-1)]}`
 	tmplImport          = `/import file-name=%[3]s verbose=no`
 	tmplRemoveFile      = `:do {/file remove [find name="%[3]s"]} on-error={}`
 	tmplRemoveSyncFiles = `:do {/file remove [find name~"^proxier-sync-"]} on-error={}`
 )
 
-func cmd(tmpl string, n Names, file string) string {
-	return fmt.Sprintf(tmpl, n.List, n.Forwarder, file)
+func cmd(tmpl string, n Names, file, user string) string {
+	return fmt.Sprintf(tmpl, n.List, n.Forwarder, file, user)
 }
 
 // CmdCheck prints key|value lines: version, board, identity, the forwarder's
 // count, the mtvpn:doh pin's count and the address list's static entries.
-func CmdCheck(n Names) string { return cmd(tmplCheck, n, "") }
+func CmdCheck(n Names) string { return cmd(tmplCheck, n, "", "") }
 
 // CmdReadDNS prints comment|name|match-subdomain|type|forward-to for every
 // DNS static entry of the address list.
-func CmdReadDNS(n Names) string { return cmd(tmplReadDNS, n, "") }
+func CmdReadDNS(n Names) string { return cmd(tmplReadDNS, n, "", "") }
 
 // CmdReadList prints comment|address for every static entry of the address list.
-func CmdReadList(n Names) string { return cmd(tmplReadList, n, "") }
+func CmdReadList(n Names) string { return cmd(tmplReadList, n, "", "") }
 
 // CmdImport runs an uploaded script.
-func CmdImport(file string) string { return cmd(tmplImport, Names{}, file) }
+func CmdImport(file string) string { return cmd(tmplImport, Names{}, file, "") }
 
 // CmdRemoveFile deletes a file; a missing one is no error.
-func CmdRemoveFile(file string) string { return cmd(tmplRemoveFile, Names{}, file) }
+func CmdRemoveFile(file string) string { return cmd(tmplRemoveFile, Names{}, file, "") }
+
+// CmdEndJobs ends the commands user left running on the router, as an
+// /import whose session ended runs on; it spares its own.
+func CmdEndJobs(user string) string { return cmd(tmplEndJobs, Names{}, "", user) }
 
 // CmdRemoveSyncFiles deletes every file a sync uploaded, whichever job left it.
 func CmdRemoveSyncFiles() string { return tmplRemoveSyncFiles }
 
 // Call is a command Parse recognised.
 type Call struct {
-	Kind  string // check, read-dns, read-list, import, remove-file, remove-sync-files
+	Kind  string // check, read-dns, read-list, end-jobs, import, remove-file, remove-sync-files
 	Names Names
 	File  string // import, remove-file
+	User  string // end-jobs
 }
 
 type pattern struct {
 	kind string
 	re   *regexp.Regexp
-	// which groups hold the list, the forwarder and the file (0: none)
-	list, fwd, file int
+	// which groups hold the list, the forwarder, the file and the user (0: none)
+	list, fwd, file, user int
 }
 
 var patterns = func() []pattern {
@@ -95,6 +105,9 @@ var patterns = func() []pattern {
 			case '3':
 				p.file = group
 				b.WriteString(`([A-Za-z0-9._-]{1,120})`)
+			case '4':
+				p.user = group
+				b.WriteString(`([A-Za-z0-9._-]{1,64})`)
 			}
 		}
 		b.WriteString("$")
@@ -103,7 +116,7 @@ var patterns = func() []pattern {
 	}
 	return []pattern{
 		mk("check", tmplCheck), mk("read-dns", tmplReadDNS), mk("read-list", tmplReadList),
-		mk("import", tmplImport), mk("remove-file", tmplRemoveFile), mk("remove-sync-files", tmplRemoveSyncFiles),
+		mk("end-jobs", tmplEndJobs), mk("import", tmplImport), mk("remove-file", tmplRemoveFile), mk("remove-sync-files", tmplRemoveSyncFiles),
 	}
 }()
 
@@ -124,6 +137,9 @@ func Parse(c string) (Call, bool) {
 		if p.file > 0 {
 			call.File = m[p.file]
 		}
+		if p.user > 0 {
+			call.User = m[p.user]
+		}
 		// the same command built again, so a repeated name that differs fails
 		var again string
 		switch p.kind {
@@ -133,6 +149,8 @@ func Parse(c string) (Call, bool) {
 			again = CmdReadDNS(call.Names)
 		case "read-list":
 			again = CmdReadList(call.Names)
+		case "end-jobs":
+			again = CmdEndJobs(call.User)
 		case "import":
 			again = CmdImport(call.File)
 		case "remove-file":

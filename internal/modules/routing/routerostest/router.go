@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -41,6 +42,10 @@ type Router struct {
 	failAt   map[int]failAt
 	dropAdds map[string]int
 	holds    map[int]chan struct{}
+	releases map[int]func()
+	running  map[int]string // held imports, by their user
+	ended    []int
+	denyEnd  bool
 	forget   map[int]bool
 	lose     map[int]bool
 	commands []string
@@ -62,7 +67,7 @@ func New(t *testing.T, authorized ssh.PublicKey) *Router {
 		version: "7.24.5 (stable)", board: "RB5009UG+S+", identity: "MikroTik",
 		forwarders: map[string]bool{routeros.Defaults.Forwarder: true},
 		outputs:    map[int]string{}, failAt: map[int]failAt{}, dropAdds: map[string]int{}, holds: map[int]chan struct{}{},
-		forget: map[int]bool{}, lose: map[int]bool{},
+		releases: map[int]func(){}, running: map[int]string{}, forget: map[int]bool{}, lose: map[int]bool{},
 	}
 	r.list = []listRow{
 		{List: routeros.Defaults.List, Address: "dns.google", Comment: "mtvpn:doh"},
@@ -133,8 +138,10 @@ func (r *Router) handle(s *sshxtest.Session) int {
 		}
 		r.mu.Unlock()
 		_, _ = io.WriteString(s.Stdout, b.String())
+	case "end-jobs":
+		_, _ = io.WriteString(s.Stdout, r.endJobs(call.User))
 	case "import":
-		_, _ = io.WriteString(s.Stdout, r.runImport(call.File))
+		_, _ = io.WriteString(s.Stdout, r.runImport(call.File, s.User))
 		r.mu.Lock()
 		hook, n := r.onImport, len(r.imports)
 		forget, lose := r.forget[n], r.lose[n]
@@ -160,16 +167,49 @@ func (r *Router) handle(s *sshxtest.Session) int {
 	return 0
 }
 
-func (r *Router) runImport(file string) string {
+// endJobs ends user's held imports, as /system script job remove does; an
+// import whose client went away runs on until then.
+func (r *Router) endJobs(user string) string {
+	r.mu.Lock()
+	if r.denyEnd {
+		r.mu.Unlock()
+		return "not enough permissions (9) (/system/script/job/remove; line 1)\r\n"
+	}
+	var release []func()
+	for n, u := range r.running {
+		if u == user {
+			r.ended = append(r.ended, n)
+			release = append(release, r.releases[n])
+			delete(r.running, n)
+		}
+	}
+	r.mu.Unlock()
+	for _, f := range release {
+		f()
+	}
+	return ""
+}
+
+func (r *Router) runImport(file, user string) string {
 	body, err := os.ReadFile(filepath.Join(r.Server.Dir(), file))
 	r.mu.Lock()
 	r.imports = append(r.imports, file)
 	r.bodies = append(r.bodies, body)
 	n := len(r.imports)
 	hold := r.holds[n]
+	if hold != nil {
+		r.running[n] = user
+	}
 	r.mu.Unlock()
 	if hold != nil {
 		<-hold
+		r.mu.Lock()
+		ended := slices.Contains(r.ended, n)
+		delete(r.running, n)
+		r.mu.Unlock()
+		if ended {
+			return ""
+		}
 	}
 	if err != nil {
 		return "failure: no such file " + file + "\r\n"
@@ -245,6 +285,18 @@ func (r *Router) DeleteEntries(tag string, n int) {
 		kl = append(kl, e)
 	}
 	r.list = kl
+}
+
+// DuplicateEntries adds each of a tag's DNS entries again, as two runs of
+// its block at once leave them: RouterOS takes a second identical entry.
+func (r *Router) DuplicateEntries(tag string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	for _, d := range r.dns {
+		if d.Comment == tag {
+			r.dns = append(r.dns, d)
+		}
+	}
 }
 
 // EditForwardTo points one entry of a tag at another forwarder, by hand.
@@ -337,8 +389,26 @@ func (r *Router) Hold(n int) (release func()) {
 	r.mu.Unlock()
 	var once sync.Once
 	release = func() { once.Do(func() { close(ch) }) }
+	r.mu.Lock()
+	r.releases[n] = release
+	r.mu.Unlock()
 	r.t.Cleanup(release)
 	return release
+}
+
+// Ended are the imports an end-jobs command ended, in order.
+func (r *Router) Ended() []int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.ended)
+}
+
+// DenyEndJobs answers end-jobs as a group without the write policy does: an
+// error line, exit status 0.
+func (r *Router) DenyEndJobs() {
+	r.mu.Lock()
+	r.denyEnd = true
+	r.mu.Unlock()
 }
 
 // ForgetImport makes the nth import run in full and then never end: the

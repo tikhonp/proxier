@@ -322,6 +322,23 @@ func TestUntaggedDuplicateAdopted(t *testing.T) {
 	}
 }
 
+func TestEntriesLeftTwiceHealed(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Home", 0)
+	syncNow(t, h, id)
+	// a timed-out import ran on beside its retry's
+	r.DuplicateEntries("openai")
+	syncNow(t, h, id)
+	if s := lastSync(t, h, id); s.Pushed() != 1 {
+		t.Fatalf("the tag is pushed again: %+v", s)
+	}
+	if dns, list := r.Tag("openai"); len(dns) != 2 || len(list) != 2 {
+		t.Fatalf("once each: dns %+v, list %+v", dns, list)
+	}
+}
+
 func TestUntaggedLeftAlone(t *testing.T) {
 	h := routingtest.New(t)
 	h.Up.V2fly("openai", "openai.com\n")

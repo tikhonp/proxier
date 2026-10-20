@@ -67,6 +67,9 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			defer func() { _ = again.Close() }()
 			cl = again
 		}
+		if err != nil {
+			endLeftovers(ctx, cl, rt, log)
+		}
 		if _, rerr := cl.Run(ctx, routeros.CmdRemoveFile(f.Name), sshx.RunOptions{Timeout: time.Minute}); rerr != nil {
 			log.Warn("Removing %s: %v", f.Name, rerr)
 		}
@@ -94,6 +97,20 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 		}
 	}
 	return nil
+}
+
+// endLeftovers ends the commands of Proxier's user that earlier connections
+// left running: RouterOS runs an /import on after its session ends, and the
+// retry would import beside it. A leftover only costs the router time, so
+// failing to end one is logged and the sync goes on.
+func endLeftovers(ctx context.Context, cl *sshx.Client, rt store.Router, log *jobs.Logger) {
+	res, err := cl.Run(ctx, routeros.CmdEndJobs(connOf(rt).User), sshx.RunOptions{Timeout: time.Minute})
+	if err == nil {
+		err = routeros.ScanImport(res.ExitCode, append(append([]byte{}, res.Stdout...), res.Stderr...))
+	}
+	if err != nil && ctx.Err() == nil {
+		log.Warn("Ending leftover commands failed: %s.", strings.TrimPrefix(err.Error(), "import: "))
+	}
 }
 
 // importFailure is a failed file as the router page says it.
