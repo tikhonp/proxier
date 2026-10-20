@@ -14,6 +14,7 @@ type State struct {
 	Pins     map[string]string // name → its mtvpn: comment
 	ReadAt   time.Time
 	Names    routeros.Names // what was read: the forwarder entries must point at
+	DNSTook  time.Duration  // reading the DNS entries; an import waits as long (push)
 }
 
 // TagState is a tag's entries on the router.

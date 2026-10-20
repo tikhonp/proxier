@@ -18,8 +18,9 @@ import (
 // deletes it. After a file succeeds its blocks are recorded as applied (a
 // split update once its last part landed; a removal forgets its tag). After
 // a file fails, the router is read again and each of its tags that landed
-// anyway is recorded; the others keep their old applied state.
-func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt store.Router, plan []TagPlan, files []routeros.File) error {
+// anyway is recorded; the others keep their old applied state. dnsTook is how
+// long the sync's read of the DNS entries took.
+func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt store.Router, plan []TagPlan, files []routeros.File, dnsTook time.Duration) error {
 	log := r.Log()
 	want := map[string][]routeros.Entry{}
 	for _, p := range plan {
@@ -47,7 +48,12 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			}
 			return &failure{step: StepPush, text: fmt.Sprintf("Uploading %s failed (%v): does Proxier's group have the ftp policy?", f.Name, err), err: err}
 		}
-		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: s.ImportTimeout(f.Domains), Log: log})
+		// A block walks the DNS entries twice (its removal's find and its
+		// adoption loop), and each walk waits on the router's dns process as
+		// long as the read did: Telepat's (hEX S) read took 9 min, and
+		// 2m41.7s never sufficed for its import.
+		bound := s.ImportTimeout(f.Domains) + 2*dnsTook.Round(100*time.Millisecond)
+		res, err := cl.Run(ctx, routeros.CmdImport(f.Name), sshx.RunOptions{Timeout: bound, Log: log})
 		if err == nil {
 			err = routeros.ScanImport(res.ExitCode, append(append([]byte{}, res.Stdout...), res.Stderr...))
 		}
@@ -62,7 +68,7 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 			again, cerr := s.connect(ctx, r, rt)
 			if cerr != nil {
 				log.Warn("Connecting again: %v", cerr) // the next attempt removes the file
-				return s.importFailure(f, err)
+				return importFailure(f, bound, err)
 			}
 			defer func() { _ = again.Close() }()
 			cl = again
@@ -75,7 +81,7 @@ func (s *Service) push(ctx context.Context, r *jobs.Run, cl *sshx.Client, rt sto
 		}
 		if err != nil {
 			s.landed(ctx, r, cl, rt, f, want)
-			return s.importFailure(f, err)
+			return importFailure(f, bound, err)
 		}
 		if err := s.d.DB.Write(ctx, func(tx *sqlx.Tx) error {
 			now := s.now()
@@ -114,10 +120,10 @@ func endLeftovers(ctx context.Context, cl *sshx.Client, rt store.Router, log *jo
 }
 
 // importFailure is a failed file as the router page says it.
-func (s *Service) importFailure(f routeros.File, err error) *failure {
+func importFailure(f routeros.File, bound time.Duration, err error) *failure {
 	text := strings.TrimPrefix(err.Error(), "import: ")
 	if errors.Is(err, sshx.ErrTimeout) {
-		text = fmt.Sprintf("the import did not end within %s", s.ImportTimeout(f.Domains))
+		text = fmt.Sprintf("the import did not end within %s", bound)
 	}
 	return &failure{step: StepPush, text: f.Name + ": " + text, err: err}
 }

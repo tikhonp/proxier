@@ -223,7 +223,7 @@ func (s *Service) stepSync(ctx context.Context, r *jobs.Run) error {
 	}
 	header := fmt.Sprintf("proxier sync · router %s · job #%s", rt.Name, job)
 	files := routeros.Files(names, job, header, Blocks(plan))
-	if err := s.push(ctx, r, cl, rt, plan, files); err != nil {
+	if err := s.push(ctx, r, cl, rt, plan, files, st.DNSTook); err != nil {
 		return s.fail(ctx, r, rt, syncID, p, err)
 	}
 	if len(files) > 0 {
@@ -342,11 +342,12 @@ func (s *Service) read(ctx context.Context, cl *sshx.Client, n routeros.Names) (
 		}
 		return res.Stdout, nil
 	}
-	at := s.d.Now()
+	at, start := s.d.Now(), time.Now()
 	out, err := run(routeros.CmdReadDNS(n))
 	if err != nil {
 		return State{}, err
 	}
+	took := time.Since(start)
 	dns, err := routeros.ParseDNS(out)
 	if err != nil {
 		return State{}, err
@@ -358,7 +359,9 @@ func (s *Service) read(ctx context.Context, cl *sshx.Client, n routeros.Names) (
 	if err != nil {
 		return State{}, err
 	}
-	return Interpret(dns, list, n, at), nil
+	st := Interpret(dns, list, n, at)
+	st.DNSTook = took
+	return st, nil
 }
 
 // plan computes the desired state (the router's infra pins left out) and

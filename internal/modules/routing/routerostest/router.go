@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/routing/routeros"
 	"github.com/tikhonp/proxier/internal/platform/sshx/sshxtest"
@@ -35,6 +36,7 @@ type Router struct {
 	forwarders               map[string]bool
 	dns                      []dnsRow
 	list                     []listRow
+	dnsDelay                 time.Duration
 
 	imports  []string
 	bodies   [][]byte
@@ -119,6 +121,10 @@ func (r *Router) handle(s *sshxtest.Session) int {
 		r.mu.Unlock()
 		_, _ = io.WriteString(s.Stdout, out)
 	case "read-dns":
+		r.mu.Lock()
+		delay := r.dnsDelay
+		r.mu.Unlock()
+		time.Sleep(delay)
 		r.mu.Lock()
 		var b strings.Builder
 		for _, d := range r.dns {
@@ -426,6 +432,14 @@ func (r *Router) ForgetImport(n int) {
 func (r *Router) LoseImport(n int) {
 	r.mu.Lock()
 	r.lose[n] = true
+	r.mu.Unlock()
+}
+
+// SlowDNSRead makes reading the DNS entries take d, as on a router whose dns
+// process is busy resolving its address list's names.
+func (r *Router) SlowDNSRead(d time.Duration) {
+	r.mu.Lock()
+	r.dnsDelay = d
 	r.mu.Unlock()
 }
 

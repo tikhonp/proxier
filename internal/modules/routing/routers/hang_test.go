@@ -278,6 +278,34 @@ func TestImportWhoseSessionIsLostConnectsAgainAndTheRetryRecordsIt(t *testing.T)
 	}
 }
 
+func TestImportOfARouterSlowToReadGetsTwiceTheReadOnTop(t *testing.T) {
+	h := routingtest.New(t)
+	h.Up.V2fly("openai", "openai.com\nchatgpt.com\n")
+	h.List("Main", h.Upstream("v2fly:openai"))
+	r, id := h.Router("Telepat", 0)
+	r.SlowDNSRead(200 * time.Millisecond)
+	release := r.Hold(1)
+	go func() {
+		for len(r.Imports()) == 0 {
+			time.Sleep(5 * time.Millisecond)
+		}
+		time.Sleep(300 * time.Millisecond)
+		release()
+	}()
+	h.Mod.Routers.ImportTimeout = func(int) time.Duration { return 100 * time.Millisecond }
+	job := syncNow(t, h, id)
+
+	if st, e := h.Job(job); st != "succeeded" {
+		t.Fatalf("the import outlasts its own 100 ms but not the read's time twice on top: %s %s", st, e)
+	}
+	if ev := h.Events("routing.router_sync_failed"); len(ev) != 0 {
+		t.Fatalf("no failure: %+v", ev)
+	}
+	if applied(t, h, id)["openai"].Hash != openaiHash {
+		t.Fatal("openai is recorded as installed")
+	}
+}
+
 // RouterOS runs an /import on after its session ends: the fake's held import
 // stands in for it, and runs on until its user's jobs are ended.
 
