@@ -98,13 +98,16 @@ type Service struct {
 	RemoteEnv     func(log *jobs.Logger) remote.Env
 	SmokeAttempts int
 	SmokeGap      time.Duration
+	// DrawSSHPort picks a new server's SSH port, never one of avoid; the
+	// default is drawSSHPort.
+	DrawSSHPort func(avoid []int) int
 
 	geo geoCache
 }
 
 // New returns the service.
 func New(d Deps) *Service {
-	return &Service{Deps: d, Now: time.Now, ProxyTest: proxy.Test, SmokeAttempts: 3, SmokeGap: 20 * time.Second}
+	return &Service{Deps: d, Now: time.Now, ProxyTest: proxy.Test, SmokeAttempts: 3, SmokeGap: 20 * time.Second, DrawSSHPort: drawSSHPort}
 }
 
 func (s *Service) now() time.Time { return s.Now() }
@@ -261,19 +264,28 @@ func (d *data) render() (*render.Rendered, error) {
 	return out, nil
 }
 
-func (s *Service) target(srv store.Server, user, password string) sshx.Target {
+func address(srv store.Server, port int) string { return net.JoinHostPort(srv.IP, strconv.Itoa(port)) }
+
+func (s *Service) target(srv store.Server, port int, user, password string) sshx.Target {
 	return sshx.Target{
 		Hop: sshx.Hop{
-			Address: net.JoinHostPort(srv.IP, strconv.Itoa(srv.SSHPort)), User: user, Password: password,
+			Address: address(srv, port), User: user, Password: password,
 			Subject: "server:" + strconv.FormatInt(srv.ID, 10),
 		},
 		FirstContact: sshx.PinOnFirstContact,
 	}
 }
 
-// connect opens the deploy user's connection with Proxier's key.
+// connect opens the deploy user's connection with Proxier's key, on the
+// server's SSH port.
 func (s *Service) connect(ctx context.Context, r *jobs.Run, srv store.Server) (*sshx.Client, error) {
-	return s.SSH.Connect(ctx, s.target(srv, remote.DeployUser, ""), r.Log())
+	return s.connectAt(ctx, r, srv, srv.SSHPort)
+}
+
+// connectAt is connect on another port: the setup port, before base bootstrap
+// has moved sshd.
+func (s *Service) connectAt(ctx context.Context, r *jobs.Run, srv store.Server, port int) (*sshx.Client, error) {
+	return s.SSH.Connect(ctx, s.target(srv, port, remote.DeployUser, ""), r.Log())
 }
 
 // rootErr names a refused root login for what it is.
@@ -291,13 +303,18 @@ func (s *Service) preflight(ctx context.Context, r *jobs.Run, d *data) error {
 	if !ok || pw == "" {
 		return jobs.Permanent(errors.New("the root password is needed; use Retry and enter it"))
 	}
-	r.Log().Info("Connecting to %s:%d as root", d.Server.IP, d.Server.SSHPort)
-	c, err := s.SSH.Connect(ctx, s.target(d.Server, "root", pw), r.Log())
+	srv := d.Server
+	r.Log().Info("Connecting to %s as root", address(srv, srv.SetupSSHPort))
+	c, err := s.SSH.Connect(ctx, s.target(srv, srv.SetupSSHPort, "root", pw), r.Log())
 	if err != nil {
 		return rootErr(err)
 	}
 	defer func() { _ = c.Close() }()
-	_, err = remote.Preflight(ctx, s.env(r.Log()), c, d.Man.Requires, d.Man.Ports)
+	moveTo := 0 // a server made before SSH moved keeps its port, where sshd itself listens
+	if srv.SSHPort != srv.SetupSSHPort {
+		moveTo = srv.SSHPort
+	}
+	_, err = remote.Preflight(ctx, s.env(r.Log()), c, d.Man.Requires, d.Man.Ports, moveTo)
 	return err
 }
 
@@ -305,7 +322,8 @@ func (s *Service) installAccess(ctx context.Context, r *jobs.Run, d *data) error
 	env := s.env(r.Log())
 	// A key login may already work: this is a resume after the password was
 	// erased, or after a crash between the key login and the erasure.
-	switch c, err := s.connect(ctx, r, d.Server); {
+	srv := d.Server
+	switch c, err := s.connectAt(ctx, r, srv, srv.SetupSSHPort); {
 	case err == nil:
 		defer func() { _ = c.Close() }()
 		if verr := remote.VerifyAccess(ctx, env, c); verr == nil {
@@ -328,7 +346,7 @@ func (s *Service) installAccess(ctx context.Context, r *jobs.Run, d *data) error
 	if err != nil {
 		return err
 	}
-	root, err := s.SSH.Connect(ctx, s.target(d.Server, "root", pw), r.Log())
+	root, err := s.SSH.Connect(ctx, s.target(srv, srv.SetupSSHPort, "root", pw), r.Log())
 	if err != nil {
 		return rootErr(err)
 	}
@@ -336,7 +354,7 @@ func (s *Service) installAccess(ctx context.Context, r *jobs.Run, d *data) error
 	if err := remote.InstallAccess(ctx, env, root, append([]string{line}, personal...)); err != nil {
 		return err
 	}
-	c, err := s.connect(ctx, r, d.Server)
+	c, err := s.connectAt(ctx, r, srv, srv.SetupSSHPort)
 	if err != nil {
 		return fmt.Errorf("key login as %s failed after the keys were installed: %w", remote.DeployUser, err)
 	}
@@ -348,16 +366,32 @@ func (s *Service) installAccess(ctx context.Context, r *jobs.Run, d *data) error
 	return r.DeleteSecret(ctx, rootPasswordSecret)
 }
 
+// baseBootstrap moves sshd from the setup port to the server's own. A restart
+// may come before or after the move, so it connects on the server's port and,
+// when nothing answers there, on the setup port.
 func (s *Service) baseBootstrap(ctx context.Context, r *jobs.Run, d *data) error {
-	c, err := s.connect(ctx, r, d.Server)
+	srv := d.Server
+	moves := srv.SSHPort != srv.SetupSSHPort
+	if moves {
+		// The new address is held to the key install access pinned: another
+		// key there is a changed key, not a first contact.
+		if err := s.SSH.PinAs(ctx, address(srv, srv.SetupSSHPort), address(srv, srv.SSHPort), r.Info().Actor()); err != nil {
+			return fmt.Errorf("pin the host key for %s: %w", address(srv, srv.SSHPort), err)
+		}
+	}
+	c, err := s.connect(ctx, r, srv)
+	if err != nil && moves && unanswered(err) {
+		r.Log().Info("Nothing answers on port %d yet: connecting on port %d", srv.SSHPort, srv.SetupSSHPort)
+		c, err = s.connectAt(ctx, r, srv, srv.SetupSSHPort)
+	}
 	if err != nil {
 		return err
 	}
 	defer func() { _ = c.Close() }()
 	reconnect := func(ctx context.Context) (remote.Conn, error) {
-		return s.connect(ctx, r, d.Server)
+		return s.connect(ctx, r, srv)
 	}
-	return remote.BaseBootstrap(ctx, s.env(r.Log()), c, reconnect, d.Server.SSHPort, d.Man.Ports)
+	return remote.BaseBootstrap(ctx, s.env(r.Log()), c, reconnect, srv.SSHPort, d.Man.Ports)
 }
 
 func (s *Service) dnsStep(ctx context.Context, r *jobs.Run, d *data) error {

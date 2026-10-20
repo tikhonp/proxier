@@ -35,7 +35,9 @@ import (
 // Form is what the new-server form posts.
 type Form struct {
 	IP, RootPassword string
-	SSHPort          int // 0 = 22
+	// SSHPort is the port the VPS's SSH listens on now (0 = 22), until base
+	// bootstrap moves it to the server's own.
+	SSHPort int
 	// Country is the ISO code the picker gave, or the text typed in it when
 	// that names no country (refused as such).
 	Country    string
@@ -367,7 +369,8 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 			return err
 		}
 		id, err = store.InsertServer(ctx, tx, store.NewServer{
-			Country: c.form.Country, Number: number, Name: fmt.Sprintf("%s-%d", c.prefix, number), IP: c.form.IP, SSHPort: c.form.SSHPort,
+			Country: c.form.Country, Number: number, Name: fmt.Sprintf("%s-%d", c.prefix, number), IP: c.form.IP,
+			SSHPort: s.DrawSSHPort(avoidPorts(c.form.SSHPort, c.man.Ports)), SetupSSHPort: c.form.SSHPort,
 			ManagementHostname: host, ProxyHostname: host, TemplateID: c.tpl.ID, TemplateVersion: c.version,
 			Params: marshalStrings(c.public), Notes: f.Notes,
 		}, db.At(s.Now()), func(id int64) []byte { return sealed.SealParams(s.Vault, id, c.secret) })

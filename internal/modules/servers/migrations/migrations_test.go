@@ -54,7 +54,7 @@ func TestServersMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatal(err)
 	}
-	for range 2 {
+	for range 3 {
 		if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 			t.Fatalf("down: %v", err)
 		}
@@ -65,6 +65,23 @@ func TestServersMigrationsRoundTrip(t *testing.T) {
 	}
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatalf("up again: %v", err)
+	}
+}
+
+func TestSetupSSHPortIsTheOldServersPort(t *testing.T) {
+	ctx := context.Background()
+	d := open(t)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, `INSERT INTO servers_servers (country, number, name, ip, ssh_port, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
+		VALUES ('NL', 1, 'nl-1', '203.0.113.1', 2222, 'h', 'h', 'failed', 1, 1, ?)`, now)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, source{}); err != nil {
+		t.Fatal(err)
+	}
+	var setup, life int
+	if err := d.R.QueryRowContext(ctx, `SELECT setup_ssh_port, ssh_port FROM servers_servers`).Scan(&setup, &life); err != nil || setup != 2222 || life != 2222 {
+		t.Fatalf("setup %d, ssh %d, %v", setup, life, err)
 	}
 }
 

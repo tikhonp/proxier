@@ -13,17 +13,26 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/db/dbtest"
 )
 
-// firstOnly is the module as deployed before servers had a country: only its
-// first migration, under the same version table.
-type firstOnly struct{}
+// upTo is the module with only its first migrations, under the same version
+// table: upTo{1} as deployed before servers had a country, upTo{2} with the
+// countries migration as the last one.
+type upTo struct{ n int }
 
-func (firstOnly) Name() string { return "servers" }
-func (firstOnly) Migrations() fs.FS {
-	b, err := fs.ReadFile(migrations.FS, "00001_servers.sql")
+func (upTo) Name() string { return "servers" }
+func (u upTo) Migrations() fs.FS {
+	names, err := fs.Glob(migrations.FS, "*.sql")
 	if err != nil {
 		panic(err)
 	}
-	return fstest.MapFS{"00001_servers.sql": {Data: b}}
+	out := fstest.MapFS{}
+	for _, name := range names[:u.n] {
+		b, err := fs.ReadFile(migrations.FS, name)
+		if err != nil {
+			panic(err)
+		}
+		out[name] = &fstest.MapFile{Data: b}
+	}
+	return out
 }
 
 // beforeCountries is a database shaped like production before the change:
@@ -36,7 +45,7 @@ func beforeCountries(t *testing.T) *db.DB {
 	t.Helper()
 	ctx := context.Background()
 	d := dbtest.OpenEmpty(t)
-	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, firstOnly{}); err != nil {
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, upTo{1}); err != nil {
 		t.Fatal(err)
 	}
 	mustExec(t, d, `INSERT INTO servers_templates (id, slug, name, created_at) VALUES (1, 't', 'T', ?)`, now)
@@ -170,14 +179,14 @@ func TestLocationsBecomeTheirServersCountries(t *testing.T) {
 func TestCountriesRollBackToLocations(t *testing.T) {
 	ctx := context.Background()
 	d := beforeCountries(t)
-	if err := db.MigrateUp(ctx, d, dbtest.Discard, source{}); err != nil {
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, upTo{2}); err != nil {
 		t.Fatal(err)
 	}
 	mustExec(t, d, `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
 		VALUES ('SE', 1, 'se-1', '203.0.113.7', 'h', 'h', 'provisioning', 1, 1, ?)`, now)
 	mustExec(t, d, `INSERT INTO servers_servers (country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
 		VALUES ('NL', 4, 'nl-4', '203.0.113.8', 'h', 'h', 'provisioning', 1, 1, ?)`, now)
-	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, upTo{2}); err != nil {
 		t.Fatalf("down: %v", err)
 	}
 	foreignKeysOn(t, d)
@@ -223,10 +232,10 @@ func TestCountriesRollBackToLocations(t *testing.T) {
 func TestCountriesMigrationOnAnEmptyDatabase(t *testing.T) {
 	ctx := context.Background()
 	d := dbtest.OpenEmpty(t)
-	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, source{}); err != nil {
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, upTo{2}); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, upTo{2}); err != nil {
 		t.Fatal(err)
 	}
 	if n := count(t, d, `SELECT count(*) FROM servers_locations`); n != 0 {

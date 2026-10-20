@@ -17,9 +17,10 @@ type Facts struct {
 
 // Preflight reads the operating system, the architecture and the listening
 // TCP ports, and checks them against the template: the supported systems and
-// architectures, and that the template's TCP ports are free. It runs as root
+// architectures, and that the template's TCP ports are free, as is sshPort,
+// where base bootstrap moves SSH (0: SSH stays where it is). It runs as root
 // before anything is changed.
-func Preflight(ctx context.Context, env Env, c Conn, req manifest.Requires, ports []manifest.Port) (Facts, error) {
+func Preflight(ctx context.Context, env Env, c Conn, req manifest.Requires, ports []manifest.Port, sshPort int) (Facts, error) {
 	var f Facts
 	out, err := env.run(ctx, c, "read /etc/os-release", CmdOSRelease(), RunOpts{})
 	if err != nil {
@@ -43,6 +44,11 @@ func Preflight(ctx context.Context, env Env, c Conn, req manifest.Requires, port
 		return f, err
 	}
 	f.Listeners = ParseListeners(out)
+	for _, l := range f.Listeners {
+		if sshPort != 0 && l.Port == sshPort {
+			return f, fmt.Errorf("port %d, where Proxier moves SSH, is in use by %s", sshPort, l.Describe())
+		}
+	}
 	for _, p := range ports {
 		if p.Proto != "tcp" {
 			continue

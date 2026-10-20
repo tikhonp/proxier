@@ -2,6 +2,7 @@ package remote
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 )
 
@@ -16,6 +17,8 @@ const (
 	OpInstallSudoer  Op = "proxier-install-sudoers"
 	OpInstallKeys    Op = "proxier-install-keys"
 	OpSudoCheck      Op = "sudo-check"
+	OpUnlockUser     Op = "proxier-unlock-user"
+	OpUFWAllow       Op = "proxier-ufw-allow"
 	OpSSHDDropin     Op = "proxier-sshd-dropin"
 	OpSSHDReload     Op = "proxier-sshd-reload"
 	OpSSHDRollback   Op = "proxier-sshd-rollback"
@@ -50,10 +53,17 @@ const DeployUser = "proxier"
 // SudoersLine is what /etc/sudoers.d/proxier holds.
 const SudoersLine = DeployUser + " ALL=(ALL) NOPASSWD:ALL\n"
 
-// SSHDDropinPath and its content turn password and root login off.
+// SSHDDropinPath is where SSHDDropin goes.
 const SSHDDropinPath = "/etc/ssh/sshd_config.d/00-proxier.conf"
 
-const SSHDDropin = "PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\n"
+// SSHDDropin moves sshd to port and lets only the deploy user in, with a key.
+// sshd_config includes its drop-ins at the top, where the first value of an
+// option wins, except Port: Port lines add up, so a port the image's own
+// configuration names stays open too (ufw denies it afterwards). With UsePAM
+// no, sshd checks the account itself: see CmdUnlockUser.
+func SSHDDropin(port int) string {
+	return "Port " + strconv.Itoa(port) + "\nPasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin no\nUsePAM no\nAllowUsers " + DeployUser + "\n"
+}
 
 // Call is a parsed command: what it does and with which variable parts.
 type Call struct {
@@ -117,19 +127,40 @@ func CmdSudoCheck() string { return plain(true, "true") }
 
 // --- base bootstrap, as the deploy user
 
+// CmdUnlockUser sets the deploy user's password field to "*": no password,
+// and not locked. useradd and passwd -l leave "!", a locked account, and sshd
+// with UsePAM no refuses a locked account even its key.
+func CmdUnlockUser() string {
+	return script(true, `usermod -p '*' `+DeployUser, OpUnlockUser)
+}
+
+// CmdUFWAllow allows port ("23817/tcp") in ufw if ufw is there: an image may
+// come with ufw on, and the port must be open before sshd moves to it.
+func CmdUFWAllow(port string) string {
+	return script(true, `if command -v ufw >/dev/null 2>&1; then ufw allow "$1"; fi`, OpUFWAllow, port)
+}
+
 // CmdSSHDDropin writes the hardening drop-in from stdin.
 func CmdSSHDDropin() string {
 	return script(true, `install -d -m 755 /etc/ssh/sshd_config.d && cat > `+SSHDDropinPath, OpSSHDDropin)
 }
 
-// CmdSSHDReload checks the configuration and reloads sshd.
+// sshdApply makes sshd take its configuration, ports included. Where sshd is
+// socket-activated (Ubuntu 22.10 and later) a reload keeps the old port: the
+// socket's ports come from sshd_config through a systemd generator, so the
+// generator runs again and the socket restarts. Open connections survive both.
+const sshdApply = `if systemctl is-active --quiet ssh.socket; then systemctl daemon-reload && systemctl restart ssh.socket; ` +
+	`else systemctl reload ssh || systemctl reload sshd; fi`
+
+// CmdSSHDReload checks the configuration and makes sshd take it.
 func CmdSSHDReload() string {
-	return script(true, `/usr/sbin/sshd -t && { systemctl reload ssh || systemctl reload sshd; }`, OpSSHDReload)
+	return script(true, `/usr/sbin/sshd -t && { `+sshdApply+`; }`, OpSSHDReload)
 }
 
-// CmdSSHDRollback removes the drop-in and reloads sshd.
+// CmdSSHDRollback removes the drop-in and makes sshd take the configuration
+// it had.
 func CmdSSHDRollback() string {
-	return script(true, `rm -f `+SSHDDropinPath+`; systemctl reload ssh || systemctl reload sshd`, OpSSHDRollback)
+	return script(true, `rm -f `+SSHDDropinPath+`; `+sshdApply, OpSSHDRollback)
 }
 
 // CmdHushlogin silences the login banner for the deploy user (the working

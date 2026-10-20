@@ -24,7 +24,8 @@ type Server struct {
 	Number             int           `db:"number"`
 	Name               string        `db:"name"`
 	IP                 string        `db:"ip"`
-	SSHPort            int           `db:"ssh_port"`
+	SSHPort            int           `db:"ssh_port"`       // for its whole life; base bootstrap moves sshd there
+	SetupSSHPort       int           `db:"setup_ssh_port"` // the VPS's own, until base bootstrap
 	ManagementHostname string        `db:"management_hostname"`
 	ProxyHostname      string        `db:"proxy_hostname"`
 	State              string        `db:"state"`
@@ -59,7 +60,7 @@ func (s Server) Prefix() string {
 // stays so if the job fails, because the stack may already be gone.
 func (s Server) Retiring() bool { return s.RetireJobID.Valid && s.State != "retired" }
 
-const serverSelect = `SELECT s.id, s.country, s.number, s.name, s.ip, s.ssh_port, s.management_hostname, s.proxy_hostname,
+const serverSelect = `SELECT s.id, s.country, s.number, s.name, s.ip, s.ssh_port, s.setup_ssh_port, s.management_hostname, s.proxy_hostname,
 	s.state, s.template_id, s.template_version, s.params, s.params_secret, s.notes, s.provision_job_id, s.retire_job_id,
 	COALESCE(s.failed_step, '') AS failed_step, COALESCE(s.failed_error, '') AS failed_error,
 	COALESCE(s.health, '') AS health, s.health_since, s.health_reason, s.created_at, s.activated_at, s.retired_at,
@@ -98,7 +99,7 @@ type NewServer struct {
 	Country                           string
 	Number                            int
 	Name, IP                          string
-	SSHPort                           int
+	SSHPort, SetupSSHPort             int
 	ManagementHostname, ProxyHostname string
 	TemplateID                        int64
 	TemplateVersion                   int
@@ -112,10 +113,10 @@ type NewServer struct {
 // the id is known; it may return nil for none.
 func InsertServer(ctx context.Context, tx sqlx.ExtContext, n NewServer, at db.Time, sealParams func(id int64) []byte) (int64, error) {
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO servers_servers (country, number, name, ip, ssh_port, management_hostname, proxy_hostname, state,
+		INSERT INTO servers_servers (country, number, name, ip, ssh_port, setup_ssh_port, management_hostname, proxy_hostname, state,
 			template_id, template_version, params, notes, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, 'provisioning', ?, ?, ?, ?, ?)`,
-		n.Country, n.Number, n.Name, n.IP, n.SSHPort, n.ManagementHostname, n.ProxyHostname,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'provisioning', ?, ?, ?, ?, ?)`,
+		n.Country, n.Number, n.Name, n.IP, n.SSHPort, n.SetupSSHPort, n.ManagementHostname, n.ProxyHostname,
 		n.TemplateID, n.TemplateVersion, n.Params, n.Notes, at)
 	if unique(err, "servers_servers.ip") {
 		return 0, ErrIPInUse
