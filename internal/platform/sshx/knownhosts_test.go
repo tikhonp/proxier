@@ -3,6 +3,8 @@ package sshx
 import (
 	"context"
 	"errors"
+	"io"
+	"net"
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/platform/jobs"
@@ -183,4 +185,62 @@ func TestAddressesAreNormalized(t *testing.T) {
 			t.Errorf("NormalizeAddress(%q) = %q, want %q", in, got, want)
 		}
 	}
+}
+
+func TestPinAsHoldsAnotherPortToTheKey(t *testing.T) {
+	e := newEnv(t)
+	ctx := context.Background()
+	srv := e.server()
+	e.mustConnect(e.target(srv, "server:7"))
+
+	moved, foreign := srv.Listen(), srv.Listen()
+	srv.ForeignHostKey(foreign)
+	for _, a := range []string{moved, foreign} {
+		if err := e.ssh.PinAs(ctx, srv.Addr, a, "job:3"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	h, err := e.ssh.KnownHost(ctx, moved)
+	if err != nil || h.Fingerprint != fp(srv.HostKey()) || h.Subject != "server:7" {
+		t.Fatalf("the pin of the new port: %+v %v", h, err)
+	}
+	ev := e.events("ssh.host_key_pinned")
+	if len(ev) != 3 || ev[0].Actor != "job:3" || ev[0].Payload["address"] != foreign || ev[0].Payload["fingerprint"] != fp(srv.HostKey()) {
+		t.Fatalf("events: %+v", ev)
+	}
+
+	// The same key on the new port connects; another one is a changed key, not a first contact.
+	e.mustConnect(Target{Hop: Hop{Address: moved, User: "root", Subject: "server:7"}})
+	_, err = e.connect(Target{Hop: Hop{Address: foreign, User: "root", Subject: "server:7"}})
+	var changed *HostKeyChangedError
+	if !errors.As(err, &changed) || changed.Old != fp(srv.HostKey()) {
+		t.Fatalf("a different key on the new port: %v", err)
+	}
+
+	// An address pinned already keeps its pin; nothing pinned to copy from is ErrNotFound.
+	if err := e.ssh.PinAs(ctx, srv.Addr, moved, "job:3"); err != nil || len(e.events("ssh.host_key_pinned")) != 3 {
+		t.Fatalf("pin as twice: %v", err)
+	}
+	if err := e.ssh.PinAs(ctx, "192.0.2.1:22", "192.0.2.1:2222", "job:3"); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("from an unpinned address: %v", err)
+	}
+}
+
+func TestUnlistenRefusesThePortAndKeepsOpenConnections(t *testing.T) {
+	e := newEnv(t)
+	srv := e.server()
+	tg := e.target(srv, "server:1")
+	open := e.mustConnect(tg)
+	srv.Handle("true", func(io.Reader, io.Writer, io.Writer) int { return 0 })
+
+	srv.Unlisten(srv.Addr)
+	var op *net.OpError
+	if _, err := e.connect(tg); !errors.As(err, &op) || op.Op != "dial" {
+		t.Fatalf("a connection to a port nothing listens on: %v", err)
+	}
+	if _, err := open.Run(context.Background(), "true", RunOptions{}); err != nil {
+		t.Fatalf("the open connection: %v", err)
+	}
+	tg.Address = srv.Listen()
+	e.mustConnect(tg)
 }

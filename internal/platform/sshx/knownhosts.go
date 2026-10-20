@@ -118,6 +118,33 @@ func (s *SSH) pinTx(ctx context.Context, tx *sqlx.Tx, address, subject string, k
 	return err
 }
 
+// PinAs trusts for address to the key pinned for from, under from's subject:
+// the same host answering on another port (a server whose sshd moved) is then
+// held to the key it had there, not trusted anew on first contact. An address
+// pinned already keeps its pin; from without one is ErrNotFound.
+func (s *SSH) PinAs(ctx context.Context, from, to, actor string) error {
+	from, to = NormalizeAddress(from), NormalizeAddress(to)
+	return s.d.Write(ctx, func(tx *sqlx.Tx) error {
+		var n int
+		if err := tx.GetContext(ctx, &n, `SELECT count(*) FROM known_hosts WHERE address = ?`, to); err != nil || n > 0 {
+			return err
+		}
+		var src hostRow
+		err := tx.GetContext(ctx, &src, `SELECT `+hostColumns+` FROM known_hosts WHERE address = ?`, from)
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		key, err := ssh.ParsePublicKey(src.PublicKey)
+		if err != nil {
+			return err
+		}
+		return s.pinTx(ctx, tx, to, src.Subject, key, actor)
+	})
+}
+
 // Accept trusts the pending key of a host whose key changed.
 func (s *SSH) Accept(ctx context.Context, id int64, actor string) error {
 	return s.d.Write(ctx, func(tx *sqlx.Tx) error {

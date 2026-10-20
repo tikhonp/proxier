@@ -52,7 +52,6 @@ type Server struct {
 	Addr string
 
 	t   testing.TB
-	ln  net.Listener
 	dir string
 
 	mu         sync.Mutex
@@ -60,6 +59,8 @@ type Server struct {
 	passwords  map[string]string
 	blocked    map[string]bool // users whose logins fail ("*": everyone)
 	hostKeys   []ssh.Signer
+	listeners  map[string]net.Listener // by address
+	ownKeys    map[string][]ssh.Signer // host keys of an address that has its own
 	handlers   map[string]Handler
 	matchers   []matcher
 	forwarding bool
@@ -82,18 +83,61 @@ func NewServer(t testing.TB, authorized ssh.PublicKey) *Server {
 		t.Fatal(err)
 	}
 	s := &Server{
-		Addr: ln.Addr().String(), t: t, ln: ln, dir: t.TempDir(),
+		Addr: ln.Addr().String(), t: t, dir: t.TempDir(),
 		keys: map[string][]ssh.PublicKey{}, passwords: map[string]string{}, blocked: map[string]bool{},
 		handlers: map[string]Handler{}, conns: map[net.Conn]struct{}{}, closed: make(chan struct{}),
+		listeners: map[string]net.Listener{}, ownKeys: map[string][]ssh.Signer{},
 	}
 	if authorized != nil {
 		s.AuthorizeKey("*", authorized)
 	}
 	s.SetHostKeyTypes("ed25519")
-	s.wg.Add(1)
-	go s.accept()
+	s.serveOn(ln)
 	t.Cleanup(s.Close)
 	return s
+}
+
+// Listen makes the server answer on one more address, a free port of
+// 127.0.0.1, as sshd does once its configuration names another port, and
+// returns it. Addr does not change.
+func (s *Server) Listen() string {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		s.t.Fatal(err)
+	}
+	s.serveOn(ln)
+	return ln.Addr().String()
+}
+
+// Unlisten stops answering at addr (Addr or one of Listen's): a new
+// connection there is refused, as at a port nothing listens on, while open
+// ones go on.
+func (s *Server) Unlisten(addr string) {
+	s.mu.Lock()
+	ln := s.listeners[addr]
+	delete(s.listeners, addr)
+	s.mu.Unlock()
+	if ln != nil {
+		_ = ln.Close()
+	}
+}
+
+// ForeignHostKey gives addr a fresh host key of its own, as another machine
+// answering there would have; the other addresses keep the server's.
+func (s *Server) ForeignHostKey(addr string) {
+	sg := newSigner(s.t, "ed25519")
+	s.mu.Lock()
+	s.ownKeys[addr] = []ssh.Signer{sg}
+	s.mu.Unlock()
+}
+
+func (s *Server) serveOn(ln net.Listener) {
+	addr := ln.Addr().String()
+	s.mu.Lock()
+	s.listeners[addr] = ln
+	s.mu.Unlock()
+	s.wg.Add(1)
+	go s.accept(ln, addr)
 }
 
 // Handle scripts a command, matched on its full text.
@@ -177,34 +221,33 @@ func (s *Server) SetHostKeyTypes(types ...string) {
 func (s *Server) AddHostKeyTypes(types ...string) {
 	var keys []ssh.Signer
 	for _, typ := range types {
-		switch typ {
-		case "ed25519":
-			_, priv, err := ed25519.GenerateKey(rand.Reader)
-			if err != nil {
-				s.t.Fatal(err)
-			}
-			sg, err := ssh.NewSignerFromKey(priv)
-			if err != nil {
-				s.t.Fatal(err)
-			}
-			keys = append(keys, sg)
-		case "ecdsa":
-			priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-			if err != nil {
-				s.t.Fatal(err)
-			}
-			sg, err := ssh.NewSignerFromKey(priv)
-			if err != nil {
-				s.t.Fatal(err)
-			}
-			keys = append(keys, sg)
-		default:
-			s.t.Fatalf("sshxtest: unknown host key type %q", typ)
-		}
+		keys = append(keys, newSigner(s.t, typ))
 	}
 	s.mu.Lock()
 	s.hostKeys = append(s.hostKeys, keys...)
 	s.mu.Unlock()
+}
+
+// newSigner makes a fresh host key of a type ("ed25519", "ecdsa").
+func newSigner(t testing.TB, typ string) ssh.Signer {
+	var key any
+	var err error
+	switch typ {
+	case "ed25519":
+		_, key, err = ed25519.GenerateKey(rand.Reader)
+	case "ecdsa":
+		key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	default:
+		t.Fatalf("sshxtest: unknown host key type %q", typ)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	sg, err := ssh.NewSignerFromKey(key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sg
 }
 
 // RotateHostKey replaces the host keys with new keys of the same types, as a
@@ -360,8 +403,11 @@ func (c *gatedConn) Write(p []byte) (int, error) {
 
 // Close stops the server and ends its connections.
 func (s *Server) Close() {
-	_ = s.ln.Close()
 	s.mu.Lock()
+	for addr, ln := range s.listeners {
+		_ = ln.Close()
+		delete(s.listeners, addr)
+	}
 	select {
 	case <-s.closed:
 	default:
@@ -374,10 +420,10 @@ func (s *Server) Close() {
 	s.wg.Wait()
 }
 
-func (s *Server) accept() {
+func (s *Server) accept(ln net.Listener, addr string) {
 	defer s.wg.Done()
 	for {
-		conn, err := s.ln.Accept()
+		conn, err := ln.Accept()
 		if err != nil {
 			return
 		}
@@ -392,7 +438,7 @@ func (s *Server) accept() {
 		s.wg.Add(1)
 		go func() {
 			defer s.wg.Done()
-			s.serve(&gatedConn{Conn: conn, s: s})
+			s.serve(&gatedConn{Conn: conn, s: s}, addr)
 			s.mu.Lock()
 			delete(s.conns, conn)
 			s.mu.Unlock()
@@ -400,7 +446,7 @@ func (s *Server) accept() {
 	}
 }
 
-func (s *Server) config() *ssh.ServerConfig {
+func (s *Server) config(addr string) *ssh.ServerConfig {
 	cfg := &ssh.ServerConfig{
 		PublicKeyCallback: func(c ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 			if s.keyOK(c.User(), key) {
@@ -424,15 +470,19 @@ func (s *Server) config() *ssh.ServerConfig {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, k := range s.hostKeys {
+	keys := s.hostKeys
+	if own, ok := s.ownKeys[addr]; ok {
+		keys = own
+	}
+	for _, k := range keys {
 		cfg.AddHostKey(k)
 	}
 	return cfg
 }
 
-func (s *Server) serve(conn *gatedConn) {
+func (s *Server) serve(conn *gatedConn, addr string) {
 	defer func() { _ = conn.Close() }()
-	sc, chans, reqs, err := ssh.NewServerConn(conn, s.config())
+	sc, chans, reqs, err := ssh.NewServerConn(conn, s.config(addr))
 	if err != nil {
 		return
 	}
