@@ -66,11 +66,12 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 ## Reading state
 
 ```
-:foreach i in=[/ip dns static find where address-list="to_vpn_list"] do={:put ([:tostr [/ip dns static get $i comment]] . "|" . [/ip dns static get $i name] . "|" . [:tostr [/ip dns static get $i match-subdomain]] . "|" . [:tostr [/ip dns static get $i type]] . "|" . [:tostr [/ip dns static get $i forward-to]])}
-:foreach i in=[/ip firewall address-list find where list="to_vpn_list" dynamic=no] do={:put ([:tostr [/ip firewall address-list get $i comment]] . "|" . [/ip firewall address-list get $i address])}
+:foreach e in=[/ip dns static print as-value proplist=comment,name,match-subdomain,type,forward-to where address-list="to_vpn_list"] do={:put ([:tostr ($e->"comment")] . "|" . [:tostr ($e->"name")] . "|" . [:tostr ($e->"match-subdomain")] . "|" . [:tostr ($e->"type")] . "|" . [:tostr ($e->"forward-to")])}
+:foreach e in=[/ip firewall address-list print as-value proplist=comment,address where list="to_vpn_list" dynamic=no] do={:put ([:tostr ($e->"comment")] . "|" . [:tostr ($e->"address")])}
 ```
 
-- Each command has 10 min. A read grows faster than the router's names: from 1,418 to 3,226 names an RB5009's took 6 s → 30–33 s, and a hEX S's, 15.5 s before, outlasted 2 min.
+- Each read is one `print as-value`, not a `get` per field per entry: with 3,226 names, a CHR (RouterOS 7.24.5) read its DNS entries in 3.3 s instead of 23 s and its address list in 2.6 s instead of 12.9 s, with the same output. A bare `print as-value` leaves out `match-subdomain`, `forward-to` and `address-list`, so `proplist` names every field read.
+- Each command has 10 min. Everything under `/ip dns` waits on the router's dns process. While that process is saturated (a CHR resolving 3,226 address-list names through an unreachable forwarder), the DNS read printed nothing in 10 min, either way it is written, and `/ip dns get` answered "action timed out". The address-list read and `/system` still answered in seconds.
 - Lines are trimmed of `\r`, and the fields are split from the **right**: a comment written by hand may hold `|`.
 - Tags are read from the DNS static entries, so the address-list-only `telegram-cidr` entries are never mistaken for a service. An empty comment means untagged (DNS and address-list entries are counted). An address-list entry whose comment starts with `mtvpn:` is an infra pin.
 - The DNS read prints `type` and `forward-to` too: a tag is unchanged only when every entry is `type=FWD` to the forwarder with the right `match-subdomain`, and its address-list names are the desired ones. A tag whose entries were edited by hand shows as changed.

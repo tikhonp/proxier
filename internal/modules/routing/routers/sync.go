@@ -30,9 +30,10 @@ const (
 
 var syncBackoff = []time.Duration{5 * time.Minute, 15 * time.Minute, time.Hour}
 
-// readTimeout bounds one read command. A read grows faster than the router's
-// names: from 1,418 to 3,226 names an RB5009's took 6 s → 30–33 s, and a hEX
-// S's, 15.5 s before, outlasted 2 min.
+// readTimeout bounds one read command. Reading the DNS entries waits on the
+// router's dns process, which a router busy resolving its address list's
+// names keeps from answering for minutes: a hEX S's read of 3,226 names
+// outlasted 10 min.
 const readTimeout = 10 * time.Minute
 
 // JobTypes are routing.sync, routing.preview and routing.test, the

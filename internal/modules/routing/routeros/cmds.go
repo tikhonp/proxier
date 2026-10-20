@@ -13,11 +13,15 @@ const (
 		`:put ("identity|" . [/system identity get name]); :put ("forwarder|" . [:len [/ip dns forwarders find where name="%[2]s"]]); ` +
 		`:put ("pin|" . [:len [/ip firewall address-list find where list="%[1]s" comment="mtvpn:doh"]]); ` +
 		`:put ("entries|" . [:len [/ip firewall address-list find where list="%[1]s" dynamic=no]])`
-	tmplReadDNS = `:foreach i in=[/ip dns static find where address-list="%[1]s"] do={:put ([:tostr [/ip dns static get $i comment]] . "|" . ` +
-		`[/ip dns static get $i name] . "|" . [:tostr [/ip dns static get $i match-subdomain]] . "|" . ` +
-		`[:tostr [/ip dns static get $i type]] . "|" . [:tostr [/ip dns static get $i forward-to]])}`
-	tmplReadList = `:foreach i in=[/ip firewall address-list find where list="%[1]s" dynamic=no] do={:put ([:tostr ` +
-		`[/ip firewall address-list get $i comment]] . "|" . [/ip firewall address-list get $i address])}`
+	// One print instead of a get per field per entry: with 3,226 names a
+	// CHR read its DNS entries in 3.3 s instead of 23 s. A bare print
+	// as-value leaves out match-subdomain and forward-to, so proplist
+	// names every field read.
+	tmplReadDNS = `:foreach e in=[/ip dns static print as-value proplist=comment,name,match-subdomain,type,forward-to where address-list="%[1]s"] do={:put ([:tostr ($e->"comment")] . "|" . ` +
+		`[:tostr ($e->"name")] . "|" . [:tostr ($e->"match-subdomain")] . "|" . ` +
+		`[:tostr ($e->"type")] . "|" . [:tostr ($e->"forward-to")])}`
+	tmplReadList = `:foreach e in=[/ip firewall address-list print as-value proplist=comment,address where list="%[1]s" dynamic=no] do={:put ([:tostr ` +
+		`($e->"comment")] . "|" . [:tostr ($e->"address")])}`
 	tmplImport          = `/import file-name=%[3]s verbose=no`
 	tmplRemoveFile      = `:do {/file remove [find name="%[3]s"]} on-error={}`
 	tmplRemoveSyncFiles = `:do {/file remove [find name~"^proxier-sync-"]} on-error={}`
