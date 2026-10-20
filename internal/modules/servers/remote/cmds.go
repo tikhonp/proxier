@@ -167,11 +167,14 @@ func CmdDockerInstall() string {
 	return script(true, `curl -fsSL https://get.docker.com | sh`, OpDockerInstall)
 }
 
-// CmdFirewall allows each of ports ("22/tcp") and turns ufw on. Docker's
-// published ports bypass ufw; they are allowed anyway so the rule set says
-// what is meant.
+// CmdFirewall makes ufw's rule set exactly ports ("22/tcp") with every other
+// incoming connection denied, and turns ufw on. The reset drops whatever
+// rules the image came with; nothing of a template's is lost, because base
+// bootstrap runs before its steps. Docker's published ports bypass ufw; they
+// are allowed anyway so the rule set says what is meant.
 func CmdFirewall(ports []string) string {
-	return script(true, `set -e; for p in "$@"; do ufw allow "$p"; done; ufw --force enable`, OpFirewall, ports...)
+	return script(true, `set -e; ufw --force reset; ufw default deny incoming; ufw default allow outgoing; `+
+		`for p in "$@"; do ufw allow "$p"; done; ufw --force enable`, OpFirewall, ports...)
 }
 
 // --- files

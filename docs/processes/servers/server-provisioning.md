@@ -43,7 +43,7 @@ Each step is resumable. A retried job starts at the step that didn't finish.
    - `.hushlogin` and the apt prerequisites.
    - TCP BBR: `net.ipv4.tcp_congestion_control = bbr` (and the `fq` qdisc, best effort), kept across reboots in `/etc/sysctl.d/90-proxier-bbr.conf`. The server sends what clients download through it, over long lossy paths, where BBR keeps the throughput CUBIC halves on every loss. It comes before Docker, because a container's network namespace starts with the host's default. A kernel without BBR (OpenVZ, LXC) gets a warning, "TCP stays on cubic", no file, and provisioning goes on.
    - Docker via get.docker.com unless Docker is already installed.
-   - Firewall: allow the SSH port and the manifest's ports, then enable it.
+   - Firewall: ufw is reset, then denies every incoming connection but the SSH port's and the manifest's ports, and is turned on. Rules the image came with go, so the rule set is exactly what Proxier means; no template rule is lost, because the template's own steps come later.
 4. **DNS.** Create the A record(s) for the hostname(s): DNS-only, TTL 60, comment `proxier:nl-2`. Wait until 1.1.1.1 and 8.8.8.8 both answer with the IP (timeout 10 min).
 5. **Generated values.** Create every generated value the version declares (encrypted).
 6. **Render and upload.** Render the version for this server and upload the files to the manifest's `dir` (`upload-files`). Record the deployment and its rendered files.
