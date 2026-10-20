@@ -32,7 +32,7 @@ A name under another service's suffix (`console.anthropic.com` in `mine`, `anthr
 
 ## RouterOS ending a long `/import`
 
-RouterOS 7.24.5 answers an SSH global request (`keepalive@openssh.com`) with `SSH_MSG_UNIMPLEMENTED`, which ends Go's SSH packet loop ("ssh: unexpected message type 3"). Every command still running at the first keepalive, 30 s in, ended without an exit status, direct or behind a jump host, and once reading a router took over 30 s, every sync failed. Proxier sends routers no keepalive, only their jump hosts ([router sync](./processes/routing/router-sync.md#rules)). Not seen yet on a real router: a read or `/import` past 30 s ending with its exit status. Whether RouterOS finishes an `/import` after its session ends: the retries found every tag landed.
+RouterOS 7.24.5 answers an SSH global request (`keepalive@openssh.com`) with `SSH_MSG_UNIMPLEMENTED`, which ends Go's SSH packet loop ("ssh: unexpected message type 3"). Every command still running at the first keepalive, 30 s in, ended without an exit status, direct or behind a jump host, and once reading a router took over 30 s, every sync failed. Proxier sends routers no keepalive, only their jump hosts ([router sync](./processes/routing/router-sync.md#rules)). Since then, reads of 30–33 s on RB5009s have ended with their exit status. Not seen yet: an `/import` past 30 s ending with its, and how long a hEX S takes to read 3,226 names (over 2 min, the read's bound then; it has 10 min now). Whether RouterOS finishes an `/import` after its session ends: the retries found every tag landed.
 
 ## Passkeys and the authenticator app on real devices
 

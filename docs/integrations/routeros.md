@@ -70,6 +70,7 @@ One block per tag, run with `/import`. It is idempotent: running it twice leaves
 :foreach i in=[/ip firewall address-list find where list="to_vpn_list" dynamic=no] do={:put ([:tostr [/ip firewall address-list get $i comment]] . "|" . [/ip firewall address-list get $i address])}
 ```
 
+- Each command has 10 min. A read grows faster than the router's names: from 1,418 to 3,226 names an RB5009's took 6 s → 30–33 s, and a hEX S's, 15.5 s before, outlasted 2 min.
 - Lines are trimmed of `\r`, and the fields are split from the **right**: a comment written by hand may hold `|`.
 - Tags are read from the DNS static entries, so the address-list-only `telegram-cidr` entries are never mistaken for a service. An empty comment means untagged (DNS and address-list entries are counted). An address-list entry whose comment starts with `mtvpn:` is an infra pin.
 - The DNS read prints `type` and `forward-to` too: a tag is unchanged only when every entry is `type=FWD` to the forwarder with the right `match-subdomain`, and its address-list names are the desired ones. A tag whose entries were edited by hand shows as changed.

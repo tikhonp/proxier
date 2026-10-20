@@ -30,8 +30,10 @@ const (
 
 var syncBackoff = []time.Duration{5 * time.Minute, 15 * time.Minute, time.Hour}
 
-// readTimeout bounds one read command.
-const readTimeout = 2 * time.Minute
+// readTimeout bounds one read command. A read grows faster than the router's
+// names: from 1,418 to 3,226 names an RB5009's took 6 s → 30–33 s, and a hEX
+// S's, 15.5 s before, outlasted 2 min.
+const readTimeout = 10 * time.Minute
 
 // JobTypes are routing.sync, routing.preview and routing.test, the
 // drift round and check, the probe round and probe, and routing.remove.
