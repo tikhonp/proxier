@@ -59,11 +59,7 @@ var serverMessages = i18n.Messages{
 		EN: "Used once to install Proxier's key, then erased. Never shown again, never logged.",
 		RU: "Нужен один раз, чтобы установить ключ Proxier, потом стирается. Больше не показывается и не пишется в лог.",
 	},
-	"servers.new.port": {EN: "Current SSH port", RU: "Текущий порт SSH"},
-	"servers.new.port.help": {
-		EN: "Where SSH listens on the VPS now, 22 on most. During setup Proxier moves SSH to a random port of its own.",
-		RU: "Где SSH слушает на VPS сейчас, обычно 22. Во время настройки Proxier переносит SSH на свой случайный порт.",
-	},
+	"servers.new.port":                {EN: "SSH port", RU: "Порт SSH"},
 	"servers.new.country":             {EN: "Country", RU: "Страна"},
 	"servers.new.country.placeholder": {EN: "Type to search: Netherlands, nl…", RU: "Начните вводить: Нидерланды, nl…"},
 	"servers.new.country.help":        {EN: "Suggested from the IP's country. Its code is the first half of the server name.", RU: "Предлагается по стране IP. Её код — первая половина имени сервера."},

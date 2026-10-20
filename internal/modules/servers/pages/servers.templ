@@ -60,8 +60,6 @@ templ newServerPage(s ui.Shell, v newView) {
 						<input id="srv-port" class="pc-inp" name="ssh_port" value={ v.Port } placeholder="22" inputmode="numeric" autocomplete="off" aria-invalid?={ v.Errs["ssh_port"] != "" }/>
 						if v.Errs["ssh_port"] != "" {
 							<p class="err" role="alert">{ v.Errs["ssh_port"] }</p>
-						} else {
-							<p class="help">{ i18n.T(ctx, "servers.new.port.help") }</p>
 						}
 					</div>
 					<h2 class="grp">{ i18n.T(ctx, "servers.new.country") }</h2>

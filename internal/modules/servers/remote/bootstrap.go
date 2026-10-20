@@ -14,13 +14,12 @@ import (
 // Reconnect opens a new connection as the deploy user with Proxier's key.
 type Reconnect func(ctx context.Context) (Conn, error)
 
-// BaseBootstrap is the template's base-bootstrap step: SSH moved to sshPort
-// and hardened, verified on a new connection there (reconnect's) and rolled
-// back when that fails, the login banner, apt prerequisites, TCP BBR, Docker,
-// and the firewall. Every sub-step is idempotent, because a restart re-runs
-// the step from its start.
+// BaseBootstrap is the template's base-bootstrap step: SSH hardening verified
+// on a new connection and rolled back when it breaks key login, the login
+// banner, apt prerequisites, Docker, and the firewall. Every sub-step is
+// idempotent, because a restart re-runs the step from its start.
 func BaseBootstrap(ctx context.Context, env Env, c Conn, reconnect Reconnect, sshPort int, ports []manifest.Port) error {
-	if err := hardenSSH(ctx, env, c, reconnect, sshPort); err != nil {
+	if err := hardenSSH(ctx, env, c, reconnect); err != nil {
 		return err
 	}
 	if _, err := env.run(ctx, c, "silence the login banner", CmdHushlogin(), RunOpts{}); err != nil {
@@ -45,18 +44,12 @@ func BaseBootstrap(ctx context.Context, env Env, c Conn, reconnect Reconnect, ss
 	return err
 }
 
-// hardenSSH moves sshd to port and lets only the deploy user in, with a key.
-// The old connection stays open while a new one on port proves key login
-// still works; if it does not, the change is reverted through the old one.
-func hardenSSH(ctx context.Context, env Env, c Conn, reconnect Reconnect, port int) error {
-	env.info("Moving SSH to port %d, only %s with a key", port, DeployUser)
-	if _, err := env.run(ctx, c, "unlock "+DeployUser, CmdUnlockUser(), RunOpts{}); err != nil {
-		return err
-	}
-	if _, err := env.run(ctx, c, "allow the SSH port in ufw", CmdUFWAllow(strconv.Itoa(port)+"/tcp"), RunOpts{Stream: true}); err != nil {
-		return err
-	}
-	if _, err := env.run(ctx, c, "write the sshd drop-in", CmdSSHDDropin(), RunOpts{Stdin: SSHDDropin(port)}); err != nil {
+// hardenSSH turns password and root login off. The old connection stays open
+// while a new one proves key login still works; if it does not, the change is
+// reverted through the old one.
+func hardenSSH(ctx context.Context, env Env, c Conn, reconnect Reconnect) error {
+	env.info("Turning off password and root login over SSH")
+	if _, err := env.run(ctx, c, "write the sshd drop-in", CmdSSHDDropin(), RunOpts{Stdin: SSHDDropin}); err != nil {
 		return err
 	}
 	_, err := env.run(ctx, c, "reload sshd", CmdSSHDReload(), RunOpts{Stream: true})

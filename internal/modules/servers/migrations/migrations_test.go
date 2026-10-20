@@ -3,6 +3,7 @@ package migrations_test
 import (
 	"context"
 	"io/fs"
+	"maps"
 	"testing"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/migrations"
@@ -54,7 +55,7 @@ func TestServersMigrationsRoundTrip(t *testing.T) {
 	if err := db.MigrateUp(ctx, d, dbtest.Discard, srcs...); err != nil {
 		t.Fatal(err)
 	}
-	for range 3 {
+	for range 4 {
 		if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 			t.Fatalf("down: %v", err)
 		}
@@ -68,20 +69,60 @@ func TestServersMigrationsRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSetupSSHPortIsTheOldServersPort(t *testing.T) {
+func TestOneSSHPortAgain(t *testing.T) {
 	ctx := context.Background()
-	d := open(t)
+	d := dbtest.OpenEmpty(t)
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, upTo{3}); err != nil {
+		t.Fatal(err)
+	}
+	mustExec(t, d, `INSERT INTO servers_templates (id, slug, name, created_at) VALUES (1, 't', 'T', ?)`, now)
+	for _, s := range []struct {
+		name, state, step string
+		port, setup       int
+	}{
+		{"nl-1", "failed", "install-access", 23817, 22},
+		{"nl-2", "failed", "preflight", 23818, 2222},
+		{"nl-3", "active", "", 23819, 22},
+		{"nl-4", "failed", "dns", 23820, 22},
+	} {
+		var health any
+		if s.state == "active" {
+			health = "healthy"
+		}
+		mustExec(t, d, `INSERT INTO servers_servers (country, number, name, ip, ssh_port, setup_ssh_port, management_hostname, proxy_hostname, state, failed_step, health, health_since, template_id, template_version, created_at)
+			VALUES ('NL', ?, ?, ?, ?, ?, 'h', 'h', ?, NULLIF(?, ''), ?, ?, 1, 1, ?)`,
+			s.name[3:], s.name, "203.0.113."+s.name[3:], s.port, s.setup, s.state, s.step, health, now, now)
+	}
+	if err := db.MigrateUp(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
+	ports := func() map[string]int {
+		t.Helper()
+		var rows []struct {
+			Name string `db:"name"`
+			Port int    `db:"ssh_port"`
+		}
+		if err := d.R.SelectContext(ctx, &rows, `SELECT name, ssh_port FROM servers_servers`); err != nil {
+			t.Fatal(err)
+		}
+		got := map[string]int{}
+		for _, r := range rows {
+			got[r.Name] = r.Port
+		}
+		return got
+	}
+	// Only a server that failed before base bootstrap never had sshd moved.
+	want := map[string]int{"nl-1": 22, "nl-2": 2222, "nl-3": 23819, "nl-4": 23820}
+	if got := ports(); !maps.Equal(got, want) {
+		t.Fatalf("ssh ports %v, want %v", got, want)
+	}
+
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
-		t.Fatal(err)
+		t.Fatalf("down: %v", err)
 	}
-	mustExec(t, d, `INSERT INTO servers_servers (country, number, name, ip, ssh_port, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
-		VALUES ('NL', 1, 'nl-1', '203.0.113.1', 2222, 'h', 'h', 'failed', 1, 1, ?)`, now)
-	if err := db.MigrateUp(ctx, d, dbtest.Discard, dbtest.Platform, source{}); err != nil {
-		t.Fatal(err)
-	}
-	var setup, life int
-	if err := d.R.QueryRowContext(ctx, `SELECT setup_ssh_port, ssh_port FROM servers_servers`).Scan(&setup, &life); err != nil || setup != 2222 || life != 2222 {
-		t.Fatalf("setup %d, ssh %d, %v", setup, life, err)
+	var n int
+	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM servers_servers WHERE setup_ssh_port != ssh_port`); err != nil || n != 0 {
+		t.Fatalf("%d servers with two ports after down, %v", n, err)
 	}
 }
 

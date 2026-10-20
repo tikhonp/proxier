@@ -30,9 +30,9 @@ The key commands work from an imported router script on 7.24.5, and the `proxier
 
 A name under another service's suffix (`console.anthropic.com` in `mine`, `anthropic.com` in `anthropic`) is installed as its own FWD entry and address-list entry ([ADR 0016](./adr/0016-every-listed-name-reaches-the-router.md)). Expected, as with mtvpn: a query for the subdomain, matched by both static entries, goes to the same forwarder and fills the same address list. Not seen on a real router: which static entry RouterOS matches first, and whether the subdomain's addresses reach `to_vpn_list` before any client asks for it.
 
-## SSH's move on a real VPS
+## Base bootstrap on a real VPS
 
-Base bootstrap moves sshd to the server's drawn port with `systemctl daemon-reload` and `systemctl restart ssh.socket` where sshd is socket-activated, `systemctl reload ssh` elsewhere, and turns TCP BBR on ([provisioning](./processes/servers/server-provisioning.md#steps-the-job)). Seen in an Ubuntu 24.04 container with systemd: the open connection survives the socket's restart, the old port stops answering, the new one answers, and the rollback brings the old one back; `UsePAM no` refuses a `!` account's key and accepts a `*` one's; ufw's reset keeps an open session. Not seen: the same on a real socket-activated Ubuntu 24.04 VPS and on Debian 12 and Ubuntu 22.04 (reload), and BBR on a real VPS's kernel (Docker Desktop's has no `tcp_bbr`, so only the warning was seen). The first real provisioning answers them.
+Base bootstrap turns TCP BBR on and resets ufw ([provisioning](./processes/servers/server-provisioning.md#steps-the-job)). Seen in an Ubuntu 24.04 container with systemd: ufw's reset keeps an open session. Not seen: BBR on a real VPS's kernel (Docker Desktop's has no `tcp_bbr`, so only the warning was seen). The first real provisioning answers it.
 
 ## RouterOS ending a long `/import`
 

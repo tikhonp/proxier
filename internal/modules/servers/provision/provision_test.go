@@ -96,29 +96,16 @@ func TestProvisionSucceeds(t *testing.T) {
 	if pt, _ := ev[0].Payload["proxy_test"].(map[string]any); pt["main"] == nil {
 		t.Fatalf("no proxy test timings: %+v", ev[0].Payload)
 	}
-	// Proxier's key is the way in now, on the server's own SSH port only, and
-	// the host key pinned at the setup port holds there too.
+	// Proxier's key is the way in now, and the SSH host key was pinned once.
 	if h.VPS.Hardened() != true {
 		t.Error("sshd was not hardened")
 	}
-	if srv.SSHPort != serverstest.SSHPort || srv.SetupSSHPort != h.VPS.SetupPort() {
-		t.Errorf("SSH port %d, setup port %d", srv.SSHPort, srv.SetupSSHPort)
-	}
-	if got := h.VPS.SSHPorts(); len(got) != 1 || got[0] != serverstest.SSHPort {
-		t.Errorf("sshd answers on %v", got)
-	}
-	if allowed, on := h.VPS.Firewall(); !on || strings.Join(allowed, " ") != fmt.Sprintf("%d/tcp 80/tcp 443/tcp", serverstest.SSHPort) {
+	if allowed, on := h.VPS.Firewall(); !on || strings.Join(allowed, " ") != fmt.Sprintf("%d/tcp 80/tcp 443/tcp", h.Form().SSHPort) {
 		t.Errorf("firewall %v on=%v", allowed, on)
 	}
-	if h.VPS.SSHDDropin() != remote.SSHDDropin(serverstest.SSHPort) {
-		t.Errorf("drop-in %q", h.VPS.SSHDDropin())
+	if n := len(h.Events("ssh.host_key_pinned")); n != 1 {
+		t.Errorf("%d host keys pinned", n)
 	}
-	pins := h.Events("ssh.host_key_pinned")
-	if len(pins) != 2 || pins[0].Payload["address"] != fmt.Sprintf("127.0.0.1:%d", serverstest.SSHPort) || pins[0].Payload["fingerprint"] != pins[1].Payload["fingerprint"] {
-		t.Errorf("host keys pinned: %+v", pins)
-	}
-	// Later jobs connect on the new port: a self-check round passes.
-	runSelfCheck(t, h, id)
 	if !h.VPS.BBR() {
 		t.Error("TCP BBR is not on")
 	}
@@ -135,114 +122,6 @@ func TestKernelWithoutBBR(t *testing.T) {
 	}
 	if h.VPS.BBR() {
 		t.Error("BBR is on")
-	}
-}
-
-// runSelfCheck runs a check round on the server and wants its self-check to pass.
-func runSelfCheck(t *testing.T, h *serverstest.Harness, id int64) {
-	t.Helper()
-	if res, err := h.Mod.Health.RunNow(bg, id, "admin"); err != nil || res.Busy {
-		t.Fatalf("run checks: %+v %v", res, err)
-	}
-	h.Drain()
-	rs, err := store.LatestResults(bg, h.App.DB.R, id, "self")
-	if err != nil || len(rs) == 0 {
-		t.Fatalf("self-check results: %+v %v", rs, err)
-	}
-	for _, r := range rs {
-		if !r.OK {
-			t.Fatalf("self-check failed: %s %s", r.Class, r.Detail)
-		}
-	}
-}
-
-// sshAnswers reports whether the fake machine's sshd answers on port.
-func sshAnswers(h *serverstest.Harness, port int) bool {
-	_, ok := h.VPS.Route(port)
-	return ok
-}
-
-func TestRestartAfterSSHMoved(t *testing.T) {
-	h := serverstest.NewHarness(t)
-	reached, release := h.VPS.Hold(remote.OpHushlogin)
-	id := h.Create(h.Form())
-	<-reached
-	// sshd answers on the new port only, and the process stops before base bootstrap ends.
-	h.StopJobs()
-	if sshAnswers(h, h.VPS.SetupPort()) || !sshAnswers(h, serverstest.SSHPort) {
-		t.Fatalf("sshd answers on %v", h.VPS.SSHPorts())
-	}
-	release()
-	h.StartJobs()
-	h.Drain()
-	active(t, h, id)
-	log := h.Log(h.Job(id).ID)
-	if strings.Count(log, "Nothing answers on port") != 1 {
-		t.Errorf("the resumed step went to the setup port, or the first run did not:\n%s", log)
-	}
-}
-
-func TestDrawnSSHPortInUse(t *testing.T) {
-	h := serverstest.NewHarness(t)
-	h.VPS.PortsInUse[serverstest.SSHPort] = "nginx (pid 912)"
-	id := h.Create(h.Form())
-	h.Drain()
-	failed(t, h, id, "preflight", fmt.Sprintf("port %d, where Proxier moves SSH, is in use by nginx (pid 912)", serverstest.SSHPort))
-	if exists, _ := h.VPS.HasUser("proxier"); exists {
-		t.Error("preflight changed the server")
-	}
-}
-
-func TestOtherHostKeyOnTheNewPort(t *testing.T) {
-	h := serverstest.NewHarness(t)
-	h.VPS.ForeignKeyOnNewPort = true
-	id := h.Create(h.Form())
-	h.Drain()
-	failed(t, h, id, "base-bootstrap", "reverted")
-	srv := h.Server(id)
-	if !strings.Contains(srv.FailedError, "host key changed") {
-		t.Errorf("error %q", srv.FailedError)
-	}
-	if h.VPS.Hardened() || !sshAnswers(h, h.VPS.SetupPort()) || sshAnswers(h, serverstest.SSHPort) {
-		t.Fatalf("sshd is not back on the setup port: hardened %v, answers on %v", h.VPS.Hardened(), h.VPS.SSHPorts())
-	}
-	// The new port's key waits for a member's decision; nothing trusted it.
-	kh, err := h.App.SSH.KnownHost(bg, fmt.Sprintf("127.0.0.1:%d", serverstest.SSHPort))
-	setup, _ := h.App.SSH.KnownHost(bg, fmt.Sprintf("127.0.0.1:%d", h.VPS.SetupPort()))
-	if err != nil || kh.Fingerprint != setup.Fingerprint || kh.PendingFingerprint == "" {
-		t.Fatalf("the new port's pin: %+v %v", kh, err)
-	}
-	if n := len(h.Events("ssh.host_key_changed")); n != 1 {
-		t.Errorf("%d host key changes recorded", n)
-	}
-}
-
-func TestImageWithUFWOn(t *testing.T) {
-	h := serverstest.NewHarness(t)
-	h.VPS.ImageFirewall(fmt.Sprintf("%d/tcp", h.VPS.SetupPort()), "8080/tcp")
-	id := h.Create(h.Form())
-	h.Drain()
-	active(t, h, id)
-	if allowed, on := h.VPS.Firewall(); !on || strings.Join(allowed, " ") != fmt.Sprintf("%d/tcp 80/tcp 443/tcp", serverstest.SSHPort) {
-		t.Errorf("firewall %v on=%v", allowed, on)
-	}
-}
-
-func TestServerFromBeforeSSHMoved(t *testing.T) {
-	h := serverstest.NewHarness(t)
-	// A server created before SSH moved has one port for both.
-	h.Mod.Provision.DrawSSHPort = func([]int) int { return h.VPS.SetupPort() }
-	id := h.Create(h.Form())
-	h.Drain()
-	srv := active(t, h, id)
-	if srv.SSHPort != h.VPS.SetupPort() || h.VPS.SSHDDropin() != remote.SSHDDropin(h.VPS.SetupPort()) {
-		t.Fatalf("SSH port %d, drop-in %q", srv.SSHPort, h.VPS.SSHDDropin())
-	}
-	if got := h.VPS.SSHPorts(); len(got) != 1 || got[0] != h.VPS.SetupPort() {
-		t.Errorf("sshd answers on %v", got)
-	}
-	if n := len(h.Events("ssh.host_key_pinned")); n != 1 {
-		t.Errorf("%d host keys pinned", n)
 	}
 }
 
@@ -329,9 +208,6 @@ func TestSSHDChangeIsRolledBack(t *testing.T) {
 	if h.VPS.SSHDDropin() != "" || h.VPS.Hardened() {
 		t.Fatal("the drop-in is still there")
 	}
-	if got := h.VPS.SSHPorts(); len(got) != 1 || got[0] != h.VPS.SetupPort() {
-		t.Fatalf("sshd answers on %v, not back on the setup port", got)
-	}
 	// Proxier can still log in.
 	c, err := h.App.SSH.Connect(bg, sshx.Target{Hop: sshx.Hop{Address: h.VPS.Addr, User: "proxier", Subject: "server:" + strconv.FormatInt(id, 10)}}, nil)
 	if err != nil {
@@ -346,8 +222,8 @@ func TestSSHDChangeIsRolledBack(t *testing.T) {
 	h.VPS.BreakKeyLoginAfterSSHD = false
 	retry(t, h, id, "", false)
 	active(t, h, id)
-	if got := h.VPS.SSHPorts(); !h.VPS.Hardened() || len(got) != 1 || got[0] != serverstest.SSHPort {
-		t.Errorf("after the retry: hardened %v, sshd answers on %v", h.VPS.Hardened(), got)
+	if !h.VPS.Hardened() {
+		t.Error("sshd is not hardened after the retry")
 	}
 }
 
@@ -375,9 +251,8 @@ func TestExistingDeployUserIsReused(t *testing.T) {
 	id := h.Create(h.Form())
 	h.Drain()
 	active(t, h, id)
-	// UsePAM no refuses a locked ("!") account even its key: hardening set "*".
-	if exists, pw := h.VPS.HasUser("proxier"); !exists || pw != "*" {
-		t.Errorf("user exists=%v password %q", exists, pw)
+	if exists, locked := h.VPS.HasUser("proxier"); !exists || !locked {
+		t.Errorf("user exists=%v locked=%v", exists, locked)
 	}
 	if h.VPS.Sudoers() != remote.SudoersLine {
 		t.Errorf("sudoers %q was not rewritten", h.VPS.Sudoers())
@@ -557,7 +432,7 @@ func TestResumeAtBaseBootstrap(t *testing.T) {
 	if keys := h.VPS.AuthorizedKeys("proxier"); len(keys) != 1 {
 		t.Errorf("keys: %v", keys)
 	}
-	if h.VPS.SSHDDropin() != remote.SSHDDropin(serverstest.SSHPort) {
+	if h.VPS.SSHDDropin() != remote.SSHDDropin {
 		t.Errorf("drop-in %q", h.VPS.SSHDDropin())
 	}
 	steps, _ := h.App.Jobs.Steps(bg, h.Job(id).ID)
@@ -783,7 +658,7 @@ func TestRetryReopensDeployment(t *testing.T) {
 
 func TestInstallAccessResumesAfterPasswordErased(t *testing.T) {
 	h := serverstest.NewHarness(t)
-	h.VPS.Fail(remote.OpUnlockUser, "usermod: cannot lock /etc/passwd", 1) // stops base bootstrap before sshd moves
+	h.VPS.DockerInstallFails = true
 	id := h.Create(h.Form())
 	h.Drain()
 	failed(t, h, id, "base-bootstrap", "")
@@ -796,6 +671,7 @@ func TestInstallAccessResumesAfterPasswordErased(t *testing.T) {
 	if _, err := h.App.DB.W.Exec(`UPDATE job_steps SET state = 'failed' WHERE job_id = ? AND name = 'install-access'`, jobID); err != nil {
 		t.Fatal(err)
 	}
+	h.VPS.DockerInstallFails = false
 	retry(t, h, id, "", false)
 	active(t, h, id)
 	if !strings.Contains(h.Log(h.Job(id).ID), "already in place") {

@@ -36,12 +36,6 @@ import (
 // CFToken is the token of the fake Cloudflare account.
 const CFToken = "cf-test-token"
 
-// SSHPort is the SSH port every new server draws: provisioning moves the fake
-// machine's sshd there. It is a port of the machine, reached through the
-// harness's dial, and below the ephemeral range, so it is never a real
-// listener's of 127.0.0.1.
-const SSHPort = 23817
-
 // Harness wires the servers module with a full app (sitetest), a fake
 // Cloudflare, a fake resolver, an in-process proxy server the smoke test can
 // reach and a VPS to provision. Nothing touches the network.
@@ -135,7 +129,6 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 	}
 
 	p := mod.Provision
-	p.DrawSSHPort = func([]int) int { return SSHPort }
 	p.SmokeGap = 5 * time.Millisecond
 	p.RemoteEnv = func(log *jobs.Logger) remote.Env { return remote.Env{Log: log, Poll: time.Millisecond} }
 	if h.stubbed {
@@ -179,18 +172,12 @@ func NewHarness(t *testing.T, opts ...Option) *Harness {
 	mod.Deploy.RebootPoll, mod.Deploy.RebootTimeout, mod.Deploy.CheckGap = time.Millisecond, 3*time.Second, time.Millisecond
 
 	// Jobs: workers poll fast and stop quickly.
-	// Every address reaches the one fake VPS, so a test can have many servers;
-	// its SSH ports go where it answers them.
+	// Every address reaches the one fake VPS, so a test can have many servers.
 	h.App.SSH.Dial = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		host, port, _ := net.SplitHostPort(addr)
 		h.mu.Lock()
 		refused := h.refused[host]
 		h.mu.Unlock()
-		if n, _ := strconv.Atoi(port); !refused && (n == SSHPort || n == h.VPS.SetupPort()) {
-			route, ok := h.VPS.Route(n)
-			refused = !ok
-			_, port, _ = net.SplitHostPort(route)
-		}
 		if refused {
 			return nil, &net.OpError{Op: "dial", Net: network, Err: syscall.ECONNREFUSED}
 		}
@@ -377,10 +364,12 @@ func (h *Harness) HideDNS(hidden bool) {
 	h.mu.Unlock()
 }
 
-// Form is a valid new-server form for the VPS, with its setup port.
+// Form is a valid new-server form for the VPS.
 func (h *Harness) Form() provision.Form {
+	_, port, _ := net.SplitHostPort(h.VPS.Addr)
+	n, _ := strconv.Atoi(port)
 	return provision.Form{
-		IP: "127.0.0.1", SSHPort: h.VPS.SetupPort(), RootPassword: DefaultRootPassword,
+		IP: "127.0.0.1", SSHPort: n, RootPassword: DefaultRootPassword,
 		Country: h.Country, TemplateID: h.TemplateID, Params: map[string]string{},
 	}
 }

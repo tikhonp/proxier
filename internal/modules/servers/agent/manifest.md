@@ -79,7 +79,7 @@ proxy_test:                          # optional; overrides Settings → Servers 
 
 | Step | What it does |
 |---|---|
-| `base-bootstrap` | Works as the `proxier` deploy user that provisioning created (passwordless sudo, Proxier's and your personal SSH keys). Moves SSH to the server's SSH port (drawn at creation) and lets only `proxier` in, with a key: no password login, no root login, `UsePAM no`. Turns TCP BBR on when the kernel has it. Writes `.hushlogin`, installs the apt prerequisites `curl ca-certificates openssl ufw` (waiting for apt's lock, which a fresh VPS often holds), and installs Docker (get.docker.com) if missing. Resets the firewall (ufw) to deny every incoming connection but the server's SSH port plus `ports` (rules the image came with go), and turns it on. Docker's published ports bypass ufw; the manifest's ports are opened in ufw anyway so the rule set says what is meant, and nothing else listens. Never locks Proxier out: each SSH change is verified with a fresh key login on the new port and rolled back if that fails. |
+| `base-bootstrap` | Works as the `proxier` deploy user that provisioning created (passwordless sudo, Proxier's and your personal SSH keys). Turns off password login and root login over SSH. Writes `.hushlogin`, installs the apt prerequisites `curl ca-certificates openssl ufw` (waiting for apt's lock, which a fresh VPS often holds), turns on TCP BBR when the kernel has it (a warning otherwise), and installs Docker (get.docker.com) if missing. Resets the firewall (ufw) to deny every incoming connection but the SSH port plus `ports` (rules the image came with go), and turns it on. Docker's published ports bypass ufw; the manifest's ports are opened in ufw anyway so the rule set says what is meant, and nothing else listens. Never locks Proxier out: each SSH change is verified with a fresh key login and rolled back if that fails. |
 | `upload-files` | Renders every file and uploads each one to a temporary name before renaming it into place, so no file is half-written. Deletes files that an earlier deployment of this server put there and this version no longer has. Never touches anything else in `dir` (runtime data such as `certbot/`). |
 | `run` | Runs a command or a bundled script in `dir`, with a timeout (default 10 min). Exit code 0 is success. Output goes to the job log. |
 | `compose-up` | `docker compose up -d --remove-orphans`, with `pull: true` pulling images first. |
@@ -107,7 +107,7 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | `.Server.Name`, `.Server.Number` | `nl-1`, `1` |
 | `.Server.Country.Code`, `.Name`, `.Flag` | `NL`, `Netherlands`, `🇳🇱` (the English name) |
 | `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL`: what templates saw before servers had a country, kept so they still render; `Code` is the first half of the server name |
-| `.Server.IP`, `.Server.SSHPort` | `203.0.113.10`, `23817`: the port SSH listens on once base bootstrap moved it, for the server's whole life |
+| `.Server.IP`, `.Server.SSHPort` | `203.0.113.10`, `22` |
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.tikhonnnnn.com` |
 | `.Params.<key>` | parameters |
 | `.Gen.<key>` | generated values |

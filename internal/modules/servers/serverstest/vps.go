@@ -9,11 +9,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"os"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -33,12 +31,6 @@ const DefaultRootPassword = "hunter2-root-pw"
 // VPS is a fake Debian/Ubuntu server: users, sudoers, an sshd drop-in, apt,
 // Docker, ufw, files under the stack directory, compose services, a
 // certificate and a disk. It keeps state between commands and connections.
-//
-// sshd answers on the machine's ports: at first on SetupPort, which is the
-// port of Addr, and after a reload with a drop-in on the drop-in's Port. Each
-// is served by a listener of its own (Route says where), so a test reaches a
-// port of the machine through the harness's dial; a port nothing answers on,
-// or one ufw denies, is refused.
 // Set the exported fields before the first connection; they are read under a
 // lock only by the VPS's own methods.
 type VPS struct {
@@ -59,7 +51,6 @@ type VPS struct {
 
 	// Faults for edge cases.
 	BreakKeyLoginAfterSSHD bool   // key login fails once sshd reloaded with Proxier's drop-in
-	ForeignKeyOnNewPort    bool   // another machine's host key answers on the port sshd moves to
 	BreakAuthorizedKeys    bool   // keys are written but sshd will not read them
 	VisudoFails            bool   // visudo -cf rejects the sudoers file
 	RequireTTY             bool   // sudo wants a terminal
@@ -76,7 +67,6 @@ type VPS struct {
 	// RebootDowntime is how long logins fail after a reboot (default 30 ms).
 	RebootDowntime time.Duration
 
-	applying   sync.Mutex // one applySSHD at a time
 	mu         sync.Mutex
 	metrics    Metrics
 	images     map[string]string // service → image ID
@@ -88,23 +78,19 @@ type VPS struct {
 	rootPass   string
 	users      map[string]*user
 	sudoers    string
-	dropin     string         // the drop-in file
-	live       string         // the drop-in sshd took at its last reload; "" none
-	setupPort  int            // the port sshd answers on without a drop-in
-	sshd       map[int]string // the machine's port → the listener answering it
-	earlier    map[int]bool   // ports earlier installations' sshd still answers (Unharden)
+	dropin     string
 	ufwAllowed []string
 	ufwOn      bool
-	ufw        bool // installed
 	aptRuns    int
 	bbr        bool // TCP BBR is on, and kept on by the sysctl file
 	services   map[string]string
 	commands   []string
+	hardened   bool
 }
 
 type user struct {
-	password string // shadow's field: "!" locked (useradd, passwd -l), "*" none
-	keys     []string
+	locked bool
+	keys   []string
 }
 
 // NewVPS starts a fake server whose root accepts DefaultRootPassword. No key
@@ -115,130 +101,16 @@ func NewVPS(t testing.TB) *VPS {
 		Server: sshxtest.NewServer(t, nil), t: t,
 		OS: "debian-12", Arch: "amd64", DiskFreePct: 60, CertDaysLeft: 89,
 		PortsInUse: map[int]string{}, HTTPStatus: map[string]string{}, RunHooks: map[string]func(*VPS, string, io.Writer, io.Writer) int{},
-		rootPass: DefaultRootPassword, users: map[string]*user{"root": {password: "$y$hash"}}, services: map[string]string{},
+		rootPass: DefaultRootPassword, users: map[string]*user{"root": {locked: true}}, services: map[string]string{},
 		images: map[string]string{}, newImages: map[string]bool{}, RebootDowntime: 30 * time.Millisecond,
 		metrics: Metrics{
 			Load1: 0.20, CPUBusy: 1000, CPUTotal: 10000, MemTotal: 2 << 30, MemAvail: 1 << 30,
 			DiskTotal: 20 << 30, DiskUsed: 5 << 30, Iface: "eth0", RX: 1 << 20, TX: 1 << 20, Uptime: 100000,
 		},
 	}
-	_, port, _ := net.SplitHostPort(v.Addr)
-	v.setupPort, _ = strconv.Atoi(port)
-	v.sshd, v.earlier = map[int]string{v.setupPort: v.Addr}, map[int]bool{}
 	v.AllowPassword("root", v.rootPass)
 	v.HandleFunc(func(string, string) bool { return true }, v.exec)
 	return v
-}
-
-// SetupPort is the port sshd answers on before provisioning moves it.
-func (v *VPS) SetupPort() int { return v.setupPort }
-
-// Route is the listener that answers port of the machine, and whether one
-// does: a connection to a port it doesn't is refused.
-func (v *VPS) Route(port int) (string, bool) {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	addr, ok := v.sshd[port]
-	return addr, ok
-}
-
-// SSHPorts are the ports of the machine sshd answers on, sorted.
-func (v *VPS) SSHPorts() []int {
-	v.mu.Lock()
-	defer v.mu.Unlock()
-	out := make([]int, 0, len(v.sshd))
-	for p := range v.sshd {
-		out = append(out, p)
-	}
-	sort.Ints(out)
-	return out
-}
-
-// ImageFirewall makes the image come with ufw installed and on, allowing
-// exactly rules ("22/tcp").
-func (v *VPS) ImageFirewall(rules ...string) {
-	v.mu.Lock()
-	v.ufw, v.ufwOn, v.ufwAllowed = true, true, append([]string(nil), rules...)
-	v.mu.Unlock()
-	v.applySSHD()
-}
-
-var (
-	dropinPort  = regexp.MustCompile(`(?m)^Port (\d+)$`)
-	dropinNoPAM = regexp.MustCompile(`(?m)^UsePAM no$`)
-)
-
-// livePort is the port the drop-in sshd took moves it to, or the setup port.
-func (v *VPS) livePort() int {
-	if m := dropinPort.FindStringSubmatch(v.live); m != nil {
-		p, _ := strconv.Atoi(m[1])
-		return p
-	}
-	return v.setupPort
-}
-
-// deployBlocked is whether sshd refuses the deploy user whatever key it
-// offers: a fault, or UsePAM no with a locked ("!") account.
-func (v *VPS) deployBlocked() bool {
-	if v.live == "" {
-		return false
-	}
-	u := v.users[remote.DeployUser]
-	return v.BreakKeyLoginAfterSSHD || (dropinNoPAM.MatchString(v.live) && u != nil && u.password == "!")
-}
-
-// applySSHD makes the listeners and logins what sshd's configuration, the
-// accounts and ufw say, as sshd and the kernel would.
-func (v *VPS) applySSHD() {
-	v.applying.Lock()
-	defer v.applying.Unlock()
-	v.mu.Lock()
-	want := map[int]bool{v.livePort(): true}
-	for p := range v.earlier {
-		want[p] = true
-	}
-	if v.ufwOn {
-		for p := range want {
-			if !slices.Contains(v.ufwAllowed, strconv.Itoa(p)+"/tcp") {
-				delete(want, p)
-			}
-		}
-	}
-	var open []int
-	var shut []string
-	for p := range want {
-		if _, ok := v.sshd[p]; !ok {
-			open = append(open, p)
-		}
-	}
-	for p, addr := range v.sshd {
-		if !want[p] {
-			shut = append(shut, addr)
-			delete(v.sshd, p)
-		}
-	}
-	hardened, blocked, pw, foreign := v.live != "", v.deployBlocked(), v.rootPass, v.ForeignKeyOnNewPort
-	v.mu.Unlock()
-
-	for _, addr := range shut {
-		v.Unlisten(addr)
-	}
-	for _, p := range open {
-		addr := v.Listen()
-		if foreign && p != v.setupPort {
-			v.ForeignHostKey(addr)
-		}
-		v.mu.Lock()
-		v.sshd[p] = addr
-		v.mu.Unlock()
-	}
-	if hardened {
-		v.AllowPassword("root", "")
-	} else {
-		v.AllowPassword("root", pw)
-	}
-	v.BlockLogins("root", hardened)
-	v.BlockLogins(remote.DeployUser, blocked)
 }
 
 type failure struct {
@@ -291,19 +163,18 @@ func (v *VPS) Hold(op remote.Op) (reached <-chan struct{}, release func()) {
 	return h.reached, release
 }
 
-// Unharden undoes what provisioning did to sshd and ufw, so root's password
-// login works again on the setup port: the machine is provisioned a second
-// time, as a test that needs several servers on one fake VPS does (each with
-// its own address; see Harness.AddServer). The port sshd had moved to keeps
-// answering, for the servers provisioned before.
+// Unharden undoes what provisioning did to sshd, so root's password login
+// works again: the machine is provisioned a second time, as a test that needs
+// several servers on one fake VPS does (each with its own address; see
+// Harness.AddServer).
 func (v *VPS) Unharden() {
 	v.mu.Lock()
-	if v.live != "" {
-		v.earlier[v.livePort()] = true
-	}
-	v.dropin, v.live, v.ufwOn = "", "", false
+	v.dropin = ""
+	v.hardened = false
+	pw := v.rootPass
 	v.mu.Unlock()
-	v.applySSHD()
+	v.AllowPassword("root", pw)
+	v.BlockLogins("root", false)
 }
 
 // SetRootPassword changes what root's password login accepts.
@@ -319,7 +190,7 @@ func (v *VPS) SetRootPassword(pw string) {
 func (v *VPS) AddUser(name string, keys ...string) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	v.users[name] = &user{password: "!", keys: append([]string(nil), keys...)}
+	v.users[name] = &user{locked: true, keys: append([]string(nil), keys...)}
 }
 
 // AuthorizedKeys is the user's authorized_keys, line by line.
@@ -332,16 +203,15 @@ func (v *VPS) AuthorizedKeys(name string) []string {
 	return nil
 }
 
-// HasUser reports whether the account exists, and its password field in
-// /etc/shadow ("!" locked, "*" none).
-func (v *VPS) HasUser(name string) (exists bool, password string) {
+// HasUser reports whether the account exists, and whether its password is locked.
+func (v *VPS) HasUser(name string) (exists, locked bool) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	u := v.users[name]
 	if u == nil {
-		return false, ""
+		return false, false
 	}
-	return true, u.password
+	return true, u.locked
 }
 
 // Sudoers is /etc/sudoers.d/proxier, "" when absent.
@@ -369,7 +239,7 @@ func (v *VPS) SSHDDropin() string {
 func (v *VPS) Hardened() bool {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	return v.live != ""
+	return v.hardened
 }
 
 // Firewall is what ufw allows and whether it is on.
@@ -558,20 +428,13 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		v.mu.Unlock()
 		sayln(s.Stdout, fmt.Sprintf("00000000-0000-4000-8000-%012d", n))
 	case remote.OpListeners:
-		// The ports Unharden keeps answering are another installation's: not listed.
-		v.mu.Lock()
-		procs := map[int]string{v.livePort(): "sshd (pid 700)"}
-		v.mu.Unlock()
-		for p, proc := range v.PortsInUse {
-			procs[p] = proc
-		}
-		ports := make([]int, 0, len(procs))
-		for p := range procs {
+		ports := make([]int, 0, len(v.PortsInUse))
+		for p := range v.PortsInUse {
 			ports = append(ports, p)
 		}
 		sort.Ints(ports)
 		for _, p := range ports {
-			name, pid := splitProcess(procs[p])
+			name, pid := splitProcess(v.PortsInUse[p])
 			say(s.Stdout, "LISTEN 0      511          0.0.0.0:%d        0.0.0.0:*    users:((\"%s\",pid=%d,fd=6))\n", p, name, pid)
 		}
 	case remote.OpEnsureUser:
@@ -580,7 +443,7 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		}
 		v.mu.Lock()
 		if v.users[remote.DeployUser] == nil {
-			v.users[remote.DeployUser] = &user{password: "!"}
+			v.users[remote.DeployUser] = &user{locked: true}
 		}
 		v.mu.Unlock()
 	case remote.OpInstallSudoer:
@@ -604,23 +467,6 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		v.installKeys(string(body))
 	case remote.OpSudoCheck:
 		// the sudo gate above is the whole check
-	case remote.OpUnlockUser:
-		if !needRoot() {
-			return 1
-		}
-		v.mu.Lock()
-		if u := v.users[remote.DeployUser]; u != nil {
-			u.password = "*"
-		}
-		v.mu.Unlock()
-		v.applySSHD()
-	case remote.OpUFWAllow:
-		v.mu.Lock()
-		if v.ufw && !slices.Contains(v.ufwAllowed, call.Args[0]) {
-			v.ufwAllowed = append(v.ufwAllowed, call.Args[0])
-		}
-		v.mu.Unlock()
-		v.applySSHD()
 	case remote.OpSSHDDropin:
 		if !needRoot() {
 			return 1
@@ -630,20 +476,16 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		v.dropin = string(body)
 		v.mu.Unlock()
 	case remote.OpSSHDReload:
-		v.mu.Lock()
-		v.live = v.dropin
-		v.mu.Unlock()
-		v.applySSHD()
+		v.reloadSSHD()
 	case remote.OpSSHDRollback:
 		v.mu.Lock()
-		v.dropin, v.live = "", ""
+		v.dropin = ""
 		v.mu.Unlock()
-		v.applySSHD()
+		v.reloadSSHD()
 	case remote.OpHushlogin:
 	case remote.OpApt:
 		v.mu.Lock()
 		v.aptRuns++
-		v.ufw = true
 		v.mu.Unlock()
 	case remote.OpBBR:
 		v.mu.Lock()
@@ -669,7 +511,6 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		v.mu.Lock()
 		v.ufwAllowed, v.ufwOn = append([]string(nil), call.Args...), true
 		v.mu.Unlock()
-		v.applySSHD()
 	case remote.OpPrepareDirs:
 		for _, d := range call.Args {
 			if err := os.MkdirAll(v.real(d), 0o755); err != nil {
@@ -783,6 +624,26 @@ func (v *VPS) installKeys(body string) {
 	}
 }
 
+// reloadSSHD applies the drop-in as sshd would: no password login, no root
+// login; with BreakKeyLoginAfterSSHD the deploy user's key login breaks too.
+// Without the drop-in everything is as it was.
+func (v *VPS) reloadSSHD() {
+	v.mu.Lock()
+	has := v.dropin != ""
+	v.hardened = has
+	pw := v.rootPass
+	v.mu.Unlock()
+	if has {
+		v.AllowPassword("root", "")
+		v.BlockLogins("root", true)
+		v.BlockLogins(remote.DeployUser, v.BreakKeyLoginAfterSSHD)
+		return
+	}
+	v.AllowPassword("root", pw)
+	v.BlockLogins("root", false)
+	v.BlockLogins(remote.DeployUser, false)
+}
+
 func (v *VPS) run(dir, command string, s *sshxtest.Session) int {
 	if hook := v.RunHooks[command]; hook != nil {
 		return hook(v, dir, s.Stdout, s.Stderr)
@@ -889,13 +750,15 @@ func (v *VPS) reboot() {
 	if never {
 		return
 	}
-	timer := time.AfterFunc(down, func() {
-		v.mu.Lock()
-		blocked := v.deployBlocked()
-		v.mu.Unlock()
-		v.BlockLogins(remote.DeployUser, blocked)
-	})
+	timer := time.AfterFunc(down, func() { v.BlockLogins(remote.DeployUser, v.hardenedBreak()) })
 	v.t.Cleanup(func() { timer.Stop() })
+}
+
+// hardenedBreak is whether the deploy user's key login is meant to be broken.
+func (v *VPS) hardenedBreak() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.hardened && v.BreakKeyLoginAfterSSHD
 }
 
 func (v *VPS) composePS(w io.Writer) {

@@ -267,8 +267,6 @@ func TestCountrySuggestion(t *testing.T) {
 func TestCreateStartsProvisioning(t *testing.T) {
 	h := serverstest.NewHarness(t)
 	h.VPS.Close() // the job fails at preflight and keeps its sealed password
-	var avoided []int
-	h.Mod.Provision.DrawSSHPort = func(avoid []int) int { avoided = avoid; return 24001 }
 	f := h.Form()
 	f.Notes = "from a test"
 	f.Params["letsencrypt_email"] = "admin@example.com"
@@ -279,11 +277,6 @@ func TestCreateStartsProvisioning(t *testing.T) {
 	if srv.Name != "nl-1" || srv.Number != 1 || srv.State != "failed" || srv.TemplateVersion != 1 || srv.Notes != "from a test" ||
 		srv.ManagementHostname != "nl-1.hosts.tikhonnnnn.com" || srv.ProxyHostname != srv.ManagementHostname || srv.IP != "127.0.0.1" {
 		t.Fatalf("server: %+v", srv)
-	}
-	// SSH listens on the form's port until base bootstrap moves it to the drawn
-	// one, which is neither that port nor one the template uses.
-	if srv.SetupSSHPort != f.SSHPort || srv.SSHPort != 24001 || fmt.Sprint(avoided) != fmt.Sprintf("[%d 80 443]", f.SSHPort) {
-		t.Fatalf("setup port %d, SSH port %d, the draw avoided %v", srv.SetupSSHPort, srv.SSHPort, avoided)
 	}
 	if !strings.Contains(srv.Params, "admin@example.com") {
 		t.Errorf("params %s", srv.Params)

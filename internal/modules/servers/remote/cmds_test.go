@@ -33,8 +33,6 @@ func TestEveryCommandParsesBack(t *testing.T) {
 		{remote.CmdInstallSudoers(), remote.OpInstallSudoer, false, nil},
 		{remote.CmdInstallKeys(), remote.OpInstallKeys, false, nil},
 		{remote.CmdSudoCheck(), remote.OpSudoCheck, true, nil},
-		{remote.CmdUnlockUser(), remote.OpUnlockUser, true, nil},
-		{remote.CmdUFWAllow("23817/tcp"), remote.OpUFWAllow, true, []string{"23817/tcp"}},
 		{remote.CmdSSHDDropin(), remote.OpSSHDDropin, true, nil},
 		{remote.CmdSSHDReload(), remote.OpSSHDReload, true, nil},
 		{remote.CmdSSHDRollback(), remote.OpSSHDRollback, true, nil},
@@ -78,7 +76,7 @@ func TestEveryCommandParsesBack(t *testing.T) {
 func TestScriptsAreValidShell(t *testing.T) {
 	dir := "/opt/proxier/x"
 	for _, cmd := range []string{
-		remote.CmdEnsureUser(), remote.CmdInstallSudoers(), remote.CmdInstallKeys(), remote.CmdUnlockUser(), remote.CmdUFWAllow("22/tcp"), remote.CmdSSHDDropin(), remote.CmdSSHDReload(),
+		remote.CmdEnsureUser(), remote.CmdInstallSudoers(), remote.CmdInstallKeys(), remote.CmdSSHDDropin(), remote.CmdSSHDReload(),
 		remote.CmdSSHDRollback(), remote.CmdApt(), remote.CmdBBR(), remote.CmdDockerInstall(), remote.CmdFirewall([]string{"22/tcp"}),
 		remote.CmdCertExpiry(dir + "/c.pem"), remote.CmdStats(dir), remote.CmdRun(dir, "./a.sh && ./b.sh"),
 	} {
