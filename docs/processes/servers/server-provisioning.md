@@ -40,7 +40,9 @@ Each step is resumable. A retried job starts at the step that didn't finish.
    - Once both work, erase the password from the job payload. From here on, nothing can use or show it.
 3. **Base bootstrap** (the template's `base-bootstrap` step). Commands that need root run through `sudo -n`.
    - SSH hardening: `PasswordAuthentication no`, `KbdInteractiveAuthentication no`, `PermitRootLogin no`, via a drop-in file. sshd is reloaded, then key login as `proxier` and `sudo -n` are verified again. If verification fails, the change is reverted and the step fails.
-   - `.hushlogin`, apt prerequisites, and Docker via get.docker.com unless Docker is already installed.
+   - `.hushlogin` and the apt prerequisites.
+   - TCP BBR: `net.ipv4.tcp_congestion_control = bbr` (and the `fq` qdisc, best effort), kept across reboots in `/etc/sysctl.d/90-proxier-bbr.conf`. The server sends what clients download through it, over long lossy paths, where BBR keeps the throughput CUBIC halves on every loss. It comes before Docker, because a container's network namespace starts with the host's default. A kernel without BBR (OpenVZ, LXC) gets a warning, "TCP stays on cubic", no file, and provisioning goes on.
+   - Docker via get.docker.com unless Docker is already installed.
    - Firewall: allow the SSH port and the manifest's ports, then enable it.
 4. **DNS.** Create the A record(s) for the hostname(s): DNS-only, TTL 60, comment `proxier:nl-2`. Wait until 1.1.1.1 and 8.8.8.8 both answer with the IP (timeout 10 min).
 5. **Generated values.** Create every generated value the version declares (encrypted).
@@ -89,6 +91,7 @@ The job makes one attempt and never retries by itself: a retry may need input, s
 - The new key login fails after keys were installed (e.g. `authorized_keys` permissions) → install access fails. The password is kept for retry.
 - The sshd reload breaks key login → the drop-in is removed, sshd reloaded, the step fails, and Proxier can still log in.
 - Docker already installed → that sub-step is skipped and logged as such.
+- The kernel has no TCP BBR → "The kernel has no TCP BBR: TCP stays on cubic" in the log, and provisioning goes on.
 - A `proxier` user already exists (a VPS image or an earlier attempt) → it is reused: keys appended, sudoers file rewritten, nothing else changed.
 - The sudoers file fails `visudo -cf` → install access fails. The original sudoers configuration is untouched, and the password is kept for retry.
 - `sudo -n true` fails as `proxier` (for example, `requiretty` set by the image) → install access fails with sudo's message.

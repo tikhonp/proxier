@@ -106,6 +106,23 @@ func TestProvisionSucceeds(t *testing.T) {
 	if n := len(h.Events("ssh.host_key_pinned")); n != 1 {
 		t.Errorf("%d host keys pinned", n)
 	}
+	if !h.VPS.BBR() {
+		t.Error("TCP BBR is not on")
+	}
+}
+
+func TestKernelWithoutBBR(t *testing.T) {
+	h := serverstest.NewHarness(t)
+	h.VPS.NoBBR = true
+	id := h.Create(h.Form())
+	h.Drain()
+	active(t, h, id)
+	if log := h.Log(h.Job(id).ID); !strings.Contains(log, "The kernel has no TCP BBR: TCP stays on cubic") {
+		t.Errorf("no warning:\n%s", log)
+	}
+	if h.VPS.BBR() {
+		t.Error("BBR is on")
+	}
 }
 
 func TestWrongRootPassword(t *testing.T) {

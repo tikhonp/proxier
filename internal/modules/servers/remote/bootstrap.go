@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
@@ -26,6 +27,9 @@ func BaseBootstrap(ctx context.Context, env Env, c Conn, reconnect Reconnect, ss
 	}
 	env.info("Installing prerequisites (curl, ca-certificates, openssl, ufw)")
 	if _, err := env.run(ctx, c, "install prerequisites", CmdApt(), RunOpts{Timeout: 10 * time.Minute, Stream: true}); err != nil {
+		return err
+	}
+	if err := ensureBBR(ctx, env, c); err != nil {
 		return err
 	}
 	if err := ensureDocker(ctx, env, c); err != nil {
@@ -66,6 +70,25 @@ func hardenSSH(ctx context.Context, env Env, c Conn, reconnect Reconnect) error 
 		return errors.Join(fmt.Errorf("SSH hardening broke key login and could not be reverted: %w", rerr), err)
 	}
 	return fmt.Errorf("SSH hardening broke key login and was reverted: %w", err)
+}
+
+// ensureBBR turns TCP BBR on. The server is the sender of what clients
+// download through it, over long lossy paths, where BBR keeps the throughput
+// CUBIC halves on every loss. It runs before Docker: a container's network
+// namespace starts with the host's default congestion control. A kernel
+// without BBR (OpenVZ, LXC, an odd build) only costs throughput, so it is a
+// warning.
+func ensureBBR(ctx context.Context, env Env, c Conn) error {
+	out, err := env.run(ctx, c, "turn on TCP BBR", CmdBBR(), RunOpts{})
+	if err != nil {
+		return err
+	}
+	if cc := strings.TrimSpace(out); cc != "bbr" {
+		env.warn("The kernel has no TCP BBR: TCP stays on %s", orUnknown(cc))
+		return nil
+	}
+	env.info("TCP congestion control: bbr")
+	return nil
 }
 
 func ensureDocker(ctx context.Context, env Env, c Conn) error {

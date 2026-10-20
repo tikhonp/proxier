@@ -57,6 +57,7 @@ type VPS struct {
 	ComposeUpFails         string // docker compose up prints this and fails
 	CertbotRateLimited     bool   // issue-cert.sh fails with Let's Encrypt's rate limit
 	DockerInstallFails     bool
+	NoBBR                  bool // the kernel has no tcp_bbr (OpenVZ, LXC)
 	RebootNeverReturns     bool // the machine does not come back after systemctl reboot
 
 	// RunHooks answer `run` steps by their command ("./issue-cert.sh"); the
@@ -81,6 +82,7 @@ type VPS struct {
 	ufwAllowed []string
 	ufwOn      bool
 	aptRuns    int
+	bbr        bool // TCP BBR is on, and kept on by the sysctl file
 	services   map[string]string
 	commands   []string
 	hardened   bool
@@ -245,6 +247,13 @@ func (v *VPS) Firewall() (allowed []string, on bool) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 	return append([]string(nil), v.ufwAllowed...), v.ufwOn
+}
+
+// BBR reports whether TCP BBR is on, with its sysctl file in place.
+func (v *VPS) BBR() bool {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	return v.bbr
 }
 
 // AptRuns counts apt installs; Commands lists every command seen as
@@ -478,6 +487,15 @@ func (v *VPS) exec(s *sshxtest.Session) int {
 		v.mu.Lock()
 		v.aptRuns++
 		v.mu.Unlock()
+	case remote.OpBBR:
+		v.mu.Lock()
+		v.bbr = !v.NoBBR
+		v.mu.Unlock()
+		if v.NoBBR {
+			sayln(s.Stdout, "cubic")
+		} else {
+			sayln(s.Stdout, "bbr")
+		}
 	case remote.OpDockerCheck:
 		if !v.Docker {
 			sayln(s.Stderr, "docker: 'compose' is not a docker command.")

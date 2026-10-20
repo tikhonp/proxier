@@ -21,6 +21,7 @@ const (
 	OpSSHDRollback   Op = "proxier-sshd-rollback"
 	OpHushlogin      Op = "hushlogin"
 	OpApt            Op = "proxier-apt"
+	OpBBR            Op = "proxier-bbr"
 	OpDockerCheck    Op = "docker-check"
 	OpDockerInstall  Op = "proxier-install-docker"
 	OpFirewall       Op = "proxier-ufw"
@@ -142,6 +143,20 @@ const aptLock = "-o DPkg::Lock::Timeout=300"
 // CmdApt installs the prerequisites the steps rely on.
 func CmdApt() string {
 	return script(true, `export DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a; apt-get `+aptLock+` update && apt-get `+aptLock+` install -y curl ca-certificates openssl ufw`, OpApt)
+}
+
+// BBRConfPath keeps TCP BBR on across reboots.
+const BBRConfPath = "/etc/sysctl.d/90-proxier-bbr.conf"
+
+// CmdBBR makes BBR the kernel's TCP congestion control when the kernel has it,
+// writing the sysctl file only then, and prints the congestion control in use.
+// The fq qdisc BBR was designed with is best effort: newer kernels pace
+// without it.
+func CmdBBR() string {
+	return script(true, `if sysctl -w net.ipv4.tcp_congestion_control=bbr >/dev/null 2>&1; then `+
+		`sysctl -w net.core.default_qdisc=fq >/dev/null 2>&1 || true; `+
+		`printf 'net.core.default_qdisc = fq\nnet.ipv4.tcp_congestion_control = bbr\n' > `+BBRConfPath+`; `+
+		`else rm -f `+BBRConfPath+`; fi; cat /proc/sys/net/ipv4/tcp_congestion_control`, OpBBR)
 }
 
 // CmdDockerCheck succeeds when Docker with the compose plugin is installed.

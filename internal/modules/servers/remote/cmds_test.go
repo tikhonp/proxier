@@ -38,6 +38,7 @@ func TestEveryCommandParsesBack(t *testing.T) {
 		{remote.CmdSSHDRollback(), remote.OpSSHDRollback, true, nil},
 		{remote.CmdHushlogin(), remote.OpHushlogin, false, nil},
 		{remote.CmdApt(), remote.OpApt, true, nil},
+		{remote.CmdBBR(), remote.OpBBR, true, nil},
 		{remote.CmdDockerCheck(), remote.OpDockerCheck, true, nil},
 		{remote.CmdDockerInstall(), remote.OpDockerInstall, true, nil},
 		{remote.CmdFirewall([]string{"22/tcp", "443/tcp"}), remote.OpFirewall, true, []string{"22/tcp", "443/tcp"}},
@@ -76,7 +77,7 @@ func TestScriptsAreValidShell(t *testing.T) {
 	dir := "/opt/proxier/x"
 	for _, cmd := range []string{
 		remote.CmdEnsureUser(), remote.CmdInstallSudoers(), remote.CmdInstallKeys(), remote.CmdSSHDDropin(), remote.CmdSSHDReload(),
-		remote.CmdSSHDRollback(), remote.CmdApt(), remote.CmdDockerInstall(), remote.CmdFirewall([]string{"22/tcp"}),
+		remote.CmdSSHDRollback(), remote.CmdApt(), remote.CmdBBR(), remote.CmdDockerInstall(), remote.CmdFirewall([]string{"22/tcp"}),
 		remote.CmdCertExpiry(dir + "/c.pem"), remote.CmdStats(dir), remote.CmdRun(dir, "./a.sh && ./b.sh"),
 	} {
 		words, err := remote.Split(cmd)
