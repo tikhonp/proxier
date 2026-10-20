@@ -125,7 +125,9 @@ func (s *Server) serverConfig() []byte {
 				"xhttpSettings": map[string]any{"path": s.Path, "mode": "auto"},
 			},
 		}},
-		"outbounds": []any{map[string]any{"protocol": "freedom"}},
+		// Behind a VLESS inbound, freedom refuses private addresses unless a
+		// final rule allows them, and the test object is on 127.0.0.1.
+		"outbounds": []any{map[string]any{"protocol": "freedom", "settings": map[string]any{"finalRules": []any{map[string]any{"action": "allow"}}}}},
 	}
 	b, err := json.Marshal(cfg)
 	if err != nil {
