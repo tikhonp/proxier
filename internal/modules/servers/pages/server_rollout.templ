@@ -100,7 +100,7 @@ templ rolloutTable(v rolloutView) {
 			hx-swap="outerHTML"
 		}
 	>
-		<p class="sm subtle">{ v.Summary }</p>
+		<p class="foot">{ v.Summary }</p>
 		<div class="tbl">
 			<div class="colhead rollout" aria-hidden="true">
 				<span></span>
@@ -127,7 +127,7 @@ templ rolloutTable(v rolloutView) {
 			}
 		</div>
 		if v.FinishedN != "" {
-			<p class="sm subtle">{ v.FinishedN }</p>
+			<p class="foot">{ v.FinishedN }</p>
 		}
 	</div>
 }
