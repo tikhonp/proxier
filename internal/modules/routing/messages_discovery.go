@@ -111,7 +111,7 @@ var discoveryMessages = i18n.Messages{
 	"discovery.add_to":            {EN: "or add them to", RU: "или добавить в"},
 	"discovery.add":               {EN: "Add to this custom service", RU: "Добавить в этот сервис"},
 	"discovery.save.note":         {EN: "Saving goes through the normal checks: normalising, ownership, and the guard that refuses any domain covering a server hostname.", RU: "Сохранение проходит обычные проверки: нормализацию, владение и защиту, которая не пропустит домен, покрывающий имя сервера."},
-	"discovery.save.note_targets": {EN: "Saving goes through the normal checks: normalising, ownership, and the guard that refuses any domain covering a server hostname. {targets} get it about 30 s later.", RU: "Сохранение проходит обычные проверки: нормализацию, владение и защиту, которая не пропустит домен, покрывающий имя сервера. {targets} получат его примерно через 30 с."},
+	"discovery.save.note_targets": {EN: "Saving goes through the normal checks: normalising, ownership, and the guard that refuses any domain covering a server hostname. {targets} get it about 5 s later.", RU: "Сохранение проходит обычные проверки: нормализацию, владение и защиту, которая не пропустит домен, покрывающий имя сервера. {targets} получат его примерно через 5 с."},
 
 	"catalog.discover":      {EN: "Discover {website}…", RU: "Найти домены {website}…"},
 	"catalog.discover.note": {EN: "opens a browser and lists every domain the site loads", RU: "откроет браузер и покажет все домены, которые загружает сайт"},

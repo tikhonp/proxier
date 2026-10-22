@@ -79,7 +79,7 @@ func TestModuleIsWired(t *testing.T) {
 	ctx := context.Background()
 	for key, want := range map[string]string{
 		"routing.refresh_at": "04:00", "routing.catalog_at": "04:30", "routing.shrink_min": "20", "routing.shrink_pct": "50",
-		"routing.github_token": "", "routing.sync_delay": "30s", "routing.drift_every": "6h0m0s", "routing.drift_repair": "true",
+		"routing.github_token": "", "routing.sync_delay": "5s", "routing.drift_every": "6h0m0s", "routing.drift_repair": "true",
 	} {
 		v, err := app.Settings.Lookup(ctx, key)
 		if err != nil || v.Value != want || !v.IsDefault {

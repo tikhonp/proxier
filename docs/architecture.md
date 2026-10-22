@@ -115,7 +115,7 @@ All long or remote work runs as **jobs** stored in SQLite, so they survive resta
 - **Steps**: a job is a sequence of named steps. Step state is stored, the UI shows progress per step, and an interrupted or retried job resumes from the first step that didn't finish. Every step is written so that running it twice is harmless.
 - **Resource key**: at most one running job per key (`server:12`, `router:3`). Others with the same key wait in the queue. Health checks skip a server whose resource key is busy with a mutating job.
 - **Coalescing key**: enqueueing a job whose coalescing key matches a queued (not yet running) job merges into it, but only if that job has never started. If the matching job is running (or has started and waits for a retry), exactly one follow-up is queued, and further requests merge into the follow-up. Router syncs use this, so adding five services in a minute causes one sync, not five.
-- **Delay**: jobs can be queued to run after a moment. Router syncs wait 30 s after the triggering change, to gather more changes.
+- **Delay**: jobs can be queued to run after a moment. Router syncs wait 5 s (`routing.sync_delay`) after the triggering change, to gather more changes.
 - **Retries**: each job type declares attempts and backoff, e.g. a router sync tries 4 times (5 min, 15 min, 1 h).
 - **Cancellation**: a queued job is cancelled at once. A running job gets a cancel request, and its handler stops at the next step boundary (or inside a step that supports it).
 - **Logs**: each job has an ordered log (time, level, step, line), streamed live to the UI. **Redaction**: every secret value the job knows (passwords, generated values, tokens) is replaced with `•••` before a line is stored or shown.

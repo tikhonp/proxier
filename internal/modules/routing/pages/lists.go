@@ -70,7 +70,7 @@ type targetView struct {
 }
 
 // targetsOf words the targets: routers with their sync word ("synced 1 h
-// ago", "syncing", "sync failed · connect", "waits 30 s"), configs with
+// ago", "syncing", "sync failed · connect", "waits 5 s"), configs with
 // their last fetch.
 func (h *handler) targetsOf(ctx context.Context, ts []lists.Target) ([]targetView, error) {
 	out := make([]targetView, 0, len(ts))

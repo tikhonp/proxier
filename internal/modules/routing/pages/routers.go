@@ -86,7 +86,7 @@ func statusKind(st string) string {
 }
 
 // routerWord is a router's sync word for targets: "synced 1 h ago",
-// "syncing", "sync failed · connect", "waits 30 s", "never synced".
+// "syncing", "sync failed · connect", "waits 5 s", "never synced".
 func (h *handler) routerWord(ctx context.Context, r routers.Router) (kind, word string, err error) {
 	loc := i18n.From(ctx)
 	if r.State != "active" {

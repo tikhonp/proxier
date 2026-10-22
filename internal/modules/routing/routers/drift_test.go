@@ -158,7 +158,7 @@ func TestDriftRoundSkips(t *testing.T) {
 	if err := h.Mod.Routers.Pause(bg, paused, access.All, "admin"); err != nil {
 		t.Fatal(err)
 	}
-	h.List("Other", h.Upstream("v2fly:a")) // Queued gets a sync 30 s later
+	h.List("Other", h.Upstream("v2fly:a")) // Queued gets a sync 5 s later
 
 	driftRound(t, h)
 	var checked []int64

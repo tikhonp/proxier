@@ -62,7 +62,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 
 | Trigger | Sync |
 |---|---|
-| A service added, removed or reordered in the router's list; a snapshot of one of its services accepted; a custom service in it saved; the router's list switched | queued with a 30 s delay, coalesced per router |
+| A service added, removed or reordered in the router's list; a snapshot of one of its services accepted; a custom service in it saved; the router's list switched | queued with a delay (`routing.sync_delay`, 5 s by default), coalesced per router |
 | **Sync now** | queued at once |
 | A drift check finding drift, with auto-repair on (default) | queued at once |
 | An unmanaged tag adopted or removed | queued at once |
@@ -90,7 +90,7 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - A tag Proxier never installed is never removed without a member choosing **Remove from router**.
 - Untagged entries are adopted only when a desired tag includes their name. Other untagged entries are left alone and counted on the router page.
 - Names that are infra pins on the router (e.g. `dns.google`, `core.telegram.org`) are never installed as service entries. Installing `dns.google` as a FWD entry through the DoH forwarder would make the forwarder depend on itself.
-- One job per router at a time. Changes coalesce into one sync, 30 s after the last trigger.
+- One job per router at a time. Changes coalesce into one sync, 5 s (`routing.sync_delay`) after the last trigger.
 - Each read command has 10 min, and is one `print as-value` of the entries ([reading state](../../integrations/routeros.md#reading-state)). Reading the DNS entries waits on the router's dns process: a router too busy resolving its address list's names fails at read, however long the bound.
 - An `/import` has a minute plus 150 ms per name in its file (a full 2,000-name file gets 6 min), about five times what a hEX S took, plus twice the time the sync's read of the DNS entries took: a block walks the DNS entries twice (its removal's `find` and its adoption loop), and each walk waits on the dns process as the read did. A hEX S whose read takes 9 min gets about 20 min to import 678 names. A client timeout in the middle of `/import` leaves a tag half-installed, and the block is idempotent, so the retry heals it. RouterOS runs the `/import` on after its session ends, so after a failed import Proxier ends its user's leftover commands before it deletes the file and re-reads ([pushing](../../integrations/routeros.md#pushing)). Failing to end them (a group without `write`) is logged and the sync goes on; a name an import beside the old one leaves twice shows as a change, and the next sync heals it.
 - Every SSH command ends within its timeout (or the cancel) plus 10 s, even when the router never ends the session: Proxier then closes the whole connection. After such an import, Proxier connects again to delete the file and re-read the router, and the attempt fails at push ("the import did not end within 1m0.3s" for a file of 2 names), so the retries run.
@@ -113,8 +113,8 @@ Router sync keeps a MikroTik's tunneled domains equal to its routing list: the D
 - A member at `own` adopts an unmanaged tag: as a new v2fly service → refused; as a custom service → theirs; a tag member 1's private service has → not offered as existing, and refused as taken.
 - A router without a `vpn-doh` forwarder → the "not set up by the router script" warning. Save is still allowed.
 - First sync of the mtvpn-managed home router, with "Main" imported from `mtvpn.yaml` → every matching tag recorded (plan **record**), no push.
-- Add `v2fly:openai` to "Main" → one sync about 30 s later with one update block for `openai`.
-- Add five services within a minute → one sync with five update blocks.
+- Add `v2fly:openai` to "Main" → one sync about 5 s later with one update block for `openai`.
+- Add five services, each within 5 s of the one before → one sync with five update blocks.
 - Remove `v2fly:openai` from "Main" → the next sync removes tag `openai`.
 - Move `claude.ai` ownership from `anthropic` to `mine` (reorder) → `mine` is pushed before `anthropic`. The router has `claude.ai` at the end and in between.
 - The router has tag `netflix` that Proxier never installed → listed as unmanaged and left alone. **Adopt** offers `v2fly:netflix`.

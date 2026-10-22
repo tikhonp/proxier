@@ -56,14 +56,14 @@ func TestAddServiceSyncsOnce(t *testing.T) {
 	h.StartJobs()
 	h.List("Main", h.Upstream("v2fly:openai"))
 	jobs := h.JobsOf(routers.JobSync)
-	if len(jobs) != 1 || !jobs[0].RunAfter.Equal(h.Clock().Add(30*time.Second)) {
-		t.Fatalf("one sync, 30 s later: %+v", jobs)
+	if len(jobs) != 1 || !jobs[0].RunAfter.Equal(h.Clock().Add(5*time.Second)) {
+		t.Fatalf("one sync, 5 s later: %+v", jobs)
 	}
 	h.Settle()
 	if len(r.Imports()) != 0 {
-		t.Fatal("the sync waits its 30 s")
+		t.Fatal("the sync waits its 5 s")
 	}
-	h.Advance(31 * time.Second)
+	h.Advance(6 * time.Second)
 	h.Settle()
 	if imp := r.Imports(); len(imp) != 1 || !strings.Contains(string(r.Import(1)), "# update openai (+2)\n") {
 		t.Fatalf("one update file for openai: %v", imp)
@@ -88,18 +88,18 @@ func TestChangesCoalesce(t *testing.T) {
 		h.Up.V2fly(name, name+".com\n")
 		h.List("Main", h.Upstream("v2fly:"+name))
 		if i < 4 {
-			h.Advance(10 * time.Second)
+			h.Advance(2 * time.Second)
 			h.Settle()
 		}
 	}
 	jobs := h.JobsOf(routers.JobSync)
-	if len(jobs) != 1 || jobs[0].Merged != 4 || !jobs[0].RunAfter.Equal(h.Clock().Add(30*time.Second)) {
-		t.Fatalf("one coalesced sync, 30 s after the last change: %+v", jobs)
+	if len(jobs) != 1 || jobs[0].Merged != 4 || !jobs[0].RunAfter.Equal(h.Clock().Add(5*time.Second)) {
+		t.Fatalf("one coalesced sync, 5 s after the last change: %+v", jobs)
 	}
 	if len(r.Imports()) != 0 {
 		t.Fatal("nothing runs before")
 	}
-	h.Advance(31 * time.Second)
+	h.Advance(6 * time.Second)
 	h.Settle()
 	if len(r.Imports()) != 1 {
 		t.Fatalf("imports: %v", r.Imports())

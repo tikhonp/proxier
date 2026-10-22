@@ -41,7 +41,7 @@ var Section = settings.Section{
 		{Key: ShrinkMin, Kind: settings.Int, Default: "20", Min: 1, Max: 100000},
 		{Key: ShrinkPct, Kind: settings.Int, Default: "50", Min: 1, Max: 99},
 		{Key: GitHubToken, Kind: settings.Secret, Default: "", MaxLen: 200},
-		{Key: SyncDelay, Kind: settings.Duration, Default: "30s", Min: 0, Max: int64(10 * time.Minute)},
+		{Key: SyncDelay, Kind: settings.Duration, Default: "5s", Min: 0, Max: int64(10 * time.Minute)},
 		{Key: DriftEvery, Kind: settings.Duration, Default: "6h0m0s", Min: int64(time.Hour), Max: int64(168 * time.Hour)},
 		{Key: DriftRepair, Kind: settings.Bool, Default: "true"},
 	},
