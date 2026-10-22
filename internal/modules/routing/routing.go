@@ -198,15 +198,16 @@ func (m *Module) pageDeps() pages.Deps {
 	}
 }
 
-// Nav adds Lists, Services, Search, Discover, Routers (g r) and Shadowrocket.
+// Nav adds Lists (g i), Services (g v), Search (g c), Discover (g o), Routers
+// (g r) and Shadowrocket (g h).
 func (*Module) Nav() []ui.NavItem {
 	return []ui.NavItem{
-		{Group: "routing", Area: access.Routing, Label: "lists.nav", Href: "/routing/lists", Order: 10},
-		{Group: "routing", Area: access.Routing, Label: "services.nav", Href: "/routing/services", Order: 20},
-		{Group: "routing", Area: access.Routing, Label: "catalog.nav", Href: "/routing/search", Order: 30},
-		{Group: "routing", Area: access.Routing, Label: "discovery.nav", Href: "/routing/discover", Order: 40},
+		{Group: "routing", Area: access.Routing, Label: "lists.nav", Href: "/routing/lists", Order: 10, GoKey: "i"},
+		{Group: "routing", Area: access.Routing, Label: "services.nav", Href: "/routing/services", Order: 20, GoKey: "v"},
+		{Group: "routing", Area: access.Routing, Label: "catalog.nav", Href: "/routing/search", Order: 30, GoKey: "c"},
+		{Group: "routing", Area: access.Routing, Label: "discovery.nav", Href: "/routing/discover", Order: 40, GoKey: "o"},
 		{Group: "routing", Area: access.Routing, Label: "routers.nav", Href: "/routing/routers", Order: 50, GoKey: "r"},
-		{Group: "routing", Area: access.Routing, Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60},
+		{Group: "routing", Area: access.Routing, Label: "shadowrocket.nav", Href: "/routing/shadowrocket", Order: 60, GoKey: "h"},
 	}
 }
 

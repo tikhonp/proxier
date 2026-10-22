@@ -96,7 +96,7 @@ func TestListActions(t *testing.T) {
 	body := h.Login.Get("/routing/lists/1/add").Body.String()
 	has(t, "picker", body, "Add services to Main", `name="service"`, ">a<", ">b<", ">c<", ">bad<", "Or add a new one", `name="lists" value="1"`)
 	body = h.Login.Get("/routing/lists/1/add?q=ba").Body.String()
-	if !strings.Contains(body, ">bad<") || strings.Contains(body, `value="1"/><span class="col"><span class="bold">a<`) || strings.Contains(body, ">c<") {
+	if !strings.Contains(body, ">bad<") || strings.Contains(body, `title="a">a<`) || strings.Contains(body, `title="c">c<`) {
 		t.Errorf("filter: %s", body)
 	}
 	rec := h.Login.Post("/routing/lists/1/services", url.Values{"service": {fmt.Sprint(c), fmt.Sprint(a), fmt.Sprint(b)}})

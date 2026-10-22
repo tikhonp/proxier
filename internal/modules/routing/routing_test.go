@@ -105,13 +105,13 @@ func TestModuleIsWired(t *testing.T) {
 		t.Errorf("valid values: %v", err)
 	}
 
-	// nav: Lists, Services, Search, Discover, Routers (g r) and Shadowrocket in the routing group
+	// nav: Lists (g i), Services (g v), Search (g c), Discover (g o), Routers (g r) and Shadowrocket (g h) in the routing group
 	nav := h.Mod.Nav()
-	if len(nav) != 6 || nav[5].Href != "/routing/shadowrocket" || nav[5].Order != 60 || nav[5].GoKey != "" ||
-		nav[3].Href != "/routing/discover" || nav[3].Order != 40 || nav[3].GoKey != "" ||
+	if len(nav) != 6 || nav[5].Href != "/routing/shadowrocket" || nav[5].Order != 60 || nav[5].GoKey != "h" ||
+		nav[3].Href != "/routing/discover" || nav[3].Order != 40 || nav[3].GoKey != "o" ||
 		nav[4].Href != "/routing/routers" || nav[4].Order != 50 || nav[4].GoKey != "r" || nav[0].Href != "/routing/lists" || nav[0].Order != 10 || nav[1].Href != "/routing/services" ||
-		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "" || nav[1].GoKey != "" ||
-		nav[2].Href != "/routing/search" || nav[2].Order != 30 || nav[2].GoKey != "" {
+		nav[1].Group != "routing" || nav[1].Order != 20 || nav[0].GoKey != "i" || nav[1].GoKey != "v" ||
+		nav[2].Href != "/routing/search" || nav[2].Order != 30 || nav[2].GoKey != "c" {
 		t.Errorf("nav: %+v", nav)
 	}
 	body := h.Login.Get("/").Body.String()

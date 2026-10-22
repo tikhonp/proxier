@@ -48,7 +48,7 @@ func TestModuleIsWired(t *testing.T) {
 	}
 
 	nav := h.Mod.Nav()
-	if len(nav) != 1 || nav[0].Group != "routerscripts" || nav[0].Href != "/router-scripts" || nav[0].Order != 10 || nav[0].GoKey != "" {
+	if len(nav) != 1 || nav[0].Group != "routerscripts" || nav[0].Href != "/router-scripts" || nav[0].Order != 10 || nav[0].GoKey != "p" {
 		t.Errorf("nav: %+v", nav)
 	}
 	if body := h.Login.Get("/").Body.String(); !strings.Contains(body, `href="/router-scripts"`) || !strings.Contains(body, "Router scripts") {

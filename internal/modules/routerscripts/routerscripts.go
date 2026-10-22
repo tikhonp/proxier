@@ -105,9 +105,9 @@ func (m *Module) Schedules() []jobs.Schedule {
 	return append(m.Generations.Schedules(), m.Agent.Schedule())
 }
 
-// Nav adds Scripts to the router scripts group (no go-to key: one / away).
+// Nav adds Scripts (g p) to the router scripts group.
 func (*Module) Nav() []ui.NavItem {
-	return []ui.NavItem{{Group: "routerscripts", Area: access.RouterScripts, Label: "rscripts.nav", Href: pages.ListPath, Order: 10}}
+	return []ui.NavItem{{Group: "routerscripts", Area: access.RouterScripts, Label: "rscripts.nav", Href: pages.ListPath, Order: 10, GoKey: "p"}}
 }
 
 // Search finds scripts that aren't archived by name or slug (with the

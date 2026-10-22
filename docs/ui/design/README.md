@@ -145,7 +145,7 @@ The keymap is small and vim-like, "not too crazy". Letters never fire inside a f
 | Where | Keys |
 |---|---|
 | Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `esc` close, cancel, leave a field or full screen |
-| `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `r` routers · `j` jobs · `a` activity · `g` top of the list. After `g` a which-key strip shows these choices. |
+| `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `i` routing lists · `v` services · `c` search · `o` discover · `r` routers · `h` Shadowrocket · `p` router scripts · `j` jobs · `a` activity · `,` settings · `g` top of the list. Every sidebar page has a letter of its own, another letter of its name where the first is taken (`TestEverySidebarPageHasItsOwnGoKey`). After `g` a which-key strip shows the choices the member's grant reaches. |
 | In a list | `j k` (arrows and `⌃N ⌃P` too) · `gg G` first, last · `↵` open · `n` new · `space` tick |
 | Row or page | `r` run checks or retry · `s` sync now · `p` pause or resume · `y` copy the URL or value · `e` edit · `[ ]` previous, next tab |
 | Fields and dialogs | `tab` next field · `esc` leave · `⌘↵` save · `↵` confirm a simple dialog |

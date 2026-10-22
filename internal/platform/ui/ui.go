@@ -85,7 +85,7 @@ type NavItem struct {
 	Level access.Level // the level its page needs when higher than the area's lowest
 	Label string       // i18n key
 	Href  string
-	GoKey string // letter after g, "" for none
+	GoKey string // letter after g, its own across the whole nav (cmd/proxier tests it)
 	Order int
 }
 
