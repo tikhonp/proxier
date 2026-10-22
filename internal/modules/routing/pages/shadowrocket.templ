@@ -47,7 +47,7 @@ templ srListPage(s ui.Shell, rows []srRow) {
 					<span>{ i18n.T(ctx, "shadowrocket.col.last") }</span>
 				</div>
 				for _, r := range rows {
-					<a href={ templ.SafeURL(srHref(r.ID)) } class="row srcfg pc-row" data-row={ i64(r.ID) } data-href={ srHref(r.ID) } data-hint={ i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}) }>
+					<a href={ templ.SafeURL(srHref(r.ID)) } class="row srcfg pc-row" data-row={ i64(r.ID) } data-href={ srHref(r.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
 							<span class="bold" title={ r.Name }>{ r.Name }</span>
@@ -87,10 +87,10 @@ templ srFormPage(s ui.Shell, v srFormView, title string) {
 			<div class="actions">
 				if v.C.ID == 0 {
 					<button type="submit" form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.create" data-code-save>{ i18n.T(ctx, "shadowrocket.create") }</button>
-					<a href={ templ.SafeURL(srPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(srPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				} else {
 					<button type="submit" form="sr-form" class="pc-btn pc-pri" data-action="shadowrocket.save" data-code-save>{ i18n.T(ctx, "shadowrocket.save") }</button>
-					<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				}
 			</div>
 		</div>
@@ -393,7 +393,7 @@ templ srEditPage(s ui.Shell, v srEditView, title string) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="shadowrocket.save_edit">{ i18n.T(ctx, "shadowrocket.save") }</button>
-				<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(srHref(v.C.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -412,7 +412,7 @@ templ srDeletePage(s ui.Shell, c shadowrocket.Config, title string) {
 			<p>{ i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": c.Name}) }</p>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" data-action="shadowrocket.delete_confirm">{ i18n.T(ctx, "shadowrocket.delete") }</button>
-				<a href={ templ.SafeURL(srHref(c.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(srHref(c.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -436,7 +436,7 @@ templ srActions(v srView) {
 				@actionRow(ui.Action{ID: "shadowrocket.enable", Label: "shadowrocket.enable", Method: "POST", Href: srHref(v.C.ID) + "/enable", Small: true}, i18n.T(ctx, "shadowrocket.enable.what"))
 			}
 			@actionRow(ui.Action{
-				ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
+				ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x",
 				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
 			}, i18n.T(ctx, "shadowrocket.delete.what"))
 		</div>

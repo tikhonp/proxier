@@ -698,7 +698,7 @@ func sshPage(s ui.Shell, pages []ui.SettingsPage, v sshView) templ.Component {
 				}
 				templ_7745c5c3_Err = ui.ActionButton(ui.Action{
 					ID: "ssh.forget." + strconv.FormatInt(k.ID, 10), Label: "ssh.forget", Method: "POST",
-					Href: "/settings/ssh/hosts/" + strconv.FormatInt(k.ID, 10) + "/forget", Small: true, Kind: ui.Danger,
+					Href: "/settings/ssh/hosts/" + strconv.FormatInt(k.ID, 10) + "/forget", Small: true, Kind: ui.Danger, Key: "x", RowOnly: true,
 					Confirm: &ui.Confirm{
 						Strength: 2,
 						Title:    i18n.T(ctx, "ssh.forget.title", i18n.Args{"address": k.Address}),

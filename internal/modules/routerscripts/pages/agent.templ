@@ -83,7 +83,7 @@ templ agentFormPage(s ui.Shell, v agentFormView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="rs.agent_create">{ i18n.T(ctx, "agent.create") }</button>
-				<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

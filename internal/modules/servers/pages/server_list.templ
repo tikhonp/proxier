@@ -56,7 +56,7 @@ templ serversPage(s ui.Shell, v serversView) {
 					<span>{ i18n.T(ctx, "servers.col.subs") }</span>
 				</div>
 				for _, r := range v.Rows {
-					<div class="row srv pc-row" data-row={ strconv.FormatInt(r.ID, 10) } data-href={ r.Href } data-hint={ r.Hint }>
+					<div class="row srv pc-row" data-row={ strconv.FormatInt(r.ID, 10) } data-href={ r.Href } data-page-keys="x" data-hint={ r.Hint }>
 						<input type="checkbox" name="server" value={ strconv.FormatInt(r.ID, 10) } form="bulk" data-state={ rowState(r) } aria-label={ r.Name }/>
 						<span class="caret" aria-hidden="true">›</span>
 						<a href={ templ.SafeURL(r.Href) } class="bold" title={ r.Name }>{ r.Flag } { r.Name }</a>
@@ -141,7 +141,7 @@ templ bulkPausePage(s ui.Shell, v bulkPauseView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "health.pause.confirm") }</button>
-				<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href="/servers" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

@@ -57,7 +57,7 @@ templ retirePageView(s ui.Shell, v retireView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" disabled data-confirm-submit>{ i18n.T(ctx, "servers.retire") }</button>
-				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				<span class="sm subtle">{ i18n.T(ctx, "servers.retire.irreversible") }</span>
 			</div>
 		</form>

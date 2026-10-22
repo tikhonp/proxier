@@ -1281,7 +1281,7 @@ func templatePage(s ui.Shell, v templateView) templ.Component {
 				}
 			}
 			templ_7745c5c3_Err = ui.ActionButton(ui.Action{
-				ID: "tpl.delete", Label: "templates.delete", Method: "POST", Href: actionHref(v.T.ID, "/delete"), Small: true, Kind: ui.Danger,
+				ID: "tpl.delete", Label: "templates.delete", Method: "POST", Href: actionHref(v.T.ID, "/delete"), Small: true, Kind: ui.Danger, Key: "x",
 				Confirm: &ui.Confirm{
 					Strength: 3, Title: i18n.T(ctx, "templates.delete.title", i18n.Args{"name": v.T.Name}), Body: i18n.T(ctx, "templates.delete.body"),
 					Consequences: []string{i18n.T(ctx, "templates.delete.lose")}, Name: v.T.Slug,

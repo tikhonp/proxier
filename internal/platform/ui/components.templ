@@ -25,15 +25,16 @@ templ ActionButton(a Action) {
 					class={ actionClass(a) }
 					data-action={ a.ID }
 					data-key={ a.Key }
+					data-row-only?={ a.RowOnly }
 					data-dialog-open={ "dlg-" + a.ID }
 				>{ i18n.T(ctx, a.Label) }</button>
 				@confirmDialog(a)
 			} else {
-				<button type="submit" class={ actionClass(a) } data-action={ a.ID } data-key={ a.Key }>{ i18n.T(ctx, a.Label) }</button>
+				<button type="submit" class={ actionClass(a) } data-action={ a.ID } data-key={ a.Key } data-row-only?={ a.RowOnly }>{ i18n.T(ctx, a.Label) }</button>
 			}
 		</form>
 	} else {
-		<a href={ templ.SafeURL(a.Href) } class={ actionClass(a), templ.KV("hidden", a.Hidden) } data-action={ a.ID } data-key={ a.Key }>{ i18n.T(ctx, a.Label) }</a>
+		<a href={ templ.SafeURL(a.Href) } class={ actionClass(a), templ.KV("hidden", a.Hidden) } data-action={ a.ID } data-key={ a.Key } data-row-only?={ a.RowOnly }>{ i18n.T(ctx, a.Label) }</a>
 	}
 }
 

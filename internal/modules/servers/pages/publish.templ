@@ -85,7 +85,7 @@ templ publishPage(s ui.Shell, v publishView) {
 						<button type="submit" class="pc-btn pc-pri" disabled>{ i18n.T(ctx, "templates.publish_go", i18n.Args{"n": v.Number}) }</button>
 						<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn">{ i18n.T(ctx, "templates.open_editor") }</a>
 					}
-					<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(actionHref(v.T.ID, "/edit")) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				</div>
 			</form>
 		}

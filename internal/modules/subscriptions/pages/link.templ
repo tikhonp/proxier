@@ -166,7 +166,7 @@ templ linkPage(s ui.Shell, v linkView) {
 							@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
 							@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
 							@actionRow(ui.Action{
-								ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger,
+								ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x",
 								Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.delete.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.delete.body")},
 							}, i18n.T(ctx, "links.delete.what"))
 						</div>
@@ -373,7 +373,7 @@ templ alertsFormPage(s ui.Shell, v alertsFormView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "ui.save") }</button>
-				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

@@ -46,7 +46,7 @@ templ linksPage(s ui.Shell, v linksView) {
 				<a href={ templ.SafeURL(v.ChipHref) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Expiring) }>{ i18n.T(ctx, "links.filter.expiring") }</a>
 				<a href={ templ.SafeURL(v.AlertHref) } class="pc-chip" aria-pressed={ ui.BoolStr(v.Alerts) }>{ i18n.T(ctx, "links.filter.alerts") }</a>
 				if v.ClearHref != "" {
-					<a href={ templ.SafeURL(v.ClearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
+					<a href={ templ.SafeURL(v.ClearHref) } class="pc-chip" data-key="c">{ i18n.T(ctx, "ui.clear_filters") }</a>
 				}
 			</div>
 			<div class="tbl">
@@ -62,7 +62,7 @@ templ linksPage(s ui.Shell, v linksView) {
 					@ui.EmptyState(i18n.T(ctx, "links.none_match"), "")
 				}
 				for _, r := range v.Rows {
-					<a href={ templ.SafeURL(linkHref(r.ID)) } class="row lnk pc-row" data-row={ i64(r.ID) } data-href={ linkHref(r.ID) } data-hint={ i18n.T(ctx, "links.hints.row", i18n.Args{"name": r.Name}) }>
+					<a href={ templ.SafeURL(linkHref(r.ID)) } class="row lnk pc-row" data-row={ i64(r.ID) } data-href={ linkHref(r.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "links.hints.row", i18n.Args{"name": r.Name}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="bold" title={ r.Name }>{ r.Name }</span>
 						<span class="subtle" title={ r.Subscription }>{ r.Subscription }</span>
@@ -136,7 +136,7 @@ templ newLinkPage(s ui.Shell, v newLinkView) {
 				</div>
 				<div class="form-actions">
 					<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "links.create") }</button>
-					<a href="/links" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href="/links" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				</div>
 			</form>
 		}
@@ -234,7 +234,7 @@ templ linkFormPage(s ui.Shell, v linkFormView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" disabled?={ v.Kind == "subscription" && len(v.Subs) == 0 }>{ i18n.T(ctx, "links.form."+v.Kind+".submit") }</button>
-				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

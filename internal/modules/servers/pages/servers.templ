@@ -100,7 +100,7 @@ templ newServerPage(s ui.Shell, v newView) {
 					</div>
 					<div class="form-actions">
 						<button type="submit" class="pc-btn pc-pri">{ v.CreateLabel }</button>
-						<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<a href="/servers" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 						<span class="sm subtle">{ i18n.T(ctx, "servers.new.create.note") }</span>
 					</div>
 				</div>
@@ -325,7 +325,7 @@ templ serverHead(v serverView, tab string) {
 				@ui.ActionButton(ui.Action{ID: "server.redeploy", Label: "servers.act.redeploy", Method: "GET", Href: serverHref(v.S.ID) + "/redeploy", Kind: ui.Primary, Key: "d"})
 			}
 			if !v.Retiring && !v.Retired {
-				@ui.ActionButton(ui.Action{ID: "server.retire", Label: "servers.retire", Method: "GET", Href: serverHref(v.S.ID) + "/retire", Kind: ui.Danger})
+				@ui.ActionButton(ui.Action{ID: "server.retire", Label: "servers.retire", Method: "GET", Href: serverHref(v.S.ID) + "/retire", Kind: ui.Danger, Key: "x"})
 			}
 		</div>
 	</div>
@@ -544,7 +544,7 @@ templ retryPage(s ui.Shell, v retryView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "servers.retry") }</button>
-				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				<span class="sm subtle">{ i18n.T(ctx, "servers.retry.keeps_version", i18n.Args{"version": v.S.TemplateVersion}) }</span>
 			</div>
 		</form>

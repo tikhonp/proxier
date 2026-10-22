@@ -232,7 +232,7 @@ templ scriptPage(s ui.Shell, v scriptView) {
 				} else {
 					@actionRow(ui.Action{ID: "rs.archive", Label: "scripts.archive", Method: "POST", Href: ScriptHref(v.S.ID) + "/archive", Small: true}, i18n.T(ctx, "scripts.archive.what"))
 				}
-				@actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger}, i18n.T(ctx, "scripts.delete.what"))
+				@actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x"}, i18n.T(ctx, "scripts.delete.what"))
 			</div>
 		}
 		@ui.Area(i18n.T(ctx, "scripts.area.activity"), "") {
@@ -328,7 +328,7 @@ templ publishPage(s ui.Shell, v publishView, title string) {
 				</div>
 				<div class="form-actions">
 					<button type="submit" class="pc-btn pc-pri" data-action="rs.publish_go" disabled?={ len(v.Errors) > 0 }>{ i18n.T(ctx, "scripts.publish.go", i18n.Args{"version": strconv.Itoa(v.Next)}) }</button>
-					<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(ScriptHref(v.S.ID) + "#draft") } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				</div>
 			</form>
 		}

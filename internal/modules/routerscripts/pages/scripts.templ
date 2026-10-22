@@ -57,7 +57,7 @@ templ listPage(s ui.Shell, v listView) {
 					<span>{ i18n.T(ctx, "scripts.col.draft") }</span>
 				</div>
 				for _, r := range v.Rows {
-					<a href={ templ.SafeURL(ScriptHref(r.ID)) } class="row rscript pc-row" data-row={ i64(r.ID) } data-href={ ScriptHref(r.ID) } data-hint={ i18n.T(ctx, "scripts.hints.row", i18n.Args{"name": r.Name}) }>
+					<a href={ templ.SafeURL(ScriptHref(r.ID)) } class="row rscript pc-row" data-row={ i64(r.ID) } data-href={ ScriptHref(r.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "scripts.hints.row", i18n.Args{"name": r.Name}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
 							<span class="bold" title={ r.Name }>{ r.Name }</span>
@@ -122,7 +122,7 @@ templ newPage(s ui.Shell, v newView, title string) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="rs.create">{ i18n.T(ctx, "scripts.create") }</button>
-				<a href={ templ.SafeURL(ListPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(ListPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -161,7 +161,7 @@ templ detailsPage(s ui.Shell, v detailsView, title string) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="rs.save_details">{ i18n.T(ctx, "scripts.details.save") }</button>
-				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -192,7 +192,7 @@ templ deletePage(s ui.Shell, v deleteView, title string) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" data-action="rs.delete_confirm" disabled?={ v.Generations > 0 }>{ i18n.T(ctx, "scripts.delete.go", i18n.Args{"name": v.S.Name}) }</button>
-				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(ScriptHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 		if v.Generations > 0 && !v.S.Archived {

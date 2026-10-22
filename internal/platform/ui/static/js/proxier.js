@@ -38,6 +38,14 @@
     return k === 'n' ? 1 : k === 'p' ? -1 : 0;
   }
 
+  // ⌃D ⌃U move half a window, as in vim: the cursor through a list's rows,
+  // or the page. Never in a field or the code, where ⌃D is macOS's forward delete.
+  function ctrlHalf(e) {
+    if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return 0;
+    var k = /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() : ({ KeyD: 'd', KeyU: 'u' })[e.code];
+    return k === 'd' ? 1 : k === 'u' ? -1 : 0;
+  }
+
   // ---- row cursor (j k) --------------------------------------------------
   var cursor = -1;
   function rows() { return $$('[data-row]').filter(function (r) { return r.offsetParent !== null; }); }
@@ -53,18 +61,50 @@
     if (h) h.textContent = rs[i].getAttribute('data-hint') || h.getAttribute('data-default') || '';
   }
   function currentRow() { var rs = rows(); return cursor >= 0 ? rs[cursor] : null; }
+  function dropCursor() {
+    rows().forEach(function (r) { r.classList.remove('pc-cur'); });
+    cursor = -1;
+    var h = $('#keyhints');
+    if (h) h.textContent = h.getAttribute('data-default') || '';
+  }
+
+  // i puts the caret in the page's first field (a list's filter comes first)
+  function firstField() {
+    return $$('#main input, #main textarea, #main select, #main .cm-content').filter(function (f) {
+      return f.offsetParent !== null && !f.disabled && !f.closest('dialog') &&
+        !/^(hidden|checkbox|radio|submit|button|reset|file|image)$/.test(f.type || '');
+    })[0];
+  }
+
+  // esc follows a form's Cancel ([data-cancel]); after anything was typed on
+  // the page it asks for a second esc, so one stray press loses nothing.
+  var dirty = false, leaveAt = 0;
+  function cancelLink() {
+    return $$('[data-cancel]').filter(function (a) { return a.offsetParent !== null && !a.closest('dialog'); })[0];
+  }
+
+  // x and e reach a row's own page as #key-x: the page's key acts once it's loaded
+  function pageKey(k) {
+    var el = $('[data-key="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]:not([data-row-only])');
+    return el && el.offsetParent !== null ? el : null;
+  }
+  document.addEventListener('DOMContentLoaded', function () {
+    var m = /^#key-([a-z])$/.exec(window.location.hash);
+    if (!m) return;
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    var el = pageKey(m[1]);
+    if (el) el.click();
+  });
 
   // ---- g + letter --------------------------------------------------------
   // While g waits for its letter, the key line says so, as the Main screen
-  // draws it; g g (top of the list) is offered only where there is a list.
+  // draws it; g g goes to the first row, or the top of a page without a list.
   var pendingG = false, gTimer, hintBeforeG = null;
   function setPending(on) {
     var w = $('#whichkey'), h = $('#keyhints');
     if (on && !pendingG && h && w) {
       hintBeforeG = h.textContent;
       h.textContent = w.getAttribute('data-pending-hint') || hintBeforeG;
-      var top = $('#wk-top');
-      if (top) top.classList.toggle('hidden', !rows().length);
     } else if (!on && pendingG && h && hintBeforeG !== null) {
       h.textContent = hintBeforeG;
       hintBeforeG = null;
@@ -252,6 +292,7 @@
 
   document.addEventListener('input', function (e) {
     var t = e.target;
+    if (t.closest && t.closest('#main')) dirty = true;
     if (t.id === 'pal-input') {
       if (palMode === 'all' && t.value.charAt(0) === ':') { palMode = 'act'; t.value = t.value.slice(1); $('#pal-prompt').textContent = ':'; }
       refreshPalette();
@@ -279,6 +320,7 @@
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (!t || !t.getAttribute) return;
+    if (t.closest('#main')) dirty = true;
     if (t.hasAttribute('data-bulk-all')) {
       var f = t.closest('form[data-bulk]');
       Array.prototype.forEach.call(document.querySelectorAll('input[name="server"][form="' + f.id + '"]'), function (b) { b.checked = t.checked; });
@@ -316,9 +358,24 @@
       if (esc && esc.offsetParent !== null && !typing(e.target)) { esc.click(); e.preventDefault(); return; }
       if (document.body.classList.contains('drawer-open')) { document.body.classList.remove('drawer-open'); return; }
       if (typing(e.target)) { e.target.blur(); setPending(false); return; }
-      setPending(false);
-      // after a field (the code's own esc only leaves the code) and never from a dialog
-      if (codeFull() && !(e.target.closest && e.target.closest('dialog'))) { setCodeFull(false); e.preventDefault(); }
+      if (pendingG) { setPending(false); return; }
+      // never from a dialog, which esc closes itself
+      if (e.target.closest && e.target.closest('dialog')) return;
+      // one step at a time: the row cursor (so x and e reach the page again),
+      // full screen (after a field: the code's own esc only leaves the code),
+      // then the form, through its Cancel
+      if (currentRow()) { dropCursor(); e.preventDefault(); return; }
+      if (codeFull()) { setCodeFull(false); e.preventDefault(); return; }
+      var cancel = cancelLink();
+      if (cancel) {
+        e.preventDefault();
+        if (dirty && Date.now() - leaveAt > 2000) {
+          leaveAt = Date.now();
+          say(($('#keyline') || cancel).getAttribute('data-t-unsaved') || '');
+          return;
+        }
+        window.location.href = cancel.getAttribute('href');
+      }
       return;
     }
 
@@ -338,12 +395,23 @@
       return;
     }
 
+    var half = ctrlHalf(e);
+    if (half) {
+      if (typing(e.target) || (e.target.closest && e.target.closest('dialog'))) return;
+      setPending(false);
+      var rs = rows();
+      if (rs.length) setCursor(cursor + half * Math.max(1, Math.floor(window.innerHeight / 2 / Math.max(1, rs[0].offsetHeight))));
+      else window.scrollBy(0, half * window.innerHeight / 2);
+      e.preventDefault();
+      return;
+    }
+
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     if (typing(e.target) || (e.target.closest && e.target.closest('dialog'))) return;
 
     if (pendingG) {
       setPending(false);
-      if (k === 'g') { setCursor(0); e.preventDefault(); return; }
+      if (k === 'g') { if (rows().length) setCursor(0); else window.scrollTo(0, 0); e.preventDefault(); return; }
       var a = $('[data-go-key="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]');
       if (a) { window.location.href = a.getAttribute('href'); e.preventDefault(); }
       return;
@@ -357,7 +425,15 @@
       case 'j': case 'ArrowDown': if (rows().length) { setCursor(cursor + 1); e.preventDefault(); } return;
       case 'k': case 'ArrowUp': if (rows().length) { setCursor(cursor < 0 ? 0 : cursor - 1); e.preventDefault(); } return;
       case 'f': { var lg = $('#log'); if (lg) { setFollow(lg, !follow); say(lg.getAttribute(follow ? 'data-t-follow-on' : 'data-t-follow-off')); e.preventDefault(); } return; }
-      case 'G': if (!rows().length) { var l2 = $('#log'); if (l2) { setFollow(l2, true); e.preventDefault(); } } else if (rows().length) { setCursor(rows().length - 1); e.preventDefault(); } return;
+      case 'G': {
+        var l2 = $('#log');
+        if (rows().length) setCursor(rows().length - 1);
+        else if (l2) setFollow(l2, true);
+        else window.scrollTo(0, document.documentElement.scrollHeight);
+        e.preventDefault();
+        return;
+      }
+      case 'i': { var fi = firstField(); if (fi) { fi.focus(); e.preventDefault(); } return; }
       case 'Enter': {
         var r = currentRow();
         if (r) {
@@ -379,13 +455,21 @@
       }
     }
 
-    // page and row actions: data-key="r"
+    // page and row actions: data-key="r", the row's own first, then the page's
+    // (data-row-only: a key that acts on the row under the cursor, never on the page)
     if (k.length === 1) {
-      var scope = currentRow() || document;
-      var el = $('[data-key="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]', scope) ||
-               (scope !== document ? $('[data-key="' + k + '"]') : null);
-      // data-row-only: a key that acts on the row under the cursor, never on the first
-      if (el && el.offsetParent !== null && !(el.hasAttribute('data-row-only') && scope === document)) { el.click(); e.preventDefault(); }
+      var row = currentRow();
+      var el = row && $('[data-key="' + (window.CSS && CSS.escape ? CSS.escape(k) : k) + '"]', row);
+      if (el && el.offsetParent !== null) { el.click(); e.preventDefault(); return; }
+      // x and e are the row's thing's, never the page's (x on a subscription's
+      // link isn't the subscription's delete): on the row's page, if it has them
+      if (row && (k === 'x' || k === 'e')) {
+        var to = row.getAttribute('data-href') || row.getAttribute('href');
+        if (to && (row.getAttribute('data-page-keys') || '').split(' ').indexOf(k) >= 0) { window.location.href = to + '#key-' + k; e.preventDefault(); }
+        return;
+      }
+      el = pageKey(k);
+      if (el) { el.click(); e.preventDefault(); }
     }
   });
 

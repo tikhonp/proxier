@@ -233,6 +233,7 @@ func (h *handler) navGroups(g access.Grant) []ui.NavGroup {
 func (h *handler) keymap(g access.Grant) ui.Keymap {
 	anywhere := ui.KeyGroup{Where: "keys.anywhere", Keys: []ui.Key{
 		{Keys: "/", What: "keys.search"}, {Keys: ":", What: "keys.actions"}, {Keys: "?", What: "keys.keys"}, {Keys: "esc", What: "keys.esc"},
+		{Keys: "g g  G", What: "keys.top_bottom"}, {Keys: "⌃D ⌃U", What: "keys.half"}, {Keys: "i", What: "keys.field"},
 	}}
 	goTo := ui.KeyGroup{Where: "keys.goto"}
 	for _, ng := range h.navGroups(g) {
@@ -243,7 +244,8 @@ func (h *handler) keymap(g access.Grant) ui.Keymap {
 		}
 	}
 	return ui.Keymap{anywhere, goTo,
-		{Where: "keys.lists", Keys: []ui.Key{{Keys: "j k", What: "keys.move"}, {Keys: "⌃N ⌃P", What: "keys.move_ctrl"}, {Keys: "↵", What: "keys.open"}}},
+		{Where: "keys.lists", Keys: []ui.Key{{Keys: "j k", What: "keys.move"}, {Keys: "⌃N ⌃P", What: "keys.move_ctrl"}, {Keys: "↵", What: "keys.open"},
+			{Keys: "e", What: "keys.edit"}, {Keys: "x", What: "keys.delete"}}},
 		{Where: "keys.settings", Keys: []ui.Key{{Keys: "[ ]", What: "keys.sections"}, {Keys: "⌘↵", What: "keys.save"}}},
 		{Where: "keys.log", Keys: []ui.Key{{Keys: "f", What: "keys.follow"}, {Keys: "G", What: "keys.log_end"}}},
 	}

@@ -87,7 +87,7 @@ templ generatePage(s ui.Shell, v genView, title string) {
 					}
 					<div class="form-actions">
 						<button type="submit" class="pc-btn pc-pri" data-action="rs.generate_go">{ v.GoLabel }</button>
-						<a href={ templ.SafeURL(ScriptHref(v.V.Script.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<a href={ templ.SafeURL(ScriptHref(v.V.Script.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 						<span class="sm subtle">{ i18n.T(ctx, "generations.form.keys") }</span>
 					</div>
 				</div>

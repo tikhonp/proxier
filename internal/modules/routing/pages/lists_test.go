@@ -43,6 +43,7 @@ func TestListPages(t *testing.T) {
 	has(t, "lists", body, "Routing lists", "A list is an ordered set of services.", `href="/routing/lists/new"`, `data-key="n"`,
 		">Main<", "default for new targets", ">Parents<", `href="/routing/lists/1"`, "▲ 1 warning", ">none<", "2 lists",
 		">List<", ">Services<", ">Domains<", ">Targets<", ">Warnings<")
+	has(t, "lists rows", body, fmt.Sprintf(`data-href="/routing/lists/%d" data-page-keys="e x"`, main))
 
 	body = h.Login.Get(fmt.Sprintf("/routing/lists/%d", main)).Body.String()
 	has(t, "list page", body, "<h1>Main</h1>", "2 services · 3 domains · default for new targets", `href="/routing/lists/1/add"`,
@@ -52,6 +53,9 @@ func TestListPages(t *testing.T) {
 		"Targets · 0", "No routers or Shadowrocket configs follow Main yet.",
 		"Warnings · 1", "v2fly:anthropic has tikhonnnnn.com, which covers nl-1.hosts.tikhonnnnn.com (nl-1): left out of what targets get.",
 		"Actions", "Rename…", "Delete…", "The default list can&#39;t be deleted.", "Activity", "Added anthropic", "Added mine")
+	// x opens the delete (the page's) or a row's remove, e renames; a row's x never reaches the page's
+	has(t, "list keys", body, `data-action="lists.delete" data-key="x">`, `data-action="lists.rename" data-key="e">`,
+		fmt.Sprintf(`data-action="lists.remove.%d" data-key="x" data-row-only data-dialog-open=`, anthropic))
 	// owned / total: anthropic installs 2 of 3, mine 1 of 2
 	has(t, "owned/total", body, `2 <span class="subtle">/ 3</span>`, `1 <span class="subtle">/ 2</span>`)
 	if strings.Contains(body, `action="/routing/lists/1/default"`) {

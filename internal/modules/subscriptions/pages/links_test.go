@@ -80,7 +80,7 @@ func TestLinkList(t *testing.T) {
 	}
 	// the filters stay in the URL: the chip keeps the others, Clear drops them
 	body = page(t, h, "/links?name=a&state=active")
-	mustContain(t, body, `value="a"`, `<option value="active" selected`, `href="/links?expiring=1&amp;name=a&amp;state=active"`, `href="/links" class="pc-chip" data-key="x"`)
+	mustContain(t, body, `value="a"`, `<option value="active" selected`, `href="/links?expiring=1&amp;name=a&amp;state=active"`, `href="/links" class="pc-chip" data-key="c"`)
 	if !strings.Contains(page(t, h, "/links?state=deleted"), "Old phone") || strings.Contains(page(t, h, "/links?state=deleted"), "still serve") {
 		t.Error("the deleted filter shows the footer")
 	}

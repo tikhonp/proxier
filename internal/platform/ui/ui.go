@@ -149,6 +149,7 @@ type Action struct {
 	Method  string // "GET" link or "POST" form
 	Href    string
 	Key     string // optional page key, e.g. "r"
+	RowOnly bool   // the key acts on the row under the cursor, never from the page
 	Kind    ActionKind
 	Small   bool
 	Confirm *Confirm          // nil: no dialog

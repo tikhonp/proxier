@@ -43,7 +43,7 @@ templ listPage(s ui.Shell, v listView) {
 						<span>{ i18n.T(ctx, "services.col.lists") }</span>
 					</div>
 					for _, r := range v.Rows {
-						<div class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-hint={ rowHint(ctx, r) }>
+						<div class="row svc pc-row" data-row={ i64(r.ID) } data-href={ svcHref(r.ID) } data-page-keys="e x" data-hint={ rowHint(ctx, r) }>
 							<span class="caret" aria-hidden="true">›</span>
 							<span class="col">
 								<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold" title={ r.Tag }>{ r.Tag }</a>
@@ -118,7 +118,7 @@ templ addPage(s ui.Shell, v addView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="services.add.submit">{ i18n.T(ctx, "services.add.submit") }</button>
-				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 		if v.Taken != nil {
@@ -190,7 +190,7 @@ templ newPage(s ui.Shell, v newView) {
 			@customFields(v.Name, v.Tag, v.Description, v.Errs, true)
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="services.new.submit">{ i18n.T(ctx, "services.new.submit") }</button>
-				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(listPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

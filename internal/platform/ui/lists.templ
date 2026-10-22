@@ -42,7 +42,7 @@ templ FilterBar(chips []Chip, form *FilterForm, clearHref string) {
 			</form>
 		}
 		if clearHref != "" {
-			<a href={ templ.SafeURL(clearHref) } class="pc-chip" data-key="x">{ i18n.T(ctx, "ui.clear_filters") }</a>
+			<a href={ templ.SafeURL(clearHref) } class="pc-chip" data-key="c">{ i18n.T(ctx, "ui.clear_filters") }</a>
 		}
 	</div>
 }

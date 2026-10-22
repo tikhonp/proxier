@@ -1401,7 +1401,7 @@ func scriptPage(s ui.Shell, v scriptView) templ.Component {
 						return templ_7745c5c3_Err
 					}
 				}
-				templ_7745c5c3_Err = actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger}, i18n.T(ctx, "scripts.delete.what")).Render(ctx, templ_7745c5c3_Buffer)
+				templ_7745c5c3_Err = actionRow(ui.Action{ID: "rs.delete", Label: "scripts.delete", Method: "GET", Href: ScriptHref(v.S.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x"}, i18n.T(ctx, "scripts.delete.what")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -2155,14 +2155,14 @@ func publishPage(s ui.Shell, v publishView, title string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "\" class=\"pc-btn pc-ghost\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 188, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var117 string
 				templ_7745c5c3_Var117, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routerscripts/pages/script.templ`, Line: 331, Col: 112}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routerscripts/pages/script.templ`, Line: 331, Col: 124}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var117))
 				if templ_7745c5c3_Err != nil {

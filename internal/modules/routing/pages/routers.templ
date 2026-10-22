@@ -55,7 +55,7 @@ templ routersPage(s ui.Shell, rows []routerRow, notice string) {
 					<span></span>
 				</div>
 				for _, r := range rows {
-					<div class="row rtr pc-row" data-row={ i64(r.ID) } data-href={ routerHref(r.ID) } data-hint={ i18n.T(ctx, "routers.hints.row", i18n.Args{"name": r.Name}) }>
+					<div class="row rtr pc-row" data-row={ i64(r.ID) } data-href={ routerHref(r.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "routers.hints.row", i18n.Args{"name": r.Name}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
 							<a class="bold" href={ templ.SafeURL(routerHref(r.ID)) } title={ r.Name }>{ r.Name }</a>
@@ -219,7 +219,7 @@ templ routerAddPage(s ui.Shell, v rtAddView) {
 					<div class="form-actions">
 						<button type="submit" class="pc-btn" formaction={ templ.SafeURL(routersPath + "/test") } data-action="routers.test" data-key="t">{ i18n.T(ctx, "routers.test") }</button>
 						<button type="submit" class="pc-btn pc-pri" data-action="routers.save">{ i18n.T(ctx, "routers.save") }</button>
-						<a href={ templ.SafeURL(routersPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<a href={ templ.SafeURL(routersPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 					</div>
 					<p class="sm subtle">{ i18n.T(ctx, "routers.save.note") }</p>
 				</form>
@@ -591,7 +591,7 @@ templ routerEditPage(s ui.Shell, v editView, title string) {
 			<p class="sm subtle">{ i18n.T(ctx, "routers.edit.names_note") }</p>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="routers.save_edit">{ i18n.T(ctx, "routers.save_edit") }</button>
-				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -611,7 +611,7 @@ templ routerListPage(s ui.Shell, v listPickView, title string) {
 			@listSelect(v.Lists, v.R.ListID, v.Err)
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="routers.save_list">{ i18n.T(ctx, "routers.save_edit") }</button>
-				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -629,7 +629,7 @@ templ routerActions(v routerView) {
 				@actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what"))
 			}
 			if v.R.State != "removing" {
-				@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger}, i18n.T(ctx, "routers.remove.what"))
+				@actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger, Key: "x"}, i18n.T(ctx, "routers.remove.what"))
 			}
 		</div>
 	}

@@ -342,14 +342,14 @@ func srListPage(s ui.Shell, rows []srRow) templ.Component {
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" data-hint=\"")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 26, "\" data-page-keys=\"e x\" data-hint=\"")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}
 					var templ_7745c5c3_Var21 string
 					templ_7745c5c3_Var21, templ_7745c5c3_Err = templ.ResolveAttributeValue(i18n.T(ctx, "shadowrocket.hints.row", i18n.Args{"name": r.Name}))
 					if templ_7745c5c3_Err != nil {
-						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 50, Col: 196}
+						return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 50, Col: 217}
 					}
 					_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var21)
 					if templ_7745c5c3_Err != nil {
@@ -585,14 +585,14 @@ func srFormPage(s ui.Shell, v srFormView, title string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\" class=\"pc-btn pc-ghost\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 43, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var35 string
 				templ_7745c5c3_Var35, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 90, Col: 89}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 90, Col: 101}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var35))
 				if templ_7745c5c3_Err != nil {
@@ -629,14 +629,14 @@ func srFormPage(s ui.Shell, v srFormView, title string) templ.Component {
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"pc-btn pc-ghost\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var38 string
 				templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 93, Col: 97}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 93, Col: 109}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 				if templ_7745c5c3_Err != nil {
@@ -2735,14 +2735,14 @@ func srEditPage(s ui.Shell, v srEditView, title string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "\" class=\"pc-btn pc-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 234, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var150 string
 			templ_7745c5c3_Var150, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 396, Col: 96}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 396, Col: 108}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var150))
 			if templ_7745c5c3_Err != nil {
@@ -2881,14 +2881,14 @@ func srDeletePage(s ui.Shell, c shadowrocket.Config, title string) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "\" class=\"pc-btn pc-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 243, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var159 string
 			templ_7745c5c3_Var159, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 415, Col: 94}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/routing/pages/shadowrocket.templ`, Line: 415, Col: 106}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var159))
 			if templ_7745c5c3_Err != nil {
@@ -2972,7 +2972,7 @@ func srActions(v srView) templ.Component {
 				}
 			}
 			templ_7745c5c3_Err = actionRow(ui.Action{
-				ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger,
+				ID: "shadowrocket.delete", Label: "shadowrocket.delete", Method: "POST", Href: srHref(v.C.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x",
 				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "shadowrocket.delete.title", i18n.Args{"name": v.C.Name}), Body: i18n.T(ctx, "shadowrocket.delete.body", i18n.Args{"name": v.C.Name})},
 			}, i18n.T(ctx, "shadowrocket.delete.what")).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {

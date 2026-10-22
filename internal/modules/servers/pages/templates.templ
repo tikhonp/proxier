@@ -42,7 +42,7 @@ templ templatesPage(s ui.Shell, v templatesView) {
 					<span>{ i18n.T(ctx, "templates.col.draft") }</span>
 				</div>
 				for _, t := range v.Items {
-					<a href={ templ.SafeURL(tplHref(t.ID)) } class="row tpl pc-row" data-row={ i64(t.ID) } data-href={ tplHref(t.ID) } data-hint={ i18n.T(ctx, "templates.hints.row", i18n.Args{"name": t.Slug}) }>
+					<a href={ templ.SafeURL(tplHref(t.ID)) } class="row tpl pc-row" data-row={ i64(t.ID) } data-href={ tplHref(t.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "templates.hints.row", i18n.Args{"name": t.Slug}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
 							<span class="bold" title={ t.Name }>{ t.Name }</span>
@@ -110,7 +110,7 @@ templ newTemplatePage(s ui.Shell, v newTemplateView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "templates.create") }</button>
-				<a href="/templates" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href="/templates" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

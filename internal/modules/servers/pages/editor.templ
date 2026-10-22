@@ -56,7 +56,7 @@ templ editorPage(s ui.Shell, v editorView) {
 				<button type="submit" form="draft-form" formaction={ actionHref(v.T.ID, "/draft") } name="next" value="publish" class="pc-btn pc-pri" data-action="tpl.publish" disabled?={ v.Stale }>{ i18n.T(ctx, "templates.publish_n", i18n.Args{"n": v.Next}) }</button>
 				@ui.ActionButton(ui.Action{ID: "tpl.handoff", Label: "agent.handoff", Method: "GET", Href: actionHref(v.T.ID, "/agent")})
 				@ui.ActionButton(ui.Action{
-					ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger,
+					ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger, Key: "x",
 					Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "templates.discard.title"), Body: i18n.T(ctx, "templates.discard.body"), Consequences: []string{i18n.T(ctx, "templates.discard.lose_all")}},
 				})
 			</div>

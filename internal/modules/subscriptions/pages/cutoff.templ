@@ -59,7 +59,7 @@ templ cutoffPlanPage(s ui.Shell, v cutoffPlanView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" data-action="cutoff.start">{ i18n.T(ctx, "cutoff.start") }</button>
-				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(linkHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

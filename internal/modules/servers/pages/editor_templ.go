@@ -318,7 +318,7 @@ func editorPage(s ui.Shell, v editorView) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			templ_7745c5c3_Err = ui.ActionButton(ui.Action{
-				ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger,
+				ID: "tpl.discard", Label: "templates.discard", Method: "POST", Href: actionHref(v.T.ID, "/draft/discard"), Kind: ui.Danger, Key: "x",
 				Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "templates.discard.title"), Body: i18n.T(ctx, "templates.discard.body"), Consequences: []string{i18n.T(ctx, "templates.discard.lose_all")}},
 			}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {

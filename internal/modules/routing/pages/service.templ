@@ -130,7 +130,7 @@ templ servicePage(s ui.Shell, v pageView) {
 						</div>
 						if v.CanChange {
 							<div class="row act">
-								@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger})
+								@ui.ActionButton(ui.Action{ID: "services.remove", Label: "services.remove", Method: "GET", Href: svcHref(v.It.ID) + "/remove", Small: true, Kind: ui.Danger, Key: "x"})
 								<span class="sm subtle">{ i18n.T(ctx, "services.remove.note") }</span>
 							</div>
 						}
@@ -276,7 +276,7 @@ templ switchPage(s ui.Shell, v switchView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="services.switch.submit">{ i18n.T(ctx, "services.switch.submit") }</button>
-				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -370,7 +370,7 @@ templ removePage(s ui.Shell, v removeView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" disabled?={ len(v.Lists) > 0 } data-action="services.remove">{ i18n.T(ctx, "services.remove") }</button>
-				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

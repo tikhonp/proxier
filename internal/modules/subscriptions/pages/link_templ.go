@@ -1098,7 +1098,7 @@ func linkPage(s ui.Shell, v linkView) templ.Component {
 						return templ_7745c5c3_Err
 					}
 					templ_7745c5c3_Err = actionRow(ui.Action{
-						ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger,
+						ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x",
 						Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "links.delete.title", i18n.Args{"name": v.L.Name}), Body: i18n.T(ctx, "links.delete.body")},
 					}, i18n.T(ctx, "links.delete.what")).Render(ctx, templ_7745c5c3_Buffer)
 					if templ_7745c5c3_Err != nil {
@@ -2562,14 +2562,14 @@ func alertsFormPage(s ui.Shell, v alertsFormView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "\" class=\"pc-btn pc-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 198, "\" class=\"pc-btn pc-ghost\" data-cancel>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var144 string
 			templ_7745c5c3_Var144, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/pages/link.templ`, Line: 376, Col: 98}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/modules/subscriptions/pages/link.templ`, Line: 376, Col: 110}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var144))
 			if templ_7745c5c3_Err != nil {

@@ -58,7 +58,7 @@ templ listsPage(s ui.Shell, v listsView) {
 				<span>{ i18n.T(ctx, "lists.col.warnings") }</span>
 			</div>
 			for _, r := range v.Rows {
-				<a href={ templ.SafeURL(listHref(r.ID)) } class="row rlist pc-row" data-row={ i64(r.ID) } data-href={ listHref(r.ID) } data-hint={ i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}) }>
+				<a href={ templ.SafeURL(listHref(r.ID)) } class="row rlist pc-row" data-row={ i64(r.ID) } data-href={ listHref(r.ID) } data-page-keys="e x" data-hint={ i18n.T(ctx, "lists.hints.row", i18n.Args{"name": r.Name}) }>
 					<span class="caret" aria-hidden="true">›</span>
 					<span class="col">
 						<span class="bold" title={ r.Name }>{ r.Name }</span>
@@ -112,10 +112,10 @@ templ listFormPage(s ui.Shell, v listFormView, title string) {
 			<div class="form-actions">
 				if v.L.ID == 0 {
 					<button type="submit" class="pc-btn pc-pri" data-action="lists.create">{ i18n.T(ctx, "lists.create") }</button>
-					<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				} else {
 					<button type="submit" class="pc-btn pc-pri" data-action="lists.save">{ i18n.T(ctx, "lists.save") }</button>
-					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				}
 			</div>
 		</form>
@@ -172,7 +172,7 @@ templ addToListPage(s ui.Shell, v addToListView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="lists.add.submit">{ i18n.T(ctx, "lists.add.submit") }</button>
-				<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 		@ui.Area(i18n.T(ctx, "lists.add.new"), "") {
@@ -210,7 +210,7 @@ templ deleteListPage(s ui.Shell, v deleteListView) {
 			<div class="form">
 				<p>{ i18n.T(ctx, "lists.delete.default") }</p>
 				<div class="form-actions">
-					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				</div>
 			</div>
 		} else {
@@ -236,13 +236,13 @@ templ deleteListPage(s ui.Shell, v deleteListView) {
 					</div>
 					<div class="form-actions">
 						<button type="submit" class="pc-btn pc-dng" data-action="lists.delete.move">{ i18n.T(ctx, "lists.delete.move_submit", i18n.Args{"name": v.L.Name}) }</button>
-						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 					</div>
 				} else {
 					<p>{ i18n.N(ctx, "lists.delete.body", int64(v.Size), i18n.Args{"name": v.L.Name}) }</p>
 					<div class="form-actions">
 						<button type="submit" class="pc-btn pc-dng" data-action="lists.delete.submit">{ i18n.T(ctx, "lists.delete.submit", i18n.Args{"name": v.L.Name}) }</button>
-						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+						<a href={ templ.SafeURL(listHref(v.L.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 					</div>
 				}
 			</form>
@@ -276,7 +276,7 @@ templ serviceListsPage(s ui.Shell, v serviceListsView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" disabled?={ len(v.Lists) == 0 } data-action="lists.to_lists.submit">{ i18n.T(ctx, "lists.to_lists.submit") }</button>
-				<a href={ templ.SafeURL(svcHref(v.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(svcHref(v.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

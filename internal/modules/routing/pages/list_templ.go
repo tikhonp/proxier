@@ -1126,7 +1126,7 @@ func memberActs(v membersView, r memberRow) templ.Component {
 			return templ_7745c5c3_Err
 		}
 		templ_7745c5c3_Err = ui.ActionButton(ui.Action{
-			ID: "lists.remove." + i64(r.ID), Label: "lists.remove", Method: "POST", Small: true, Kind: ui.Ghost,
+			ID: "lists.remove." + i64(r.ID), Label: "lists.remove", Method: "POST", Small: true, Kind: ui.Ghost, Key: "x", RowOnly: true,
 			Href:    listHref(v.ListID) + "/services/" + i64(r.ID) + "/remove",
 			Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "lists.remove.title", i18n.Args{"tag": r.Tag, "name": v.Name}), Body: i18n.T(ctx, "lists.remove.body", i18n.Args{"tag": r.Tag, "name": v.Name})},
 		}).Render(ctx, templ_7745c5c3_Buffer)
@@ -1431,7 +1431,7 @@ func listActions(v listPageView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ui.ActionButton(ui.Action{ID: "lists.rename", Label: "lists.rename", Method: "GET", Href: listHref(v.L.ID) + "/edit", Small: true, Key: "e"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1483,7 +1483,7 @@ func listActions(v listPageView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger}).Render(ctx, templ_7745c5c3_Buffer)
+			templ_7745c5c3_Err = ui.ActionButton(ui.Action{ID: "lists.delete", Label: "lists.delete", Method: "GET", Href: listHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x"}).Render(ctx, templ_7745c5c3_Buffer)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

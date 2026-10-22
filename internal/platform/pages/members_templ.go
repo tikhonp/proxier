@@ -215,7 +215,7 @@ func membersPage(s ui.Shell, pages []ui.SettingsPage, in, removed []memberRow, j
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\"><span class=\"caret\" aria-hidden=\"true\">›</span> <span><a href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\" data-page-keys=\"x\"><span class=\"caret\" aria-hidden=\"true\">›</span> <span><a href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -771,14 +771,14 @@ func memberNewPage(s ui.Shell, pages []ui.SettingsPage, v memberNewView) templ.C
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</button> <a href=\"/settings/members\" class=\"pc-btn pc-ghost\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "</button> <a href=\"/settings/members\" class=\"pc-btn pc-ghost\" data-cancel>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var42 string
 			templ_7745c5c3_Var42, templ_7745c5c3_Err = templ.JoinStringErrs(i18n.T(ctx, "ui.cancel"))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/platform/pages/members.templ`, Line: 136, Col: 82}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/platform/pages/members.templ`, Line: 136, Col: 94}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var42))
 			if templ_7745c5c3_Err != nil {
@@ -1359,7 +1359,7 @@ func memberPage(s ui.Shell, pages []ui.SettingsPage, v memberView) templ.Compone
 					return templ_7745c5c3_Err
 				}
 				templ_7745c5c3_Err = ui.ActionButton(ui.Action{
-					ID: "members.remove", Label: "members.remove", Method: "POST", Href: memberHref(v.M.ID) + "/remove", Kind: ui.Danger,
+					ID: "members.remove", Label: "members.remove", Method: "POST", Href: memberHref(v.M.ID) + "/remove", Kind: ui.Danger, Key: "x",
 					Confirm: &ui.Confirm{
 						Strength: 2,
 						Title:    i18n.T(ctx, "members.remove.title", i18n.Args{"name": v.M.Username}),

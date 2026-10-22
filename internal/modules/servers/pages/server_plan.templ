@@ -152,7 +152,7 @@ templ planBody(v planView) {
 		if v.Force != nil {
 			@ui.ActionButton(*v.Force)
 		}
-		<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+		<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 		if v.Kind == "rollback" || v.Apply != nil {
 			<span class="sm subtle">{ i18n.T(ctx, "servers.plan.failure_note") }</span>
 		}

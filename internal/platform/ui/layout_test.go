@@ -754,7 +754,8 @@ func TestCodeEditorsFillTheWindow(t *testing.T) {
 		`if (t.hasAttribute('data-code-full')) { setCodeFull(!codeFull()); return; }`,
 		// a field (the code's own esc only leaves it) and a dialog keep esc
 		`if (typing(e.target)) { e.target.blur(); setPending(false); return; }`,
-		`if (codeFull() && !(e.target.closest && e.target.closest('dialog'))) { setCodeFull(false); e.preventDefault(); }`,
+		`if (e.target.closest && e.target.closest('dialog')) return;`,
+		`if (codeFull()) { setCodeFull(false); e.preventDefault(); return; }`,
 	} {
 		if !strings.Contains(js, want) {
 			t.Errorf("proxier.js lacks %q", want)
@@ -899,7 +900,7 @@ func TestKeyLineNeverCoversThePageEnd(t *testing.T) {
 	if err := ui.Layout(ui.Shell{Title: "t", Lang: i18n.EN}).Render(ctx, &page); err != nil {
 		t.Fatal(err)
 	}
-	if !regexp.MustCompile(`(?s)<div class="app" id="app">.*<div class="body">.*<main class="main" id="main">.*</main>\s*</div>\s*<footer class="pc-keys" id="keyline">`).MatchString(page.String()) {
+	if !regexp.MustCompile(`(?s)<div class="app" id="app">.*<div class="body">.*<main class="main" id="main">.*</main>\s*</div>\s*<footer class="pc-keys" id="keyline"[^>]*>`).MatchString(page.String()) {
 		t.Error("the key line isn't in the flow right after the page column")
 	}
 }
@@ -1001,7 +1002,7 @@ func TestWhichKeyStripSitsAboveTheKeyLine(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := page.String()
-	strip := regexp.MustCompile(`(?s)<footer class="pc-keys" id="keyline">\s*<div class="whichkey hidden" id="whichkey"[^>]*>(.*?)</div>\s*<div class="keyline-in">`).FindStringSubmatch(html)
+	strip := regexp.MustCompile(`(?s)<footer class="pc-keys" id="keyline"[^>]*>\s*<div class="whichkey hidden" id="whichkey"[^>]*>(.*?)</div>\s*<div class="keyline-in">`).FindStringSubmatch(html)
 	if strip == nil {
 		t.Fatal("the strip isn't the key line's first child")
 	}
@@ -1023,7 +1024,8 @@ func TestWhichKeyStripSitsAboveTheKeyLine(t *testing.T) {
 	js := string(b)
 	for _, want := range []string{
 		`h.textContent = w.getAttribute('data-pending-hint') || hintBeforeG;`,
-		`if (top) top.classList.toggle('hidden', !rows().length);`,
+		// g g is always offered: the first row, or the top of a page without a list
+		`if (rows().length) setCursor(0); else window.scrollTo(0, 0);`,
 		`h.textContent = hintBeforeG;`,
 	} {
 		if !strings.Contains(js, want) {
@@ -1060,6 +1062,13 @@ func TestCtrlNPMoveLikeTheArrows(t *testing.T) {
 	modsAt := strings.Index(js, `if (e.metaKey || e.ctrlKey || e.altKey) return;`)
 	if rowsAt < 0 || modsAt < 0 || rowsAt > modsAt {
 		t.Error("the rows' ⌃N ⌃P come after the return for modified keys, so they never move")
+	}
+	// ⌃D ⌃U too, read the same way, so a Russian layout's ⌃в ⌃г count
+	if !strings.Contains(js, `({ KeyD: 'd', KeyU: 'u' })[e.code]`) {
+		t.Error("⌃D ⌃U don't read the physical key")
+	}
+	if halfAt := strings.Index(js, `var half = ctrlHalf(e);`); halfAt < 0 || halfAt > modsAt {
+		t.Error("⌃D ⌃U come after the return for modified keys, so they never move")
 	}
 	var page strings.Builder
 	cat := i18n.NewCatalog()

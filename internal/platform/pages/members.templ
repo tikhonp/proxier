@@ -48,7 +48,7 @@ templ membersPage(s ui.Shell, pages []ui.SettingsPage, in, removed []memberRow, 
 				<span>{ i18n.T(ctx, "members.col.added") }</span>
 			</div>
 			for _, m := range in {
-				<div class="row mem pc-row" data-row={ "m-" + strconv.FormatInt(m.ID, 10) } data-href={ memberHref(m.ID) }>
+				<div class="row mem pc-row" data-row={ "m-" + strconv.FormatInt(m.ID, 10) } data-href={ memberHref(m.ID) } data-page-keys="x">
 					<span class="caret" aria-hidden="true">›</span>
 					<span>
 						<a href={ templ.SafeURL(memberHref(m.ID)) } class="bold" title={ m.Username }>{ m.Username }</a>
@@ -133,7 +133,7 @@ templ memberNewPage(s ui.Shell, pages []ui.SettingsPage, v memberNewView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "members.add") }</button>
-				<a href="/settings/members" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href="/settings/members" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -223,7 +223,7 @@ templ memberPage(s ui.Shell, pages []ui.SettingsPage, v memberView) {
 					<p class="help">{ i18n.T(ctx, "members.remove.note") }</p>
 					<div>
 						@ui.ActionButton(ui.Action{
-							ID: "members.remove", Label: "members.remove", Method: "POST", Href: memberHref(v.M.ID) + "/remove", Kind: ui.Danger,
+							ID: "members.remove", Label: "members.remove", Method: "POST", Href: memberHref(v.M.ID) + "/remove", Kind: ui.Danger, Key: "x",
 							Confirm: &ui.Confirm{
 								Strength: 2,
 								Title:    i18n.T(ctx, "members.remove.title", i18n.Args{"name": v.M.Username}),

@@ -186,7 +186,7 @@ templ adoptPage(s ui.Shell, v adoptView) {
 					})
 				}
 				@ui.ActionButton(ui.Action{ID: "routers.adopt_ignore", Label: "routers.unmanaged.ignore", Method: "POST", Href: v.Base + "/ignore"})
-				<a href={ templ.SafeURL(routerHref(v.R.ID) + "#unmanaged") } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(routerHref(v.R.ID) + "#unmanaged") } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</div>
 	}
@@ -220,7 +220,7 @@ templ routerRemovePage(s ui.Shell, v rtRemoveView) {
 			</label>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" data-action="routers.remove_confirm">{ i18n.T(ctx, "routers.remove.do") }</button>
-				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(routerHref(v.R.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

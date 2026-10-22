@@ -35,7 +35,7 @@ templ rotatePageView(s ui.Shell, v rotateView) {
 			}
 			<div class="form-actions plan-actions">
 				@ui.ActionButton(v.Rotate)
-				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 				<span class="sm subtle">{ i18n.T(ctx, "servers.rotate.restore_note") }</span>
 			</div>
 		}

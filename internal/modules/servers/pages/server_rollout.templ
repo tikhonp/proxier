@@ -58,7 +58,7 @@ templ rolloutPlanPage(s ui.Shell, v rolloutPlanView) {
 						<button type="button" class="pc-btn pc-pri" disabled data-action="rollout.start">{ i18n.T(ctx, "servers.rollout.start") }</button>
 						<button type="submit" class="pc-btn">{ i18n.T(ctx, "servers.rollout.check") }</button>
 					}
-					<a href="/servers" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+					<a href="/servers" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 					<span class="sm subtle">{ i18n.T(ctx, "servers.rollout.stops_at_first") }</span>
 				</div>
 			</form>

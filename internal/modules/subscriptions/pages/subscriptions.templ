@@ -32,7 +32,7 @@ templ listPage(s ui.Shell, rows []rowView) {
 					<span>{ i18n.T(ctx, "subs.col.hide") }</span>
 				</div>
 				for _, r := range rows {
-					<a href={ templ.SafeURL(subHref(r.ID)) } class="row sub pc-row" data-row={ i64(r.ID) } data-href={ subHref(r.ID) } data-hint={ i18n.T(ctx, "subs.hints.row", i18n.Args{"name": r.Name}) }>
+					<a href={ templ.SafeURL(subHref(r.ID)) } class="row sub pc-row" data-row={ i64(r.ID) } data-href={ subHref(r.ID) } data-page-keys="x" data-hint={ i18n.T(ctx, "subs.hints.row", i18n.Args{"name": r.Name}) }>
 						<span class="caret" aria-hidden="true">›</span>
 						<span class="col">
 							<span class="bold" title={ r.Name }>{ r.Name }</span>
@@ -80,7 +80,7 @@ templ newPage(s ui.Shell, v newView) {
 			@nameFields(v.Name, v.Title, v.Description, v.Errs, true)
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "subs.create") }</button>
-				<a href="/subscriptions" class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href="/subscriptions" class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -126,7 +126,7 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 			if v.Servers.CanChange {
 				<div class="actions">
 					@ui.ActionButton(ui.Action{ID: "links.new", Label: "links.new", Method: "GET", Href: "/links/new?subscription=" + i64(v.S.ID), Key: "n"})
-					@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true})
+					@ui.ActionButton(ui.Action{ID: "subs.delete", Label: "subs.delete", Method: "GET", Href: subHref(v.S.ID) + "/delete", Kind: ui.Danger, Small: true, Key: "x"})
 				</div>
 			}
 		</div>
@@ -249,7 +249,7 @@ templ memberActs(v serversView, r memberRow) {
 	@moveButton(v.SubID, r, "up")
 	@moveButton(v.SubID, r, "down")
 	@ui.ActionButton(ui.Action{
-		ID: "subs.remove." + i64(r.ID), Label: "subs.remove", Method: "POST", Small: true, Kind: ui.Ghost,
+		ID: "subs.remove." + i64(r.ID), Label: "subs.remove", Method: "POST", Small: true, Kind: ui.Ghost, Key: "x", RowOnly: true,
 		Href:    subHref(v.SubID) + "/servers/" + i64(r.ID) + "/remove",
 		Confirm: &ui.Confirm{Strength: 1, Title: i18n.T(ctx, "subs.remove.title", i18n.Args{"server": r.Name, "name": v.Name}), Body: i18n.T(ctx, "subs.remove.body")},
 	})
@@ -385,7 +385,7 @@ templ addPage(s ui.Shell, v addView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" disabled?={ len(v.Rows) == 0 }>{ i18n.T(ctx, "subs.add.submit") }</button>
-				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -450,7 +450,7 @@ templ deletePage(s ui.Shell, v deleteView) {
 			}
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-dng" disabled?={ len(v.Live) > 0 || len(v.Tombs) > 0 }>{ i18n.T(ctx, "subs.delete") }</button>
-				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(subHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}

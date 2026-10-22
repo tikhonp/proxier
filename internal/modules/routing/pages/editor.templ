@@ -122,7 +122,7 @@ templ editorForm(v editorView) {
 		}
 		<div class="form-actions area-body">
 			<button type="submit" name="op" value="save" class="pc-btn pc-pri" data-action="services.editor.save">{ i18n.N(ctx, "services.editor.save", int64(len(v.Rows))) } <span class="k">⌘↵</span></button>
-			<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			<a href={ templ.SafeURL(svcHref(v.It.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 		</div>
 	</form>
 }

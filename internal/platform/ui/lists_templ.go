@@ -333,7 +333,7 @@ func FilterBar(chips []Chip, form *FilterForm, clearHref string) templ.Component
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" class=\"pc-chip\" data-key=\"x\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 31, "\" class=\"pc-chip\" data-key=\"c\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

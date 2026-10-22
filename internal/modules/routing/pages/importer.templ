@@ -46,7 +46,7 @@ templ importPastePage(s ui.Shell, v importPasteView) {
 			</div>
 			<div class="form-actions">
 				<button type="submit" class="pc-btn pc-pri" data-action="mtvpn.preview">{ i18n.T(ctx, "mtvpn.preview") }</button>
-				<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+				<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 			</div>
 		</form>
 	}
@@ -164,7 +164,7 @@ templ importPreviewForm(v importView) {
 		<div class="form-actions">
 			<button type="submit" class="pc-btn pc-pri" data-action="mtvpn.import">{ v.Button }</button>
 			<a href={ templ.SafeURL(importPath) } class="pc-btn">{ i18n.T(ctx, "mtvpn.back") }</a>
-			<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost">{ i18n.T(ctx, "ui.cancel") }</a>
+			<a href={ templ.SafeURL(listsPath) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
 		</div>
 		<p class="sm subtle">{ i18n.T(ctx, "mtvpn.resync", i18n.Args{"name": v.ListName}) }</p>
 	</form>

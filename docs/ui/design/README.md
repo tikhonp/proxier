@@ -140,14 +140,14 @@ Buttons say what they do. Some buttons start real work even though their label b
 
 ## Keys
 
-The keymap is small and vim-like, "not too crazy". Letters never fire inside a field, and nothing destructive gets a single key. `⌃N ⌃P` move a selection down and up wherever `↓ ↑` do (the search and actions pop-up, a list's rows), as in Emacs and macOS lists; in any other field and in a code editor they stay the field's own, and with `⌘`, `⌥` or `⇧` they are the browser's. The key line's hints keep `j k move` for room; the keys sheet lists `⌃N ⌃P` under In a list.
+The keymap is small and vim-like, "not too crazy". Letters never fire inside a field, and nothing destructive happens on a single key: `x` only opens the delete, remove or retire confirmation (its dialog, or its own page), which asks as a click would. `⌃N ⌃P` move a selection down and up wherever `↓ ↑` do (the search and actions pop-up, a list's rows), as in Emacs and macOS lists; in any other field and in a code editor they stay the field's own, and with `⌘`, `⌥` or `⇧` they are the browser's. The key line's hints keep `j k move` for room; the keys sheet lists `⌃N ⌃P` under In a list. `⌃D ⌃U` move half a window the same way: the cursor through a list's rows, or the page (never in a field or the code, where `⌃D` is macOS's forward delete).
 
 | Where | Keys |
 |---|---|
-| Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `esc` close, cancel, leave a field or full screen |
-| `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `i` routing lists · `v` services · `c` search · `o` discover · `r` routers · `h` Shadowrocket · `p` router scripts · `j` jobs · `a` activity · `,` settings · `g` top of the list. Every sidebar page has a letter of its own, another letter of its name where the first is taken (`TestEverySidebarPageHasItsOwnGoKey`). After `g` a which-key strip shows the choices the member's grant reaches. |
+| Anywhere | `/` search things and actions · `:` actions only · `g` then a letter to go to a page · `?` keys · `gg G` top, bottom of the page (of a list, its first and last row) · `⌃D ⌃U` half a window down, up · `i` into the first field (a list's filter comes first) · `esc` close, cancel, leave a field, the row under the cursor or full screen, then a form or confirm page through its Cancel (`data-cancel`; after anything was typed on the page, only a second `esc` within 2 s leaves, the key line saying so; `TestEveryCancelLinkTakesEsc`) |
+| `g` then | `d` dashboard · `s` servers · `t` templates · `u` subscriptions · `l` links · `i` routing lists · `v` services · `c` search · `o` discover · `r` routers · `h` Shadowrocket · `p` router scripts · `j` jobs · `a` activity · `,` settings · `g` top of the list or the page. Every sidebar page has a letter of its own, another letter of its name where the first is taken (`TestEverySidebarPageHasItsOwnGoKey`). After `g` a which-key strip shows the choices the member's grant reaches. |
 | In a list | `j k` (arrows and `⌃N ⌃P` too) · `gg G` first, last · `↵` open · `n` new · `space` tick |
-| Row or page | `r` run checks or retry · `s` sync now · `p` pause or resume · `y` copy the URL or value · `e` edit · `[ ]` previous, next tab |
+| Row or page | `r` run checks or retry · `s` sync now · `p` pause or resume · `y` copy the URL or value · `e` edit · `x` delete, remove or retire (opens its confirmation) · `c` clear filters · `[ ]` previous, next tab. A key acts on the row under the cursor first. `x` and `e` never fall through from a row to the page (on a subscription's link row, `x` isn't the subscription's delete): a row with its own (a list's service, a subscription's server, a known host) takes it, a row of things takes it to its thing's page (`data-page-keys`, followed by `#key-x`, which that page's key then acts on), and `esc` drops the row so the page's own is reached. |
 | Fields and dialogs | `tab` next field · `esc` leave · `⌘↵` save · `↵` confirm a simple dialog |
 | Some pages | `J K` move a row where order matters · `f` follow a log · `G` end of the log |
 | Code editors | `⌘S` save · `tab` indent · `⌘F` find · `⌘Z` undo · `esc` leave the code, a second `esc` leaves full screen (the keys sheet's "In a code editor"). The canvas also draws, for the template editor, optional vim keys, `:w` and `]d [d`: not built |
@@ -160,7 +160,7 @@ The **key line** at the bottom has three parts:
 
 Short messages ("Copied", "Sync started") appear in the key line, not as toasts.
 
-After `g` the which-key strip lies over the page right above the key line, as the Main and Keys screens draw it: a band of flush 36 px cells (the letter, then the page; `g` Top of the list only where the page has a list), wrapping upwards in a narrow window, with the key line's left saying `g then a key from the list · esc cancel`. It is out of the flow, so it neither lengthens a short page nor covers the key line.
+After `g` the which-key strip lies over the page right above the key line, as the Main and Keys screens draw it: a band of flush 36 px cells (the letter, then the page, and `g` Top, of the list or the page), wrapping upwards in a narrow window, with the key line's left saying `g then a key from the list · esc cancel`. It is out of the flow, so it neither lengthens a short page nor covers the key line.
 
 ## Zoomed in
 

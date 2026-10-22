@@ -152,7 +152,7 @@ templ header(s Shell) {
 // keyLine holds the which-key strip that g opens: placed over the page right
 // above the line, so showing it neither lengthens the page nor covers the line.
 templ keyLine(s Shell) {
-	<footer class="pc-keys" id="keyline">
+	<footer class="pc-keys" id="keyline" data-t-unsaved={ i18n.T(ctx, "ui.key.unsaved") }>
 		<div class="whichkey hidden" id="whichkey" role="navigation" aria-label={ i18n.T(ctx, "ui.key.goto") } data-pending-hint={ i18n.T(ctx, "ui.key.go_pending") }>
 			for _, g := range s.Nav {
 				for _, it := range g.Items {
