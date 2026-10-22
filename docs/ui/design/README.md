@@ -70,6 +70,8 @@ A serious state on a page gets a **band**: a full-width block in the tinted colo
 
 ## Layout
 
+The app icon is the logo mark on the page's ground: a `--text` square, half the icon's width, centred on black (`static/icons/`). It comes as `icon.svg`, `favicon.ico` (16, 32 and 48 px, for Safari before 26) and a 180 px `apple-touch-icon.png` (opaque: iOS rounds its corners), each drawn on the pixel grid so the edges stay sharp; the home-screen name is "Proxier". `/favicon.ico` and `/apple-touch-icon.png` (and `-precomposed`) are also served at the root, without a session, for the browsers and iPhones that ask there.
+
 The desktop layout, from top to bottom:
 
 - **Header** (48 px), made of flush cells that touch each other:

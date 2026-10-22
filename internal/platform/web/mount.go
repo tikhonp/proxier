@@ -22,6 +22,10 @@ func Mount(e *echo.Echo, d Deps, static fs.FS, staticHash string) Routes {
 	e.HTTPErrorHandler = ErrorHandler(d.Log)
 
 	e.GET("/static/:hash/*", Static(static, staticHash), SecureHeaders(https))
+	e.GET("/favicon.ico", RootIcon(static, "icons/favicon.ico"), SecureHeaders(https))
+	for _, p := range []string{"/apple-touch-icon.png", "/apple-touch-icon-precomposed.png"} {
+		e.GET(p, RootIcon(static, "icons/apple-touch-icon.png"), SecureHeaders(https))
+	}
 
 	memberChain := []echo.MiddlewareFunc{
 		SecureHeaders(https), LimitBody(MaxBody), CrossOrigin(d.BaseURL), Session(d.Auth, https), CSRF(d.Auth), Localize(d.I18n, d.Settings),

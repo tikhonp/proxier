@@ -50,7 +50,10 @@ templ head(title string, htmx bool) {
 		<meta name="htmx-config" content={ htmxConfig }/>
 	}
 	<title>{ title } · Proxier</title>
-	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='3' y='3' width='10' height='10' fill='%23e0def4'/%3E%3C/svg%3E"/>
+	<meta name="apple-mobile-web-app-title" content="Proxier"/>
+	<link rel="icon" href={ Asset("icons/favicon.ico") } sizes="48x48"/>
+	<link rel="icon" href={ Asset("icons/icon.svg") } type="image/svg+xml"/>
+	<link rel="apple-touch-icon" href={ Asset("icons/apple-touch-icon.png") }/>
 	<link rel="stylesheet" href={ Asset("css/tokens.css") }/>
 	<link rel="stylesheet" href={ Asset("css/fonts.css") }/>
 	<link rel="stylesheet" href={ Asset("css/app.css") }/>
