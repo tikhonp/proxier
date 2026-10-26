@@ -51,7 +51,7 @@ Default retry policies:
 
 ## Edge cases (each is a test)
 
-- Two router-sync requests for router 3 within 30 s → one job runs.
+- Two router-sync requests for router 3, the second while the first still waits out its delay (`routing.sync_delay`) → one job runs.
 - A sync request while router 3's sync is running → exactly one follow-up queued. A third request merges into that follow-up.
 - A redeploy for server 12 while its health check round is due → the check round is skipped, not queued.
 - Two provisioning jobs for different servers → both run (concurrency 2). A third waits.
