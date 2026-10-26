@@ -9,7 +9,7 @@ FROM golang:${GO_VERSION}-alpine AS base
 FROM base AS dev
 RUN go install github.com/air-verse/air@v1.67.4 && \
     go install github.com/pressly/goose/v3/cmd/goose@v3.29.0 && \
-    go install github.com/a-h/templ/cmd/templ@v0.3.1070
+    go install github.com/a-h/templ/cmd/templ@v0.3.1100
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
