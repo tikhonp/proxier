@@ -373,10 +373,10 @@ templ routerPage(s ui.Shell, v routerView) {
 					</div>
 					<dl class="kv area-body">
 						<dt>{ i18n.T(ctx, "routers.conn.router") }</dt>
-						<dd>{ v.Conn.Router }<br/><span class="sm subtle">{ v.Conn.RouterFP }</span></dd>
+						<dd>{ v.Conn.Router }<br/><span class="sm subtle fp">{ v.Conn.RouterFP }</span></dd>
 						if v.Conn.Jump != "" {
 							<dt>{ i18n.T(ctx, "routers.conn.jump") }</dt>
-							<dd>{ v.Conn.Jump }<br/><span class="sm subtle">{ v.Conn.JumpFP }</span></dd>
+							<dd>{ v.Conn.Jump }<br/><span class="sm subtle fp">{ v.Conn.JumpFP }</span></dd>
 						}
 						<dt>{ i18n.T(ctx, "routers.conn.first_hop") }</dt>
 						<dd>{ v.Conn.FirstHop }</dd>

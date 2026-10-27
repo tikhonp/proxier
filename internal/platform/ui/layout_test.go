@@ -1130,7 +1130,8 @@ func TestPhoneHeaderTabsAndTouch(t *testing.T) {
 		t.Fatal(err)
 	}
 	html := page.String()
-	for _, want := range []string{`<svg class="hdr-glass"`, `<div class="pal-foot pc-keys-only">`, `<span id="keyhints" class="pc-keys-only"`, `<div class="keyline-global pc-keys-only">`} {
+	for _, want := range []string{`<svg class="hdr-glass"`, `<div class="pal-foot pc-keys-only">`, `<span id="keyhints" class="pc-keys-only"`, `<div class="keyline-global pc-keys-only">`,
+		`<span class="sm subtle pc-keys-only">`} {
 		if !strings.Contains(html, want) {
 			t.Errorf("the page lacks %q", want)
 		}
@@ -1172,7 +1173,7 @@ func TestPhoneLayoutFits(t *testing.T) {
 	for _, want := range []string{
 		`.titleblock .actions.ed-actions { display: grid; grid-template-columns: 1fr 1fr; }`,
 		`.ed-actions .pc-btn { min-height: 40px; }`,
-		`.filter-form .sel { flex: 1 1 0; min-width: 0; }`,
+		`.filter-form .sel { flex: 1 1 auto; min-width: 0; }`,
 		`.filter-form .pc-btn, .search-form .pc-btn { min-height: 48px; }`,
 		`.crumbs a { padding: 10px 0; margin: -10px 0; }`,
 		`.actrow a.text { padding: 10px 0; }`,

@@ -335,9 +335,10 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .ed-actions .pc-btn { min-height: 40px; }
   .ed-actions > .pc-pri { order: -1; }
   .ed-actions > .pc-pri, .ed-actions > select { grid-column: 1 / -1; }
-  /* a filter row's selects share its width; Apply/Find are as tall as them */
+  /* a filter row's selects start at their own width and share each line they wrap to
+     (five sharing one line were 39 px: "Люб"); Apply/Find are as tall as them */
   .filter-form { flex: 1 1 100%; }
-  .filter-form .sel { flex: 1 1 0; min-width: 0; }
+  .filter-form .sel { flex: 1 1 auto; min-width: 0; }
   .filter-form .pc-btn, .search-form .pc-btn { min-height: 48px; }
   /* breadcrumbs and the links in a sentence (Activity) keep their line, with a taller tap area */
   .crumbs a { padding: 10px 0; margin: -10px 0; }
@@ -923,7 +924,8 @@ a.row.srcfg { text-decoration: none; color: inherit; }
 .snippet { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; align-items: flex-start; }
 .snippet .preview-out { width: 100%; box-sizing: border-box; white-space: pre-wrap; word-break: break-all; }
 #preview-script, #sync-script { max-height: 50vh; overflow: auto; }
-code.fp { word-break: break-all; }
+/* a SHA256 fingerprint is one 50-character word: 498 px in a 360 px phone */
+code.fp, span.fp { word-break: break-all; }
 .band.rtr-band { display: flex; gap: 16px; align-items: flex-start; justify-content: space-between; }
 /* Router lifecycle */
 .hops { display: flex; flex-direction: column; margin-top: 8px; }

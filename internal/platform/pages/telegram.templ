@@ -95,7 +95,7 @@ templ chatForms(v chatView) {
 		<div class="ro">
 			<span class="lbl">{ i18n.T(ctx, "telegram.chat") }</span>
 			if v.ID != "" {
-				<span class="v">{ v.Label() }<span class="muted"> · { v.ID }</span></span>
+				<span class="v">{ v.Label() } <span class="muted">· { v.ID }</span></span>
 			} else {
 				<span class="v muted">{ i18n.T(ctx, "telegram.chat.none") }</span>
 			}

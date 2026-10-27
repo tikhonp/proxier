@@ -97,7 +97,8 @@ func TestDetectChatWithoutUpdates(t *testing.T) {
 	if got := chatOf(t, s, 1); got != "5" {
 		t.Fatalf("member 1's chat %q", got)
 	}
-	if page := l.Get("/settings/notifications?saved=chat").Body.String(); !strings.Contains(page, "Chat saved.") || !strings.Contains(page, ">Tikhon<") {
+	// templ drops a space that opens an element, so the one before "·" sits outside the span
+	if page := l.Get("/settings/notifications?saved=chat").Body.String(); !strings.Contains(page, "Chat saved.") || !strings.Contains(page, `>Tikhon <span class="muted">· 5</span>`) {
 		t.Errorf("the page doesn't show the saved chat:\n%s", page)
 	}
 }

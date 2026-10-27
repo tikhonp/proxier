@@ -68,6 +68,9 @@ func TestSubscriptionList(t *testing.T) {
 	body = page(t, h, "/subscriptions")
 	mustContain(t, body, "Family", "shown in apps as “Семья”", "Friends", "nl-1", "de-1", "st-blocked", "· de-1 hidden now",
 		"uri-plain (default), uri-base64", "on · 30 min", "off", `data-href="/subscriptions/1"`)
+	// a phone's card, without the column heads, names its values
+	mustContain(t, body, `<span class="pc-show-s">1 link</span>`, `<span class="pc-show-s">0 links</span>`,
+		`<span class="pc-show-s">Formats: </span>uri-plain (default)`, `<span class="pc-show-s">Hide unhealthy: </span>on · 30 min`)
 	mustNotContain(t, body, "No subscriptions yet")
 	noInline(t, body)
 	// a member out of service: the gone marker

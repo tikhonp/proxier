@@ -55,9 +55,10 @@ templ listPage(s ui.Shell, rows []rowView) {
 								<span class="sm gold">{ i18n.T(ctx, "subs.hidden_now", i18n.Args{"name": n}) }</span>
 							}
 						</span>
-						<span class="subtle">{ strconv.Itoa(r.Links) }</span>
-						<span class="sm subtle">{ r.Formats }</span>
-						<span class="sm subtle">{ r.Hide }</span>
+						// a phone hides the column heads, so its card names what a bare "3" or "off" is
+						<span class="subtle"><span class="pc-hide-s">{ strconv.Itoa(r.Links) }</span><span class="pc-show-s">{ i18n.N(ctx, "subs.n_links", int64(r.Links)) }</span></span>
+						<span class="sm subtle"><span class="pc-show-s">{ i18n.T(ctx, "subs.col.formats") + ": " }</span>{ r.Formats }</span>
+						<span class="sm subtle"><span class="pc-show-s">{ i18n.T(ctx, "subs.col.hide") + ": " }</span>{ r.Hide }</span>
 					</a>
 				}
 			</div>

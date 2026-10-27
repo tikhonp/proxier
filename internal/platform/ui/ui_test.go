@@ -46,6 +46,10 @@ func TestActionButtonCarriesDataActionAndCSRF(t *testing.T) {
 	if !strings.Contains(out, `data-dialog-open="dlg-t.drop"`) || !strings.Contains(out, `data-confirm-name="de-1"`) || !strings.Contains(out, "data-confirm-submit") || !strings.Contains(out, "disabled") {
 		t.Errorf("strength 3 dialog:\n%s", out)
 	}
+	// a touch screen has no esc to press
+	if !strings.Contains(out, `<span class="hint pc-keys-only"><span class="k">esc</span>`) {
+		t.Errorf("the esc hint shows on a touch screen:\n%s", out)
+	}
 }
 
 func TestHighlightEscapesAndNumbersLines(t *testing.T) {

@@ -148,7 +148,8 @@ func TestRouterPage(t *testing.T) {
 		"Sync preview", "read from the router at", "nothing applied", "1 update · 0 unchanged · 1 unmanaged, left alone",
 		"order: tags that gain names, other updates, then removals", ">openai<", "v2fly:openai", "new", ">netflix<", "unmanaged", "Proxier never installed it",
 		"# proxier sync · router Home · preview · file 1/1: update openai (+2)", `data-copy-from="#preview-script"`, "/script.rsc", "Run this sync",
-		"Connection", "proxier@"+r.Addr, "pi@", "SHA256:", "direct", "to_vpn_list", "vpn-doh", "Edit connection…",
+		// .fp lets a fingerprint break: whole, it was 498 px on a 360 px phone
+		"Connection", "proxier@"+r.Addr, "pi@", `<span class="sm subtle fp">SHA256:`, "direct", "to_vpn_list", "vpn-doh", "Edit connection…",
 		"Sync history", "preview", "Actions", "Routing list…", "Activity")
 	checkNoInline(t, "router page", page)
 	// the DOM order of the areas

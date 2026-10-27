@@ -175,11 +175,11 @@ Under 760 px the layout changes:
 - Settings' section list is a strip of tabs that scrolls sideways: the current tab is brought into it on load, and an end that has more tabs fades out.
 - A back row (`‹ Servers`) sits under the header.
 - Body text is 14/22. Buttons are at least 48 px tall (small ones 40 px), and actions stack full width, except the template editor's six, which go two to a row at 40 px with Publish first across the row, so they don't push the code a screen down.
-- Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A tick box or radio sits in its label, which is tapped; one with no words (a row's tick on Import or Discover) is in a `.tick` label, a 40 px cell around it. A filter row's selects share its width, its button as tall as they are (48 px).
+- Nothing is too small for a finger: chips and segments are at least 40 px tall, a switch keeps its 36×18 look with a 48×46 tap area, and breadcrumbs and links inside a sentence (Activity) have 40 px tap areas without moving their line. A tick box or radio sits in its label, which is tapped; one with no words (a row's tick on Import or Discover) is in a `.tick` label, a 40 px cell around it. A filter row's selects start at their own width, so none cuts its choice, and share each line they wrap to; its button is as tall as they are (48 px). A long unbroken value, such as a host key's fingerprint, breaks anywhere (`.fp`).
 - An alert's sentence and its link are one item (a `<span>`), so the link never gets a narrow column of its own.
 - Settings › Notifications' groups (one per module, with its count of events and of changed ones) start closed; switching a rule comes back to it with its group open. Open, a rule is its switch beside its name, description and default.
 
-A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys) is hidden there, whatever the width.
+A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys, and "esc closes" in a dialog and the Keys sheet) is hidden there, whatever the width.
 
 The phone screens cover the notification flows:
 
