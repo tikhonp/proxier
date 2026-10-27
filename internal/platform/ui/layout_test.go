@@ -1192,6 +1192,11 @@ func TestPhoneLayoutFits(t *testing.T) {
 			t.Errorf("app.css lacks %q", want)
 		}
 	}
+	// Safari on an iPhone zooms into a field under 16 px as it takes focus
+	touch := css[strings.Index(css, "@media (hover: none) and (pointer: coarse) {"):]
+	if touch = touch[:strings.Index(touch, "\n}")]; !strings.Contains(touch, "input, select, textarea { font-size: 16px !important; }") {
+		t.Errorf("a touch screen's fields aren't 16 px:\n%s", touch)
+	}
 	tok, err := fs.ReadFile(ui.StaticFS, "css/tokens.css")
 	if err != nil {
 		t.Fatal(err)

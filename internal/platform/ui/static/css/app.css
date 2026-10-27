@@ -213,6 +213,9 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
    only pointer (a laptop's touch screen keeps them, as its trackpad can hover) */
 @media (hover: none) and (pointer: coarse) {
   .pc-keys-only { display: none !important; }
+  /* Safari on an iPhone or iPad zooms into a field whose text is under 16 px as it
+     takes focus, and stays zoomed: the setup page lost its right edge */
+  input, select, textarea { font-size: 16px !important; }
 }
 .pal-foot { display: flex; flex-wrap: wrap; gap: 6px 20px; padding: 8px 16px; border-top: 1px solid var(--overlay); font-size: var(--fs-sm); color: var(--subtle); }
 .keys-sheet { width: min(820px, 100%); margin-top: 8px; background: var(--black); border: 1px solid var(--hl-high); }

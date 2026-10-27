@@ -179,7 +179,7 @@ Under 760 px the layout changes:
 - An alert's sentence and its link are one item (a `<span>`), so the link never gets a narrow column of its own.
 - Settings › Notifications' groups (one per module, with its count of events and of changed ones) start closed; switching a rule comes back to it with its group open. Open, a rule is its switch beside its name, description and default.
 
-A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys, and "esc closes" in a dialog and the Keys sheet) is hidden there, whatever the width.
+A touch screen with no hover (`@media (hover: none) and (pointer: coarse)`, a phone or tablet but not a laptop with a touch screen) has no keys to press, so what names keys (`.pc-keys-only`: the search pop-up's footer, the key line's hints and its global keys, and "esc closes" in a dialog and the Keys sheet) is hidden there, whatever the width. Its fields (inputs, selects, text areas) are 16 px: Safari on an iPhone or iPad zooms the page into a field with smaller text as it takes focus, and stays zoomed.
 
 The phone screens cover the notification flows:
 
