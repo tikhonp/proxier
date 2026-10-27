@@ -80,6 +80,7 @@ var messages = i18n.Messages{
 	"auth.passkey.rejected":    {EN: "That passkey wasn't accepted.", RU: "Этот ключ доступа не принят."},
 	"auth.passkey.expired":     {EN: "The passkey prompt ran out. Try again.", RU: "Время запроса ключа вышло. Попробуйте ещё раз."},
 	"auth.passkey.failed":      {EN: "The browser didn't return a passkey.", RU: "Браузер не вернул ключ доступа."},
+	"auth.passkey.closed":      {EN: "No passkey: the prompt was closed, or this device holds none for Proxier.", RU: "Ключ доступа не получен: окно закрыто, или на этом устройстве нет ключа для Proxier."},
 	"auth.ended.idle":          {EN: "Signed out after 7 days idle.", RU: "Сеанс завершён: 7 дней без активности."},
 	"auth.ended.idle.back":     {EN: "Signed out after 7 days idle. You'll go back to {page}.", RU: "Сеанс завершён: 7 дней без активности. Вы вернётесь на {page}."},
 	"auth.ended.absolute":      {EN: "Signed out: the session reached 30 days.", RU: "Сеанс завершён: прошло 30 дней."},
@@ -227,6 +228,7 @@ var messages = i18n.Messages{
 	"settings.passkeys.unsupported":    {EN: "This browser can't make passkeys.", RU: "Этот браузер не умеет ключи доступа."},
 	"settings.passkeys.bad_name":       {EN: "A passkey name is 1 to 64 characters.", RU: "Название ключа — от 1 до 64 символов."},
 	"settings.passkeys.exists":         {EN: "This device already holds a passkey for Proxier.", RU: "На этом устройстве уже есть ключ доступа для Proxier."},
+	"settings.passkeys.closed":         {EN: "No passkey made: the prompt was closed, or this device can't make one (an Android phone needs a screen lock).", RU: "Ключ доступа не создан: окно закрыто, или это устройство не может его создать (телефону на Android нужна блокировка экрана)."},
 	"settings.passkeys.gone":           {EN: "That passkey is already removed.", RU: "Этот ключ уже удалён."},
 
 	"settings.totp":          {EN: "Authenticator app", RU: "Приложение-аутентификатор"},

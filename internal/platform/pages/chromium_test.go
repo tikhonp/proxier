@@ -148,4 +148,38 @@ func TestPasskeyInRealChromium(t *testing.T) {
 	if err := s.App.DB.R.GetContext(t.Context(), &n, `SELECT count(*) FROM events WHERE type = 'auth.signed_in' AND json_extract(payload, '$.method') = 'passkey'`); err != nil || n != 2 {
 		t.Errorf("%d passkey sign-ins: %v", n, err)
 	}
+
+	// A closed prompt, or an Android phone without a screen lock, is only a
+	// NotAllowedError: it used to end in silence.
+	var addMsg, signInMsg string
+	err = step(20*time.Second,
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) error {
+			_, err := cdp.Call(ctx, t, page.AddScriptToEvaluateOnNewDocument, page.AddScriptToEvaluateOnNewDocumentParams{
+				Source: `PublicKeyCredential.isConditionalMediationAvailable = () => Promise.resolve(false);
+					navigator.credentials.create = navigator.credentials.get = () => Promise.reject(new DOMException('closed', 'NotAllowedError'))`,
+			})
+			return err
+		}),
+		chromedp.Navigate(base.String()+"/settings/security"),
+		chromedp.WaitEnabled(`form[data-passkey-add] button[type=submit]`),
+		chromedp.SendKeys(`#pk-name`, "Phone"),
+		chromedp.SendKeys(`#pk-pw`, sitetest.Password),
+		chromedp.Evaluate[chromedp.Void](`document.querySelector('form[data-passkey-add]').requestSubmit()`),
+		chromedp.WaitVisible(`form[data-passkey-add] .alert`),
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) (err error) {
+			addMsg, err = chromedp.Text(`form[data-passkey-add] .alert`)(ctx, t)
+			return err
+		}),
+		signOut,
+		chromedp.WaitVisible(`[data-passkey-signin]`),
+		chromedp.Click(`[data-passkey-signin]`),
+		chromedp.WaitVisible(`#pk-msg`),
+		chromedp.Func(func(ctx context.Context, t *chromedp.Target) (err error) {
+			signInMsg, err = chromedp.Text(`#pk-msg`)(ctx, t)
+			return err
+		}),
+	)
+	if err != nil || !strings.Contains(addMsg, "screen lock") || !strings.Contains(signInMsg, "the prompt was closed") {
+		t.Errorf("a closed prompt: %v, add %q, sign in %q (%s)", err, addMsg, signInMsg, state())
+	}
 }

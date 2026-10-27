@@ -69,13 +69,17 @@
       });
   }
 
-  function cancelled(err) { return err && (err.name === 'NotAllowedError' || err.name === 'AbortError'); }
+  // closed: the browser's whole answer when the member closes its prompt and
+  // when the device can't help (no passkey here, Android without a screen
+  // lock), so it says both instead of nothing
+  function closed(err) { return err && err.name === 'NotAllowedError'; }
 
   // ---- sign in -----------------------------------------------------------
   var signIn = document.querySelector('[data-passkey-signin]');
   if (signIn) {
     var form = signIn.form, msg = document.getElementById('pk-msg'), waiting = null;
     var failed = signIn.getAttribute('data-failed') || '';
+    var closedMsg = signIn.getAttribute('data-closed') || failed;
     var show = function (s) {
       if (!msg || !s) return;
       msg.lastElementChild.textContent = s;
@@ -103,7 +107,8 @@
       }).catch(function (err) {
         // the quiet request fails quietly: the admin never asked for it
         if (ctl.signal.aborted || conditional) return;
-        if (!cancelled(err)) show(err.message && err.name === 'Error' ? err.message : failed);
+        if (err && err.name === 'AbortError') return;
+        show(closed(err) ? closedMsg : err.message && err.name === 'Error' ? err.message : failed);
       });
     };
 
@@ -148,8 +153,9 @@
         location.assign(j.redirect);
       }).catch(function (err) {
         btn.disabled = false;
-        if (cancelled(err)) return;
-        if (err.name === 'InvalidStateError') alertBox(add.getAttribute('data-exists') || addFailed);
+        if (err && err.name === 'AbortError') return;
+        if (closed(err)) alertBox(add.getAttribute('data-closed') || addFailed);
+        else if (err.name === 'InvalidStateError') alertBox(add.getAttribute('data-exists') || addFailed);
         else alertBox(err.name === 'Error' && err.message ? err.message : addFailed);
       });
     });

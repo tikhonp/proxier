@@ -205,7 +205,7 @@ templ passkeysSection(v securityPageView) {
 				}
 			</div>
 		}
-		<form method="post" action="/settings/security/passkeys/options" class="form" data-passkey-add data-failed={ i18n.T(ctx, "auth.passkey.failed") } data-exists={ i18n.T(ctx, "settings.passkeys.exists") }>
+		<form method="post" action="/settings/security/passkeys/options" class="form" data-passkey-add data-failed={ i18n.T(ctx, "auth.passkey.failed") } data-exists={ i18n.T(ctx, "settings.passkeys.exists") } data-closed={ i18n.T(ctx, "settings.passkeys.closed") }>
 			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
 			<div class="field">
 				<label for="pk-name" class="lbl">{ i18n.T(ctx, "settings.passkeys.name") }</label>

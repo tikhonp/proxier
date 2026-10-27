@@ -59,7 +59,7 @@ templ SignIn(v SignInView) {
 				</div>
 				<button type="submit" class="pc-btn pc-pri" disabled?={ v.Error == "locked" }>{ i18n.T(ctx, "auth.sign_in") }</button>
 				if v.Passkeys {
-					<button type="button" class="pc-btn hidden" data-passkey-signin data-failed={ i18n.T(ctx, "auth.passkey.failed") } disabled?={ v.Error == "locked" }>{ i18n.T(ctx, "auth.passkey.sign_in") }</button>
+					<button type="button" class="pc-btn hidden" data-passkey-signin data-failed={ i18n.T(ctx, "auth.passkey.failed") } data-closed={ i18n.T(ctx, "auth.passkey.closed") } disabled?={ v.Error == "locked" }>{ i18n.T(ctx, "auth.passkey.sign_in") }</button>
 				}
 				<p class="help">{ i18n.T(ctx, "auth.forgot") } <code>proxier manage reset-password &lt;username&gt;</code></p>
 			</form>

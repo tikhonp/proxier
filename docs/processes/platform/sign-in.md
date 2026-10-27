@@ -32,6 +32,7 @@ With the authenticator app on, step 5 changes:
 ## Steps: passkeys
 
 1. **Adding** (Settings → Security → Passkeys): a name (1 to 64 characters) and the current password, then **Add passkey**. The browser asks the device, the password manager or the security key to make one; it must check who holds it (user verification). The passkey is stored with its name. → `auth.passkey_added{name}` (notifies)
+   - A closed prompt and a device that can't make a passkey (an Android phone without a screen lock) reach the page as the same refusal, so the page names both: "No passkey made: the prompt was closed, or this device can't make one (an Android phone needs a screen lock)." Signing in says "No passkey: the prompt was closed, or this device holds none for Proxier." The quiet request behind the username field's autofill says nothing.
 2. Once a passkey exists, the sign-in page offers **Sign in with a passkey**, and the browser offers passkeys in the username field's autofill. Before that it has no passkey part at all.
 3. **Signing in**: the browser shows the passkeys it holds for this site; the member picks one and confirms with Face ID, Touch ID, a PIN or the key. No username, no password, no code: the passkey's user handle names the member. Bitwarden does all of this: it saves the passkey, offers it in the username field's autofill and signs in. → `auth.signed_in{…, method: passkey}`
 4. A refused passkey (unknown, removed, from another site, without user verification, a signature counter that went back) is a failed attempt: "That passkey wasn't accepted." → `auth.sign_in_failed{ip, stage: passkey}`
@@ -109,6 +110,7 @@ With the authenticator app on, step 5 changes:
 - A passkey answer from another origin or for another RP ID → refused.
 - An unknown or removed passkey → refused, a failed attempt.
 - A passkey's signature counter going back → refused.
+- The browser's prompt closed, when adding or signing in → the page says the prompt was closed or the device couldn't help (`TestPasskeyInRealChromium`).
 - A passkey prompt used twice, unknown, or older than 5 minutes → "ran out"; an add prompt can't sign in, a sign-in prompt can't add, and an add prompt can't be finished by another session.
 - The same passkey added twice → refused.
 - Adding with a wrong password or a name of 0 or 65 characters → refused. Removing with a wrong password → refused.
