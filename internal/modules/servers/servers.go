@@ -6,8 +6,10 @@
 package servers
 
 import (
+	"cmp"
 	"context"
 	"io/fs"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -263,7 +265,7 @@ func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) 
 			return out, nil
 		}
 	}
-	all, err := store.ListServers(ctx, m.deps.DB.R)
+	all, err := m.rankedServers(ctx, q)
 	if err != nil {
 		return nil, err
 	}
@@ -285,8 +287,33 @@ func (m *Module) Search(ctx context.Context, w access.Who, q string, limit int) 
 	return out, nil
 }
 
-func (m *Module) searchBrief(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+// rankedServers lists the servers whose name starts with q first, then those
+// whose name holds it, then the rest, and the retired last in each: "nl"
+// found retired fi-10 (by "Finland") before nl-4.
+func (m *Module) rankedServers(ctx context.Context, q string) ([]store.Server, error) {
 	all, err := store.ListServers(ctx, m.deps.DB.R)
+	if err != nil {
+		return nil, err
+	}
+	rank := func(sv store.Server) int {
+		n := strings.ToLower(sv.Name)
+		r := 4
+		if strings.HasPrefix(n, q) {
+			r = 0
+		} else if strings.Contains(n, q) {
+			r = 2
+		}
+		if sv.State == "retired" {
+			r++
+		}
+		return r
+	}
+	slices.SortStableFunc(all, func(a, b store.Server) int { return cmp.Compare(rank(a), rank(b)) })
+	return all, nil
+}
+
+func (m *Module) searchBrief(ctx context.Context, q string, limit int) ([]ui.SearchHit, error) {
+	all, err := m.rankedServers(ctx, q)
 	if err != nil {
 		return nil, err
 	}

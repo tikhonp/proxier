@@ -174,11 +174,26 @@ func TestSubjectsAreNamedAndSearched(t *testing.T) {
 			t.Errorf("search %s: %+v %v", q, hits, err)
 		}
 	}
+	// a match in the name comes before one in the country ("Finland" holds
+	// "nl"), and a retired server after the others
+	if _, err := s.App.DB.W.ExecContext(ctx, `INSERT INTO servers_servers (id, country, number, name, ip, management_hostname, proxy_hostname, state, template_id, template_version, created_at)
+		VALUES (9, 'FI', 10, 'fi-10', '203.0.113.9', 'h9', 'h9', 'retired', ?, 1, '2026-10-09T00:00:00.000Z'),
+		(6, 'NL', 0, 'nl-0', '203.0.113.6', 'h6', 'h6', 'retired', ?, 1, '2026-10-06T00:00:00.000Z')`, tpl, tpl); err != nil {
+		t.Fatal(err)
+	}
+	hits, err := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "nl", 5)
+	var order []string
+	for _, h := range hits {
+		order = append(order, h.Href)
+	}
+	if err != nil || strings.Join(order, " ") != "/servers/7 /servers/6 /servers/9" {
+		t.Errorf("search nl: %v %v", order, err)
+	}
 	if hits, _ := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "zzz", 5); len(hits) != 0 {
 		t.Errorf("search for nothing: %+v", hits)
 	}
 	// templates are found by name or slug, and link to their page
-	hits, err := mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "my-stack", 5)
+	hits, err = mod.Search(ctx, access.Who{Member: 1, Grant: access.PresetOwner.Grant()}, "my-stack", 5)
 	if err != nil || len(hits) != 1 || hits[0].Href != "/templates/"+idStr(tpl) || !strings.Contains(hits[0].Label, "My stack") || hits[0].Meta != "Template" {
 		t.Errorf("template search: %+v %v", hits, err)
 	}
