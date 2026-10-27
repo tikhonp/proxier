@@ -76,6 +76,8 @@ Rules:
 - **Editing alongside the agent.** A member's open editor gets "the draft changed" after an agent save and offers to reload, the same as two browser tabs.
 - **The prompt is a secret.** The dialog says so, and the token is shown masked in its preview. Copying it again later isn't possible: the token is shown once. A new hand-off makes a new session.
 
+Seen with Claude Code against the deployment, on a hand-off for `vless-xhttp` with the validation report and the diff: it read `/context`, `/draft` and two files, saved `xray-config.json` with the ETag from `/draft`, validated, read the new ETag before saving again, and read the change back in `/context`'s diff; the member then published the draft. The token stayed in the agent's commands, never in a file.
+
 ## Validation
 
 Validation renders the template for a **sample context** and checks every file. It runs inside Proxier's own container with bundled tools and Go libraries. It never starts containers and never uses a Docker socket ([ADR 0009](../../adr/0009-embedded-xray-core-no-docker-socket.md)).

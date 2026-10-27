@@ -67,4 +67,4 @@ The [browser page](./integrations/subscription-format.md#browser-page)'s Android
 - Several members on one real bot: **Detect chat** offered a second member only their own private chat, and Send test went there. Not seen: a group chat, and each member's notifications reaching only their chat.
 - Long polling from home holding up for days (through the router's tunnel too, if `api.telegram.org` goes there). On an Android phone `/link` works from the command menu, with its subscription buttons and the URL copied with a tap from the `<code>` block.
 - The IP country lookup (ipinfo.io) from the deployment.
-- An agent session (`/agent/v1`) driven by a real Claude Code or Codex run.
+- An agent session for a router script (`/agent/v1/router-script`), and one driven by Codex. A template's, driven by Claude Code, works ([template authoring](./processes/servers/template-authoring.md#steps-handing-the-draft-to-an-agent)); not seen in it: a `412` from a stale ETag, a preview, the editor's band, and the `401` after the session ends.
