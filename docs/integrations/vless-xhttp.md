@@ -12,7 +12,7 @@ client --TLS:443--> nginx --/<xhttp-path>/...--> xray (VLESS over XHTTP, h2c via
 | Service | Role |
 |---|---|
 | `nginx` (`nginx:stable-alpine`) | Terminates TLS with the Let's Encrypt certificate. Rejects handshakes without the right SNI (`ssl_reject_handshake` on the default server), so the domain can't be learned from the IP. Forwards only `<xhttp-path>/` to xray over h2c (`grpc_pass`), serves the decoy site for everything else, and reloads every 6 h to pick up renewed certificates. |
-| `xray` (`ghcr.io/xtls/xray-core`) | VLESS inbound on `10001` with `network: xhttp`, `security: none`, the secret path, `mode: auto`, and padding `100-1000` bytes. No published ports. Sniffing on, `freedom` outbound. |
+| `xray` (`ghcr.io/xtls/xray-core`) | VLESS inbound on `10001` with `network: xhttp`, `security: none`, the secret path, `mode: auto`, and padding `100-1000` bytes. No published ports. Sniffing on (`http`, `tls`, `quic`), so xray dials the domain a connection names rather than the address the client resolved, and a `freedom` outbound that resolves it IPv4 first (`sockopt.domainStrategy: UseIPv4v6`): a server whose containers have no IPv6 still reaches a site the client chose to reach over IPv6 (Hiddify 4.1.1 on Android sends IPv6 destinations even with its IPv6 off). |
 | `certbot` (`certbot/certbot`) | Renews the certificate every 12 h via webroot. The first certificate is issued by the install step in standalone mode, because nginx can't start without one. |
 
 ## Template contents

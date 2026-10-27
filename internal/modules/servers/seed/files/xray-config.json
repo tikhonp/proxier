@@ -29,7 +29,8 @@
   "outbounds": [
     {
       "tag": "direct-outbound",
-      "protocol": "freedom"
+      "protocol": "freedom",
+      "streamSettings": { "sockopt": { "domainStrategy": "UseIPv4v6" } }
     }
   ]
 }
