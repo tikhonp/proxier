@@ -49,8 +49,8 @@ Flows: [subscription management](../processes/subscriptions/subscription-managem
 |---|---|
 | active, not expired | The subscription's connection URIs, in order, minus hidden servers. |
 | active, but the subscription has no servers | One stub entry: "⚠️ No servers yet". |
-| active, past expiry | One stub entry: "⏳ Expired on 1 Dec 2026 · contact @tikhonp" (the last day it worked, in the link's language). |
-| disabled | One stub entry: "⛔ Link disabled · contact @tikhonp". |
+| active, past expiry | One stub entry: "⏳ Expired on 1 Dec 2026 · @tikhonp" (the last day it worked, in the link's language). |
+| disabled | One stub entry: "⛔ Link disabled · @tikhonp". |
 | deleted, within the tombstone period (`subscriptions.tombstone`, 30 days) | One stub entry: "⛔ Link removed". |
 | deleted, after the tombstone period, or a token that never existed | `404`. |
 

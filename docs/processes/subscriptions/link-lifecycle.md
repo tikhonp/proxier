@@ -73,7 +73,7 @@ Expiry itself is applied **at fetch time** by comparing with the clock, so a fet
 
 - Create a link → active, unique token, URL and QR shown. The fetch serves the subscription.
 - Two links with the same name → refused.
-- Disable → the next fetch serves one stub entry "⛔ Link disabled · contact @tikhonp". Enable → the real output again.
+- Disable → the next fetch serves one stub entry "⛔ Link disabled · @tikhonp". Enable → the real output again.
 - Regenerate token → the old URL `404`s at once, and the new URL serves the output.
 - Expiry 2026-12-01 (date only) in Europe/Moscow → real output at 23:59:59 Moscow time, stub entry at 00:00:00 on 2 Dec.
 - Expiry within 3 days → one `link.expiring_soon` notification, not repeated by the next scans.

@@ -69,6 +69,15 @@ func FetchCountsSince(ctx context.Context, q sqlx.QueryerContext, since db.Time)
 // unknown one.
 const appKey = `CASE WHEN app = '' THEN 'ua:' || user_agent ELSE app END`
 
+// PreviewApp is the family of the servers that fetch a URL for a person who
+// opened or pasted it (Chrome's read-aloud, a messenger's preview). They get
+// the link's page, never its URIs, and come from their own networks, so
+// they count toward no alert.
+const PreviewApp = "Link preview"
+
+// counted leaves the previews out of who fetched a link.
+const counted = ` AND app <> '` + PreviewApp + `'`
+
 // WindowCount is how many distinct networks and apps fetched a link.
 type WindowCount struct {
 	LinkID   int64 `db:"link_id"`
@@ -81,7 +90,7 @@ type WindowCount struct {
 // has no entry.
 func WindowCounts(ctx context.Context, q sqlx.QueryerContext, since, until db.Time, linkID int64) ([]WindowCount, error) {
 	query := `SELECT link_id, count(DISTINCT network) AS networks, count(DISTINCT ` + appKey + `) AS apps
-		FROM subs_fetches WHERE at > ? AND at <= ?`
+		FROM subs_fetches WHERE at > ? AND at <= ?` + counted
 	args := []any{since, until}
 	if linkID != 0 {
 		query += ` AND link_id = ?`
@@ -105,7 +114,7 @@ func FetchNetworks(ctx context.Context, q sqlx.QueryerContext, linkID int64, sin
 	var out []Group
 	err := sqlx.SelectContext(ctx, q, &out, `SELECT f.network AS k, coalesce(c.country, '') AS country, count(*) AS n
 		FROM subs_fetches f LEFT JOIN subs_network_countries c ON c.network = f.network
-		WHERE f.link_id = ? AND f.at > ? GROUP BY f.network ORDER BY n DESC, k`, linkID, since)
+		WHERE f.link_id = ? AND f.at > ?`+counted+` GROUP BY f.network ORDER BY n DESC, k`, linkID, since)
 	return out, err
 }
 
@@ -114,7 +123,7 @@ func FetchNetworks(ctx context.Context, q sqlx.QueryerContext, linkID int64, sin
 func FetchApps(ctx context.Context, q sqlx.QueryerContext, linkID int64, since db.Time) ([]Group, error) {
 	var out []Group
 	err := sqlx.SelectContext(ctx, q, &out, `SELECT `+appKey+` AS k, '' AS country, count(*) AS n
-		FROM subs_fetches WHERE link_id = ? AND at > ? GROUP BY k ORDER BY n DESC, k`, linkID, since)
+		FROM subs_fetches WHERE link_id = ? AND at > ?`+counted+` GROUP BY k ORDER BY n DESC, k`, linkID, since)
 	return out, err
 }
 

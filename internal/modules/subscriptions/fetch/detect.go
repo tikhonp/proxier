@@ -1,6 +1,10 @@
 package fetch
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
+)
 
 // apps maps user agents to app families, in order: the first family with a
 // pattern the user agent contains (any case) wins, so v2rayNG comes before
@@ -11,6 +15,9 @@ var apps = []struct {
 	Family   string
 	Patterns []string
 }{
+	// first: their user agents also name Mozilla, and none is an app
+	{store.PreviewApp, []string{"google-read-aloud", "telegrambot", "whatsapp", "facebookexternalhit",
+		"slackbot", "discordbot", "twitterbot", "linkedinbot", "skypeuripreview", "vkshare"}},
 	{"Happ", []string{"happ"}},
 	{"v2RayTun", []string{"v2raytun"}},
 	{"Hiddify", []string{"hiddify"}},

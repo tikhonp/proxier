@@ -4,7 +4,7 @@ Facts that only the real deployment can confirm: real apps, real routers, real n
 
 ## Client apps and the stub entry
 
-Which apps replace their list when a refresh returns one stub entry, and which keep the old list on a `404`. [ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md) rests on the first. Seen so far: Shadowrocket and Hiddify replace their list with the stub. Not tried: Happ, v2RayTun, Streisand, v2rayNG, and any app's answer to a `404`.
+Which apps replace their list when a refresh returns one stub entry, and which keep the old list on a `404`. [ADR 0004](./adr/0004-one-shared-credential-per-endpoint.md) rests on the first. What Shadowrocket, Hiddify, Happ and v2rayNG do is in [subscription format](./integrations/subscription-format.md#stub-entry). Not tried: INCY, v2RayTun and Streisand, and the iOS apps' answer to a `404`.
 
 ## check-host.net limits
 
@@ -54,17 +54,17 @@ Once its routing list reached 3,226 names, Telepat's (hEX S, 7.24.5) every read 
 
 ## Passkeys and the authenticator app on real devices
 
-Checked with a software passkey in tests, Chrome's virtual authenticator and Bitwarden ([sign-in](./processes/platform/sign-in.md#steps-passkeys)). Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in 1Password, on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted, and the phone's clock drift staying within one 30 s step.
+Checked with a software passkey in tests, Chrome's virtual authenticator and Bitwarden ([sign-in](./processes/platform/sign-in.md#steps-passkeys)). Not seen: adding and using a passkey in Safari on macOS and iOS (iCloud Keychain), in 1Password, on Android, and with a hardware key; whether the username field's autofill offers the passkey in each; whether a synced passkey's signature counter stays 0 (a counter that goes back is refused). Not seen either: a real authenticator app scanning the QR code and its codes being accepted. An Android phone's clock was within 0.3 s of the server's, far inside the one 30 s step allowed; an iPhone's wasn't measured. Google Password Manager on Android makes no passkey on a phone without a screen lock.
 
 ## The browser page's apps
 
-None of the [browser page](./integrations/subscription-format.md#browser-page)'s deep links and none of its manual steps were tried on a real device: whether each **Add to {app}** button opens its app and adds the link under the subscription's title, and whether the loose words of each manual import ("tap + and choose to import from the clipboard") match what the app shows. The Shadowrocket and Happ link syntax comes from other panels' code, not from the apps' makers. Which apps are in the Russian App Store changes month to month: re-check with `https://itunes.apple.com/lookup?id=<id>&country=ru` (an empty `results` means not there) and update the notes in `linkpage/apps.yaml`. Not seen either: the page on a real phone (tabs, Copy link over https, the QR code scanned by another phone) and the tab an iPad opens.
+The [browser page](./integrations/subscription-format.md#browser-page)'s Android tab was tried on a real phone; its iPhone & iPad, macOS, Windows, Linux and TV tabs were not: whether each **Add to {app}** button there opens its app and adds the link under the subscription's title, and whether the loose words of each manual import ("tap + and choose to import from the clipboard") match what the app shows. The Shadowrocket link syntax comes from other panels' code, not from the app's maker. Which apps are in the Russian App Store changes month to month: re-check with `https://itunes.apple.com/lookup?id=<id>&country=ru` (an empty `results` means not there) and update the notes in `linkpage/apps.yaml`. Not seen either: the page in Safari on an iPhone, the QR code scanned by another phone, and the tab an iPad opens.
 
 ## Not yet seen on real devices
 
-- Most pages were checked over HTTP tests or in a headless browser, not on a phone: the forms (new server, generate), dialogs, live logs and charts.
-- Telegram delivery of every notification text.
-- Several members on one real bot: **Detect chat** for each member's own chat (and a group chat), and each one's messages reaching only their chat.
-- The bot on a real phone: `/link` from the command menu, the subscription buttons, the URL copied with a tap from the `<code>` block, and long polling from home holding up for days (through the router's tunnel too, if `api.telegram.org` goes there).
+- The pages in Safari on an iPhone. On an Android phone (Chrome, 360 px) the forms (new server with its country suggestions, generate, new subscription and link), dialogs, live logs and charts work.
+- Telegram delivery of every notification text (only Send test was seen).
+- Several members on one real bot: **Detect chat** offered a second member only their own private chat, and Send test went there. Not seen: a group chat, and each member's notifications reaching only their chat.
+- Long polling from home holding up for days (through the router's tunnel too, if `api.telegram.org` goes there). On an Android phone `/link` works from the command menu, with its subscription buttons and the URL copied with a tap from the `<code>` block.
 - The IP country lookup (ipinfo.io) from the deployment.
 - An agent session (`/agent/v1`) driven by a real Claude Code or Codex run.

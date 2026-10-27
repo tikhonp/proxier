@@ -18,14 +18,14 @@ func TestStubTexts(t *testing.T) {
 		contact string
 		want    string
 	}{
-		{en, output.StubDisabled, "@tikhonp", "⛔ Link disabled · contact @tikhonp"},
+		{en, output.StubDisabled, "@tikhonp", "⛔ Link disabled · @tikhonp"},
 		{en, output.StubDisabled, "", "⛔ Link disabled"},
-		{ru, output.StubDisabled, "@tikhonp", "⛔ Ссылка отключена · пишите @tikhonp"},
+		{ru, output.StubDisabled, "@tikhonp", "⛔ Ссылка отключена · @tikhonp"},
 		{ru, output.StubDisabled, "", "⛔ Ссылка отключена"},
-		{en, output.StubExpired, "@tikhonp", "⏳ Expired on 1 Dec 2026 · contact @tikhonp"},
+		{en, output.StubExpired, "@tikhonp", "⏳ Expired on 1 Dec 2026 · @tikhonp"},
 		{en, output.StubExpired, "", "⏳ Expired on 1 Dec 2026"},
-		{ru, output.StubExpired, "@tikhonp", "⏳ Срок истёк 1 дек 2026 · пишите @tikhonp"},
-		{ru, output.StubExpired, "", "⏳ Срок истёк 1 дек 2026"},
+		{ru, output.StubExpired, "@tikhonp", "⏳ Истекла 1 дек 2026 · @tikhonp"},
+		{ru, output.StubExpired, "", "⏳ Истекла 1 дек 2026"},
 		{en, output.StubDeleted, "@tikhonp", "⛔ Link removed"},
 		{ru, output.StubDeleted, "", "⛔ Ссылка удалена"},
 		{en, output.StubEmpty, "@tikhonp", "⚠️ No servers yet"},
@@ -38,7 +38,7 @@ func TestStubTexts(t *testing.T) {
 }
 
 func TestStubURIMatchesTheDoc(t *testing.T) {
-	const want = "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:1?encryption=none&type=tcp&security=none#%E2%9B%94%20Link%20disabled%20%C2%B7%20contact%20%40tikhonp"
+	const want = "vless://00000000-0000-0000-0000-000000000000@127.0.0.1:1?encryption=none&type=tcp&security=none#%E2%9B%94%20Link%20disabled%20%C2%B7%20%40tikhonp"
 	got := output.StubURI(output.StubText(loc(i18n.EN), output.StubDisabled, time.Time{}, "@tikhonp"))
 	if got != want {
 		t.Errorf("\n got %s\nwant %s", got, want)

@@ -83,6 +83,26 @@ func TestElevenNetworksAlert(t *testing.T) {
 	}
 }
 
+// A link preview (Google fetching what Chrome opened) comes from Google's
+// network and is no app of the holder's.
+func TestLinkPreviewsCountForNothing(t *testing.T) {
+	h := substest.New(t)
+	id := link(t, h)
+	for i := range 10 {
+		h.FetchAt(id, h.Now.Add(-time.Hour), net(i), apps[i%5])
+	}
+	h.FetchAt(id, h.Now, net(10), "Mozilla/5.0 (Linux; Android 10; K) Chrome/155.0.0.0 Mobile Safari/537.36 (compatible; Google-Read-Aloud)")
+	h.FetchAt(id, h.Now, net(11), "TelegramBot (like TwitterBot)")
+	scan(t, h)
+	if n := len(alertsOf(h)); n != 0 {
+		t.Errorf("link previews alerted: %d", n)
+	}
+	c, err := h.Mod.Alerts.Counts(bg, id, h.Now.Add(-alerts.Window))
+	if err != nil || len(c.Networks) != 10 || len(c.Apps) != 5 {
+		t.Errorf("counts: %d networks, %d apps, %v", len(c.Networks), len(c.Apps), err)
+	}
+}
+
 func TestSixAppsAlert(t *testing.T) {
 	h := substest.New(t)
 	id := link(t, h)

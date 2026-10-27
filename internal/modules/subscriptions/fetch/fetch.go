@@ -17,6 +17,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/linkpage"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/links"
 	"github.com/tikhonp/proxier/internal/modules/subscriptions/output"
+	"github.com/tikhonp/proxier/internal/modules/subscriptions/store"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
@@ -106,10 +107,13 @@ func (s *Service) serve(c *echo.Context) error {
 const pageFormat = "page"
 
 // wantsPage: a browser asking for a web page, not an app that happens to
-// send Accept: text/html, nor a Mozilla user agent that takes anything.
+// send Accept: text/html, nor a Mozilla user agent that takes anything. A
+// link preview gets the page whatever it accepts: Chrome's read-aloud asked
+// for */* and got the URIs.
 func wantsPage(r *http.Request) bool {
+	app := Detect(r.UserAgent())
 	accept := strings.ToLower(strings.Join(r.Header.Values("Accept"), ","))
-	return strings.Contains(accept, "text/html") && Detect(r.UserAgent()) == "Browser"
+	return app == store.PreviewApp || strings.Contains(accept, "text/html") && app == "Browser"
 }
 
 // page answers a browser with the link's page instead of its URIs: none

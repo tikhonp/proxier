@@ -111,6 +111,24 @@ func TestAppsGetTheListWhateverTheyAccept(t *testing.T) {
 	}
 }
 
+// Chrome on Android has Google fetch a page it opens, asking for */*: that
+// fetch got the URIs once. A link preview gets the page, recorded as such.
+func TestLinkPreviewsGetThePage(t *testing.T) {
+	h, _, _, token := family(t)
+	readAloud := android + " (compatible; Google-Read-Aloud; +https://support.google.com/webmasters/answer/1061943)"
+	for _, ua := range []string{readAloud, "TelegramBot (like TwitterBot)"} {
+		for _, accept := range []string{"*/*", ""} {
+			if body := isPage(t, browse(h, "GET", "/s/"+token, ua, accept)); strings.Contains(body, "vless://") {
+				t.Errorf("%s with %q: the page holds a URI", ua, accept)
+			}
+			if format, app, _ := lastFetch(t, h); format != "page" || app != "Link preview" {
+				t.Errorf("%s: recorded %s %s", ua, format, app)
+			}
+		}
+	}
+	isList(t, browse(h, "GET", "/s/"+token+"?format=uri-plain", readAloud, "*/*"), "a link preview with ?format=uri-plain")
+}
+
 func TestBrowserHeadIsThePagesHeaders(t *testing.T) {
 	h, _, _, token := family(t)
 	rec := browse(h, "HEAD", "/s/"+token, iPhone, htmlAccept)
@@ -135,7 +153,7 @@ func TestStubLinksShowOnlyTheirMessage(t *testing.T) {
 				t.Fatal(err)
 			}
 		}},
-		{"expired in Russian", "⏳ Срок истёк 1 дек 2026", output.StubExpired, func(h *substest.Harness, id int64) {
+		{"expired in Russian", "⏳ Истекла 1 дек 2026", output.StubExpired, func(h *substest.Harness, id int64) {
 			if err := h.Mod.Links.Edit(bg, id, access.All, editOf(h, id, func(e *editForm) { e.Lang = "ru" }), "admin"); err != nil {
 				t.Fatal(err)
 			}

@@ -26,7 +26,11 @@ apps:
   shadowrocket: {name: Shadowrocket, import: "shadowrocket://add/sub://{{b64 .URL}}?remark={{esc .Title}}"}
   hiddify: {name: Hiddify, import: "hiddify://import/{{.URL}}#{{esc .Title}}"}
   happ: {name: Happ, import: "happ://add/{{.URL}}"}
-  v2rayng: {name: v2rayNG, import: "v2rayng://install-sub?url={{esc .URL}}#{{esc .Title}}"}
+  # Android's intent form of v2rayng://install-sub, naming the app: Hiddify
+  # claims v2rayng:// too, and Android asked which app should open it. Chrome
+  # passes everything before "#Intent;" on, the title's fragment included;
+  # without v2rayNG it opens the fallback, its releases.
+  v2rayng: {name: v2rayNG, import: "intent://install-sub?url={{esc .URL}}#{{esc .Title}}#Intent;scheme=v2rayng;package=com.v2ray.ang;S.browser_fallback_url=https%3A%2F%2Fgithub.com%2F2dust%2Fv2rayNG%2Freleases%2Flatest;end"}
   incy: {name: INCY, import: "incy://import/{{.URL}}"}
   # karing: {name: Karing, import: "karing://install-config?url={{esc .URL}}&name={{esc .Title}}"}
   # streisand: {name: Streisand, import: "streisand://import/{{.URL}}#{{esc .Title}}"}

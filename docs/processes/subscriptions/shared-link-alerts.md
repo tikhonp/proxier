@@ -20,6 +20,7 @@ A link is meant for one person or device. If it is fetched from many networks or
 - At most one alert per link per 24 hours. The counts in the next alert are fresh.
 - Thresholds are global settings. A link can override them (a family iPad used by three people) or mute alerts entirely, on its **Alert limits** page (`link.changed{fields: alert limits / alerts muted}`). Raising the limits doesn't end an alert already raised; it ends after its 24 hours.
 - **Countries** come from looking up each network once a month by its **first address** (`198.51.100.0`, `2001:db8:4f2::`, never the person's own address) through `subscriptions.network_country_url` (default ipinfo.io; empty turns countries off). A fetch from a network without a known country queues the lookup job `subscriptions.network_countries` (later fetches merge into it; at most 50 networks a run). A failed lookup is stored as unknown and tried again after a day.
+- Link previews (Chrome's read-aloud, a messenger's preview: [app detection](../../integrations/subscription-format.md#app-detection)) count toward neither number and aren't listed under **Who fetches it**; the fetch log still shows them. They come from their own servers' networks, not the holder's, and get only the page, never the URIs.
 - Stub fetches (disabled, expired, deleted) are counted too: someone still fetching a disabled link from five networks is worth knowing about.
 - The notification shows counts only, never IPs. IPs are on the link page.
 - Fetch records are kept `subscriptions.fetch_retention` (90 days).
@@ -36,3 +37,4 @@ A link is meant for one person or device. If it is fetched from many networks or
 - A disabled link fetched from 11 networks → alert.
 - Two unknown user agents "okhttp/4.12" and "Dalvik/2.1" → counted as 2 apps.
 - A link with no fetches in 24 h → not evaluated.
+- 10 networks and 5 apps, then a Google-Read-Aloud and a TelegramBot fetch from two more networks → 10 networks and 5 apps, no alert.

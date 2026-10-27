@@ -48,7 +48,7 @@ func TestNotificationTexts(t *testing.T) {
 	expired := h.Events("link.expired")[0]
 	for loc, want := range map[*i18n.Localizer][2]string{
 		en: {"Mom expired on 10 Oct", "Its app gets the “expired” entry on its next refresh."},
-		ru: {"Срок ссылки Mom истёк 10 окт", "Приложение получит заглушку «Срок истёк» при следующем обновлении."},
+		ru: {"Срок ссылки Mom истёк 10 окт", "Приложение получит заглушку «Истекла» при следующем обновлении."},
 	} {
 		msg, ok, err := h.Mod.RenderNotification(ctx, expired, loc)
 		if err != nil || !ok || msg.Title != want[0] || msg.Body != want[1] {

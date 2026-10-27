@@ -32,7 +32,7 @@ func TestDeepLinksAreExact(t *testing.T) {
 	for name, want := range map[string]string{
 		"Happ":         "happ://add/" + testURL,
 		"Hiddify":      "hiddify://import/" + testURL + "#" + encTitle,
-		"v2rayNG":      "v2rayng://install-sub?url=" + encURL + "#" + encTitle,
+		"v2rayNG":      "intent://install-sub?url=" + encURL + "#" + encTitle + "#Intent;scheme=v2rayng;package=com.v2ray.ang;S.browser_fallback_url=https%3A%2F%2Fgithub.com%2F2dust%2Fv2rayNG%2Freleases%2Flatest;end",
 		"INCY":         "incy://import/" + testURL,
 		"Shadowrocket": "shadowrocket://add/sub://aHR0cHM6Ly9wLmV4YW1wbGUuY29tL3MvQWJDLTEyM194eXo=?remark=" + encTitle,
 	} {

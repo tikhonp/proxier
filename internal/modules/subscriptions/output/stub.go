@@ -66,9 +66,9 @@ func StubText(loc *i18n.Localizer, outcome string, expires time.Time, contact st
 // Messages are the stub texts; the module adds them to its catalog.
 var Messages = i18n.Messages{
 	"links.stub.disabled":         {EN: "⛔ Link disabled", RU: "⛔ Ссылка отключена"},
-	"links.stub.disabled.contact": {EN: "⛔ Link disabled · contact {contact}", RU: "⛔ Ссылка отключена · пишите {contact}"},
-	"links.stub.expired":          {EN: "⏳ Expired on {date}", RU: "⏳ Срок истёк {date}"},
-	"links.stub.expired.contact":  {EN: "⏳ Expired on {date} · contact {contact}", RU: "⏳ Срок истёк {date} · пишите {contact}"},
+	"links.stub.disabled.contact": {EN: "⛔ Link disabled · {contact}", RU: "⛔ Ссылка отключена · {contact}"},
+	"links.stub.expired":          {EN: "⏳ Expired on {date}", RU: "⏳ Истекла {date}"},
+	"links.stub.expired.contact":  {EN: "⏳ Expired on {date} · {contact}", RU: "⏳ Истекла {date} · {contact}"},
 	"links.stub.deleted":          {EN: "⛔ Link removed", RU: "⛔ Ссылка удалена"},
 	"links.stub.empty":            {EN: "⚠️ No servers yet", RU: "⚠️ Серверов пока нет"},
 }

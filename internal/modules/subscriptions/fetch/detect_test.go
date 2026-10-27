@@ -31,8 +31,12 @@ func TestDetectApp(t *testing.T) {
 		"Wget/1.21.4":            "curl / scripts",
 		"python-requests/2.31.0": "curl / scripts",
 		"Go-http-client/2.0":     "curl / scripts",
-		"okhttp/4.12":            "",
-		"":                       "",
+		"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Mobile Safari/537.36 (compatible; Google-Read-Aloud; +https://support.google.com/webmasters/answer/1061943)": "Link preview",
+		"TelegramBot (like TwitterBot)": "Link preview",
+		"WhatsApp/2.23.20.0":            "Link preview",
+		"facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)": "Link preview",
+		"okhttp/4.12": "",
+		"":            "",
 	} {
 		if got := Detect(ua); got != want {
 			t.Errorf("%q → %q, want %q", ua, got, want)
