@@ -24,7 +24,9 @@
 
 apps:
   shadowrocket: {name: Shadowrocket, import: "shadowrocket://add/sub://{{b64 .URL}}?remark={{esc .Title}}"}
-  hiddify: {name: Hiddify, import: "hiddify://import/{{.URL}}#{{esc .Title}}"}
+  # No #title: Hiddify (4.1.1) takes the fragment undecoded ("Claude%20test")
+  # over the profile-title header, which it decodes, Cyrillic included.
+  hiddify: {name: Hiddify, import: "hiddify://import/{{.URL}}"}
   happ: {name: Happ, import: "happ://add/{{.URL}}"}
   # Android's intent form of v2rayng://install-sub, naming the app: Hiddify
   # claims v2rayng:// too, and Android asked which app should open it. Chrome

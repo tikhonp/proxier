@@ -77,9 +77,9 @@ func TestBrowserGetsThePage(t *testing.T) {
 	u := h.Mod.Links.URL(token)
 	for _, want := range []string{
 		`<html lang="en">`, "<h1>Семья мама</h1>", "Recommended", "Copy link", `class="qr"`,
-		// the recommended app's deep link, and Hiddify's with the title encoded
+		// the recommended app's deep link, and Hiddify's, whose title comes from profile-title
 		`href="shadowrocket://add/sub://`,
-		`href="hiddify://import/` + u + "#" + output.Escape("Семья мама") + `"`,
+		`href="hiddify://import/` + u + `"`,
 		`data-lp-copy="` + u + `"`, "Questions? Write to @tikhonp.",
 		"/js/linkpage.js",
 	} {
