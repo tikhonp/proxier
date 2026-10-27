@@ -72,10 +72,12 @@ The URL goes into a path as it is, since it has no `?` or `#`. In a query or a f
 
 Seen on an Android phone (Chrome, 360 px): the Android tab opens by itself, and **Add to Hiddify**, **Add to Happ** and **Add to v2rayNG** each open their app and add the link under the subscription's title (Hiddify straight after its first-run screen). Hiddify 4.1.1 names the profile after a `#title` on its link as it stands, undecoded ("Claude%20test"), over `profile-title`, so its link has none and it takes the header. Hiddify also claims `v2rayng://`, so with both installed Android asked which app opens a plain `v2rayng://install-sub` link: v2rayNG's button is Android's `intent:` form of it, which names the app (Chrome opened v2rayNG straight away, and the group took the title, Cyrillic included). The manual imports match what the apps show: Happ's + has "Вставить из буфера обмена", v2rayNG's + "Импорт из буфера обмена" (it names that group "import sub": it reads neither `profile-title` nor the file name), and Hiddify's + a "Буфер обмена" tile. **Copy link** fills the clipboard, and the QR code is folded under the apps. Chrome on Android also has Google fetch a page it opens (user agent `… Google-Read-Aloud …`, from Google's addresses): it asked for `*/*`, so it got the connection URIs and counted as another network. Such fetches are a **Link preview**: they get the page and count toward no alert.
 
+Through Hiddify 4.1.1 on that phone (its defaults, region Russia), every server works since the template's xray sniffs the site's name ([VLESS over XHTTP](./vless-xhttp.md)): Hiddify sends IPv6 destinations even with its IPv6 off. What its region sends straight from the phone, Russian sites, it tries over IPv6 too, so on a network without IPv6 those that have an IPv6 address (ya.ru, mail.ru) don't load; region "Other", or "IPv4 only" for its remote DNS, lets them. It also hung with its tunnel up and nothing passing after a change of server, failed to restart its tunnel after a change of setting while connected, and failed its first connect after the VPN prompt. Happ, on the same servers, loaded everything, so it is the Android tab's first app.
+
 | Tab | Apps, the first recommended |
 |---|---|
 | iPhone & iPad | Shadowrocket (known to work with Proxier's servers), Hiddify, INCY, Happ |
-| Android | Hiddify, Happ, v2rayNG |
+| Android | Happ (on an Android phone it loaded every site; Hiddify 4.1.1 didn't, see above), Hiddify, v2rayNG |
 | macOS | Shadowrocket, Hiddify, Happ |
 | Windows | Hiddify, Happ |
 | Linux | Hiddify, Happ |

@@ -72,7 +72,7 @@ func TestAnAppWithoutADeepLink(t *testing.T) {
 func TestShelvesFollowTheList(t *testing.T) {
 	want := map[Platform]string{
 		IOS:     "Shadowrocket Hiddify INCY Happ",
-		Android: "Hiddify Happ v2rayNG",
+		Android: "Happ Hiddify v2rayNG",
 		MacOS:   "Shadowrocket Hiddify Happ",
 		Windows: "Hiddify Happ",
 		Linux:   "Hiddify Happ",

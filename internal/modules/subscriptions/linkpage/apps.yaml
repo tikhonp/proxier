@@ -82,17 +82,20 @@ platforms:
 
   - platform: android
     apps:
-      - app: hiddify
-        note: &open_source {en: "Free and open source.", ru: "Бесплатное, с открытым кодом."}
-        downloads:
-          - {label: play, url: "https://play.google.com/store/apps/details?id=app.hiddify.com"}
-          - &hiddify_releases {label: github, url: "https://github.com/hiddify/hiddify-app/releases/latest"}
-        manual: tap_plus
+      # Happ first: Hiddify (4.1.1) left Russian sites with IPv6 unreachable on
+      # a network without IPv6, and hung or dropped its tunnel on a change of
+      # server or setting; Happ loaded every site on the same servers
       - app: happ
         note: {en: "If Google Play doesn't open, install the APK file.", ru: "Если Google Play не открывается, установите файл APK."}
         downloads:
           - &happ_play {label: play, url: "https://play.google.com/store/apps/details?id=com.happproxy"}
           - &happ_apk {label: apk, url: "https://github.com/Happ-proxy/happ-android/releases/latest/download/Happ.apk"}
+        manual: tap_plus
+      - app: hiddify
+        note: &open_source {en: "Free and open source.", ru: "Бесплатное, с открытым кодом."}
+        downloads:
+          - {label: play, url: "https://play.google.com/store/apps/details?id=app.hiddify.com"}
+          - &hiddify_releases {label: github, url: "https://github.com/hiddify/hiddify-app/releases/latest"}
         manual: tap_plus
       - app: v2rayng
         note: {en: "Free and open source. On the download page, take the file with “universal” in its name.", ru: "Бесплатное, с открытым кодом. На странице загрузки возьмите файл, в названии которого есть «universal»."}
