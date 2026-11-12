@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+    tags: ["v*"]
 
 permissions:
   contents: read
@@ -78,11 +79,11 @@ jobs:
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
 
-  # Build only after validation of the commit that landed on main. PRs run
-  # pr.yaml, and release tags never build or publish images on GitHub.
+  # Build only after validation of the commit that landed on main or was
+  # tagged v*. PRs run pr.yaml and never build or publish images.
   image:
     needs: [test, lint]
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -107,8 +108,14 @@ jobs:
         id: version
         run: |
           IMAGE="${REGISTRY}/${GITHUB_REPOSITORY,,}"
-          echo "tags=${IMAGE}:${GITHUB_SHA},${IMAGE}:main,${IMAGE}:latest" >> "$GITHUB_OUTPUT"
-          echo "version=main-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+          # Keep in sync with the Forgejo workflow: a tag publishes only
+          # :<tag>, so :latest keeps following main.
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "tags=${IMAGE}:${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tags=${IMAGE}:${GITHUB_SHA},${IMAGE}:main,${IMAGE}:latest" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=${GITHUB_REF_NAME}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
           echo "created=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Build and push
@@ -123,3 +130,28 @@ jobs:
             BUILD_DATE=${{ steps.version.outputs.created }}
             VCS_REF=${{ github.sha }}
           tags: ${{ steps.version.outputs.tags }}
+
+  # The release is created only after its image is published, so the image
+  # it names can be pulled. A re-run keeps an existing release as it is.
+  release:
+    needs: [image]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - name: Create release
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists"
+            exit 0
+          fi
+          prerelease=()
+          case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
+          gh release create "$TAG" --verify-tag --generate-notes "${prerelease[@]}" \
+            --notes "Image: \`ghcr.io/${GH_REPO,,}:${TAG}\`"
