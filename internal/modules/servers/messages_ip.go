@@ -29,6 +29,7 @@ var ipMessages = i18n.Messages{
 	"servers.ip.force.help":          {EN: "For a server that is useful from abroad only.", RU: "Для сервера, который нужен только из-за границы."},
 	"servers.ip.start":               {EN: "Change IP", RU: "Сменить IP"},
 	"servers.ip.err.same":            {EN: "{name} has this IP already.", RU: "У сервера {name} уже этот IP."},
+	"servers.ip.err.additional":      {EN: "{name} has this IP as an additional address. Remove that address first.", RU: "У сервера {name} этот IP уже дополнительный. Сначала уберите тот адрес."},
 	"servers.kv.previous":            {EN: "Previous IPs", RU: "Прежние IP"},
 	"servers.previous":               {EN: "Previous IPs", RU: "Прежние IP"},
 	"servers.previous.note":          {EN: "IPs the server used before, tested from home through its endpoints.", RU: "IP, которые были у сервера раньше; проверяются из дома через его точки подключения."},

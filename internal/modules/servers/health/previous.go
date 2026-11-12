@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/servers/conf"
+	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/proxy"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
@@ -195,6 +197,15 @@ func (s *Service) previousTestStep(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
+	// A previous IP was the primary address; endpoints on additional
+	// addresses never lived there, so they say nothing about it.
+	addrs, err := store.ServerAddresses(ctx, s.DB.R, p.ServerID)
+	if err != nil {
+		return err
+	}
+	eps = slices.DeleteFunc(eps, func(e endpoint.Endpoint) bool {
+		return slices.ContainsFunc(addrs, func(a store.Address) bool { return a.Hostname == e.Host })
+	})
 	url, timeout, stall, err := conf.ProxyTest(ctx, s.Settings, setup.ProxyTestURL)
 	if err != nil {
 		return err

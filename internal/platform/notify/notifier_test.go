@@ -106,6 +106,18 @@ func TestTextIsRenderedWhenQueued(t *testing.T) {
 	}
 }
 
+func TestButtonFollowsTheCurrentBaseURL(t *testing.T) {
+	e := newEnv(t, Options{NoJobs: true})
+	e.down("12")
+	e.settle() // queued with the address the notification was rendered for
+	e.base.Host = "new.example"
+	e.h.Start(e.h.Sys)
+	got := e.sent(1)
+	if got[0].ButtonURL != "https://new.example/servers/12" {
+		t.Fatalf("button %q", got[0].ButtonURL)
+	}
+}
+
 func TestSignedInNotifiesOnlyFromNewIP(t *testing.T) {
 	e := newEnv(t, Options{})
 	admin := events.Subject{Type: "admin", ID: "1"}

@@ -83,6 +83,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerHealth(r)
 	h.registerRetire(r)
 	h.registerIP(r)
+	h.registerAddresses(r)
 	h.registerAgent(r)
 }
 

@@ -618,3 +618,39 @@ func TestKeyAccessForm(t *testing.T) {
 		t.Fatalf("errors: %+v", fe)
 	}
 }
+
+func TestAdditionalAddressFormRefusals(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	f := h.Form()
+	for _, c := range []struct {
+		name  string
+		rows  []provision.FormAddress
+		field string
+		key   string
+	}{
+		{"the primary IP", []provision.FormAddress{{IP: f.IP, Hostname: "alt.example.org"}}, "addr_ip_0", "servers.err.addr_ip_dup"},
+		{"the primary hostname", []provision.FormAddress{{IP: "127.0.0.2", Hostname: "nl-1.hosts.proxier.test"}}, "addr_host_0", "servers.err.addr_host_dup"},
+		{"no hostname", []provision.FormAddress{{IP: "127.0.0.2"}}, "addr_host_0", "servers.err.hostname_required"},
+		{"not an IP", []provision.FormAddress{{IP: "alt", Hostname: "alt.example.org"}}, "addr_ip_0", "servers.err.ip_v4"},
+		{"not a hostname", []provision.FormAddress{{IP: "127.0.0.2", Hostname: "not a host"}}, "addr_host_0", "servers.err.hostname_invalid"},
+		{"two with one IP", []provision.FormAddress{{IP: "127.0.0.2", Hostname: "a.example.org"}, {IP: "127.0.0.2", Hostname: "b.example.org"}}, "addr_ip_1", "servers.err.addr_ip_dup"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			f := h.Form()
+			f.Addresses = c.rows
+			_, err := h.Mod.Provision.Create(bg, f, "admin")
+			if fe := refused(t, err); fe[c.field].Key != c.key {
+				t.Fatalf("errors: %+v, want %s on %s", fe, c.key, c.field)
+			}
+			nothingCreated(t, h)
+		})
+	}
+
+	// A blank row is ignored.
+	f = h.Form()
+	f.Addresses = []provision.FormAddress{{}}
+	s := h.Mod.Provision.Summarize(bg, f, false)
+	if len(s.Errors) != 0 || len(s.Addresses) != 0 {
+		t.Fatalf("a blank row: %+v", s)
+	}
+}

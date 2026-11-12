@@ -42,6 +42,7 @@ func TestManifestSchemaErrors(t *testing.T) {
 		{"generated kind", "kind: uuid", "kind: uuidv9", `unknown kind "uuidv9"`},
 		{"validator", "validate: shell", "validate: bash", `unknown validator "bash"`},
 		{"endpoint type", "type: vless-xhttp-tls", "type: vmess", `unknown type "vmess"`},
+		{"endpoint address", "type: vless-xhttp-tls", "type: vless-xhttp-tls\n    address: 0", "endpoint address must be"},
 		{"duplicate generated", "  - { key: container_postfix", "  - { key: client_uuid, kind: uuid }\n  - { key: container_postfix", "declared twice"},
 		{"duplicate file", "  - { path: site/index.html }", "  - { path: site/index.html }\n  - { path: site/index.html }", "declared twice"},
 		{"bad port", "ports: [80/tcp, 443/tcp]", "ports: [80/tcp, 99999/tcp]", "must look like 443/tcp"},
@@ -63,6 +64,31 @@ func TestManifestSchemaErrors(t *testing.T) {
 				t.Errorf("the error has no line: %s", f)
 			}
 		})
+	}
+}
+
+// An endpoint may take its host from its address; without either it is
+// refused.
+func TestEndpointAddressReplacesHost(t *testing.T) {
+	files := seed.Files()
+	src := strings.Replace(string(files["manifest.yaml"]), `host: "{{ .Server.ProxyHostname }}"`, "address: 2", 1)
+	files["manifest.yaml"] = []byte(src)
+	m, fs := manifest.Parse(files["manifest.yaml"])
+	if m == nil {
+		t.Fatalf("parse: %v", fs)
+	}
+	if m.Endpoints[0].Address != 2 || m.Endpoints[0].Host != "" {
+		t.Errorf("endpoint: %+v", m.Endpoints[0])
+	}
+	if fs = manifest.Verify(m, files); len(fs) != 0 {
+		t.Errorf("a host taken from the address must pass: %v", fs)
+	}
+
+	src = strings.Replace(src, "    address: 2\n", "", 1)
+	files["manifest.yaml"] = []byte(src)
+	m, _ = manifest.Parse(files["manifest.yaml"])
+	if f := hasErr(manifest.Verify(m, files), "needs a host, or an address"); f == nil {
+		t.Error("an endpoint with neither a host nor an address must be an error")
 	}
 }
 

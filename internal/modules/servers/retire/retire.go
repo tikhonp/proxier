@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -386,7 +387,7 @@ func (s *Service) removeStack(ctx context.Context, r *jobs.Run, p *payload) erro
 	cctx, cancel := context.WithTimeout(ctx, s.ConnectTimeout)
 	c, err := s.SSH.Connect(cctx, sshx.Target{
 		Hop: sshx.Hop{
-			Address: srv.IP + ":" + strconv.Itoa(srv.SSHPort), User: srv.LoginUser(), Subject: serverKey(srv.ID),
+			Address: net.JoinHostPort(srv.ConnectIP(), strconv.Itoa(srv.SSHPort)), User: srv.LoginUser(), Subject: serverKey(srv.ID),
 		},
 		FirstContact: sshx.PinOnFirstContact,
 	}, r.Log())

@@ -65,6 +65,8 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `server.disk_low` | server | free_pct | **on** | Under 10 % free, once per crossing. |
 | `server.checks_paused` | server | until | off | |
 | `server.checks_resumed` | server | by (`member` / `timer`; `admin` in rows from before members) | off | |
+| `server.address_added` | server | ip, hostname | off | Recorded with the redeploy that follows. |
+| `server.address_removed` | server | ip, hostname | off | Recorded with the redeploy that follows. |
 | `server.retired` | server | dns_removed (names), dns_kept (name, reason), stack_removed | off | Recorded by the retire job's last step. |
 | `server.retire_failed` | server | step, error, cancelled | **on** | "nl-2: retirement failed at …". The server stays out of service (retiring) until a member with `servers: manage` retries; a cancelled job notifies nothing. |
 | `server.notes_changed` | server | — | off | Only when the notes changed. |

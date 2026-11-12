@@ -39,11 +39,21 @@ type Server struct {
 	Country                           Country
 	Location                          Location
 	IP                                string
+	SSHIP                             string // effective SSH connection IP, not a service address
 	SSHPort                           int
 	ManagementHostname, ProxyHostname string
 }
 
 // Client is an identity the stack must accept (ADR 0004).
+// Address is one IP of a server with its client-facing hostname. The first
+// is the primary one (the server's own IP and proxy hostname); the others are
+// the server's additional addresses.
+type Address struct {
+	IP, Hostname string
+	Number       int  // 1-based, its index in .Addresses
+	Primary      bool // the server's own IP and proxy hostname
+}
+
 type Client struct{ ID, Name string }
 
 type Template struct {
@@ -51,9 +61,14 @@ type Template struct {
 	Version int
 }
 
-// Context is what templates see: .Server .Params .Gen .Clients .Template.
+// Context is what templates see: .Server .Addresses .Params .Gen .Clients
+// .Template, and .Address inside an endpoint bound to one address.
 type Context struct {
-	Server   Server
+	Server    Server
+	Addresses []Address
+	// Address is the endpoint's own address (manifest endpoint field
+	// "address"); nil renders the file templates.
+	Address  *Address
 	Params   map[string]any
 	Gen      map[string]string
 	Clients  []Client
@@ -94,14 +109,15 @@ func SampleContext(m *manifest.Manifest, slug string, genValues map[string]strin
 	}
 	c := Context{
 		Server: Server{
-			Name: "xx-1", Number: 1, IP: "192.0.2.10", SSHPort: 22,
+			Name: "xx-1", Number: 1, IP: "192.0.2.10", SSHIP: "192.0.2.10", SSHPort: 22,
 			Country:            Country{Code: "XX", Name: "Sample"},
 			Location:           Location{Code: "xx", Name: "Sample", Country: "XX"},
 			ManagementHostname: "xx-1.hosts.example.invalid", ProxyHostname: "xx-1.hosts.example.invalid",
 		},
-		Params:   params,
-		Gen:      all,
-		Template: Template{Slug: slug},
+		Addresses: sampleAddresses(m),
+		Params:    params,
+		Gen:       all,
+		Template:  Template{Slug: slug},
 	}
 	if !hasCredential(m) {
 		id := sampleUUID
@@ -113,6 +129,33 @@ func SampleContext(m *manifest.Manifest, slug string, genValues map[string]strin
 		c.Clients = []Client{{ID: id, Name: SharedClient}}
 	}
 	return c
+}
+
+// maxSampleAddresses keeps the sample IPs inside 192.0.2.0/24 and a typo like
+// `address: 99999` from building a huge list; an endpoint beyond it is left
+// out of the sample render, as it is for a server without that address.
+const maxSampleAddresses = 200
+
+// sampleAddresses has one address for each the manifest's endpoints bind to,
+// and at least two, so every endpoint's fields are rendered during
+// validation, not only on the first redeploy of a server that has the address.
+func sampleAddresses(m *manifest.Manifest) []Address {
+	n := 2
+	for _, e := range m.Endpoints {
+		n = max(n, min(e.Address, maxSampleAddresses))
+	}
+	out := make([]Address, 0, n)
+	for i := 1; i <= n; i++ {
+		a := Address{IP: fmt.Sprintf("192.0.2.%d", 9+i), Hostname: "xx-1.hosts.example.invalid", Number: i, Primary: i == 1}
+		switch {
+		case i == 2:
+			a.Hostname = "xx-1-alt.hosts.example.invalid"
+		case i > 2:
+			a.Hostname = fmt.Sprintf("xx-1-alt%d.hosts.example.invalid", i)
+		}
+		out = append(out, a)
+	}
+	return out
 }
 
 func hasCredential(m *manifest.Manifest) bool {

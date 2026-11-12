@@ -34,10 +34,21 @@ import (
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 )
 
+// FormAddress is one additional address row of the new-server form.
+type FormAddress struct {
+	IP, Hostname string
+	// row is the row's place in the form, for the error of the check that
+	// runs again in the writing transaction.
+	row int
+}
+
 // Form is what the new-server form posts.
 type Form struct {
 	IP, RootPassword string
-	SSHPort          int // 0 = 22
+	// SSHIP overrides the connection address only (e.g. a Tailscale IP).
+	// IP and Addresses remain the service addresses exposed to clients.
+	SSHIP   string
+	SSHPort int // 0 = 22
 	// AccessMode is how Proxier logs in: store.AccessPassword (root's password
 	// creates the proxier user) or store.AccessKey (Proxier's key is already
 	// in SSHUser's authorized_keys). "" takes the Settings → Servers default.
@@ -64,6 +75,9 @@ type Form struct {
 	// SkipDNS skips the form check and provisioning wait for a record the
 	// member manages. Certificate issuance and connection tests still run.
 	SkipDNS bool
+	// Addresses are the server's additional addresses: more IPs on the same
+	// machine, each with its own hostname. Proxier does not manage their DNS.
+	Addresses []FormAddress
 }
 
 // Msg is a refusal: an i18n key and its arguments.
@@ -87,6 +101,7 @@ func (fe FieldErrors) Error() string {
 // Summary is what the live summary shows while the admin types.
 type Summary struct {
 	Name, ManagementHostname, ProxyHostname string
+	SSHIP                                   string
 	// DNSRecord is the record that will be written: "A <name> → <ip>, DNS only, TTL 60",
 	// or with ManualDNS the one the member creates: "A <name> → <ip>".
 	DNSRecord string
@@ -96,7 +111,10 @@ type Summary struct {
 	// DNSFound is what the check of a record made by hand found when it is
 	// in place ("ns1.example.net answered 203.0.113.10"); a record that is
 	// not is in Errors["dns"].
-	DNSFound  string
+	DNSFound string
+	// Addresses are the additional addresses as they will be stored:
+	// "203.0.113.25 → alt.example.com".
+	Addresses []string
 	Endpoints []string // display names
 	// Suggested is the IP's country, "" when unknown or not asked for.
 	Suggested string
@@ -174,6 +192,15 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 		c.form.SSHPort = 22
 	}
 	c.form.IP = strings.TrimSpace(f.IP)
+	c.form.SSHIP = strings.TrimSpace(f.SSHIP)
+	if c.form.SSHIP != "" {
+		ip, err := netip.ParseAddr(c.form.SSHIP)
+		if err != nil || ip.Zone() != "" || ip.IsUnspecified() || ip.IsMulticast() {
+			fe(errs, "ssh_ip", "servers.err.ssh_ip")
+		} else {
+			c.form.SSHIP = ip.Unmap().String()
+		}
+	}
 
 	// the address
 	addr, err := netip.ParseAddr(c.form.IP)
@@ -191,6 +218,11 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 		default:
 			fe(errs, "ip", "servers.err.ip_used", "name", other.Name)
 		}
+	}
+	// The same IP is no separate SSH address: left empty, SSH follows the
+	// primary IP through an IP change instead of staying on the old one.
+	if c.form.SSHIP == c.form.IP {
+		c.form.SSHIP = ""
 	}
 	if c.form.SSHPort < 1 || c.form.SSHPort > 65535 {
 		fe(errs, "ssh_port", "servers.err.ssh_port")
@@ -346,6 +378,7 @@ func (s *Service) check(ctx context.Context, f Form, withPassword bool) (*checke
 			fe(errs, "dns", "servers.err.not_covered", "host", c.hostname)
 		}
 	}
+	c.form.Addresses = s.checkAddresses(ctx, f.Addresses, c.form.IP, c.hostname, errs)
 	if c.manualDNS && !f.SkipDNS && (withPassword || f.CheckDNS) && addr.Is4() && !addr.Is4In6() {
 		s.checkManualDNS(ctx, c, errs)
 	}
@@ -363,6 +396,36 @@ func (s *Service) checkManualDNS(ctx context.Context, c *checked, errs FieldErro
 		fe(errs, "dns", "servers.err.dns_manual_missing", "host", c.hostname, "ip", c.form.IP, "said", found.Said)
 	default:
 		c.found = found.Said
+	}
+}
+
+// checkAddresses validates the additional address rows and returns the ones
+// to store. A row with both fields empty is left out; a half-filled one is a
+// refusal. Proxier does not manage their DNS, so no record is looked up.
+func (s *Service) checkAddresses(ctx context.Context, rows []FormAddress, primaryIP, primaryHost string, errs FieldErrors) []FormAddress {
+	out := make([]FormAddress, 0, len(rows))
+	used := NewAddressSet(primaryIP, primaryHost)
+	for i, row := range rows {
+		ip, host := strings.TrimSpace(row.IP), NormalizeHostname(row.Hostname)
+		if ip == "" && host == "" {
+			continue
+		}
+		nip, nhost, rowErrs := CheckAddress(ctx, s.DB.R, 0, used, ip, host)
+		rowFieldErrors(errs, i, rowErrs)
+		if len(rowErrs) == 0 {
+			out = append(out, FormAddress{IP: nip, Hostname: nhost, row: i})
+		}
+	}
+	return out
+}
+
+// rowFieldErrors copies a row's refusals under the form's per-row field names.
+func rowFieldErrors(errs FieldErrors, row int, rowErrs FieldErrors) {
+	if m, bad := rowErrs["ip"]; bad {
+		errs[fmt.Sprintf("addr_ip_%d", row)] = m
+	}
+	if m, bad := rowErrs["hostname"]; bad {
+		errs[fmt.Sprintf("addr_host_%d", row)] = m
 	}
 }
 
@@ -432,6 +495,9 @@ func paramProblem(p manifest.Parameter, raw string) string { return render.Param
 func (s *Service) Summarize(ctx context.Context, f Form, suggest bool) Summary {
 	c, errs := s.check(ctx, f, false)
 	sum := Summary{Errors: errs}
+	// Blank when SSH goes to the server's IP: the summary shows the row only
+	// for a different address.
+	sum.SSHIP = c.form.SSHIP
 	if suggest {
 		if cc := s.country(ctx, c.form.IP); country.Valid(cc) {
 			sum.Suggested = cc
@@ -447,9 +513,22 @@ func (s *Service) Summarize(ctx context.Context, f Form, suggest bool) Summary {
 		sum.ManualDNS, sum.DNSFound = true, c.found
 		sum.DNSRecord = fmt.Sprintf("A %s → %s", c.hostname, c.form.IP)
 	}
+	for _, a := range c.form.Addresses {
+		sum.Addresses = append(sum.Addresses, a.IP+" → "+a.Hostname)
+	}
 	if c.man != nil {
-		many := len(c.man.Endpoints) > 1
+		// Endpoints bound to addresses the server will not have are left out.
+		n := 0
 		for _, e := range c.man.Endpoints {
+			if e.Address == 0 || e.Address <= 1+len(c.form.Addresses) {
+				n++
+			}
+		}
+		many := n > 1
+		for _, e := range c.man.Endpoints {
+			if e.Address > 0 && e.Address > 1+len(c.form.Addresses) {
+				continue
+			}
 			sum.Endpoints = append(sum.Endpoints, endpoint.DisplayName(flagOf(c.form.Country), shownName(c.form.Country), c.number, e.Key, many))
 		}
 	}
@@ -535,7 +614,7 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 		}
 		id, err = store.InsertServer(ctx, tx, store.NewServer{
 			Country: c.form.Country, Number: number, Name: fmt.Sprintf("%s-%d", c.prefix, number), IP: c.form.IP, SSHPort: c.form.SSHPort,
-			AccessMode: c.form.AccessMode, SSHUser: c.form.SSHUser, Setup: c.form.Setup,
+			AccessMode: c.form.AccessMode, SSHUser: c.form.SSHUser, Setup: c.form.Setup, SSHIP: c.form.SSHIP,
 			ManagementHostname: host, ProxyHostname: host, TemplateID: c.tpl.ID, TemplateVersion: c.version,
 			Params: marshalStrings(c.public), Notes: f.Notes, ManualDNS: c.manualDNS,
 		}, db.At(s.Now()), func(id int64) []byte { return sealed.SealParams(s.Vault, id, c.secret) })
@@ -544,6 +623,19 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 		}
 		if err != nil {
 			return err
+		}
+		// Checked again here, where no other create can slip in between the
+		// check and the insert; the form's check only gives early field errors.
+		used := NewAddressSet(c.form.IP, host)
+		for _, a := range c.form.Addresses {
+			if _, _, rowErrs := CheckAddress(ctx, tx, id, used, a.IP, a.Hostname); len(rowErrs) > 0 {
+				out := FieldErrors{}
+				rowFieldErrors(out, a.row, rowErrs)
+				return out
+			}
+			if _, err := store.InsertAddress(ctx, tx, id, a.IP, a.Hostname, db.At(s.Now())); err != nil {
+				return err
+			}
 		}
 		secrets := map[string]string{}
 		if c.form.AccessMode == store.AccessPassword {
@@ -560,7 +652,7 @@ func (s *Service) Create(ctx context.Context, f Form, actor string) (int64, erro
 			return err
 		}
 		_, err = s.Events.Record(ctx, tx, events.Event{Type: "server.created", Subject: store.ServerSubject(id), Actor: actor,
-			Payload: map[string]any{"ip": c.form.IP, "country": c.form.Country, "hostname": host, "manual_dns": c.manualDNS, "template_version": c.version, "access": c.form.AccessMode, "setup": c.form.Setup}})
+			Payload: map[string]any{"ip": c.form.IP, "ssh_ip": c.form.SSHIP, "country": c.form.Country, "hostname": host, "manual_dns": c.manualDNS, "template_version": c.version, "access": c.form.AccessMode, "setup": c.form.Setup}})
 		return err
 	})
 	if err != nil {

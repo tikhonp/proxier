@@ -24,7 +24,7 @@ import (
 func (s *Service) target(srv store.Server) sshx.Target {
 	return sshx.Target{
 		Hop: sshx.Hop{
-			Address: net.JoinHostPort(srv.IP, strconv.Itoa(srv.SSHPort)), User: srv.LoginUser(),
+			Address: net.JoinHostPort(srv.ConnectIP(), strconv.Itoa(srv.SSHPort)), User: srv.LoginUser(),
 			Subject: serverKey(srv.ID),
 		},
 		FirstContact: sshx.PinOnFirstContact,

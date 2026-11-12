@@ -75,6 +75,7 @@ button:disabled{cursor:not-allowed;opacity:.45}
 <span style="font-size:12px;color:#908caa" title="Fri 2 Oct 2026, 11:04 MSK">since 2 Oct · first byte 0.21 s</span>
 </div>
 <p style="color:#908caa;margin-top:4px">Netherlands · 203.0.113.10 · nl-1.hosts.example.com · VLESS XHTTP behind nginx v3</p>
+<p style="font-size:12px;color:#908caa;margin-top:2px">SSH connection IP: 100.64.0.10</p>
 </div>
 <div style="position:relative;display:flex;flex-wrap:wrap;gap:8px">
 <button type="button" class="pc-btn pc-pri">Run checks now</button>
@@ -241,7 +242,7 @@ class Component extends DCLogic {
       menu: [
         it('Upgrade to another version…'), it('Edit parameters…', 'e'), sep,
         it('Restart stack'), it('Update images'), it('Reboot…'), it('Container logs'), sep,
-        it('Pause checks…', 'p'), it('Rotate credentials…'), sep,
+        it('Pause checks…', 'p'), it('Rotate credentials…'), it('Addresses…'), sep,
         it('Retire nl-1…', '', true)
       ],
       subs: [
@@ -252,6 +253,7 @@ class Component extends DCLogic {
       facts: [
         { k: 'Location', v: 'NL Netherlands' },
         { k: 'IP', v: '203.0.113.10' },
+        { k: 'Additional addresses', v: '203.0.113.11 · alt.example.com' },
         { k: 'Management', v: 'nl-1.hosts.example.com' },
         { k: 'DNS', v: 'A record · Cloudflare · DNS only' },
         { k: 'Template', v: 'VLESS XHTTP behind nginx v3 (default)' },

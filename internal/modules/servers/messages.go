@@ -124,6 +124,8 @@ var messages = i18n.Messages{
 	"event.server.disk_low":            {EN: "{subject} has {free_pct} % disk free", RU: "На сервере {subject} свободно {free_pct} % диска"},
 	"event.server.checks_paused":       {EN: "Paused the checks of {subject}", RU: "Проверки сервера {subject} приостановлены"},
 	"event.server.checks_resumed":      {EN: "Resumed the checks of {subject}", RU: "Проверки сервера {subject} возобновлены"},
+	"event.server.address_added":       {EN: "Added the address {ip} ({hostname}) to {subject}", RU: "Серверу {subject} добавлен адрес {ip} ({hostname})"},
+	"event.server.address_removed":     {EN: "Removed the address {ip} ({hostname}) from {subject}", RU: "У сервера {subject} удалён адрес {ip} ({hostname})"},
 	"event.server.retired":             {EN: "Retired {subject}", RU: "Сервер {subject} выведен из работы"},
 	"event.server.notes_changed":       {EN: "Changed the notes of {subject}", RU: "Изменены заметки сервера {subject}"},
 	"event.server.rollout_started":     {EN: "Started a rolling upgrade to version {to_version}", RU: "Начато поочерёдное обновление до версии {to_version}"},

@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -203,6 +204,22 @@ func (s *Service) link(href string) string {
 		href = "/activity"
 	}
 	return strings.TrimRight(s.base.String(), "/") + href
+}
+
+// rebase puts a stored page link on the current base URL. A message is
+// rendered when queued, so a notification queued before PROXIER_BASE_URL
+// changed holds the old host; sending it would open the old address, or be
+// refused by Telegram when that was a localhost one. The page path is kept.
+func (s *Service) rebase(raw string) string {
+	if raw == "" || s.base == nil {
+		return raw
+	}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return raw
+	}
+	u.Scheme, u.Host, u.User = s.base.Scheme, s.base.Host, nil
+	return u.String()
 }
 
 // name resolves a subject to its label and page, "type:id" when nobody names it.

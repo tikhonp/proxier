@@ -336,7 +336,7 @@ func (s *Service) stopped(ctx context.Context, tx *sqlx.Tx, j jobs.Info, b base,
 func (s *Service) target(srv store.Server) sshx.Target {
 	return sshx.Target{
 		Hop: sshx.Hop{
-			Address: net.JoinHostPort(srv.IP, strconv.Itoa(srv.SSHPort)), User: srv.LoginUser(),
+			Address: net.JoinHostPort(srv.ConnectIP(), strconv.Itoa(srv.SSHPort)), User: srv.LoginUser(),
 			Subject: serverKey(srv.ID),
 		},
 		FirstContact: sshx.PinOnFirstContact,

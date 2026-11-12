@@ -28,6 +28,15 @@ This flow also covers parameter changes, stack restarts, image updates, reboots 
 6. A failure stops the job. The server stays **active**, at whatever state the remote side reached, and the deployment is recorded as failed. Health checks report the actual effect. → `server.redeploy_failed{kind, step, error}` (notifies). A cancelled job fails its deployment the same way (`error: cancelled`) and records the event with `cancelled: true`, which does not notify.
 7. **Roll back** on the latest deployment, when it failed after putting files on the server, opens a forced redeploy of the version and parameters of the current files through the same plan screen. It is forced because the failed deployment may have changed the server in ways the stored current files do not show.
 
+## Steps: addresses
+
+1. An **active** server → **Addresses…**.
+2. **Add address**: an IPv4 and a hostname. Proxier checks that neither is the server's primary address or another non-retired server's address, and that the hostname is a full DNS name. It stores the address and queues a forced redeploy of the current version; the plan shows the files and endpoints it changes. A template that ignores addresses changes nothing, and only the address is stored.
+3. **Remove** (the last additional address only): the server is redeployed without it. Positions never shift, so endpoints that bind by number keep their meaning. To replace an earlier address, remove the later ones first.
+4. The member points the new hostname at its IP. Proxier never writes or checks that record; until it resolves, the proxy test through the endpoints on that address fails, and the deployment is recorded as failed while the server stays active.
+5. → `server.address_added{ip, hostname}` / `server.address_removed{ip, hostname}`; the redeploy records `server.redeployed`.
+6. Every check runs again in the transaction that stores or removes the address, so two members acting at once cannot both take one IP or hostname. The change is committed before the redeploy is queued. When the redeploy cannot start, the page stays and says "The address change was saved, but the redeploy did not start" with the reason; the member redeploys from the server page.
+
 ## Steps: rolling upgrade
 
 1. The server list → select servers (or "all on older versions") → **Upgrade to default version**.
@@ -71,4 +80,8 @@ This flow also covers parameter changes, stack restarts, image updates, reboots 
 - A rolling upgrade of five servers where the third fails its proxy test → two upgraded, one failed, two not started. The rollout stops and reports it.
 - Update images where no image changed → the job succeeds and records `changed_images: []`.
 - Reboot where SSH doesn't come back within 5 min → the job fails, and health checks report the server.
+- Add an address that is the primary IP, an additional IP of the same server, one of its previous IPs, or that has one of its hostnames → refused as a duplicate. An IP or hostname of another non-retired server (primary, previous or additional) → refused, naming that server.
+- Remove an address that is not the last one → refused (409); nothing changes and no event is recorded.
+- Two members add the same IP at once → one is stored, the other is refused.
+- The address is stored but the redeploy cannot start → the page shows that the change was saved and why the redeploy did not start; no error page, and the address stays.
 - A host key that changed since the last connection → the job fails with "host key changed" before uploading anything ([ADR 0007](../../adr/0007-agentless-ssh-with-pinned-host-keys.md)).

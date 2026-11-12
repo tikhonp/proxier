@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
+	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/render"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
@@ -81,6 +82,13 @@ func (s *Service) RetirementSetup(ctx context.Context, serverID int64) (CheckSet
 	}
 	c := &computed{Srv: srv, Slug: tpl.Slug, Man: m, CurMan: m, Errs: FieldErrors{}}
 	c.Plan.ToVersion = srv.TemplateVersion
+	// Uninstall steps see the same .Addresses as the stack they remove, and
+	// address-bound endpoints still render for .Clients.
+	extra, err := store.ServerAddresses(ctx, s.DB.R, srv.ID)
+	if err != nil {
+		return CheckSetup{}, err
+	}
+	c.Addrs = provision.RenderAddresses(srv, extra)
 	if err := s.computeParams(ctx, c); err != nil {
 		return CheckSetup{}, err
 	}
@@ -95,12 +103,7 @@ func (s *Service) RetirementSetup(ctx context.Context, serverID int64) (CheckSet
 	// Preserve .Clients for uninstall scripts when an endpoint still renders,
 	// without requiring endpoints to be valid or even present for retirement.
 	endpoints, _ := render.Render(&manifest.Manifest{Parameters: m.Parameters, Endpoints: m.Endpoints}, nil, renderCtx)
-	for _, ep := range endpoints.Endpoints {
-		if ep.Credential != "" {
-			renderCtx.Clients = []render.Client{{ID: ep.Credential, Name: render.SharedClient}}
-			break
-		}
-	}
+	renderCtx.Clients = render.ClientsOf(endpoints.Endpoints)
 	cleanup := &manifest.Manifest{Parameters: m.Parameters, Steps: manifest.Steps{Uninstall: m.Steps.Uninstall}}
 	rendered, findings := render.Render(cleanup, nil, renderCtx)
 	var problems []string

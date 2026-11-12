@@ -123,6 +123,8 @@ type serverView struct {
 	RetireErr    string
 	// Previous are the IPs the server used before, still tested.
 	Previous []store.PreviousIP
+	// Addresses are the server's additional addresses.
+	Addresses []store.Address
 }
 
 func (h *handler) serverID(c *echo.Context) (int64, error) { return h.id(c) }
@@ -225,6 +227,12 @@ func (h *handler) buildServer(ctx context.Context, s store.Server, jobParam int6
 	if err := h.changeView(ctx, s, jobParam, &v); err != nil {
 		return v, err
 	}
+
+	addrs, err := h.Deploy.Addresses(ctx, s.ID)
+	if err != nil {
+		return v, err
+	}
+	v.Addresses = addrs
 
 	rows, err := store.Endpoints(ctx, h.Store.DB.R, s.ID)
 	if err != nil {

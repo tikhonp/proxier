@@ -74,6 +74,8 @@ var Events = []events.Type{
 	{Name: "server.disk_low", Notify: true, Emoji: "🟡", Description: "A server has less than 10 % disk free (once per crossing)."},
 	{Name: "server.checks_paused", Description: "Checks of a server were paused."},
 	{Name: "server.checks_resumed", Description: "Checks of a server were resumed."},
+	{Name: "server.address_added", Description: "An additional address was added to a server."},
+	{Name: "server.address_removed", Description: "An additional address was removed from a server."},
 	{Name: "server.retired", Description: "A server was retired."},
 	{Name: "server.retire_failed", Notify: true, NotifyIf: notCancelled, Emoji: "🔴", Description: "Retirement stopped at a step; the server stays out of service until retried."},
 	{Name: "server.notes_changed", Description: "The notes of a server changed."},

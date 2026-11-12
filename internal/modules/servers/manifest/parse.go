@@ -393,7 +393,7 @@ func (p *parser) endpoints(m *Manifest, v *yaml.Node) {
 	}
 	for _, c := range v.Content {
 		e := Endpoint{Line: c.Line, Params: map[string]string{}}
-		p.pairs(c, "an endpoint", []string{"key", "type", "host", "port", "credential", "params"}, func(k string, _, vv *yaml.Node) {
+		p.pairs(c, "an endpoint", []string{"key", "type", "host", "port", "credential", "params", "address"}, func(k string, _, vv *yaml.Node) {
 			switch k {
 			case "key":
 				e.Key, _ = p.scalar(vv, "endpoint key")
@@ -405,6 +405,17 @@ func (p *parser) endpoints(m *Manifest, v *yaml.Node) {
 				e.Port, _ = p.scalar(vv, "port")
 			case "credential":
 				e.Credential, _ = p.scalar(vv, "credential")
+			case "address":
+				s, ok := p.scalar(vv, "endpoint address")
+				n, err := strconv.Atoi(strings.TrimSpace(s))
+				if !ok {
+					break
+				}
+				if err != nil || n < 1 {
+					p.errAt(vv, "endpoint address must be a number of the server's addresses, 1 or more")
+					break
+				}
+				e.Address = n
 			case "params":
 				p.pairs(vv, "endpoint params", nil, func(pk string, _, pv *yaml.Node) {
 					if s, ok := p.scalar(pv, "param "+pk); ok {

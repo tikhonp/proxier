@@ -82,7 +82,7 @@ Seen with Claude Code against the deployment, on a hand-off for `vless-xhttp` wi
 
 Validation renders the template for a **sample context** and checks every file. It runs inside Proxier's own container with bundled tools and Go libraries. It never starts containers and never uses a Docker socket ([ADR 0009](../../adr/0009-embedded-xray-core-no-docker-socket.md)).
 
-Sample context: server `xx-1` in country `XX` ("Sample", no flag; `.Server.Location` is `xx`, "Sample", `XX`), IP `192.0.2.10`, both hostnames `xx-1.hosts.example.invalid`, parameters from each parameter's `sample` (or `default`), generated values freshly generated, `.Clients` with one sample client.
+Sample context: server `xx-1` in country `XX` ("Sample", no flag; `.Server.Location` is `xx`, "Sample", `XX`), IP `192.0.2.10`, both hostnames `xx-1.hosts.example.invalid`, parameters from each parameter's `sample` (or `default`), generated values freshly generated, `.Clients` with one sample client per distinct endpoint credential, and `.Addresses` with as many documentation-range addresses (`192.0.2.10`, `.11`, ...) and distinct sample hostnames as the highest `address:` of an endpoint, at least two, so an endpoint bound to address 3 or more is rendered during validation too.
 
 | Check | Error when | Warning when |
 |---|---|---|
@@ -102,6 +102,41 @@ The nginx validator parses rendered files with a Go parser without running nginx
 The mount path determines the parse context. `/etc/nginx/nginx.conf` uses the main context. Files under `/etc/nginx/templates/` or `/etc/nginx/conf.d/` use `http { }`. An unmounted file also uses `http { }` unless its name is `nginx.conf`.
 
 Validation does not open certificate files or resolve upstream hostnames. The smoke test checks failures that require a running nginx.
+
+## Additional addresses
+
+A server may have several IPs, each with its own hostname ([servers module](../../modules/servers.md#addresses)). A template uses them by position, 1 being the primary address:
+
+- `.Addresses` is the list the file templates loop over: `{IP, Hostname, Number, Primary}`. Render a server block or an inbound for each one.
+- An endpoint adds `address: <n>`. Its fields see `.Address` (that address), and an empty `host` takes `.Address.Hostname`. When the server has no such address, the endpoint is left out, so a template can declare endpoints for more addresses than any one server has.
+- Endpoint keys stay static; the number is the position in `.Addresses`, not a name.
+- Proxier writes no DNS record for an additional address and does not wait for it. The member points the hostname at the IP; until then the proxy test through that endpoint fails.
+- `.Clients` lists every distinct endpoint credential, so the stack accepts the connection URIs of each endpoint: the first is named `shared`, the others `shared-<endpoint key>` (xray wants unique client names). Endpoints that share a credential add one client. Render the list as usual (`{{ range .Clients }}`) and the example below needs no extra step.
+- Proxier issues no certificates for additional hostnames. If the endpoints use TLS, the install steps issue one per hostname, or one certificate that names them all.
+
+For two addresses, two endpoints and two generated credentials:
+
+```yaml
+generated:
+  - { key: uuid_alt, kind: uuid, rotate: true }
+  - { key: path_alt, kind: hex, length: 16, prefix: /, rotate: true }
+
+endpoints:
+  - key: main
+    type: vless-xhttp-tls
+    address: 1
+    port: 443
+    credential: "{{ .Gen.client_uuid }}"
+    params: { path: "{{ .Gen.xhttp_path }}", sni: "{{ .Address.Hostname }}", ... }
+  - key: alt
+    type: vless-xhttp-tls
+    address: 2
+    port: 443
+    credential: "{{ .Gen.uuid_alt }}"
+    params: { path: "{{ .Gen.path_alt }}", sni: "{{ .Address.Hostname }}", ... }
+```
+
+In the files, `{{ range .Addresses }}` renders a server block or inbound per address; `{{ if .Primary }}` tells the primary one apart if it needs something else.
 
 ## Rules
 

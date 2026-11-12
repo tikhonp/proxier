@@ -729,6 +729,38 @@
   document.addEventListener('DOMContentLoaded', syncDepends);
   document.addEventListener('htmx:afterSwap', syncDepends);
 
+  // repeatable rows: [data-addr-add] appends a copy of the last one, and
+  // [data-addr-remove] takes one away, leaving an empty row when it was the last.
+  var addrRows = $('#addr-rows');
+  if (addrRows) {
+    var addAddr = $('[data-addr-add]');
+    if (addAddr) addAddr.addEventListener('click', function () {
+      var entries = $$('[data-addr-entry]', addrRows);
+      if (!entries.length) return;
+      var entry = entries[entries.length - 1].cloneNode(true);
+      $$('input', entry).forEach(function (i) { i.value = ''; i.removeAttribute('aria-invalid'); });
+      $$('.err', entry).forEach(function (e) { e.remove(); });
+      addrRows.appendChild(entry);
+      var first = $('input', entry);
+      if (first) first.focus();
+    });
+    addrRows.addEventListener('click', function (e) {
+      var rm = e.target.closest && e.target.closest('[data-addr-remove]');
+      if (!rm) return;
+      var entry = rm.closest('[data-addr-entry]');
+      if (!entry) return;
+      var entries = $$('[data-addr-entry]', addrRows);
+      if (entries.length === 1) {
+        $$('input', entry).forEach(function (i) { i.value = ''; i.removeAttribute('aria-invalid'); });
+        $$('.err', entry).forEach(function (el) { el.remove(); });
+        var first = $('input', entry);
+        if (first) first.focus();
+        return;
+      }
+      entry.remove();
+    });
+  }
+
   // dialog: esc closes natively; a click on the backdrop closes too
   document.addEventListener('mousedown', function (e) {
     if (e.target.tagName === 'DIALOG' && e.target.open) {

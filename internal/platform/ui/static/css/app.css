@@ -71,6 +71,7 @@
 .row { position: relative; display: grid; gap: 16px; align-items: center; padding: 6px 16px; }
 .row .caret { position: absolute; left: 4px; top: 6px; color: var(--text); visibility: hidden; }
 .pc-cur .caret { visibility: visible; }
+.row.addr { grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto; }
 .row.sess, .row.pk { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr) auto; }
 /* Removing a passkey asks for the password in place: the row's button opens a small form beside it and closes it again */
 .pw-confirm { justify-self: end; }
@@ -323,7 +324,7 @@ dialog.pc-dialog::backdrop { background: rgba(0, 0, 0, .7); }
   .settings-nav { width: auto; border-right: 0; border-bottom: 1px solid var(--overlay); display: flex; overflow-x: auto; padding: 0; }
   .settings-nav a { flex: none; height: 44px; }
   .form { max-width: none; }
-  .row.sess, .row.pk, .row.host, .row.bk { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
+  .row.sess, .row.pk, .row.host, .row.bk, .row.addr { grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 10px 16px; }
   .access .access-row { grid-template-columns: minmax(0, 1fr); }
   .access .access-row .help { grid-column: 1; }
   .pw-confirm { justify-self: start; }

@@ -158,6 +158,14 @@ _Avoid_: reset, regenerate, revoke
 Moving a server to another IP of the same VPS: Proxier checks the new IP over SSH (the same host key) and with the proxy test from home, then repoints DNS. Links keep working, since they name the hostname.
 _Avoid_: re-IP, migration, readdressing
 
+**Additional address**:
+Another IP of the same server, with a hostname of its own, added after creation or in the new-server form. Proxier writes and checks none of its DNS records, and an endpoint binds to it by position. Only the last one can be removed.
+_Avoid_: secondary IP, alias IP, extra IP
+
+**SSH connection IP**:
+An optional IPv4 or IPv6 address that Proxier uses for SSH instead of the server's IP, for example a Tailscale address. Clients, DNS and the proxy test still use the server's IP.
+_Avoid_: management IP, SSH host, jump IP
+
 **Previous IP**:
 An IP a server used before an IP change and still answers on. Proxier keeps proxy-testing it from home and notifies when it works again, so the server can switch back.
 _Avoid_: spare IP, secondary IP, backup IP (the IP a server leaves is its old IP; kept, it is a previous IP)

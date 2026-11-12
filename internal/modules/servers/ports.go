@@ -9,6 +9,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
@@ -48,7 +49,7 @@ type EndpointCatalog interface {
 type ServerHostname struct {
 	ServerID  int64
 	Name      string
-	Hostnames []string // management and proxy, without empty or duplicate ones
+	Hostnames []string // management, proxy and additional-address names, without empty or duplicate ones
 	IP        string
 }
 
@@ -180,13 +181,30 @@ func (h hostnames) Servers(ctx context.Context) ([]ServerHostname, error) {
 		return nil, err
 	}
 	sort.Slice(all, func(i, j int) bool { return all[i].ID < all[j].ID })
+	// One query for every additional address: a name that leads to the server
+	// must not be routed through it either, or the proxy would loop. The guard
+	// compares names only, so the addresses' IPs stay out of ServerHostname.IP.
+	var extra []struct {
+		ServerID int64  `db:"server_id"`
+		Hostname string `db:"hostname"`
+	}
+	if err := sqlx.SelectContext(ctx, h.m.deps.DB.R, &extra,
+		`SELECT server_id, hostname FROM servers_addresses ORDER BY server_id, position`); err != nil {
+		return nil, err
+	}
 	var out []ServerHostname
 	for _, s := range all {
 		if s.State == "retired" {
 			continue
 		}
 		sh := ServerHostname{ServerID: s.ID, Name: s.Name, IP: s.IP}
-		for _, n := range []string{s.ManagementHostname, s.ProxyHostname} {
+		names := []string{s.ManagementHostname, s.ProxyHostname}
+		for _, a := range extra {
+			if a.ServerID == s.ID {
+				names = append(names, a.Hostname)
+			}
+		}
+		for _, n := range names {
 			if n != "" && !slices.Contains(sh.Hostnames, n) {
 				sh.Hostnames = append(sh.Hostnames, n)
 			}

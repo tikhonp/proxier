@@ -11,6 +11,14 @@ The servers module builds a proxy server from a versioned **template**. Afterwar
 - The **proxy hostname** is the name in connection URIs and the TLS certificate. It is always the management hostname. The two are separate fields, so proxy hostnames on other domains would need no data migration ([DNS](#dns)).
 - When a member pastes an IP into the new-server form, Proxier looks up the IP's country and preselects it in the country picker. It is only a suggestion.
 
+## Addresses
+
+- A server has one **primary address**: its IP, management hostname and proxy hostname, the one SSH, DNS and the IP change use. It may also have **additional addresses**: more IPs on the same machine, each with its own hostname.
+- Additional addresses are added in the new-server form or later on an active server's **Addresses** page. A server still has one stack, and its template gives each address its own inbound or server block and endpoint. Adding or removing one redeploys the server.
+- **Proxier does not manage their DNS.** It writes no record, checks none and never deletes one: the member points each additional hostname at its IP. The primary address keeps the behaviour in [DNS](#dns).
+- Positions are stable: address 1 is the primary one, then 2, 3… in the order they were added. An endpoint binds to one by position (`address: 2`). Only the last additional address can be removed, so positions never shift under a published template; removing it and adding another reuses the number.
+- Health checks, check-host.net and IP change remain about the **primary** address. The proxy test from home still runs through every endpoint, including those on additional addresses ([health](#health-and-stats)).
+
 ## Access and setup
 
 Each server stores its access mode, SSH account and setup mode at creation. Later jobs use the same account and Proxier's key. These choices cannot change after creation. Retire the server and create a new one to change them.
@@ -119,7 +127,7 @@ proxy_test:                          # optional; overrides Settings → Servers 
 | `compose-down` | `docker compose down`, with `volumes: true` adding `-v`. |
 | `wait-http` | Polls a URL until it answers with the expected status (default timeout 2 min). With `resolve`, the request runs on the server through `curl --resolve`. |
 
-**Endpoints** declare what clients connect to: a stable `key`, an endpoint `type`, `host`, `port`, `credential` and type-specific `params`. They are rendered on every deployment and stored, so subscriptions always serve current values.
+**Endpoints** declare what clients connect to: a stable `key`, an endpoint `type`, `host`, `port`, `credential` and type-specific `params`. They are rendered on every deployment and stored, so subscriptions always serve current values. An endpoint may set **`address: <n>`** to bind to one of the server's addresses (1 is the primary); its `host` defaults to that address's hostname, and fields see `.Address`. If the server has no such address, the endpoint is left out, so a template can declare endpoints for every address it can use.
 
 **Checks** are the self-check, run over SSH every 5 minutes:
 
@@ -141,10 +149,13 @@ Files, step arguments, endpoint fields and check arguments are Go templates. Mis
 | `.Server.Country.Code`, `.Name`, `.Flag` | `NL`, `Netherlands`, `🇳🇱` (the English name) |
 | `.Server.Location.Code`, `.Name`, `.Country` | `nl`, `Netherlands`, `NL`: what templates saw before servers had a country, kept so they still render; `Code` is the first half of the server name |
 | `.Server.IP`, `.Server.SSHPort` | `203.0.113.10`, `22` |
+| `.Server.SSHIP` | effective SSH connection IP, e.g. `100.64.0.10` on Tailscale; falls back to `.Server.IP`. Never use this for public endpoints or nginx service bindings. |
 | `.Server.ManagementHostname`, `.Server.ProxyHostname` | `nl-1.hosts.example.com` |
+| `.Addresses` | the server's addresses, primary first: a list of `{IP, Hostname, Number, Primary}`. Loop it to give each one a server block or inbound. |
+| `.Address` | inside an endpoint with `address:`: that address's `{IP, Hostname, Number, Primary}`; nil in files |
 | `.Params.<key>` | parameters |
 | `.Gen.<key>` | generated values |
-| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. It holds one entry: the endpoint credential, named `shared`. |
+| `.Clients` | the client identities the stack must accept: a list of `{ID, Name}`. It holds one entry per distinct endpoint credential: the first is named `shared`, the others `shared-<endpoint key>`. A template with one credential sees one entry. |
 | `.Template.Slug`, `.Template.Version` | `vless-xhttp`, `3` |
 
 Functions: `json`, `quote`, `default`, `lower`, `upper`, `trim`, `urlquery`, `b64enc`, `sha256`, `join`, `indent`.
@@ -187,7 +198,7 @@ Only **active** servers have a health state ([health](../processes/servers/serve
 
 ## Server page
 
-- **Overview**: flag and name, health badge with "since" and a one-sentence reason, lifecycle state, IP and previous IPs, hostnames, country, template and version (with "update available"), endpoints with their connection URIs (copy, QR, reveal), the subscriptions it is in, notes, and recent events.
+- **Overview**: flag and name, health badge with "since" and a one-sentence reason, lifecycle state, IP and previous IPs, hostnames, additional addresses, country, template and version (with "update available"), endpoints with their connection URIs (copy, QR, reveal), the subscriptions it is in, notes, and recent events.
 - **Health**: the latest result of each check per vantage point, as a matrix with 24 h strips, plus the verdict explanation and a timeline of health states (24 h / 7 d / 30 d), **Run checks now** and **Pause checks** / **Resume** ([health](../processes/servers/server-health.md)). Below the matrix, when there are any, the previous IPs with their state, latest result and strip, and **Switch back** and **Forget** ([IP change](../processes/servers/ip-change.md#steps-previous-ips)).
 - **Stats**: CPU, memory, disk and traffic charts for 24 h / 7 d / 30 d, and container states ([stats](../processes/servers/server-stats.md)).
 - **Stack**: the rendered files of the last deployment (secrets masked until revealed), its template version, and the deployment history with diffs.
@@ -203,6 +214,7 @@ Actions:
 | Upgrade | active, newer version exists | Renders the chosen version. Asks for any new parameters, shows the diff, then applies it. |
 | Edit parameters | active | Changes parameters, then redeploys. |
 | Rotate credentials | active | Replaces the rotatable generated values and redeploys ([rotation](../processes/servers/credential-rotation.md)). |
+| Addresses | active | Adds or removes an additional IP and hostname, then redeploys. Proxier does not write their DNS records ([addresses](#addresses)). |
 | Change IP | active | Moves the server to another IP of its VPS. SSH there must show its host key and the proxy test from home must pass before Proxier repoints DNS. The old IP can stay as a previous IP, tested from home ([IP change](../processes/servers/ip-change.md)). |
 | Restart stack | active | `docker compose restart`, then a self-check. |
 | Update images | active | `docker compose pull` + `up -d`, then a self-check and proxy test. |
@@ -230,11 +242,12 @@ The **display name** of an endpoint (the `#fragment` apps show) is `{flag} {coun
 
 DNS is a driver; Cloudflare is the one there is ([Cloudflare integration](../integrations/cloudflare.md)).
 
-- Provisioning creates an **A record** for the management hostname (and for the proxy hostname, once they differ) pointing to the server's IP. It is **DNS-only, never proxied**: clients and Let's Encrypt must reach the server directly. TTL is 60 s, and the record carries the comment `proxier:<server name>`.
+- Provisioning creates an **A record** for the management hostname (and for the proxy hostname, once they differ) pointing to the server's primary IP. It is **DNS-only, never proxied**: clients and Let's Encrypt must reach the server directly. TTL is 60 s, and the record carries the comment `proxier:<server name>`.
 - Proxier only ever changes or deletes records that carry its comment. A different record already at that name stops provisioning with a conflict, unless a member confirms an overwrite.
 - After writing, Proxier waits until the zone's own nameservers serve the record, then until 1.1.1.1 and 8.8.8.8 both return the IP (timeout 10 min, longer while a resolver may still hold a "no such name" from before the record existed), before anything needs the name, for example the certificate. It asks the resolvers over DNS-over-HTTPS, and over plain UDP port 53 only when DoH cannot be reached, because the home router may intercept port 53. The nameservers only speak port 53; when they can't be asked, the wait pauses 10 s instead ([Cloudflare](../integrations/cloudflare.md#behaviour)).
 - An IP change brings the records to the new IP, after SSH and the proxy test have passed there ([IP change](../processes/servers/ip-change.md)).
-- Retirement deletes the records, if they still point to the server's IP.
+- Retirement deletes the records, if they still point to the server's primary IP.
+- Proxier never writes, checks or deletes the records of **additional addresses**. Point each additional hostname at its IP before the endpoints there are tested ([addresses](#addresses)).
 - The member manages a record made by hand, marked by `manual_dns` on the server. Proxier never writes, changes or deletes it. By default, Create and Check the record require it to resolve only to the server's IP. Provisioning also waits for DNS. Skip DNS check skips both checks and the wait for that provisioning job, including retries. It does not skip certificate issuance, self-checks or the smoke test. IP changes still require the record to resolve only to the new IP. Retirement leaves the record and asks the member to delete it. See [provisioning](../processes/servers/server-provisioning.md).
 - **Accepted risk:** each server's certificate names its hostname, and every certificate is published in certificate-transparency logs. Anyone, including a censor, can list `*.hosts.example.com` on crt.sh. The fix in the [backlog](../overview.md#backlog) is wildcard certificates issued centrally through Cloudflare DNS-01 and uploaded to servers, optionally with proxy hostnames on unlinked cover domains. Management and proxy hostnames are separate fields, so it needs no data migration.
 
@@ -253,7 +266,7 @@ Summarised here, defined in the process docs:
 |---|---|---|
 | `EndpointCatalog` | subscriptions | Active servers with their endpoints (display name, type, host, port, credential, params), health state and "since". Changes arrive as events (`server.activated`, `server.redeployed`, `server.credentials_rotated`, `server.health_changed`, `server.retired`). |
 | `Rotator` | subscriptions (cut-off) | `RotationRequest(serverID, actor)`: the `servers.rotate` job (resource key `server:<id>`) for the caller to enqueue in its own transaction; nothing is enqueued. `ErrNotActive` for a server that isn't active, is retiring or is gone; `ErrNothingToRotate` when its version marks no generated value `rotate: true`. Every way the job ends records `server.credentials_rotated` or `server.redeploy_failed{kind: rotate}` with actor `job:<id>`. |
-| `ServerHostnames` | routing | `Servers(ctx)`: every server whose state isn't `retired` (a retiring one included: its DNS still points at it), by id, with its name, IP and management and proxy hostnames (no empty or duplicate ones). Routing refuses to route the hostnames and names the server; services hold no IPs, so it doesn't use them. |
+| `ServerHostnames` | routing | `Servers(ctx)`: every server whose state isn't `retired` (a retiring one included: its DNS still points at it), by id, with its name, IP and management, proxy and additional-address hostnames (no empty or duplicate ones; a name that leads to the server through any address must not be routed through it). Routing refuses to route the hostnames and names the server; services hold no IPs, so it doesn't use them. |
 | `ProxyDialer` | routing (discovery) | A dial function (`servers.DialFunc`) and its closer that send traffic through a chosen active server's endpoint (an in-process xray client). Discovery's SOCKS listener relays through it. |
 
 It consumes one port from routing: `RoutingGuard` (`Covering(ctx, hostnames)`, set by `SetRouting`), which the new-server form asks before creating anything; a hostname a routing list covers is a form error naming the list and the service. Without the routing module it is nil and nothing is checked.

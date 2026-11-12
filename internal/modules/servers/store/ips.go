@@ -69,7 +69,10 @@ func HolderOfIP(ctx context.Context, q sqlx.QueryerContext, ip string) (IPHolder
 		UNION ALL
 		SELECT s.id, s.name, 1 FROM servers_previous_ips p JOIN servers_servers s ON s.id = p.server_id
 			WHERE p.ip = ? AND s.state <> 'retired'
-		LIMIT 1`, ip, ip)
+		UNION ALL
+		SELECT s.id, s.name, 0 FROM servers_addresses a JOIN servers_servers s ON s.id = a.server_id
+			WHERE a.ip = ? AND s.state <> 'retired'
+		LIMIT 1`, ip, ip, ip)
 	if errors.Is(err, sql.ErrNoRows) {
 		return IPHolder{}, false, nil
 	}
@@ -82,7 +85,10 @@ func HolderOfIP(ctx context.Context, q sqlx.QueryerContext, ip string) (IPHolder
 func HolderOfHostname(ctx context.Context, q sqlx.QueryerContext, host string) (string, bool, error) {
 	var name string
 	err := sqlx.GetContext(ctx, q, &name, `SELECT name FROM servers_servers
-		WHERE (management_hostname = ? OR proxy_hostname = ?) AND state <> 'retired' LIMIT 1`, host, host)
+		WHERE (management_hostname = ? OR proxy_hostname = ?) AND state <> 'retired'
+			OR EXISTS (SELECT 1 FROM servers_addresses a WHERE a.server_id = servers_servers.id
+				AND a.hostname = ? AND servers_servers.state <> 'retired')
+		LIMIT 1`, host, host, host)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", false, nil
 	}

@@ -72,6 +72,30 @@ func TestServerHostnamesNameTheServer(t *testing.T) {
 	}
 }
 
+// A name that leads to the server through an additional address must not be
+// routed through the proxy either, or the proxy would loop.
+func TestServerHostnamesIncludeAdditionalAddresses(t *testing.T) {
+	h := serverstest.NewHarness(t, serverstest.StubProxy())
+	first := h.Provisioned()
+	if err := h.Mod.Deploy.AddAddress(context.Background(), first, "10.77.0.9", "alt.proxier.test", "member:1"); err != nil {
+		t.Fatal(err)
+	}
+	list, err := h.Mod.ServerHostnames().Servers(context.Background())
+	if err != nil || len(list) != 1 {
+		t.Fatalf("servers: %+v %v", list, err)
+	}
+	if got := strings.Join(list[0].Hostnames, " "); got != "nl-1.hosts.proxier.test alt.proxier.test" {
+		t.Fatalf("hostnames: %q", got)
+	}
+	// Once the server is retired its names are free, additional ones too.
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET state = 'retired', health = NULL WHERE id = ?`, first); err != nil {
+		t.Fatal(err)
+	}
+	if list, err = h.Mod.ServerHostnames().Servers(context.Background()); err != nil || len(list) != 0 {
+		t.Fatalf("after retiring: %+v %v", list, err)
+	}
+}
+
 func TestCatalogCarriesFlag(t *testing.T) {
 	h := serverstest.NewHarness(t, serverstest.StubProxy())
 	id := h.Provisioned()

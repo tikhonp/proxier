@@ -221,6 +221,7 @@ The files in `screens/` are the canvas source (`.dc.html`). Use them as a refere
 | | `RP-Server-stack` | Stack tab: rendered files, deployments |
 | | `RP-Server-redeploy` | Upgrade plan: new parameters, file diffs, endpoint change |
 | | `RP-Server-rollout` | Rolling upgrade in progress |
+| | `RP-Server-addresses` | Addresses page: additional addresses, add form, redeploy failure notice |
 | | `RP-Pause-checks` | Pause checks dialog |
 | | `RP-Locations` | Locations, adding one inline. Retired: a server has a country now, picked on New server ([ADR 0015](../../adr/0015-servers-have-a-country-not-a-location.md)); kept as the source of the `.foot` note under a table |
 | Templates | `RP-Templates` | Template list |

@@ -155,6 +155,7 @@ type data struct {
 	Man     *manifest.Manifest
 	Params  map[string]string // public and secret
 	Gen     map[string]string
+	Addrs   []render.Address
 }
 
 // step wraps a step function: it loads the server, ends the step's context
@@ -197,6 +198,11 @@ func (s *Service) load(ctx context.Context, r *jobs.Run) (*data, error) {
 		return nil, fmt.Errorf("load server %d: %w", d.Payload.ServerID, err)
 	}
 	d.Server = srv
+	extra, err := store.ServerAddresses(ctx, s.DB.R, srv.ID)
+	if err != nil {
+		return nil, err
+	}
+	d.Addrs = RenderAddresses(srv, extra)
 	tpl, err := store.GetTemplate(ctx, s.DB.R, srv.TemplateID)
 	if err != nil {
 		return nil, err
@@ -246,11 +252,12 @@ func (d *data) renderContext() render.Context {
 	ctry, loc := render.Where(d.Server.Country, d.Server.Prefix())
 	return render.Context{
 		Server: render.Server{
-			Name: d.Server.Name, Number: d.Server.Number, IP: d.Server.IP, SSHPort: d.Server.SSHPort,
+			Name: d.Server.Name, Number: d.Server.Number, IP: d.Server.IP, SSHIP: d.Server.ConnectIP(), SSHPort: d.Server.SSHPort,
 			Country: ctry, Location: loc,
 			ManagementHostname: d.Server.ManagementHostname, ProxyHostname: d.Server.ProxyHostname,
 		},
-		Params: params, Gen: d.Gen, Template: render.Template{Slug: d.Slug, Version: d.Server.TemplateVersion},
+		Addresses: d.Addrs,
+		Params:    params, Gen: d.Gen, Template: render.Template{Slug: d.Slug, Version: d.Server.TemplateVersion},
 	}
 }
 
@@ -268,7 +275,7 @@ func (d *data) render() (*render.Rendered, error) {
 func (s *Service) target(srv store.Server, user, password string) sshx.Target {
 	return sshx.Target{
 		Hop: sshx.Hop{
-			Address: net.JoinHostPort(srv.IP, strconv.Itoa(srv.SSHPort)), User: user, Password: password,
+			Address: net.JoinHostPort(srv.ConnectIP(), strconv.Itoa(srv.SSHPort)), User: user, Password: password,
 			Subject: "server:" + strconv.FormatInt(srv.ID, 10),
 		},
 		FirstContact: sshx.PinOnFirstContact,
@@ -306,7 +313,7 @@ func (s *Service) preflight(ctx context.Context, r *jobs.Run, d *data) error {
 	var c *sshx.Client
 	var err error
 	if d.Server.KeyAccess() {
-		r.Log().Info("Connecting to %s:%d as %s with Proxier's key", d.Server.IP, d.Server.SSHPort, d.Server.LoginUser())
+		r.Log().Info("Connecting to %s:%d as %s with Proxier's key", d.Server.ConnectIP(), d.Server.SSHPort, d.Server.LoginUser())
 		c, err = s.connect(ctx, r, d.Server)
 		if err != nil {
 			return keyErr(d.Server.LoginUser(), err)
@@ -320,7 +327,7 @@ func (s *Service) preflight(ctx context.Context, r *jobs.Run, d *data) error {
 		if !ok || pw == "" {
 			return jobs.Permanent(errors.New("the root password is needed; use Retry and enter it"))
 		}
-		r.Log().Info("Connecting to %s:%d as root", d.Server.IP, d.Server.SSHPort)
+		r.Log().Info("Connecting to %s:%d as root", d.Server.ConnectIP(), d.Server.SSHPort)
 		c, err = s.SSH.Connect(ctx, s.target(d.Server, "root", pw), r.Log())
 		if err != nil {
 			return rootErr(err)
@@ -799,6 +806,11 @@ func (s *Service) PreviewContext(ctx context.Context, serverID int64, reveal boo
 	if err != nil {
 		return nil, err
 	}
+	extra, err := store.ServerAddresses(ctx, s.DB.R, srv.ID)
+	if err != nil {
+		return nil, err
+	}
+	addrs := RenderAddresses(srv, extra)
 	public := store.ParseParams(srv.Params)
 	return func(m *manifest.Manifest, slug string) (render.Context, error) {
 		all, _, err := gen.Ensure(m.Generated, have)
@@ -827,11 +839,12 @@ func (s *Service) PreviewContext(ctx context.Context, serverID int64, reveal boo
 		}
 		return render.Context{
 			Server: render.Server{
-				Name: srv.Name, Number: srv.Number, IP: srv.IP, SSHPort: srv.SSHPort,
+				Name: srv.Name, Number: srv.Number, IP: srv.IP, SSHIP: srv.ConnectIP(), SSHPort: srv.SSHPort,
 				Country: ctry, Location: loc,
 				ManagementHostname: srv.ManagementHostname, ProxyHostname: srv.ProxyHostname,
 			},
-			Params: params, Gen: genValues, Template: render.Template{Slug: slug, Version: srv.TemplateVersion},
+			Addresses: addrs,
+			Params:    params, Gen: genValues, Template: render.Template{Slug: slug, Version: srv.TemplateVersion},
 		}, nil
 	}, nil
 }

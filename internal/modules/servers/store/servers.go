@@ -24,6 +24,7 @@ type Server struct {
 	Number             int           `db:"number"`
 	Name               string        `db:"name"`
 	IP                 string        `db:"ip"`
+	SSHIP              string        `db:"ssh_ip"` // optional management IP; empty uses IP
 	SSHPort            int           `db:"ssh_port"`
 	AccessMode         string        `db:"access_mode"` // AccessPassword or AccessKey
 	SSHUser            string        `db:"ssh_user"`    // the account Proxier logs in as
@@ -111,7 +112,17 @@ func (s Server) LoginUser() string {
 // who needs no elevation.
 func (s Server) NeedsSudo() bool { return s.LoginUser() != "root" }
 
-const serverSelect = `SELECT s.id, s.country, s.number, s.name, s.ip, s.ssh_port, s.access_mode, s.ssh_user, s.setup,
+// ConnectIP is used only for SSH, never DNS, public probes or client endpoints.
+// Leaving SSHIP empty keeps the historical single-address behavior, including
+// following a public IP change.
+func (s Server) ConnectIP() string {
+	if s.SSHIP != "" {
+		return s.SSHIP
+	}
+	return s.IP
+}
+
+const serverSelect = `SELECT s.id, s.country, s.number, s.name, s.ip, s.ssh_ip, s.ssh_port, s.access_mode, s.ssh_user, s.setup,
 	s.management_hostname, s.proxy_hostname,
 	s.state, s.template_id, s.template_version, s.params, s.params_secret, s.notes, s.provision_job_id, s.retire_job_id,
 	COALESCE(s.failed_step, '') AS failed_step, COALESCE(s.failed_error, '') AS failed_error,
@@ -141,6 +152,7 @@ type NewServer struct {
 	Country  string
 	Number   int
 	Name, IP string
+	SSHIP    string
 	SSHPort  int
 	// AccessMode is AccessPassword ("" takes it) or AccessKey; SSHUser is the
 	// account Proxier logs in as. InsertServer defaults it to proxier. Setup is
@@ -172,10 +184,10 @@ func InsertServer(ctx context.Context, tx sqlx.ExtContext, n NewServer, at db.Ti
 		user = "proxier"
 	}
 	res, err := tx.ExecContext(ctx, `
-		INSERT INTO servers_servers (country, number, name, ip, ssh_port, access_mode, ssh_user, setup,
+		INSERT INTO servers_servers (country, number, name, ip, ssh_ip, ssh_port, access_mode, ssh_user, setup,
 			management_hostname, proxy_hostname, state, template_id, template_version, params, notes, manual_dns, created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'provisioning', ?, ?, ?, ?, ?, ?)`,
-		n.Country, n.Number, n.Name, n.IP, n.SSHPort, access, user, setup,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'provisioning', ?, ?, ?, ?, ?, ?)`,
+		n.Country, n.Number, n.Name, n.IP, n.SSHIP, n.SSHPort, access, user, setup,
 		n.ManagementHostname, n.ProxyHostname,
 		n.TemplateID, n.TemplateVersion, n.Params, n.Notes, n.ManualDNS, at)
 	if unique(err, "servers_servers.ip") {

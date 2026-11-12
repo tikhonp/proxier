@@ -45,7 +45,19 @@ templ newServerPage(s ui.Shell, v newView) {
 						if v.Errs["ip"] != "" {
 							<p class="err" role="alert">{ v.Errs["ip"] }</p>
 						}
+						<p class="help">{ i18n.T(ctx, "servers.new.ip.help") }</p>
 					</div>
+					<details open?={ v.SSHIP != "" || v.Errs["ssh_ip"] != "" }>
+						<summary>{ i18n.T(ctx, "servers.new.network") }</summary>
+						<div class="field">
+							<label for="srv-ssh-ip">{ i18n.T(ctx, "servers.new.ssh_ip") }</label>
+							<input id="srv-ssh-ip" class="pc-inp" name="ssh_ip" value={ v.SSHIP } placeholder="100.64.0.10" autocomplete="off" spellcheck="false" aria-invalid?={ v.Errs["ssh_ip"] != "" }/>
+							if v.Errs["ssh_ip"] != "" {
+								<p class="err" role="alert">{ v.Errs["ssh_ip"] }</p>
+							}
+							<p class="help">{ i18n.T(ctx, "servers.new.ssh_ip.help") }</p>
+						</div>
+					</details>
 					<div class="field">
 						<label for="srv-access">{ i18n.T(ctx, "servers.new.access.how") }</label>
 						<select id="srv-access" class="pc-inp" name="access" aria-invalid?={ v.Errs["access"] != "" }>
@@ -118,6 +130,28 @@ templ newServerPage(s ui.Shell, v newView) {
 						} else {
 							<p class="help">{ i18n.T(ctx, "servers.new.hostname.help") }</p>
 						}
+					</div>
+					<h2 class="grp">{ i18n.T(ctx, "servers.new.addresses") }</h2>
+					<div class="field">
+						<div id="addr-rows">
+							for i, a := range v.Addresses {
+								<div data-addr-entry>
+									<div class="inline" data-addr-row>
+										<input class="pc-inp" name="add_ip" value={ a.IP } placeholder="203.0.113.25" autocomplete="off" spellcheck="false" inputmode="decimal" aria-label={ i18n.T(ctx, "servers.new.addr.ip") } aria-invalid?={ v.Errs["addr_ip_" + strconv.Itoa(i)] != "" }/>
+										<input class="pc-inp" name="add_host" value={ a.Hostname } placeholder="alt.example.com" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label={ i18n.T(ctx, "servers.new.addr.hostname") } aria-invalid?={ v.Errs["addr_host_" + strconv.Itoa(i)] != "" }/>
+										<button type="button" class="pc-btn pc-sm pc-ghost" data-addr-remove>{ i18n.T(ctx, "servers.new.addr.remove") }</button>
+									</div>
+									if err := v.Errs["addr_ip_" + strconv.Itoa(i)]; err != "" {
+										<p class="err" role="alert">{ err }</p>
+									}
+									if err := v.Errs["addr_host_" + strconv.Itoa(i)]; err != "" {
+										<p class="err" role="alert">{ err }</p>
+									}
+								</div>
+							}
+						</div>
+						<button type="button" class="pc-btn pc-sm" data-addr-add>{ i18n.T(ctx, "servers.new.addr.add") }</button>
+						<p class="help">{ i18n.T(ctx, "servers.new.addresses.help") }</p>
 					</div>
 					<h2 class="grp">{ i18n.T(ctx, "servers.new.template") }</h2>
 					<div class="field">
@@ -277,6 +311,10 @@ templ summaryBody(v newView) {
 				<span class="bold">{ v.Sum.Name }</span>
 				<div class="sm subtle">{ i18n.T(ctx, "servers.new.sum.name.note") }</div>
 			</dd>
+			if v.Sum.SSHIP != "" {
+				<dt>{ i18n.T(ctx, "servers.new.ssh_ip") }</dt>
+				<dd>{ v.Sum.SSHIP }</dd>
+			}
 			<dt>{ i18n.T(ctx, "servers.new.sum.host") }</dt>
 			<dd>
 				{ v.Sum.ManagementHostname }
@@ -309,6 +347,15 @@ templ summaryBody(v newView) {
 					<div class="sm subtle">proxier:{ v.Sum.Name }</div>
 				}
 			</dd>
+			if len(v.Sum.Addresses) > 0 {
+				<dt>{ i18n.T(ctx, "servers.new.sum.addresses") }</dt>
+				<dd>
+					for _, a := range v.Sum.Addresses {
+						<div>{ a }</div>
+					}
+					<div class="sm subtle">{ i18n.T(ctx, "servers.new.sum.addresses.note") }</div>
+				</dd>
+			}
 			<dt>{ i18n.T(ctx, "servers.new.sum.endpoints") }</dt>
 			<dd>
 				for _, e := range v.Sum.Endpoints {
@@ -372,6 +419,9 @@ templ serverHead(v serverView, tab string) {
 				}
 			</div>
 			<p class="subtle facts"><span>{ countryName(ctx, v.S.Country) }</span> · <span>{ v.S.IP }</span> · <span title={ v.S.ManagementHostname }>{ v.S.ManagementHostname }</span></p>
+			if v.S.SSHIP != "" {
+				<p class="sm subtle">{ i18n.T(ctx, "servers.new.ssh_ip") }: { v.S.SSHIP }</p>
+			}
 		</div>
 		<div class="actions">
 			if v.CanCancel {
@@ -522,6 +572,14 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 						· { v.S.ProxyHostname }
 					}
 				</dd>
+				if len(v.Addresses) > 0 {
+					<dt>{ i18n.T(ctx, "servers.kv.addresses") }</dt>
+					<dd>
+						for _, a := range v.Addresses {
+							<div>{ a.IP } · { a.Hostname }</div>
+						}
+					</dd>
+				}
 				<dt>{ i18n.T(ctx, "servers.kv.template") }</dt>
 				<dd>
 					<a href={ templ.SafeURL(tplHref(v.S.TemplateID)) }>{ v.S.TemplateName }</a> { vlabel(v.S.TemplateVersion) }

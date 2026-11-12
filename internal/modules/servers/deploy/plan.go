@@ -16,6 +16,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/endpoint"
 	"github.com/tikhonp/proxier/internal/modules/servers/gen"
 	"github.com/tikhonp/proxier/internal/modules/servers/manifest"
+	"github.com/tikhonp/proxier/internal/modules/servers/provision"
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/render"
 	"github.com/tikhonp/proxier/internal/modules/servers/sealed"
@@ -133,6 +134,9 @@ type computed struct {
 	Srv    store.Server
 	Slug   string
 	Target Target
+	// Addrs are the server's primary address and its additional ones, as
+	// templates and endpoints see them.
+	Addrs []render.Address
 
 	Man      *manifest.Manifest
 	CurMan   *manifest.Manifest // the version in force; nil when it no longer parses
@@ -180,11 +184,12 @@ func (c *computed) renderContext() render.Context {
 	ctry, loc := render.Where(c.Srv.Country, c.Srv.Prefix())
 	return render.Context{
 		Server: render.Server{
-			Name: c.Srv.Name, Number: c.Srv.Number, IP: c.Srv.IP, SSHPort: c.Srv.SSHPort,
+			Name: c.Srv.Name, Number: c.Srv.Number, IP: c.Srv.IP, SSHIP: c.Srv.ConnectIP(), SSHPort: c.Srv.SSHPort,
 			Country: ctry, Location: loc,
 			ManagementHostname: c.Srv.ManagementHostname, ProxyHostname: c.Srv.ProxyHostname,
 		},
-		Params: params, Gen: c.Gen, Template: render.Template{Slug: c.Slug, Version: c.Plan.ToVersion},
+		Addresses: c.Addrs,
+		Params:    params, Gen: c.Gen, Template: render.Template{Slug: c.Slug, Version: c.Plan.ToVersion},
 	}
 }
 
@@ -220,6 +225,11 @@ func (s *Service) compute(ctx context.Context, srv store.Server, t Target, genOv
 	}
 	c := &computed{Srv: srv, Slug: tpl.Slug, Target: t, Errs: FieldErrors{}}
 	c.Plan = Plan{ServerID: srv.ID, Kind: t.Kind, FromVersion: srv.TemplateVersion, ToVersion: t.Version, Force: t.Force}
+	extra, err := store.ServerAddresses(ctx, s.DB.R, srv.ID)
+	if err != nil {
+		return nil, err
+	}
+	c.Addrs = provision.RenderAddresses(srv, extra)
 
 	var tplFiles map[string][]byte
 	if c.Man, tplFiles, err = s.parseVersion(ctx, srv.TemplateID, t.Version); err != nil {

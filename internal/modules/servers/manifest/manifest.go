@@ -69,7 +69,10 @@ type Step struct {
 type Endpoint struct {
 	Key, Type, Host, Port, Credential string // unrendered
 	Params                            map[string]string
-	Line                              int
+	// Address binds the endpoint to one of the server's addresses, 1-based
+	// (1 is the primary one); 0 is the primary, as before addresses existed.
+	Address int
+	Line    int
 }
 
 // Check is one self-check.

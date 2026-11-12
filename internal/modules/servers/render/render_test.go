@@ -173,3 +173,38 @@ func TestTemplatesSeeTheCountryAndTheOldLocation(t *testing.T) {
 		t.Errorf("%q", got)
 	}
 }
+
+func TestEndpointBoundToAnAddress(t *testing.T) {
+	m, files := seedManifest(t)
+	m.Endpoints = append(m.Endpoints, manifest.Endpoint{
+		Key: "alt", Type: "vless-xhttp-tls", Port: "443", Credential: "{{ .Gen.client_uuid }}",
+		Params:  map[string]string{"path": "{{ .Gen.xhttp_path }}", "sni": "{{ .Address.Hostname }}"},
+		Address: 2, Line: 1,
+	})
+	c := render.SampleContext(m, "t", nil)
+	out, fs := render.Render(m, files, c)
+	if len(fs) != 0 {
+		t.Fatalf("findings: %v", fs)
+	}
+	var alt *render.RenderedEndpoint
+	for i := range out.Endpoints {
+		if out.Endpoints[i].Key == "alt" {
+			alt = &out.Endpoints[i]
+		}
+	}
+	if alt == nil || alt.Host != "xx-1-alt.hosts.example.invalid" || alt.Params["sni"] != alt.Host {
+		t.Fatalf("alt endpoint: %+v", alt)
+	}
+
+	// With one address the endpoint is left out rather than rendered empty.
+	c.Addresses = c.Addresses[:1]
+	out, fs = render.Render(m, files, c)
+	if len(fs) != 0 {
+		t.Fatalf("findings: %v", fs)
+	}
+	for _, e := range out.Endpoints {
+		if e.Key == "alt" {
+			t.Fatalf("alt rendered without its address: %+v", e)
+		}
+	}
+}

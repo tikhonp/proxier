@@ -145,6 +145,13 @@ func (s *Service) Check(ctx context.Context, srv store.Server, f Form) (string, 
 	if ip == srv.IP {
 		return "", FieldErrors{"ip": {Key: "servers.ip.err.same", Args: map[string]any{"name": srv.Name}}}
 	}
+	// The target may be an additional address of this same server; a previous
+	// IP of it is fine (switch back).
+	if name, taken, err := store.AddressHolder(ctx, s.DB.R, ip); err != nil {
+		return "", err
+	} else if taken && name == srv.Name {
+		return "", FieldErrors{"ip": {Key: "servers.ip.err.additional", Args: map[string]any{"name": srv.Name}}}
+	}
 	other, ok, err := store.HolderOfIP(ctx, s.DB.R, ip)
 	switch {
 	case err != nil:
@@ -243,15 +250,26 @@ func (s *Service) load(ctx context.Context, r *jobs.Run) (payload, store.Server,
 	return p, srv, nil
 }
 
-// connect proves the new IP is this server: Proxier's key logs in there, and
-// the host key is the one pinned at the old IP. A new address is pinned only
-// then.
+// connect proves SSH access before moving the IP. A separate SSH connection IP
+// stays unchanged; otherwise the new IP must present the old IP's host key.
 func (s *Service) connect(ctx context.Context, r *jobs.Run) error {
 	p, srv, err := s.load(ctx, r)
 	if err != nil {
 		return err
 	}
 	port := strconv.Itoa(srv.SSHPort)
+	if srv.SSHIP != "" {
+		c, err := s.SSH.Connect(ctx, sshx.Target{
+			Hop:          sshx.Hop{Address: net.JoinHostPort(srv.ConnectIP(), port), User: srv.LoginUser(), Subject: serverKey(srv.ID)},
+			FirstContact: sshx.PinOnFirstContact,
+		}, r.Log())
+		if err != nil {
+			return fmt.Errorf("no SSH to %s at its SSH connection IP %s: %w", srv.Name, srv.ConnectIP(), err)
+		}
+		_ = c.Close()
+		r.Log().Info("SSH access through %s is unchanged; the new IP %s is checked by the proxy test", srv.ConnectIP(), p.To)
+		return nil
+	}
 	c, err := s.SSH.Connect(ctx, sshx.Target{
 		Hop: sshx.Hop{Address: net.JoinHostPort(p.To, port), User: srv.LoginUser(), Subject: serverKey(srv.ID)},
 		// Pin the new address only when it shows the old one's key.
@@ -270,8 +288,8 @@ func (s *Service) connect(ctx context.Context, r *jobs.Run) error {
 	return nil
 }
 
-// proxyTest runs the proxy test from home through every endpoint at the new
-// IP, as clients will once DNS leads there, with provisioning's pace.
+// proxyTest runs the proxy test from home through every primary-address
+// endpoint at the new IP, as clients will once DNS leads there, with provisioning's pace.
 func (s *Service) proxyTest(ctx context.Context, r *jobs.Run) error {
 	p, srv, err := s.load(ctx, r)
 	if err != nil {
@@ -285,6 +303,10 @@ func (s *Service) proxyTest(ctx context.Context, r *jobs.Run) error {
 	if err != nil {
 		return err
 	}
+	addrs, err := store.ServerAddresses(ctx, s.DB.R, srv.ID)
+	if err != nil {
+		return err
+	}
 	tplURL, err := s.ProxyTestURL(ctx, srv.ID)
 	if err != nil {
 		return err
@@ -295,6 +317,13 @@ func (s *Service) proxyTest(ctx context.Context, r *jobs.Run) error {
 	}
 	sm := s.seams()
 	for _, e := range eps {
+		// An endpoint on an additional address stays at that address, which
+		// the change does not touch: testing it says nothing about the new IP
+		// (and aimed at the new IP it would fail for the wrong reason).
+		if onAdditionalAddress(addrs, e.Host) {
+			r.Log().Info("Skipped %s: it is on an additional address, which this change leaves as it is", e.Key)
+			continue
+		}
 		opts := proxy.Options{URL: url, Timeout: timeout, Stall: stall, Resolve: map[string]string{
 			net.JoinHostPort(e.Host, strconv.Itoa(e.Port)): net.JoinHostPort(p.To, strconv.Itoa(e.Port)),
 		}}
@@ -344,6 +373,18 @@ func (s *Service) seams() Seams {
 		sm.Gap = 20 * time.Second
 	}
 	return sm
+}
+
+// onAdditionalAddress tells whether an endpoint's host is the hostname of one
+// of the server's additional addresses. Endpoints store no address number; an
+// address-bound endpoint takes that address's hostname as its host.
+func onAdditionalAddress(addrs []store.Address, host string) bool {
+	for _, a := range addrs {
+		if a.Hostname == host {
+			return true
+		}
+	}
+	return false
 }
 
 // hostnames are the names whose records lead to the server.
@@ -451,6 +492,9 @@ func (s *Service) dnsStep(ctx context.Context, r *jobs.Run) error {
 // forgetPin drops the host key pinned at an IP the server no longer has, so
 // another server built there later is a first contact, not a changed key.
 func (s *Service) forgetPin(ctx context.Context, srv store.Server, ip, actor string) {
+	if srv.SSHIP != "" && ip == srv.SSHIP {
+		return // still the SSH connection IP, though no longer the server's IP
+	}
 	addr := net.JoinHostPort(ip, strconv.Itoa(srv.SSHPort))
 	h, err := s.SSH.KnownHost(ctx, addr)
 	if errors.Is(err, sshx.ErrNotFound) {

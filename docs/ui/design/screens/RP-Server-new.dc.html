@@ -95,6 +95,17 @@ button:disabled{cursor:not-allowed;opacity:.45}
 </div>
 <label for="port" style="padding-top:6px;color:#908caa">SSH port</label>
 <input id="port" class="pc-inp" value="22" inputmode="numeric" style="width:100px">
+<span aria-hidden="true"></span>
+<details open style="grid-column:2">
+<summary style="cursor:pointer;color:#908caa">Advanced IP configuration</summary>
+<div style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;margin-top:12px;margin-left:-196px;align-items:start">
+<label for="sship" style="padding-top:6px;color:#908caa">SSH connection IP<span style="display:block;font-size:12px;line-height:16px;color:#6e6a86">optional</span></label>
+<div>
+<input id="sship" class="pc-inp" value="100.64.0.10" placeholder="100.64.0.10" autocomplete="off" spellcheck="false" style="width:100%;max-width:320px">
+<p style="font-size:12px;color:#908caa;margin-top:6px;max-width:560px">IPv4 or IPv6, for example a Tailscale IP, used only for SSH during provisioning, redeploy, self-checks and retirement. Blank uses the server's IP. Proxier must already reach this address.</p>
+</div>
+</div>
+</details>
 </div>
 </div>
 
@@ -111,6 +122,21 @@ button:disabled{cursor:not-allowed;opacity:.45}
 <button type="button" class="pc-btn">New location…</button>
 </div>
 <p style="font-size:12px;color:#908caa;margin-top:6px">Suggested from the IP's country. The location is the first half of the server name.</p>
+</div>
+</div>
+</div>
+
+<div role="group" aria-labelledby="g-addr" style="border-bottom:1px solid #26233a">
+<h2 id="g-addr" style="min-height:36px;display:flex;align-items:center;padding:8px 16px;border-bottom:1px solid #26233a;font-size:11px;line-height:16px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#908caa">Additional addresses</h2>
+<div class="pc-form" style="display:grid;grid-template-columns:180px minmax(0,1fr);gap:16px;padding:16px 16px 20px;align-items:start">
+<span style="padding-top:6px;color:#908caa">Addresses</span>
+<div>
+<div style="display:flex;flex-direction:column;gap:8px;max-width:560px">
+<div style="display:flex;gap:8px;align-items:stretch"><input class="pc-inp" aria-label="IP address" value="203.0.113.25" inputmode="decimal" style="flex:1;min-width:0"><input class="pc-inp" aria-label="Hostname" value="alt.example.com" style="flex:1;min-width:0"><button type="button" class="pc-btn pc-sm pc-ghost">Remove</button></div>
+<div style="display:flex;gap:8px;align-items:stretch"><input class="pc-inp" aria-label="IP address" placeholder="203.0.113.26" inputmode="decimal" style="flex:1;min-width:0"><input class="pc-inp" aria-label="Hostname" placeholder="alt2.example.com" style="flex:1;min-width:0"><button type="button" class="pc-btn pc-sm pc-ghost">Remove</button></div>
+</div>
+<div style="margin-top:8px"><button type="button" class="pc-btn pc-sm">Add address</button></div>
+<p style="font-size:12px;color:#908caa;margin-top:6px;max-width:560px">More IPs on the same machine, each with its own hostname. Proxier does not create or check their DNS records. Point each hostname at its IP yourself.</p>
 </div>
 </div>
 </div>
@@ -156,6 +182,10 @@ button:disabled{cursor:not-allowed;opacity:.45}
 <dd style="word-break:break-all">nl-2.hosts.example.com<div style="font-size:12px;color:#908caa">management and proxy</div></dd>
 <dt style="color:#908caa">DNS record</dt>
 <dd><div style="word-break:break-all">A nl-2.hosts → 203.0.113.24</div><div style="font-size:12px;color:#908caa">DNS only · TTL 60 · proxier:nl-2</div></dd>
+<dt style="color:#908caa">SSH connection IP</dt>
+<dd>100.64.0.10</dd>
+<dt style="color:#908caa">Additional addresses</dt>
+<dd><div>203.0.113.25 · alt.example.com</div><div style="font-size:12px;color:#908caa">Their DNS records are yours.</div></dd>
 <dt style="color:#908caa">Endpoint</dt>
 <dd><div>main · vless-xhttp-tls · 443</div><div style="font-size:12px;color:#908caa">apps show it as “🇳🇱 Netherlands 2”</div></dd>
 <dt style="color:#908caa">Firewall</dt>

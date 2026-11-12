@@ -34,6 +34,28 @@ type RenderedEndpoint struct {
 	Params                      map[string]string
 }
 
+// ClientsOf is the client list the stack must accept for rendered endpoints:
+// one client per distinct credential, in endpoint order (ADR 0004). The first
+// is named SharedClient, the others SharedClient-<endpoint key>, since xray
+// wants a client's name (its email) unique. A single-credential template gets
+// the one SharedClient entry, as before.
+func ClientsOf(eps []RenderedEndpoint) []Client {
+	var out []Client
+	seen := map[string]bool{}
+	for _, e := range eps {
+		if e.Credential == "" || seen[e.Credential] {
+			continue
+		}
+		seen[e.Credential] = true
+		name := SharedClient
+		if len(out) > 0 {
+			name = SharedClient + "-" + e.Key
+		}
+		out = append(out, Client{ID: e.Credential, Name: name})
+	}
+	return out
+}
+
 // Render renders a version for c. files is the tree (path → raw content).
 // It reports every problem it can find, not just the first. A file or field
 // that fails is left out, so its findings explain the gap.
@@ -61,9 +83,14 @@ func Render(m *manifest.Manifest, files map[string][]byte, c Context) (*Rendered
 	out := &Rendered{}
 
 	// Pass one: endpoints. A credential may use .Gen and .Params only, and
-	// becomes the shared client the files then see in .Clients.
+	// becomes a client the files then see in .Clients.
 	r.c.Clients = nil
 	for _, e := range m.Endpoints {
+		// An endpoint bound to an address this server does not have is left
+		// out: a template declares endpoints for every address it can use.
+		if e.Address > len(c.Addresses) {
+			continue
+		}
 		re, ok := r.endpoint(e)
 		if ok {
 			out.Endpoints = append(out.Endpoints, re)
@@ -72,12 +99,7 @@ func Render(m *manifest.Manifest, files map[string][]byte, c Context) (*Rendered
 	if c.Clients != nil {
 		r.c.Clients = c.Clients
 	} else {
-		for _, e := range out.Endpoints {
-			if e.Credential != "" {
-				r.c.Clients = []Client{{ID: e.Credential, Name: SharedClient}}
-				break
-			}
-		}
+		r.c.Clients = ClientsOf(out.Endpoints)
 	}
 
 	for _, f := range m.Files {
@@ -188,13 +210,25 @@ func (r *renderer) args(pos string, line int, in map[string]any) (map[string]any
 func (r *renderer) endpoint(e manifest.Endpoint) (RenderedEndpoint, bool) {
 	where := "endpoints." + e.Key
 	re := RenderedEndpoint{Key: e.Key, Type: e.Type, Params: map[string]string{}}
+	var addr *Address
+	if e.Address > 0 {
+		a := r.c.Addresses[e.Address-1]
+		addr = &a
+		saved := r.c.Address
+		r.c.Address = addr
+		defer func() { r.c.Address = saved }()
+	}
 	ok := true
 	str := func(field, src string) string {
 		s, good := r.field(where+"."+field, e.Line, src)
 		ok = ok && good
 		return s
 	}
-	re.Host = str("host", e.Host)
+	if addr != nil && strings.TrimSpace(e.Host) == "" {
+		re.Host = addr.Hostname
+	} else {
+		re.Host = str("host", e.Host)
+	}
 	re.Credential = str("credential", e.Credential)
 	port := str("port", e.Port)
 	for k, v := range e.Params {

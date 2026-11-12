@@ -1,0 +1,82 @@
+package pages
+
+import (
+	"strconv"
+
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+// serverAddressPage manages a server's additional addresses: more IPs on the
+// same machine, each with its own hostname. Their DNS records are the
+// member's.
+templ serverAddressPage(s ui.Shell, v addressView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><a href={ templ.SafeURL(serverHref(v.S.ID)) }>{ v.S.Name }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "servers.act.addresses") }</span></nav>
+				<h1>{ i18n.T(ctx, "servers.addr.title", i18n.Args{"name": v.S.Name}) }</h1>
+				<p class="subtle">{ i18n.T(ctx, "servers.addr.note") }</p>
+			</div>
+		</div>
+		if v.RedeployErr != "" {
+			@ui.Alert("gold", "alert") {
+				{ i18n.T(ctx, "servers.addr.not_redeployed", i18n.Args{"error": v.RedeployErr}) }
+				<a href={ templ.SafeURL(serverHref(v.S.ID) + "/redeploy") }>{ i18n.T(ctx, "servers.act.redeploy") }</a>
+			}
+		} else if v.Saved {
+			@ui.Alert("pine", "status") {
+				{ i18n.T(ctx, "servers.addr.saved") }
+			}
+		}
+		@ui.Area(i18n.T(ctx, "servers.addr.list"), "") {
+			<div class="area-body">
+				if len(v.Addresses) == 0 {
+					<p class="subtle">{ i18n.T(ctx, "servers.addr.none") }</p>
+				}
+				for i, a := range v.Addresses {
+					<div class="row addr">
+						<span class="bold">{ a.IP }</span>
+						<span class="subtle">{ a.Hostname }</span>
+						if i == len(v.Addresses)-1 {
+							@ui.ActionButton(ui.Action{
+								ID: "addr.delete." + strconv.FormatInt(a.ID, 10), Label: "servers.addr.remove", Method: "POST",
+								Href: serverHref(v.S.ID) + "/addresses/" + strconv.FormatInt(a.ID, 10) + "/delete",
+								Kind: ui.Danger, Small: true,
+								Confirm: &ui.Confirm{Strength: 2,
+									Title: i18n.T(ctx, "servers.addr.remove.title", i18n.Args{"ip": a.IP}),
+									Body:  i18n.T(ctx, "servers.addr.remove.body", i18n.Args{"ip": a.IP, "host": a.Hostname}),
+								},
+							})
+						}
+					</div>
+				}
+			</div>
+		}
+		<form method="post" action={ serverHref(v.S.ID) + "/addresses" } class="form">
+			<input type="hidden" name="_csrf" value={ ui.CSRF(ctx) }/>
+			<h2 class="grp">{ i18n.T(ctx, "servers.addr.add") }</h2>
+			<div class="field">
+				<label for="addr-ip">{ i18n.T(ctx, "servers.new.addr.ip") }</label>
+				<input id="addr-ip" class="pc-inp" name="ip" value={ v.IP } autocomplete="off" spellcheck="false" inputmode="decimal" placeholder="203.0.113.25" aria-invalid?={ v.Errs["ip"] != "" }/>
+				if v.Errs["ip"] != "" {
+					<p class="err" role="alert">{ v.Errs["ip"] }</p>
+				}
+			</div>
+			<div class="field">
+				<label for="addr-host">{ i18n.T(ctx, "servers.new.addr.hostname") }</label>
+				<input id="addr-host" class="pc-inp" name="hostname" value={ v.Host } autocomplete="off" spellcheck="false" autocapitalize="none" placeholder="alt.example.com" aria-invalid?={ v.Errs["hostname"] != "" }/>
+				if v.Errs["hostname"] != "" {
+					<p class="err" role="alert">{ v.Errs["hostname"] }</p>
+				} else {
+					<p class="help">{ i18n.T(ctx, "servers.addr.help") }</p>
+				}
+			</div>
+			<div class="form-actions">
+				<button type="submit" class="pc-btn pc-pri">{ i18n.T(ctx, "servers.addr.add") }</button>
+				<a href={ templ.SafeURL(serverHref(v.S.ID)) } class="pc-btn pc-ghost" data-cancel>{ i18n.T(ctx, "ui.cancel") }</a>
+				<span class="sm subtle">{ i18n.T(ctx, "servers.addr.redeploy") }</span>
+			</div>
+		</form>
+	}
+}

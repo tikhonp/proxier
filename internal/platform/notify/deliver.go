@@ -131,6 +131,7 @@ func (s *Service) send(ctx context.Context, r *jobs.Run) error {
 			return err
 		}
 	}
+	msg.URL = s.rebase(msg.URL)
 	sending := make([]int64, len(todo))
 	for i, n := range todo {
 		sending[i] = n.ID

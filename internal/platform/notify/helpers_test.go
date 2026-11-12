@@ -108,6 +108,7 @@ type env struct {
 	clk    *clock
 	names  *names
 	owners *owners
+	base   *url.URL
 	mark   int // messages sent before fresh
 }
 
@@ -125,6 +126,7 @@ func newEnv(t *testing.T, o Options) *env {
 	must(t, e.auth.CreateFirstMember(bg, "admin", password))
 
 	base, _ := url.Parse("https://proxier.test")
+	e.base = base
 	e.svc = notify.New(h.DB, h.Events, cat, h.Sys, e.auth, h.Settings, base, slog.New(slog.NewTextHandler(io.Discard, nil)))
 	e.svc.Now = h.Clock.Now
 	must(t, e.svc.AddNamer(e.names))

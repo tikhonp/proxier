@@ -380,3 +380,15 @@ func TestChangeWithARecordMadeByHand(t *testing.T) {
 		t.Fatalf("previous IPs: %+v", p)
 	}
 }
+
+func TestChangeToAnAdditionalAddressIsRefused(t *testing.T) {
+	f := newFixture(t)
+	if err := f.Mod.Deploy.AddAddress(bg, f.ID, "10.77.0.9", "alt.example.org", "member:1"); err != nil {
+		t.Fatalf("add address: %v", err)
+	}
+	_, err := f.Mod.IPChange.Check(bg, f.Server(f.ID), ipchange.Form{IP: "10.77.0.9", Keep: true})
+	var fe ipchange.FieldErrors
+	if !errors.As(err, &fe) || fe["ip"].Key != "servers.ip.err.additional" {
+		t.Fatalf("errors: %+v", err)
+	}
+}

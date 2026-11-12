@@ -296,8 +296,10 @@ func (c *checker) endpoints() {
 		if !slices.Contains(EndpointTypes, e.Type) {
 			c.errf(e.Line, "endpoint %q: unknown type %q (one of %s)", e.Key, e.Type, strings.Join(EndpointTypes, ", "))
 		}
-		if strings.TrimSpace(e.Host) == "" {
-			c.errf(e.Line, "endpoint %q needs a host", e.Key)
+		// A host may be left to the endpoint's address: it is that address's
+		// hostname then.
+		if strings.TrimSpace(e.Host) == "" && e.Address == 0 {
+			c.errf(e.Line, "endpoint %q needs a host, or an address to take it from", e.Key)
 		}
 		if strings.TrimSpace(e.Port) == "" {
 			c.errf(e.Line, "endpoint %q needs a port", e.Key)
