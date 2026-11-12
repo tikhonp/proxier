@@ -151,7 +151,17 @@ jobs:
             echo "Release $TAG already exists"
             exit 0
           fi
+          # An annotated tag's message leads the notes; a lightweight tag has
+          # none. Signed tags carry their signature in the message, so it is cut.
+          notes=$(mktemp)
+          ref=$(gh api "repos/$GH_REPO/git/ref/tags/$TAG" --jq '.object.type + " " + .object.sha')
+          if [ "${ref% *}" = tag ]; then
+            gh api "repos/$GH_REPO/git/tags/${ref#* }" --jq .message \
+              | sed '/^-----BEGIN [A-Z ]*SIGNATURE-----$/,$d' >> "$notes"
+            printf '\n' >> "$notes"
+          fi
+          echo "Image: \`ghcr.io/${GH_REPO,,}:${TAG}\`" >> "$notes"
           prerelease=()
           case "$TAG" in *-*) prerelease=(--prerelease) ;; esac
           gh release create "$TAG" --verify-tag --generate-notes "${prerelease[@]}" \
-            --notes "Image: \`ghcr.io/${GH_REPO,,}:${TAG}\`"
+            --notes-file "$notes"
