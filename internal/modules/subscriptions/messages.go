@@ -6,6 +6,13 @@ import "github.com/tikhonp/proxier/internal/platform/i18n"
 // plus event.<type>, notify.<type> and the settings keys). The stub texts
 // live in output.Messages.
 var messages = i18n.Messages{
+	"subs.field.score_names":      {EN: "Score in endpoint names", RU: "Оценка в именах подключений"},
+	"subs.field.score_names.help": {EN: "Adds a fresh cached score on the next subscription refresh. IP reputation uses the Claude-observed exit. Missing or stale scores are omitted. Some apps may treat a changed name as a renamed entry.", RU: "Добавляет актуальную оценку из кеша при следующем обновлении подписки. Репутация IP использует выход Claude. Отсутствующие и устаревшие оценки не добавляются. Некоторые приложения могут считать изменённое имя переименованием подключения."},
+	"subs.score.":                 {EN: "Off", RU: "Выключено"},
+	"subs.score.ip":               {EN: "IP reputation", RU: "Репутация IP"},
+	"subs.score.claude":           {EN: "Claude", RU: "Claude"},
+	"subs.score.chatgpt":          {EN: "ChatGPT", RU: "ChatGPT"},
+	"subs.err.score_names":        {EN: "Choose Off, IP reputation, Claude or ChatGPT.", RU: "Выберите: выключено, репутация IP, Claude или ChatGPT."},
 	// Nav, list, search
 	"subs.nav":                  {EN: "Subscriptions", RU: "Подписки"},
 	"subs.title":                {EN: "Subscriptions", RU: "Подписки"},

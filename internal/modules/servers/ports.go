@@ -34,6 +34,9 @@ type ServerEndpoints struct {
 	HealthSince time.Time
 	// Endpoints carry their credentials: callers must not log them.
 	Endpoints []endpoint.Endpoint
+	// Scores holds only fresh values, by endpoint key and score mode. It carries
+	// no service diagnostics to subscription-only members.
+	Scores map[string]map[string]float64
 }
 
 // EndpointCatalog is what subscriptions read.
@@ -160,7 +163,11 @@ func (c catalog) build(ctx context.Context, s store.Server) (ServerEndpoints, er
 	if err != nil {
 		return ServerEndpoints{}, err
 	}
-	return ServerEndpoints{ServerID: s.ID, Name: s.Name, Flag: country.Flag(s.Country), Health: s.Health, HealthSince: s.HealthSince.Time, Endpoints: eps}, nil
+	scores, err := c.m.AI.ScoresFor(ctx, s, rows)
+	if err != nil {
+		return ServerEndpoints{}, err
+	}
+	return ServerEndpoints{ServerID: s.ID, Name: s.Name, Flag: country.Flag(s.Country), Health: s.Health, HealthSince: s.HealthSince.Time, Endpoints: eps, Scores: scores}, nil
 }
 
 type rotator struct{ m *Module }

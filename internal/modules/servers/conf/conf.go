@@ -41,6 +41,8 @@ const (
 	DiskWarnPct           = "servers.disk_warn_pct"
 	DiskFailPct           = "servers.disk_fail_pct"
 	ReminderEvery         = "servers.reminder_every"
+	AIEnabled             = "servers.ai_enabled"
+	AIDaily               = "servers.ai_daily"
 )
 
 // urlList checks a comma-separated list of http(s) addresses.
@@ -76,6 +78,8 @@ func nodeList(v string) error {
 var Section = settings.Section{
 	Name: "servers", Module: "servers",
 	Fields: []settings.Field{
+		{Key: AIEnabled, Kind: settings.Bool, Default: "false"},
+		{Key: AIDaily, Kind: settings.Bool, Default: "false"},
 		// No default: the name must be in the install's own Cloudflare zone.
 		// Empty means not set yet, and no server can be created.
 		{Key: HostnamePatternKey, Kind: settings.String, Default: "", MaxLen: 200,

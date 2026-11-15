@@ -17,6 +17,7 @@ type Subscription struct {
 	Description    string  `db:"description"`
 	Formats        string  `db:"formats"`
 	DefaultFormat  string  `db:"default_format"`
+	ScoreNames     string  `db:"score_names"`
 	UpdateHours    int     `db:"update_hours"`
 	HideUnhealthy  bool    `db:"hide_unhealthy"`
 	HideStates     string  `db:"hide_states"`
@@ -27,7 +28,7 @@ type Subscription struct {
 	CreatedAt      db.Time `db:"created_at"`
 }
 
-const subCols = `id, owner_id, name, title, description, formats, default_format, update_hours, hide_unhealthy, hide_states,
+const subCols = `id, owner_id, name, title, description, formats, default_format, score_names, update_hours, hide_unhealthy, hide_states,
 	hide_grace_min, auto_add, auto_add_since, all_unhealthy_at, created_at`
 
 // InsertSubscription adds one of owner with the table's defaults.
@@ -64,9 +65,9 @@ func NameTaken(ctx context.Context, q sqlx.QueryerContext, name string, except i
 // UpdateSubscription writes every settings column of s.
 func UpdateSubscription(ctx context.Context, x sqlx.ExtContext, s Subscription) error {
 	_, err := x.ExecContext(ctx, `UPDATE subs_subscriptions SET name = ?, title = ?, description = ?, formats = ?, default_format = ?,
-		update_hours = ?, hide_unhealthy = ?, hide_states = ?, hide_grace_min = ?, auto_add = ?, auto_add_since = ? WHERE id = ?`,
+		update_hours = ?, hide_unhealthy = ?, hide_states = ?, hide_grace_min = ?, auto_add = ?, auto_add_since = ?, score_names = ? WHERE id = ?`,
 		s.Name, s.Title, s.Description, s.Formats, s.DefaultFormat, s.UpdateHours, s.HideUnhealthy, s.HideStates, s.HideGraceMin,
-		s.AutoAdd, s.AutoAddSince, s.ID)
+		s.AutoAdd, s.AutoAddSince, s.ScoreNames, s.ID)
 	return err
 }
 

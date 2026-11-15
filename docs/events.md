@@ -59,6 +59,8 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | `server.redeployed` | server | kind (`redeploy` / `upgrade` / `params` / `restore` / `restart` / `images` / `reboot`), from version, to version, files changed; `rollout` (id) when a rolling upgrade ran it; `changed_images` for `images` | off | Rotation records `server.credentials_rotated` instead. |
 | `server.redeploy_failed` | server | kind (also `rotate`), step, error; `rollout` when a rolling upgrade ran it; `restored` (kind `rotate`: whether the old files were put back); `cancelled` | **on**, except when `cancelled` | A cancelled job fails its deployment and records this with `cancelled: true`; the rollout still sees it. |
 | `server.credentials_rotated` | server | keys rotated | **on** | |
+| `server.ai_check_completed` | server | endpoint, service, reachable, score_available, error, discarded | off | One completed attempt. Cache updates and rate-limit cooldowns commit with it. Retirement discards the endpoint result but retains a completed cache update or cooldown. |
+| `server.ai_history_pruned` | home | rows | off | Daily cleanup removes expired attempts and cache rows. Empty cleanup records nothing. |
 | `server.health_changed` | server | from, to, reason, check summary | **on** for changes to `blocked`, `down`, and back to `healthy`. **off** for `degraded` and `unknown`; back to `healthy` only from `blocked` or `down` | "🔴 de-1 is down: unreachable over SSH and from 3/3 nodes abroad" |
 | `server.still_unhealthy` | server | state, since | **on** | Reminder every 24 h while blocked or down. |
 | `server.cert_expiring` | server | days_left | **on** | Once per crossing of the 14-day threshold (not daily): raised again only after the certificate was renewed and runs low again. |
@@ -87,7 +89,7 @@ The payload lists the fields beyond the subject. A member's events (`auth.*`, `m
 | Event | Subject | Payload | Notify | Notes |
 |---|---|---|---|---|
 | `subscription.created` / `.deleted` | subscription | name | off | |
-| `subscription.updated` | subscription | changes (the changed settings, comma-joined: name, title, description, formats, default format, update interval, hide unhealthy, hidden states, grace, auto add) | off | Nothing is recorded when nothing changed. |
+| `subscription.updated` | subscription | changes (the changed settings, comma-joined: name, title, description, formats, default format, update interval, hide unhealthy, hidden states, grace, auto add, score in endpoint names) | off | Nothing is recorded when nothing changed. |
 | `subscription.servers_changed` | subscription | added, removed (names, comma-joined, `""` for none), reordered (bool); `auto: true` for the automatic add; `reason: "retired"` | off | Includes removals caused by retirement, one event per subscription. |
 | `subscription.handed_over` | member (the removed one) | from, to (usernames), subscriptions, links (counts) | off | The reaction to `member.removed` gave the removed member's subscriptions and links to the heir (actor `system`). Recorded only when something moved. |
 | `subscription.all_unhealthy` | subscription | servers (names, comma-joined), count | **on** | Hiding would leave the output empty, so every server is served ([fetch](./processes/subscriptions/subscription-fetch.md)). Raised by a fetch (actor `system`), at most hourly per subscription. |

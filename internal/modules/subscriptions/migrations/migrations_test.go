@@ -60,7 +60,7 @@ func TestSubscriptionsMigrationsRoundTrip(t *testing.T) {
 	if err := d.R.GetContext(ctx, &n, `SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name LIKE 'subs\_%' ESCAPE '\'`); err != nil || n != 7 {
 		t.Fatalf("%d tables after up: %v", n, err)
 	}
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 			t.Fatalf("down: %v", err)
 		}
@@ -77,6 +77,9 @@ func TestThingsFromBeforeMembersBelongToMemberOne(t *testing.T) {
 	ctx := context.Background()
 	d := open(t)
 	mustExec(t, d, insertLink, 1, "Mom", []byte("a"), []byte("la"), "active", nil)
+	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
+		t.Fatal(err)
+	}
 	if err := db.MigrateDown(ctx, d, dbtest.Discard, source{}); err != nil {
 		t.Fatal(err)
 	}

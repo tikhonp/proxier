@@ -174,6 +174,8 @@ Unknown tokens receive the same plain `404` as unknown public paths. Request and
 | Proxy servers | proxy tests, discovery through a server | embedded xray-core client ([ADR 0009](./adr/0009-embedded-xray-core-no-docker-socket.md)) |
 | Routers (via jump hosts) | sync, drift checks | SSH over the embedded tailnet node ([ADR 0008](./adr/0008-tsnet-node-for-router-reachability.md)) |
 | Cloudflare API | DNS records | HTTPS, API token |
+| Net.Coffee (`ip.net.coffee`) | optional reputation lookup for explicit service exit IPs; disabled by default | HTTPS, anonymous undocumented API |
+| Claude / ChatGPT trace URLs and OpenAI API | optional service exit observations and API reachability | HTTPS through the selected endpoint, with no direct fallback |
 | check-host.net | external checks | HTTPS API |
 | Telegram Bot API | notifications, bot commands (long polling) | HTTPS |
 | raw.githubusercontent.com, api.github.com, codeload.github.com | v2fly lists, catalog, reverse index | HTTPS |

@@ -260,11 +260,17 @@ Summarised here, defined in the process docs:
 - **Verdict** rules and flap protection: [health](../processes/servers/server-health.md). Subscriptions can hide unhealthy servers (per subscription).
 - **Stats**: collected in the same SSH session as the self-check ([stats](../processes/servers/server-stats.md)).
 
+## AI IP checks
+
+Net.Coffee checks are optional and disabled by default. Enable `servers.ai_enabled` in Settings > Servers to disclose observed exit IPs to Net.Coffee. The Health tab queues checks for each active endpoint. `servers.ai_daily`, also off by default, enables a daily refresh with up to 15 minutes of jitter. Checks run on the server resource key and never change its health verdict.
+
+Claude and ChatGPT each observe their own exit IP through the endpoint. A separate OpenAI API request reports reachability without a score or a claimed Codex exit IP. Reputation is cached for each exact IP for 24 hours. Output omits results after 48 hours or an endpoint configuration change. History and cache rows expire after 30 days, on the daily maintenance job. See [AI IP checks](../processes/servers/ai-ip-checks.md) and [Net.Coffee](../integrations/net-coffee.md).
+
 ## Ports for other modules
 
 | Port | Used by | Contract |
 |---|---|---|
-| `EndpointCatalog` | subscriptions | Active servers with their endpoints (display name, type, host, port, credential, params), health state and "since". Changes arrive as events (`server.activated`, `server.redeployed`, `server.credentials_rotated`, `server.health_changed`, `server.retired`). |
+| `EndpointCatalog` | subscriptions | Active servers with their endpoints (display name, type, host, port, credential, params), health state and "since", and fresh score values by endpoint key and mode. Scores contain no diagnostics and require no remote lookup. Changes arrive as events (`server.activated`, `server.redeployed`, `server.credentials_rotated`, `server.health_changed`, `server.retired`). |
 | `Rotator` | subscriptions (cut-off) | `RotationRequest(serverID, actor)`: the `servers.rotate` job (resource key `server:<id>`) for the caller to enqueue in its own transaction; nothing is enqueued. `ErrNotActive` for a server that isn't active, is retiring or is gone; `ErrNothingToRotate` when its version marks no generated value `rotate: true`. Every way the job ends records `server.credentials_rotated` or `server.redeploy_failed{kind: rotate}` with actor `job:<id>`. |
 | `ServerHostnames` | routing | `Servers(ctx)`: every server whose state isn't `retired` (a retiring one included: its DNS still points at it), by id, with its name, IP and management, proxy and additional-address hostnames (no empty or duplicate ones; a name that leads to the server through any address must not be routed through it). Routing refuses to route the hostnames and names the server; services hold no IPs, so it doesn't use them. |
 | `ProxyDialer` | routing (discovery) | A dial function (`servers.DialFunc`) and its closer that send traffic through a chosen active server's endpoint (an in-process xray client). Discovery's SOCKS listener relays through it. |

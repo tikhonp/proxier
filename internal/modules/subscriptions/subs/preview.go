@@ -35,7 +35,7 @@ func (s *Service) Preview(ctx context.Context, id int64, scope access.Scope, for
 	}
 	resp, err := output.Build(i18n.From(ctx), output.Request{
 		Link: output.Link{State: "active"}, Title: sub.Title, UpdateHours: sub.UpdateHours, Format: f,
-		Servers: served, Hide: sub.Hide, Contact: contact, Now: s.d.Now(), Masked: masked,
+		Servers: served, Hide: sub.Hide, Contact: contact, Now: s.d.Now(), Masked: masked, ScoreNames: sub.ScoreNames,
 	})
 	return resp, members, err
 }

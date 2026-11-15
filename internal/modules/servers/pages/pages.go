@@ -9,6 +9,7 @@ import (
 
 	"github.com/labstack/echo/v5"
 	"github.com/tikhonp/proxier/internal/modules/servers/agent"
+	"github.com/tikhonp/proxier/internal/modules/servers/aicheck"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns/cloudflare"
@@ -49,6 +50,7 @@ type Deps struct {
 	Deploy *deploy.Service
 	// Health runs and reads the checks; Stats answers the Stats tab.
 	Health *health.Service
+	AI     *aicheck.Service
 	Stats  *stats.Service
 	// Retire takes servers out of service.
 	Retire *retire.Service
@@ -81,6 +83,7 @@ func Register(r web.Routes, d Deps) {
 	h.registerServers(r)
 	h.registerDeploy(r)
 	h.registerHealth(r)
+	h.registerAI(r)
 	h.registerRetire(r)
 	h.registerIP(r)
 	h.registerAddresses(r)

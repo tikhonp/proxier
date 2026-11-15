@@ -273,6 +273,7 @@ type formView struct {
 	Name, Title, Description string
 	Formats                  map[string]bool
 	Default                  string
+	ScoreNames               string
 	UpdateHours              string
 	HideOn                   bool
 	States                   map[string]bool
@@ -297,7 +298,7 @@ type pageView struct {
 
 func formOf(s subs.Subscription) formView {
 	f := formView{
-		Name: s.Name, Title: s.Title, Description: s.Description, Default: s.DefaultFormat,
+		Name: s.Name, Title: s.Title, Description: s.Description, Default: s.DefaultFormat, ScoreNames: s.ScoreNames,
 		UpdateHours: strconv.Itoa(s.UpdateHours), HideOn: s.Hide.On, Grace: strconv.Itoa(int(s.Hide.Grace / time.Minute)),
 		AutoAdd: s.AutoAdd, Formats: map[string]bool{}, States: map[string]bool{},
 	}
@@ -428,7 +429,7 @@ func (h *handler) save(c *echo.Context) error {
 	form, _ := c.FormValues()
 	st := subs.Settings{
 		Name: c.FormValue("name"), Title: c.FormValue("title"), Description: c.FormValue("description"),
-		Formats: form["format"], DefaultFormat: c.FormValue("default_format"),
+		Formats: form["format"], DefaultFormat: c.FormValue("default_format"), ScoreNames: c.FormValue("score_names"),
 		HideOn: c.FormValue("hide") == "1", HideStates: form["hide_state"], AutoAdd: c.FormValue("auto_add") == "1",
 	}
 	// a number that doesn't parse is out of bounds: the service words the error
@@ -449,7 +450,7 @@ func (h *handler) save(c *echo.Context) error {
 		v.Errs = errText(ctx, errs)
 		// keep what was typed
 		v.Form = formView{
-			Name: st.Name, Title: st.Title, Description: st.Description, Default: st.DefaultFormat,
+			Name: st.Name, Title: st.Title, Description: st.Description, Default: st.DefaultFormat, ScoreNames: st.ScoreNames,
 			UpdateHours: c.FormValue("update_hours"), HideOn: st.HideOn, Grace: c.FormValue("grace"), AutoAdd: st.AutoAdd,
 			Formats: map[string]bool{}, States: map[string]bool{},
 		}

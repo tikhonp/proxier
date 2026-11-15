@@ -25,6 +25,7 @@ Read a flow's document before changing it. When the behaviour changes, the docum
 - [Server redeploy](./servers/server-redeploy.md): redeploy, upgrade (single and rolling), parameter changes, restart, update images.
 - [Credential rotation](./servers/credential-rotation.md): replacing a server's credentials, alone or as part of a cut-off.
 - [Server health](./servers/server-health.md): checks, vantage points, verdicts, flap protection, pause.
+- [AI IP checks](./servers/ai-ip-checks.md): service exit IPs, Net.Coffee reputation, endpoint comparison and cached subscription scores.
 - [Server stats](./servers/server-stats.md): metrics collection and display.
 - [IP change](./servers/ip-change.md): moving a server to another IP of its VPS, and testing the previous IPs.
 - [Server retirement](./servers/server-retirement.md): taking a server out of service.

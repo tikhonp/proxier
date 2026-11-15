@@ -1,0 +1,99 @@
+package pages
+
+import (
+	"github.com/tikhonp/proxier/internal/platform/i18n"
+	"github.com/tikhonp/proxier/internal/platform/ui"
+)
+
+templ aiRankingPage(s ui.Shell, v aiView) {
+	@ui.Layout(s) {
+		<div class="titleblock">
+			<div class="head">
+				<h1>{ i18n.T(ctx, "ai.ranking") }</h1>
+				<p class="subtle">{ i18n.T(ctx, "ai.note") }</p>
+			</div>
+		</div>
+		<div class="filters area-body">
+			<a href="/servers" class="pc-btn">{ i18n.T(ctx, "servers.title") }</a>
+			for _, c := range v.Chips {
+				<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ ui.BoolStr(c.On) }>{ c.Label }</a>
+			}
+		</div>
+		@aiArea(v)
+	}
+}
+
+templ aiArea(v aiView) {
+	<div id="ai-results" hx-get={ v.PollHref } hx-trigger={ aiPollTrigger(v) } hx-select="#ai-results" hx-target="#ai-results" hx-swap="outerHTML">
+		@ui.Area(i18n.T(ctx, "ai.title"), i18n.T(ctx, "ai.note")) {
+			<div class="area-body">
+				if !v.Enabled {
+					<p class="subtle">{ i18n.T(ctx, "ai.disabled") }</p>
+				} else if v.ServerID > 0 {
+					<div class="actions">
+						@ui.ActionButton(ui.Action{ID: "ai.run", Label: "ai.run", Method: "POST", Href: serverHref(v.ServerID) + "/ai/run"})
+						@ui.ActionButton(ui.Action{ID: "ai.ranking", Label: "ai.ranking", Method: "GET", Href: "/servers/ai"})
+					</div>
+				}
+				if v.PollHref != "" {
+					<p class="subtle" role="status">{ i18n.T(ctx, "ai.queued") }</p>
+				}
+			</div>
+			if v.Enabled {
+				<div class="tbl">
+					<div class="colhead ai-row" aria-hidden="true">
+						<span>{ i18n.T(ctx, "ai.col.endpoint") }</span>
+						<span>{ i18n.T(ctx, "ai.col.ip") }</span>
+						<span>{ i18n.T(ctx, "ai.col.score") }</span>
+						<span>{ i18n.T(ctx, "ai.col.policy") }</span>
+						<span>{ i18n.T(ctx, "ai.col.reachability") }</span>
+						<span>{ i18n.T(ctx, "ai.col.when") }</span>
+					</div>
+					for _, row := range v.Rows {
+						<div class="row ai-row">
+							<div class="wrap">
+								if row.Href != "" {
+									<a href={ templ.SafeURL(row.Href) } class="bold">{ row.Server }</a>
+								}
+								<div>{ row.Endpoint } · { row.Service }</div>
+							</div>
+							<div class="wrap mono">{ row.IP }</div>
+							<div>
+								<div class="bold">{ row.Score }</div>
+								<div class="sm subtle">{ row.State }</div>
+								if row.Raw != "" {
+									<div class="sm subtle">{ i18n.T(ctx, "ai.raw", i18n.Args{"score": row.Raw}) }</div>
+								}
+							</div>
+							<div class="wrap sm">
+								<div>{ row.Country }</div>
+								<div>{ row.Eligibility }</div>
+								if row.Flags != "" {
+									<details><summary>{ i18n.T(ctx, "ai.flags") }</summary><p>{ row.Flags }</p></details>
+								}
+							</div>
+							<div class="wrap sm">
+								<div>{ row.Reachability }</div>
+								if row.Error != "" {
+									<p class="gold">{ row.Error }</p>
+								}
+							</div>
+							<div class="wrap sm subtle">
+								if row.Observed != "" {
+									<div>{ i18n.T(ctx, "ai.observed", i18n.Args{"at": row.Observed}) }</div>
+								}
+								if row.Lookup != "" {
+									<div>{ i18n.T(ctx, "ai.lookup", i18n.Args{"at": row.Lookup}) }</div>
+								}
+								if row.Attempt != "" {
+									<div>{ i18n.T(ctx, "ai.attempt", i18n.Args{"at": row.Attempt}) }</div>
+								}
+							</div>
+						</div>
+					}
+				</div>
+				<p class="help area-body"><a href="https://ip.net.coffee/" rel="noreferrer">Net.Coffee</a> · { i18n.T(ctx, "ai.policy_note") }</p>
+			}
+		}
+	</div>
+}

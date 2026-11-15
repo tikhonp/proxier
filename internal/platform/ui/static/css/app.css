@@ -658,6 +658,11 @@ a.row.tpl { text-decoration: none; color: inherit; }
 .verdict-body { padding: 10px 16px 14px; display: flex; flex-direction: column; gap: 4px; max-width: 960px; }
 .row.mx, .colhead.mx { grid-template-columns: minmax(140px, 1.1fr) minmax(130px, 1.1fr) minmax(160px, 1.4fr) 100px 150px; align-items: center; }
 .row.mx-sub { padding-left: 32px; }
+.row.ai-row, .colhead.ai-row { grid-template-columns: minmax(130px, 1fr) minmax(130px, 1fr) 120px minmax(140px, 1fr) minmax(140px, 1fr) minmax(180px, 1fr); align-items: start; }
+@media (max-width: 700px) {
+  .row.ai-row { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  .colhead.ai-row { display: none; }
+}
 .mx-group { padding: 10px 16px 4px; font-size: var(--fs-label); letter-spacing: .08em; text-transform: uppercase; color: var(--subtle); border-top: 1px solid var(--overlay); }
 .row.chg { grid-template-columns: 200px minmax(0, 240px) minmax(0, 1fr); }
 .axis { display: flex; justify-content: space-between; font-size: var(--fs-sm); color: var(--muted); padding: 4px 0 0; }

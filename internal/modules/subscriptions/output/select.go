@@ -17,6 +17,7 @@ type Server struct {
 	Health      string
 	HealthSince time.Time
 	Endpoints   []endpoint.Endpoint
+	Scores      map[string]map[string]float64
 }
 
 // Hide is a subscription's "hide unhealthy servers".

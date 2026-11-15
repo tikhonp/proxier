@@ -23,6 +23,7 @@ type Request struct {
 	Contact     string // general.admin_contact
 	Now         time.Time
 	Masked      bool
+	ScoreNames  string
 }
 
 // Response is what a link gets, plus what the preview explains.
@@ -53,7 +54,7 @@ func Build(loc *i18n.Localizer, r Request) (Response, error) {
 		resp.Outcome = StubExpired
 	default:
 		resp.Served, resp.Hidden, resp.AllHidden = Select(r.Servers, r.Hide, r.Now)
-		lines, err := URIs(resp.Served, r.Masked)
+		lines, err := URIs(WithScores(resp.Served, r.ScoreNames), r.Masked)
 		if err != nil {
 			return Response{}, err
 		}

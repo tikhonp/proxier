@@ -64,6 +64,7 @@ type changeRow struct{ Time, From, To, Reason, ToKind string }
 
 type healthView struct {
 	serverView
+	AI             aiView
 	Health         string
 	HealthKind     string
 	Since, SinceAt string
@@ -118,6 +119,9 @@ func (h *handler) healthTab(c *echo.Context) error {
 		return err
 	}
 	v.Msg = c.QueryParam("msg")
+	if err := h.healthAI(c, &v); err != nil {
+		return err
+	}
 	if started, err := strconv.ParseInt(c.QueryParam("run"), 10, 64); err == nil && h.Health.Now().Unix()-started < 60 {
 		v.PollHref = serverHref(s.ID) + "/health?range=" + v.Range + "&run=" + strconv.FormatInt(started, 10)
 	}

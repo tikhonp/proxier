@@ -62,6 +62,9 @@ erDiagram
 | **Previous IP** | server, IP (unique), since (when it stopped being the server's IP), state (unknown / works / fails), state since, candidate and its count | An IP a server left and still answers on, proxy-tested from home. Deleted by **Forget**, by switching back to it and by retirement. |
 | **Previous IP result** | previous IP, time, ok, class (the first failing endpoint's), inconclusive, detail (per endpoint: timings or the error) | Retention 30 days; deleted with its previous IP. |
 | **Metric sample** | server, time, load, CPU %, memory used/total, disk used/total, rx/tx bytes since the previous sample, uptime | Raw 7 days, hourly rollups 90 days. |
+| **AI check attempt** | server, endpoint key, configuration generation, service, attempt and observation times, public exit IP and address family, HTTP status, reachability, error, reputation lookup time, nullable raw score, country, nullable reputation flags | Retention 30 days. Current reads separate the latest attempt, latest observation and latest successful lookup. Configuration changes invalidate historical scores. |
+| **AI reputation cache** | exact IP, lookup time, parsed reputation | Shared across endpoints and services for 24 hours; rows expire after 30 days. |
+| **AI API cooldown** | next permitted lookup time | Shared durable `Retry-After` deadline. Cache hits remain usable. |
 
 ## Subscriptions
 
@@ -76,7 +79,7 @@ erDiagram
 
 | Entity | Important fields | Notes |
 |---|---|---|
-| **Subscription** | owner (a member), name (unique, exact match, whoever owns it), title (shown in apps), description, default format, allowed formats, update interval (hours), hide unhealthy (on/off, which states, grace minutes), add new servers automatically + since when it is on, when `all_unhealthy` was last raised, created | |
+| **Subscription** | owner (a member), name (unique, exact match, whoever owns it), title (shown in apps), description, default format, allowed formats, score name mode, update interval (hours), hide unhealthy (on/off, which states, grace minutes), add new servers automatically + since when it is on, when `all_unhealthy` was last raised, created | |
 | **Subscription server** | subscription, server (ID from servers), server name (a copy made when it was added: names never change or get reused), position (dense 1…n), added | Order is the order apps show. A member the catalog no longer serves stays, "not in service", until its retirement removes it. |
 | **Link** | owner (a member), subscription, name (unique among links that aren't deleted), note, token 🔒 + token HMAC (unique), state (active / disabled / deleted), expiry (the first moment it is expired), language, format override, alert thresholds (override), alerts muted, when it was last alerted / warned of expiry / told it expired, created, disabled at, deleted at, last fetch (time, app, network) | Deleted links keep their token for the tombstone period ([link lifecycle](./processes/subscriptions/link-lifecycle.md)) even if their subscription is deleted; after the period ends the token is erased. |
 | **Fetch** | link, time, IP, network (IPv4 /24 or IPv6 /48), user agent, app, format (one of the subscription formats, or `page` for the link's page in a browser), outcome (ok / stub-disabled / stub-expired / stub-deleted / stub-empty) | Retention: the `subscriptions.fetch_retention` setting (90 days). |

@@ -53,6 +53,7 @@ The page is `200` with `Content-Type: text/html; charset=utf-8`, `Cache-Control:
 ## Rules
 
 - A response never reveals whether a token exists beyond what its output says: unknown tokens all get the same `404`.
+- Optional score suffixes come only from the servers catalog. Fetches perform no remote reputation request. Missing, stale, invalidated or disabled scores add no suffix.
 - The output is computed fresh on every request. No caching anywhere, including the gateway (`no-store`).
 - A format's output never contains anything but connection URIs: no comments, nothing about members. The page shows the subscription's title, the link's expiry, its URL, the apps and the contact: nothing about servers, members or other links.
 - The client IP is `X-Real-IP` when the request comes from a trusted proxy, otherwise the socket address.

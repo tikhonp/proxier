@@ -17,6 +17,7 @@ templ serversPage(s ui.Shell, v serversView) {
 				<p class="subtle">{ i18n.T(ctx, "servers.note") }</p>
 			</div>
 			<div class="actions">
+				@ui.ActionButton(ui.Action{ID: "ai.ranking", Label: "ai.ranking", Method: "GET", Href: "/servers/ai"})
 				@ui.ActionButton(ui.Action{ID: "servers.new", Label: "servers.new", Method: "GET", Href: "/servers/new", Kind: ui.Primary, Key: "n"})
 			</div>
 		</div>

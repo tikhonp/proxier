@@ -113,3 +113,7 @@ The server changes health state after the same candidate appears in 2 consecutiv
 - A host key changed on the server → `unknown` with "host key changed", plus the security notification. No `down`.
 - A server with two endpoints where one fails and one passes → `degraded` ("Endpoint backup fails").
 - A healthy server's IP changes → `unknown`; an evaluation that has only the results from before the change stays `unknown`, and the new IP's first passing round → `healthy`.
+
+## AI services
+
+The Health tab also shows optional [AI IP checks](./ai-ip-checks.md). They have their own manual action and daily schedule. Their scores, reachability and failures never affect the health verdict or the five-minute health round.

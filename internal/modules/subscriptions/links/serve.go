@@ -59,7 +59,7 @@ func (s *Service) Serve(ctx context.Context, l Link, query string, masked bool) 
 	loc := s.d.I18n.Localizer(l.Lang, s.Zone(ctx))
 	resp, err := output.Build(loc, output.Request{
 		Link: output.Link{State: l.State, Expires: l.Expires}, Title: sub.Title, UpdateHours: sub.UpdateHours,
-		Format: format, Servers: served, Hide: sub.Hide, Contact: contact, Now: s.d.Now(), Masked: masked,
+		Format: format, Servers: served, Hide: sub.Hide, Contact: contact, Now: s.d.Now(), Masked: masked, ScoreNames: sub.ScoreNames,
 	})
 	if err != nil {
 		return Served{}, err

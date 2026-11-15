@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/tikhonp/proxier/internal/modules/servers/agent"
+	"github.com/tikhonp/proxier/internal/modules/servers/aicheck"
 	"github.com/tikhonp/proxier/internal/modules/servers/country"
 	"github.com/tikhonp/proxier/internal/modules/servers/deploy"
 	"github.com/tikhonp/proxier/internal/modules/servers/dns"
@@ -59,6 +60,7 @@ type Module struct {
 	// Stats keeps the metric samples; Health runs the checks and decides the verdict.
 	Stats  *stats.Service
 	Health *health.Service
+	AI     *aicheck.Service
 	// Retire takes servers out of service for good.
 	Retire *retire.Service
 	// IPChange moves servers to another IP and forgets previous ones.
@@ -108,6 +110,7 @@ func (m *Module) Init(d module.Deps) error {
 		},
 	})
 	m.Stats = stats.New(d.DB, d.Settings)
+	m.AI = aicheck.New(aicheck.Deps{DB: d.DB, Events: d.Events, Jobs: d.Jobs, Settings: d.Settings, Vault: d.Vault})
 	m.Health = health.New(health.Deps{
 		DB: d.DB, Events: d.Events, Vault: d.Vault, Jobs: d.Jobs, SSH: d.SSH, Settings: d.Settings, I18n: d.I18n,
 		Stats: m.Stats, Log: d.Log,
@@ -189,6 +192,7 @@ func (*Module) EventTypes() []events.Type { return Events }
 func (m *Module) JobTypes() []jobs.Type {
 	types := append([]jobs.Type{m.Provision.JobType()}, m.Deploy.JobTypes()...)
 	types = append(types, m.Health.JobTypes()...)
+	types = append(types, m.AI.JobTypes()...)
 	types = append(types, m.Agent.JobTypes()...)
 	return append(types, m.Retire.JobType(), m.IPChange.JobType())
 }
@@ -197,7 +201,7 @@ func (m *Module) JobTypes() []jobs.Type {
 func (m *Module) Subscribers() []events.Subscriber { return []events.Subscriber{m.Deploy.Subscriber()} }
 
 func (m *Module) Schedules() []jobs.Schedule {
-	return append(m.Health.Schedules(), m.Agent.Schedule())
+	return append(m.Health.Schedules(), m.Agent.Schedule(), m.AI.Schedule())
 }
 
 func (*Module) SettingsSections() []settings.Section {
@@ -227,7 +231,7 @@ func (m *Module) Integrations(ctx context.Context) []ui.IntegrationRow {
 
 // Messages merges the module's texts: the core table and the template pages'.
 func (*Module) Messages() i18n.Messages {
-	sets := []i18n.Messages{messages, templateMessages, serverMessages, deployMessages, healthMessages, retireMessages, agentMessages, ipMessages}
+	sets := []i18n.Messages{messages, templateMessages, serverMessages, deployMessages, healthMessages, retireMessages, agentMessages, ipMessages, aiMessages}
 	n := 0
 	for _, set := range sets {
 		n += len(set)
@@ -248,8 +252,8 @@ func (m *Module) Routes(r web.Routes) {
 		Store: m.Store, Templates: m.Templates, Log: m.deps.Log, Settings: m.deps.Settings, DNS: m.DNS,
 		CloudflareClient: func(token string) *cloudflare.Client { return m.CloudflareClient(token) },
 		Vault:            m.deps.Vault, Jobs: m.deps.Jobs, Provision: m.Provision, Deploy: m.Deploy, Retire: m.Retire, Health: m.Health, Stats: m.Stats, Agent: m.Agent,
-		IPChange: m.IPChange,
-		Usage:    func() pages.UsageReader { return m.usage },
+		IPChange: m.IPChange, AI: m.AI,
+		Usage: func() pages.UsageReader { return m.usage },
 	})
 }
 

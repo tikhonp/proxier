@@ -41,3 +41,7 @@ Check mobile forms, dialogs, logs and charts on real iOS and Android devices. Fo
 Verify Telegram delivery to private and group chats, isolation between members, long polling over extended periods and the bot's subscription commands. Check IP country lookups from the deployment network.
 
 Exercise template and router-script agent sessions with supported clients, including stale ETags, previews and token rejection after a session ends. See [template authoring](./processes/servers/template-authoring.md).
+
+## AI IP reputation
+
+Confirm Net.Coffee automated-use permission, quotas and attribution requirements. Its anonymous API works, but no integration contract has been found. Compare results for ordinary IPv4 and IPv6 proxy exits against its pages. Verify how supported client apps preserve the selected endpoint when refreshed display names gain a different score. No Codex API exit-IP detection method is verified. See [Net.Coffee](./integrations/net-coffee.md).

@@ -49,6 +49,8 @@ func previousVariant(p map[string]any) string {
 
 // Events is the module's event catalog (docs/events.md#servers).
 var Events = []events.Type{
+	{Name: "server.ai_check_completed", Description: "An endpoint's AI service check completed."},
+	{Name: "server.ai_history_pruned", Description: "Expired AI check history and reputation cache were removed."},
 	{Name: "template.created", Description: "A template was created."},
 	{Name: "template.version_published", Description: "A template version was published (version, warnings)."},
 	{Name: "template.default_version_changed", Description: "The default version of a template changed."},

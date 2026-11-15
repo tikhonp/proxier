@@ -286,6 +286,16 @@ templ settingsArea(v pageView) {
 				}
 			}
 			@nameFields(v.Form.Name, v.Form.Title, v.Form.Description, v.Errs, false)
+			<div class="field">
+				<label for="sub-score-names">{ i18n.T(ctx, "subs.field.score_names") }</label>
+				<select id="sub-score-names" name="score_names" class="pc-inp" aria-invalid?={ v.Errs["score_names"] != "" }>
+					for _, mode := range output.ScoreModes {
+						<option value={ mode } selected?={ mode == v.Form.ScoreNames }>{ i18n.T(ctx, "subs.score."+mode) }</option>
+					}
+				</select>
+				@fieldErr(v.Errs, "score_names")
+				<p class="help">{ i18n.T(ctx, "subs.field.score_names.help") }</p>
+			</div>
 			<fieldset class="field">
 				<legend>{ i18n.T(ctx, "subs.field.formats") }</legend>
 				for _, f := range output.Names() {

@@ -56,6 +56,7 @@ flowchart LR
 7. A new router is set up from a filled-in, versioned `fresh-router.rsc` that it fetches itself.
 8. The UI speaks English and Russian.
 9. Several members share one Proxier, each with a level in each area, their own things and their own Telegram notifications.
+10. Optional [AI IP checks](./processes/servers/ai-ip-checks.md) compare endpoint exit reputation for Claude and ChatGPT and add cached scores to subscription names.
 
 ## Out of scope
 

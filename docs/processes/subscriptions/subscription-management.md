@@ -11,6 +11,7 @@ A subscription defines the servers returned by a group of links. Examples includ
 3. **Settings**:
    - **formats** (allowed and default);
    - **update interval** in hours;
+   - **score in endpoint names**: Off, IP reputation, Claude or ChatGPT;
    - **hide unhealthy servers**: off, or on with the states (default `blocked` and `down`) and grace period (default 30 min);
    - **add new servers automatically**.
 
@@ -32,12 +33,16 @@ A subscription defines the servers returned by a group of links. Examples includ
 - The reactions to servers change every subscription, whoever owns it.
 - Names are unique, whoever owns the subscription. Titles don't have to be.
 - Only active servers can be added. A server keeps its position until removed. Removed servers don't leave gaps.
-- A server can be in many subscriptions. Its connection URIs are the same in all of them (credentials are per endpoint, [ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)).
+- A server can be in many subscriptions. Its connection parameters are the same in all of them, while display-name scores may differ (credentials are per endpoint, [ADR 0004](../../adr/0004-one-shared-credential-per-endpoint.md)).
 - The default format must be one of the allowed formats, and at least one format is allowed.
 - Changes take effect on each link's next fetch. There is nothing to push to apps.
 - "Add new servers automatically" only affects servers activated after it was turned on.
 
 ## Edge cases (each is a test)
+
+- Score settings persist on save; saving the same setting records no event. An unknown score mode is refused.
+- Off preserves the output. IP reputation, Claude and ChatGPT add only their matching cached scores, including zero. Missing scores leave names unchanged.
+- Plain output, decoded base64 output and masked previews use the same score suffix. The suffix preserves endpoint-key names, credentials, URI parameters, endpoint order and stub text.
 
 - Create "Family" with nl-1 and de-1 → the preview shows two connection URIs in that order, with the title "Family".
 - Drag de-1 above nl-1 → the next fetch serves de-1 first.

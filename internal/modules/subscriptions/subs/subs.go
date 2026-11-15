@@ -49,6 +49,7 @@ type Subscription struct {
 	Name, Title, Description string
 	Formats                  []string
 	DefaultFormat            string
+	ScoreNames               string
 	UpdateHours              int
 	Hide                     output.Hide
 	AutoAdd                  bool
@@ -61,6 +62,7 @@ type Settings struct {
 	Name, Title, Description string
 	Formats                  []string
 	DefaultFormat            string
+	ScoreNames               string
 	UpdateHours              int
 	HideOn                   bool
 	HideStates               []string
@@ -125,7 +127,7 @@ func (s *Service) record(ctx context.Context, tx *sqlx.Tx, typ string, id int64,
 func fromRow(r store.Subscription) Subscription {
 	return Subscription{
 		ID: r.ID, OwnerID: r.OwnerID, Name: r.Name, Title: r.Title, Description: r.Description,
-		Formats: split(r.Formats), DefaultFormat: r.DefaultFormat, UpdateHours: r.UpdateHours,
+		Formats: split(r.Formats), DefaultFormat: r.DefaultFormat, ScoreNames: r.ScoreNames, UpdateHours: r.UpdateHours,
 		Hide:    output.Hide{On: r.HideUnhealthy, States: split(r.HideStates), Grace: time.Duration(r.HideGraceMin) * time.Minute},
 		AutoAdd: r.AutoAdd, AutoAddSince: r.AutoAddSince.Time, CreatedAt: r.CreatedAt.Time,
 	}
@@ -243,7 +245,7 @@ func member(m store.Member, active map[int64]servers.ServerEndpoints) Member {
 	out := Member{ServerID: m.ServerID, Name: m.ServerName, Position: m.Position}
 	if se, ok := active[m.ServerID]; ok {
 		out.InService, out.Flag = true, se.Flag
-		out.Server = output.Server{ID: se.ServerID, Name: se.Name, Health: se.Health, HealthSince: se.HealthSince, Endpoints: se.Endpoints}
+		out.Server = output.Server{ID: se.ServerID, Name: se.Name, Health: se.Health, HealthSince: se.HealthSince, Endpoints: se.Endpoints, Scores: se.Scores}
 	}
 	return out
 }
@@ -307,6 +309,9 @@ func (s *Service) Update(ctx context.Context, id int64, scope access.Scope, st S
 	}
 	fe := store.FieldErrors{}
 	checkNames(fe, st.Name, st.Title, st.Description)
+	if !slices.Contains(output.ScoreModes, st.ScoreNames) {
+		fe["score_names"] = "subs.err.score_names"
+	}
 	formats := inOrder(output.Names(), st.Formats)
 	switch {
 	case len(formats) == 0:
@@ -342,6 +347,7 @@ func (s *Service) Update(ctx context.Context, id int64, scope access.Scope, st S
 		}
 		next := old
 		next.Name, next.Title, next.Description = st.Name, st.Title, st.Description
+		next.ScoreNames = st.ScoreNames
 		next.Formats, next.DefaultFormat, next.UpdateHours = strings.Join(formats, ","), st.DefaultFormat, st.UpdateHours
 		next.HideUnhealthy, next.HideGraceMin = st.HideOn, st.GraceMinutes
 		if len(states) > 0 { // turned off with nothing ticked keeps the states for next time
@@ -364,6 +370,7 @@ func (s *Service) Update(ctx context.Context, id int64, scope access.Scope, st S
 			{"description", old.Description != next.Description},
 			{"formats", old.Formats != next.Formats},
 			{"default format", old.DefaultFormat != next.DefaultFormat},
+			{"score in endpoint names", old.ScoreNames != next.ScoreNames},
 			{"update interval", old.UpdateHours != next.UpdateHours},
 			{"hide unhealthy", old.HideUnhealthy != next.HideUnhealthy},
 			{"hidden states", old.HideStates != next.HideStates},

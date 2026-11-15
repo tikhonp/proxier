@@ -15,6 +15,7 @@ Every subscription and link has an **owner**, the member who made it ([ownership
 | Description | A note members see. | — |
 | Servers | Ordered list of active servers. Every endpoint of each server is served, in that order. | empty |
 | Formats | Which formats links may be served in, and the default: `uri-plain`, `uri-base64` ([subscription format](../integrations/subscription-format.md)). | both allowed, `uri-plain` default |
+| Score in endpoint names | Off, IP reputation, Claude or ChatGPT. Adds a fresh cached value such as ` · Claude 85` to each matching endpoint. IP reputation uses the Claude-observed exit without a country override. Missing, stale, invalidated or disabled results add nothing. | off |
 | Update interval | Whole hours suggested to apps between refreshes (`profile-update-interval`), 1–168. | 12 |
 | Hide unhealthy servers | Off, or on with the states to hide, chosen from `blocked`, `down`, `degraded`, `unknown` (default `blocked`, `down`; `paused` never hides), and a grace period of 0–10 080 min (default 30). | off |
 | Add new servers automatically | Every server that becomes active is appended to this subscription. | off |
@@ -24,6 +25,7 @@ Rules:
 - A server can be in any number of subscriptions. Only **active** servers can be added. A server that is retired is removed from every subscription by the module's reaction to `server.retired`.
 - **Hide unhealthy**: a server whose health state has been one of the hidden states for at least the grace period is left out of the output, and comes back as soon as it leaves those states. If hiding would leave the output with no servers, nothing is hidden and `subscription.all_unhealthy` is raised. A subscription never serves an empty list because of health ([fetch](../processes/subscriptions/subscription-fetch.md)).
 - A server's display name in the output is its country's flag and English name and its number ("🇳🇱 Netherlands 1"), as the servers module stores it with the endpoint, whatever the link's language: a link's language changes only its stub entries.
+- Scores decorate display names before URI escaping and base64 encoding. Fetches and previews never query Net.Coffee. The setting preserves endpoint order, health hiding, credentials and stub text. A valid zero score is included. Some client apps may treat a changed name as a renamed entry.
 - A member the servers module no longer serves (retiring, or without endpoints) stays in the list, shown "not in service", and is never served; its retirement removes it.
 - A subscription with links can't be deleted. Its links must be moved to another subscription or deleted first. Deleted links do not block deletion; their URLs keep serving the removal message until their tombstones end.
 
