@@ -30,7 +30,8 @@ These optional checks compare the reputation of endpoint exit IPs. They do not d
 - Different endpoint exits retain separate results. Shared exits use one reputation lookup, without sharing endpoint reachability.
 - A restricted country preserves raw reputation but yields a service score of zero. Missing country information retains the raw score and yields no service score.
 - IPv4 and IPv6 exits retain their family. Private, shared, link-local, malformed or duplicate trace IPs are rejected.
-- Malformed JSON, missing, null, string or out-of-range scores, mismatched returned IPs and oversized bodies fail without accepting a reputation result.
+- A CIDR-cached reputation response can name another public IP within the reported range. Both IPs must belong to that canonical, nonzero prefix. Results and cache keys retain the observed exit IP, and different exits in one range still have separate cache entries.
+- Malformed JSON, missing, null, string or out-of-range scores, malformed or unrelated CIDRs, mismatched IPs without a CIDR and oversized bodies fail without accepting a reputation result.
 - A failed refresh retains a fresh previous success. At 48 hours it expires. An exit change followed by failed lookup, return to the original IP and failed trace never restores the old score.
 - A 429 pauses lookups across endpoints and later checks until its retry deadline. Transient failures retry at most once.
 - IP, endpoint or additional-address changes invalidate output. A late result from the old configuration cannot become current. Retirement prevents queued checks and in-flight result publication.

@@ -30,6 +30,7 @@ const (
 // Reputation keeps absent flags unknown. Only the numeric score is required.
 type Reputation struct {
 	IP          string   `json:"ip"`
+	CIDR        string   `json:"cidr,omitempty"`
 	Score       *float64 `json:"trust_score"`
 	Country     string   `json:"countryCode"`
 	Datacenter  *bool    `json:"is_datacenter"`
@@ -183,7 +184,17 @@ func lookup(ctx context.Context, hc *http.Client, base string, ip netip.Addr, no
 			return Reputation{}, time.Time{}, errors.New("invalid reputation response")
 		}
 		returned, err := publicIP(r.IP)
-		if err != nil || returned != ip {
+		if err != nil {
+			return Reputation{}, time.Time{}, errors.New("reputation IP mismatch")
+		}
+		// Net.Coffee caches by CIDR, so ip can identify another address in
+		// that range. Keep our observed exit as the exact-IP cache key.
+		if r.CIDR != "" {
+			prefix, err := netip.ParsePrefix(r.CIDR)
+			if err != nil || prefix.Bits() == 0 || prefix != prefix.Masked() || !prefix.Contains(ip) || !prefix.Contains(returned) {
+				return Reputation{}, time.Time{}, errors.New("reputation IP mismatch")
+			}
+		} else if returned != ip {
 			return Reputation{}, time.Time{}, errors.New("reputation IP mismatch")
 		}
 		r.IP, r.Country = ip.String(), strings.ToUpper(strings.TrimSpace(r.Country))

@@ -201,6 +201,45 @@ func TestChecksCacheAndServicePolicy(t *testing.T) {
 	}
 }
 
+func TestCIDRCachedReputationKeepsObservedExitAndExactIPCache(t *testing.T) {
+	f := newFixture(t)
+	f.changeIP("main", "87.121.82.109")
+	f.changeIP("extra", "87.121.82.110")
+	f.response = func(string) (int, string) {
+		return 200, `{"ip":"87.121.82.209","cidr":"87.121.82.0/24","trust_score":86,"countryCode":"fi"}`
+	}
+	f.check()
+	if f.apiCalls != 2 {
+		t.Fatalf("two observed IPs used %d lookups", f.apiCalls)
+	}
+	rows, err := f.m.AI.Read(t.Context(), f.id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, row := range rows {
+		if row.Service == aicheck.OpenAIAPI {
+			continue
+		}
+		want := f.ips[row.EndpointKey]
+		if !row.Fresh || row.CurrentIP != want || row.Success == nil || row.Success.IP != want {
+			t.Fatalf("reputation replaced observed exit: %+v", row)
+		}
+		modes := []string{row.Service}
+		if row.Service == aicheck.Claude {
+			modes = append(modes, aicheck.ReputationMode)
+		}
+		for _, mode := range modes {
+			if score, ok := row.Score(mode); !ok || score != 86 {
+				t.Fatalf("%s score %v, available %v", mode, score, ok)
+			}
+		}
+	}
+	f.check()
+	if f.apiCalls != 2 {
+		t.Fatal("normalized reputation did not reuse exact-IP cache")
+	}
+}
+
 func TestFailedRefreshRetainsSuccessButChangedIPNeverResurrectsIt(t *testing.T) {
 	f := newFixture(t)
 	f.check()
