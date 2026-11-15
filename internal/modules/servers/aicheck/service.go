@@ -51,8 +51,15 @@ type Service struct {
 }
 
 func New(d Deps) *Service {
+	// HTTP/2 lookups stall on the production network even when the same
+	// Net.Coffee response completes over HTTP/1.1.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
 	return &Service{Deps: d, Now: time.Now, BaseURL: "https://ip.net.coffee",
-		HTTP:      &http.Client{Timeout: 20 * time.Second, CheckRedirect: noRedirect},
+		HTTP: &http.Client{Timeout: 20 * time.Second, CheckRedirect: noRedirect, Transport: &http.Transport{
+			Proxy: http.ProxyFromEnvironment, Protocols: protocols,
+			TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 15 * time.Second, IdleConnTimeout: 90 * time.Second,
+		}},
 		TraceURLs: map[string]string{Claude: "https://claude.ai/cdn-cgi/trace", ChatGPT: "https://chatgpt.com/cdn-cgi/trace"},
 		APIURL:    "https://api.openai.com/",
 		Dial: func(ctx context.Context, e endpoint.Endpoint) (proxy.DialFunc, io.Closer, error) {

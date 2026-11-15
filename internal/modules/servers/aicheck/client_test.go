@@ -11,6 +11,29 @@ import (
 	"time"
 )
 
+func TestReputationUsesHTTP1WhenServerOffersHTTP2(t *testing.T) {
+	h := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.ProtoMajor != 1 {
+			t.Errorf("reputation request negotiated %s", r.Proto)
+		}
+		_, _ = io.WriteString(w, `{"ip":"8.8.8.8","trust_score":63,"countryCode":"us"}`)
+	}))
+	h.EnableHTTP2 = true
+	h.StartTLS()
+	defer h.Close()
+
+	hc := New(Deps{}).HTTP
+	transport := hc.Transport.(*http.Transport)
+	transport.TLSClientConfig = h.Client().Transport.(*http.Transport).TLSClientConfig.Clone()
+	defer transport.CloseIdleConnections()
+	for range 2 {
+		r, _, err := lookup(t.Context(), hc, h.URL, netip.MustParseAddr("8.8.8.8"), time.Now)
+		if err != nil || r.Score == nil || *r.Score != 63 {
+			t.Fatalf("%+v %v", r, err)
+		}
+	}
+}
+
 func TestLookupValidation(t *testing.T) {
 	for _, body := range []string{
 		`{`, `null`, `{}`, `{"ip":"8.8.8.8"}`, `{"ip":"8.8.8.8","trust_score":null}`,

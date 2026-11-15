@@ -9,7 +9,7 @@ These optional checks compare the reputation of endpoint exit IPs. They do not d
 1. Enable Net.Coffee checks in Settings > Servers. The setting explains that lookups disclose observed exit IPs and that automated-use terms and quotas remain unconfirmed. Both the integration and daily refresh start off.
 2. On an active server's Health tab, select **Check AI services**. Proxier queues `servers.ai_check` on `server:<id>`. Repeated requests coalesce while the job has not started. This action is separate from **Run checks now**.
 3. Open each endpoint with its current connection settings. Request Claude's and ChatGPT's trace URLs through that endpoint, without a direct fallback or redirect. Validate the returned public IP and record its address family and observation time.
-4. Reuse a successful lookup for the exact IP for 24 hours across endpoints and services. Otherwise request `/api/iprisk/{ip}` from Net.Coffee, outside a transaction. A 429 sets a shared, durable cooldown from `Retry-After`, defaulting to one hour when absent or invalid. Transient failures get at most one retry after 250 ms. Requests time out after 20 seconds. Trace bodies are limited to 8 KiB and reputation bodies to 64 KiB.
+4. Reuse a successful lookup for the exact IP for 24 hours across endpoints and services. Otherwise request `/api/iprisk/{ip}` from Net.Coffee over HTTP/1.1, outside a transaction. A 429 sets a shared, durable cooldown from `Retry-After`, defaulting to one hour when absent or invalid. Transient failures get at most one retry after 250 ms. Requests time out after 20 seconds. Trace bodies are limited to 8 KiB and reputation bodies to 64 KiB.
 5. Commit the attempt, any cache update and any cooldown with `server.ai_check_completed`. Keep the latest attempt separate from the latest successful lookup and latest exit observation. Failures never become zero scores.
 6. Request the OpenAI API root through the endpoint. Record its HTTP status separately, without an exit IP or score. A response below 500 reports HTTP reachability, including 401, 403 and 429. It does not establish authorization or model access.
 7. Show results on Health. The AI IP ranking page sorts each selected mode by fresh results with known country policy, fresh unknown-country reputation, then stale or missing results. Scores sort descending within each fresh group, with server name and endpoint key as tie breakers.
@@ -27,6 +27,7 @@ These optional checks compare the reputation of endpoint exit IPs. They do not d
 ## Edge cases (each is a test)
 
 - A failed proxy dialer records failed attempts and makes no direct trace request or reputation lookup.
+- Reputation requests use HTTP/1.1 even when the upstream offers HTTP/2, avoiding lookup stalls on the production network.
 - Different endpoint exits retain separate results. Shared exits use one reputation lookup, without sharing endpoint reachability.
 - A restricted country preserves raw reputation but yields a service score of zero. Missing country information retains the raw score and yields no service score.
 - IPv4 and IPv6 exits retain their family. Private, shared, link-local, malformed or duplicate trace IPs are rejected.

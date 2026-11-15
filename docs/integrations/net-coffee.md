@@ -11,7 +11,7 @@ The optional integration reads IP reputation from [ip.net.coffee](https://ip.net
 | Raw IP reputation | `GET https://ip.net.coffee/api/iprisk/{ip}` | From Proxier with an explicit observed IP |
 | OpenAI API reachability | `GET https://api.openai.com/` | Through the selected endpoint, without credentials |
 
-Requests do not follow redirects. A trace must return HTTP 200 and one public `ip=` line. IPv4-mapped IPv6 addresses normalize to IPv4. Reputation responses must return a public IP and a numeric `trust_score` between 0 and 100.
+Requests do not follow redirects. Net.Coffee lookups use HTTP/1.1 because HTTP/2 requests stall on the production network. A trace must return HTTP 200 and one public `ip=` line. IPv4-mapped IPv6 addresses normalize to IPv4. Reputation responses must return a public IP and a numeric `trust_score` between 0 and 100.
 
 Net.Coffee caches reputation by CIDR, so its response can name a different IP in the same range. When `cidr` is present, it must be a canonical, nonzero prefix containing both the requested and returned IPs. Without `cidr`, the IPs must match. Proxier keeps the observed exit IP in results and cache keys.
 
