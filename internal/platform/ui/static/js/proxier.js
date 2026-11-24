@@ -401,7 +401,7 @@
       setPending(false);
       var rs = rows();
       if (rs.length) setCursor(cursor + half * Math.max(1, Math.floor(window.innerHeight / 2 / Math.max(1, rs[0].offsetHeight))));
-      else window.scrollBy(0, half * window.innerHeight / 2);
+      else window.scrollBy(0, half * Math.round(window.innerHeight / 2));
       e.preventDefault();
       return;
     }

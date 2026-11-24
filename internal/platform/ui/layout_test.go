@@ -1070,6 +1070,9 @@ func TestCtrlNPMoveLikeTheArrows(t *testing.T) {
 	if halfAt := strings.Index(js, `var half = ctrlHalf(e);`); halfAt < 0 || halfAt > modsAt {
 		t.Error("⌃D ⌃U come after the return for modified keys, so they never move")
 	}
+	if !strings.Contains(js, `window.scrollBy(0, half * Math.round(window.innerHeight / 2))`) {
+		t.Error("⌃D ⌃U scroll by a fractional half-height, leaving odd viewports off by 1 px")
+	}
 	var page strings.Builder
 	cat := i18n.NewCatalog()
 	ctx := i18n.WithLocalizer(t.Context(), cat.Localizer(i18n.EN, nil))

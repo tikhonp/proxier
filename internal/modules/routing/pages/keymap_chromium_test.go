@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/emulation"
 	"github.com/chromedp/cdproto/input"
 	"github.com/chromedp/cdproto/network"
 	"github.com/chromedp/chromedp"
@@ -58,6 +59,10 @@ func TestKeymapInRealChromium(t *testing.T) {
 	defer cancel()
 	b := browser{t: t, ctx: ctx, base: base}
 	b.do(chromedp.Func(func(ctx context.Context, tg *chromedp.Target) error {
+		// Pin a desktop viewport so narrow headless defaults don't hide the key line.
+		if _, err := cdp.Call(ctx, tg, emulation.SetDeviceMetricsOverride, emulation.SetDeviceMetricsOverrideParams{Width: 1280, Height: 800, DeviceScaleFactor: 1}); err != nil {
+			return err
+		}
 		_, err := cdp.Call(ctx, tg, network.SetCookie, network.SetCookieParams{Name: web.CookieName(false), Value: h.Login.Token, URL: base + "/"})
 		return err
 	}))

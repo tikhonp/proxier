@@ -43,6 +43,9 @@ func TestPasskeyInRealChromium(t *testing.T) {
 	}
 	base := &url.URL{Scheme: "http", Host: net.JoinHostPort("localhost", port)}
 	s := sitetest.New(t, sitetest.Options{BaseURL: base})
+	// A real browser checks Set-Cookie's Expires against wall-clock time; keep
+	// sitetest's clock current so Chromium accepts the session cookies it issues.
+	s.Now = time.Now().UTC()
 	srv := &http.Server{Handler: s.Handler, ReadHeaderTimeout: 5 * time.Second}
 	go func() { _ = srv.Serve(ln) }()
 	defer func() { _ = srv.Close() }()
