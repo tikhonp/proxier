@@ -14,6 +14,7 @@ var aiMessages = i18n.Messages{
 	"ai.run":                                 {EN: "Check AI services", RU: "Проверить ИИ-сервисы"},
 	"ai.note":                                {EN: "Net.Coffee reputation for each service's observed exit IP. An HTTP response does not prove sign-in or model access. OpenAI API reachability does not identify a Codex exit IP.", RU: "Репутация Net.Coffee для выходного IP каждого сервиса. Ответ HTTP не подтверждает вход или доступ к модели. Доступность OpenAI API не определяет выходной IP Codex."},
 	"ai.disabled":                            {EN: "IP reputation checks are off. Enable them in Settings > Servers.", RU: "Проверки репутации IP выключены. Включите их в Настройки > Серверы."},
+	"ai.disabled_view":                       {EN: "IP reputation checks are off.", RU: "Проверки репутации IP выключены."},
 	"ai.queued":                              {EN: "Checks queued. Results refresh here for three minutes; longer jobs appear on the Jobs page.", RU: "Проверки в очереди. Результаты обновляются здесь три минуты; долгие задания доступны на странице заданий."},
 	"ai.mode.ip":                             {EN: "IP reputation", RU: "Репутация IP"},
 	"ai.mode.claude":                         {EN: "Claude", RU: "Claude"},

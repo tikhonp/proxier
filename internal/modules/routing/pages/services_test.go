@@ -49,12 +49,23 @@ func TestServicesList(t *testing.T) {
 	h.Upstream("anthropic")
 	h.Upstream("iplist:youtube.com")
 	h.Custom("mine", "example.com")
+	discID := h.Custom("discovered", "disc.example.com")
+	h.Exec(`UPDATE routing_services SET origin = 'discovery' WHERE id = ?`, discID)
 	body = h.Login.Get("/routing/services").Body.String()
-	has(t, "list", body, "3 services · 1 custom", ">anthropic<", "v2fly:anthropic", ">v2fly<", "2 + 1", "added 8 Oct", ">ok<",
-		">mine<", ">custom<", "saved 8 Oct", ">youtube.com<", "iplist:youtube.com", "1–3 of 3", `aria-pressed="true"`)
+	has(t, "list", body, "4 services · 2 custom", ">anthropic<", "v2fly:anthropic", ">v2fly<", "2 + 1", "added 8 Oct", ">ok<",
+		">mine<", ">custom<", "saved 8 Oct", ">youtube.com<", "iplist:youtube.com", "1–4 of 4", `aria-pressed="true"`,
+		">discovered<", "from Discover", `name="source"`, `name="list"`)
+	if strings.Contains(body, "+ 0") {
+		t.Error("services with zero exact domains should not show '+ 0'")
+	}
+	if strings.Contains(body, `title="custom"`) {
+		t.Error("plain custom service should not repeat 'custom' as a subtitle")
+	}
 	if i, j := strings.Index(body, ">anthropic<"), strings.Index(body, ">youtube.com<"); i < 0 || j < i {
 		t.Error("not sorted by tag")
 	}
+	body = h.Login.Get("/routing/services?state=ok").Body.String()
+	has(t, "state filter", body, `<input type="hidden" name="state" value="ok">`, `data-key="c"`)
 	body = h.Login.Get("/routing/services?source=custom").Body.String()
 	if !strings.Contains(body, ">mine<") || strings.Contains(body, ">anthropic<") {
 		t.Error("the source filter")
@@ -66,9 +77,9 @@ func TestServicesList(t *testing.T) {
 		h.Custom(fmt.Sprintf("c%02d", i))
 	}
 	body = h.Login.Get("/routing/services").Body.String()
-	has(t, "page 1", body, "1–50 of 53", `href="/routing/services?page=2"`)
+	has(t, "page 1", body, "1–50 of 54", `href="/routing/services?page=2"`)
 	body = h.Login.Get("/routing/services?page=2").Body.String()
-	has(t, "page 2", body, "51–53 of 53", ">youtube.com<")
+	has(t, "page 2", body, "51–54 of 54", ">youtube.com<")
 }
 
 func TestAddServicePage(t *testing.T) {

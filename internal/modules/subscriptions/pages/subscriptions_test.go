@@ -165,10 +165,14 @@ func TestPreviewSitsInsideThePadding(t *testing.T) {
 			t.Errorf("masked: notes %q", m)
 		}
 	}
-	// revealed with nothing to say: no notes block at all
+	// revealed with nothing to say: no notes block at all; shows Hide with a hidden reveal=1 for format changes
 	body := h.Login.Get("/subscriptions/1/preview?format=uri-plain&reveal=1", hx()).Body.String()
 	mustNotContain(t, body, "preview-notes", "masked until")
-	mustContain(t, body, `<pre class="preview-out">`)
+	mustContain(t, body, `<pre class="preview-out">`, `id="sub-preview-format"`, `id="sub-preview-toggle"`, `<input type="hidden" name="reveal" value="1">`, `name="hide" value="1"`)
+	// clicking Hide submits both reveal=1 and hide=1; the response must mask again and show Reveal with the same focusable IDs
+	hiddenAgain := h.Login.Get("/subscriptions/1/preview?format=uri-plain&reveal=1&hide=1", hx()).Body.String()
+	mustContain(t, hiddenAgain, "masked until", `id="sub-preview-format"`, `id="sub-preview-toggle"`, `name="reveal" value="1"`, `data-action="subs.preview.reveal"`)
+	mustNotContain(t, hiddenAgain, `<input type="hidden" name="reveal" value="1">`)
 	// a hidden server: the notes say so in gold, revealed too; masked base64
 	// adds its two notes
 	if _, err := h.Mod.Subs.Update(t.Context(), 1, access.All, settings(h, 1, func(v url.Values) { v.Set("hide", "1") }), "admin"); err != nil {

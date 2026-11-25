@@ -114,6 +114,9 @@ func (h *handler) routerWord(ctx context.Context, r routers.Router) (kind, word 
 		} else if ok {
 			step = f.Step
 		}
+		if step == "" {
+			return kind, i18n.T(ctx, "routers.status.failed"), nil
+		}
 		return kind, i18n.T(ctx, "routers.word.failed", i18n.Args{"step": step}), nil
 	case routers.StatusUntested:
 		return kind, i18n.T(ctx, "routers.word.untested"), nil

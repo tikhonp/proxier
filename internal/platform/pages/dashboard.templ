@@ -55,9 +55,19 @@ templ dashboardPage(s ui.Shell, v dashboardView) {
 			</div>
 		}
 		for _, a := range v.Areas {
-			@ui.Area(a.Title, "") {
+			<section class="area" aria-label={ a.Title }>
+				<div class="pc-title">
+					<h2>{ a.Title }</h2>
+					if a.Note != "" {
+						<span class="note">{ a.Note }</span>
+					}
+					<span class="flex1"></span>
+					if a.ActionHref != "" && a.ActionLabel != "" {
+						<a href={ templ.SafeURL(a.ActionHref) } class="sm subtle area-link">{ a.ActionLabel }</a>
+					}
+				</div>
 				@a.Body
-			}
+			</section>
 		}
 		if v.quiet() {
 			@ui.EmptyState(i18n.T(ctx, "dash.empty"), i18n.T(ctx, "dash.empty_next"))

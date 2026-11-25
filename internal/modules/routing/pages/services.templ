@@ -29,7 +29,7 @@ templ listPage(s ui.Shell, v listView) {
 		if v.Empty {
 			@ui.EmptyState(i18n.T(ctx, "services.empty"), i18n.T(ctx, "services.empty_next"))
 		} else {
-			@ui.FilterBar(v.Chips, nil, "")
+			@ui.FilterBar(v.Chips, v.Form, v.Clear)
 			if len(v.Rows) == 0 {
 				@ui.EmptyState(i18n.T(ctx, "services.none_match"), "")
 			} else {
@@ -47,7 +47,9 @@ templ listPage(s ui.Shell, v listView) {
 							<span class="caret" aria-hidden="true">›</span>
 							<span class="col">
 								<a href={ templ.SafeURL(svcHref(r.ID)) } class="bold" title={ r.Tag }>{ r.Tag }</a>
-								<span class="sm subtle seltext" title={ r.Sub }>{ r.Sub }</span>
+								if r.Sub != "" {
+									<span class="sm subtle seltext" title={ r.Sub }>{ r.Sub }</span>
+								}
 							</span>
 							<span class="subtle">{ r.Source }</span>
 							<span class="subtle">{ r.Domains }</span>

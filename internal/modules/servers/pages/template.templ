@@ -224,7 +224,7 @@ templ templatePage(s ui.Shell, v templateView) {
 				</div>
 				<div class="field">
 					<label for="d-desc">{ i18n.T(ctx, "templates.field.description") }</label>
-					<input id="d-desc" class="pc-inp" name="description" value={ detailDescription(v) } autocomplete="off"/>
+					<textarea id="d-desc" class="pc-inp" name="description" rows="2">{ detailDescription(v) }</textarea>
 				</div>
 				<div class="form-actions">
 					<button type="submit" class="pc-btn">{ i18n.T(ctx, "ui.save") }</button>

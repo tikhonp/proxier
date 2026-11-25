@@ -62,13 +62,8 @@ templ linkPage(s ui.Shell, v linkView) {
 					@ui.Area(i18n.T(ctx, "links.area.url"), "") {
 						<div class="area-body stacked">
 							@urlField(v.L.ID, v.URL, v.Masked, false)
-							<p class="sm subtle">{ i18n.T(ctx, "links.url.note") }</p>
-						</div>
-					}
-					@ui.Area(i18n.T(ctx, "links.area.qr"), "") {
-						<div class="area-body stacked">
-							<p class="sm subtle">{ i18n.T(ctx, "links.qr.note") }</p>
 							@qrSlot(v.L.ID, v.L.Name, "", false)
+							<p class="sm subtle">{ i18n.T(ctx, "links.url.note") } { i18n.T(ctx, "links.qr.note") }</p>
 						</div>
 					}
 				}
@@ -94,15 +89,15 @@ templ linkPage(s ui.Shell, v linkView) {
 							} else {
 								<span class="muted">—</span>
 							}
-							if !v.Deleted {
-								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/subscription") }>{ i18n.T(ctx, "links.change") }</a>
+							if v.CanChange {
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/subscription") } data-action="links.change" data-action-label={ i18n.T(ctx, "links.change_sub") }>{ i18n.T(ctx, "links.change") }</a>
 							}
 						</dd>
 						<dt>{ i18n.T(ctx, "links.kv.expiry") }</dt>
 						<dd>
 							{ v.Expiry }
-							if !v.Deleted {
-								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/expiry") }>{ i18n.T(ctx, "links.set") }</a>
+							if v.CanChange {
+								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/expiry") } data-action="links.expiry" data-action-label={ i18n.T(ctx, "links.set_expiry") }>{ i18n.T(ctx, "links.set") }</a>
 							}
 						</dd>
 						<dt>{ i18n.T(ctx, "links.kv.language") }</dt>
@@ -112,7 +107,7 @@ templ linkPage(s ui.Shell, v linkView) {
 						<dt>{ i18n.T(ctx, "alerts.kv.limits") }</dt>
 						<dd>
 							{ v.Who.Limits }
-							if !v.Deleted {
+							if v.CanChange {
 								<a class="pc-btn pc-sm" href={ templ.SafeURL(linkHref(v.L.ID) + "/alerts") }>{ i18n.T(ctx, "links.set") }</a>
 							}
 						</dd>
@@ -162,8 +157,6 @@ templ linkPage(s ui.Shell, v linkView) {
 							if v.CanCutOff {
 								@actionRow(ui.Action{ID: "cutoff.action", Label: "cutoff.action", Method: "GET", Href: linkHref(v.L.ID) + "/cutoff", Small: true, Kind: ui.Danger}, cutoffWhat(ctx, v.CutOffOff))
 							}
-							@actionRow(ui.Action{ID: "links.change", Label: "links.change_sub", Method: "GET", Href: linkHref(v.L.ID) + "/subscription", Small: true}, i18n.T(ctx, "links.change_sub.what"))
-							@actionRow(ui.Action{ID: "links.expiry", Label: "links.set_expiry", Method: "GET", Href: linkHref(v.L.ID) + "/expiry", Small: true}, i18n.T(ctx, "links.set_expiry.what"))
 							@actionRow(ui.Action{ID: "links.edit", Label: "links.edit", Method: "GET", Href: linkHref(v.L.ID) + "/edit", Small: true, Key: "e"}, i18n.T(ctx, "links.edit.what"))
 							@actionRow(ui.Action{
 								ID: "links.delete", Label: "links.delete", Method: "POST", Href: linkHref(v.L.ID) + "/delete", Small: true, Kind: ui.Danger, Key: "x",

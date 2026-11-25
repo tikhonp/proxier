@@ -14,6 +14,7 @@ import (
 	"github.com/tikhonp/proxier/internal/modules/servers/remote"
 	"github.com/tikhonp/proxier/internal/modules/servers/serverstest"
 	"github.com/tikhonp/proxier/internal/modules/servers/store"
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/db"
 	"github.com/tikhonp/proxier/internal/platform/events"
 	"github.com/tikhonp/proxier/internal/platform/ui"
@@ -149,7 +150,8 @@ func TestHealthTabHasNoEmptyBlocks(t *testing.T) {
 
 	setHealth(t, h, id, "healthy", "", nil)
 	body := page(t, h, base+"/health")
-	mustContain(t, verdictOf(t, body), "Healthy", "Run checks now", "Pause checks")
+	mustContain(t, body, "Run checks now")
+	mustContain(t, verdictOf(t, body), "Healthy", "Pause checks")
 	mustNotContain(t, body, `class="verdict-body"`)
 	// and the same while a run of checks is fresh
 	run := page(t, h, base+"/health?msg=queued&run="+strconv.FormatInt(time.Now().Unix(), 10))
@@ -185,6 +187,63 @@ func TestHealthTabHasNoEmptyBlocks(t *testing.T) {
 	v := verdictOf(t, page(t, h, base+"/health"))
 	mustContain(t, v, `class="verdict-body"`, "Checks are paused until you resume them; no notifications are sent.")
 	mustNotContain(t, v, "Checks paused until you resume them")
+	// paused servers must not show a green (pine) health alert band on Server Overview
+	mustNotContain(t, page(t, h, base), `class="band pine"`)
+}
+
+// An operator (servers: manage, settings: none) sees status-only AI notices
+// and no Settings links on the dashboard, AI ranking, or server health tabs.
+func TestOperatorWithoutSettingsSeesNoSettingsLinks(t *testing.T) {
+	h, id := provisioned(t)
+	op := h.Site.Join("op", access.PresetOperator.Grant(), "")
+
+	// Owner sees the Settings link and instructions when AI checks are off.
+	for _, path := range []string{"/servers/ai", "/servers/" + sid(id) + "/health"} {
+		ownerBody := h.Login.Get(path).Body.String()
+		mustContain(t, ownerBody, "Enable them in Settings &gt; Servers.", `href="/settings/servers"`)
+
+		opBody := op.Get(path).Body.String()
+		mustContain(t, opBody, "IP reputation checks are off.")
+		mustNotContain(t, opBody, "Enable them in Settings", `href="/settings/servers"`)
+	}
+
+	// Dashboard: clear settings so setup steps are missing; operator sees no Settings links
+	// and keeps the active lifecycle count link.
+	if err := h.App.Settings.Set(bg, "admin", "servers", map[string]string{"servers.hostname_pattern": ""}); err != nil {
+		t.Fatal(err)
+	}
+	opDash := op.Get("/").Body.String()
+	mustContain(t, opDash, `href="/servers?state=active"`)
+	mustNotContain(t, opDash, `href="/settings/servers"`, `href="/settings/integrations/cloudflare"`)
+}
+
+// Dashboard health counts exclude retiring servers, so their links include
+// state=active and land on the exact same set of rows.
+func TestDashboardHealthLinkExcludesRetiringServers(t *testing.T) {
+	h, id1 := provisioned(t)
+	setHealth(t, h, id1, "healthy", "", nil)
+
+	// Provision a second healthy server, then mark it as retiring.
+	id2 := h.AddServer("10.77.0.2")
+	setHealth(t, h, id2, "healthy", "", nil)
+	if _, err := h.App.DB.W.Exec(`UPDATE servers_servers SET retire_job_id = 999 WHERE id = ?`, id2); err != nil {
+		t.Fatal(err)
+	}
+
+	s1, err := store.GetServer(bg, h.App.DB.R, id1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s2, err := store.GetServer(bg, h.App.DB.R, id2)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	dash := page(t, h, "/")
+	mustContain(t, dash, `href="/servers?state=active&amp;health=healthy"`, `href="/servers?state=retiring"`)
+	filtered := page(t, h, "/servers?state=active&health=healthy")
+	mustContain(t, filtered, s1.Name)
+	mustNotContain(t, filtered, s2.Name)
 }
 
 func TestStatsTab(t *testing.T) {

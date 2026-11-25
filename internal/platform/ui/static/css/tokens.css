@@ -115,6 +115,7 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 .pc-field { background: var(--base); }                       /* header search cell */
 .pc-field:focus-within { background: var(--overlay); }
 .pc-inp { height: var(--btn-h); padding: 0 10px; background: var(--base); border: 1px solid var(--hl-med); color: var(--text); outline: 0; border-radius: 0; }
+textarea.pc-inp { height: auto; min-height: 76px; padding: 8px 10px; line-height: var(--lh); resize: vertical; }
 .pc-inp:focus { border-color: var(--subtle); }
 .pc-inp:focus-visible { outline: 0; }
 .pc-inp[aria-invalid="true"] { border-color: var(--love); }
@@ -127,12 +128,12 @@ button:disabled { cursor: not-allowed; opacity: .45; }
 
 /* Selectable buttons (filter chips, segmented switches, option cards) follow the switch:
    border and text share one colour. Off: muted border, subtle text. On: text-coloured border and text. No fill. */
-.pc-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--muted); background: transparent; font-size: var(--fs-sm); color: var(--subtle); white-space: nowrap; }
+.pc-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 1px solid var(--muted); background: transparent; font-size: var(--fs-sm); color: var(--subtle); text-decoration: none; white-space: nowrap; }
 .pc-chip:hover { border-color: var(--subtle); color: var(--text); }
 .pc-chip[aria-pressed="true"] { border-color: var(--text); color: var(--text); }
 
 /* Segmented switch (24 h / 7 d / 30 d): bordered segments that overlap by 1 px; the pressed one sits on top. */
-.pc-sb { position: relative; height: 26px; padding: 0 10px; margin-left: -1px; background: transparent; border: 1px solid var(--muted); color: var(--subtle); font-size: var(--fs-sm); white-space: nowrap; }
+.pc-sb { position: relative; height: 26px; padding: 0 10px; margin-left: -1px; background: transparent; border: 1px solid var(--muted); color: var(--subtle); font-size: var(--fs-sm); text-decoration: none; white-space: nowrap; }
 .pc-sb:first-child { margin-left: 0; }
 .pc-sb:hover { border-color: var(--subtle); color: var(--text); z-index: 1; }
 .pc-sb[aria-pressed="true"] { border-color: var(--text); color: var(--text); z-index: 2; }

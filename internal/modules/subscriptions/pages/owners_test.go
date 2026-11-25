@@ -81,7 +81,10 @@ func TestViewAllReadsButDoesNotChange(t *testing.T) {
 	if page.Code != http.StatusOK || !strings.Contains(page.Body.String(), "owner "+sitetest.Username) {
 		t.Fatalf("the viewer reading the owner's link: %d", page.Code)
 	}
-	for _, control := range []string{`data-action="links.disable"`, `data-action="links.delete"`, `data-action="links.edit"`} {
+	for _, control := range []string{
+		`data-action="links.disable"`, `data-action="links.delete"`, `data-action="links.edit"`,
+		`data-action="links.change"`, `data-action="links.expiry"`, `href="` + linkPath(link) + `/alerts"`,
+	} {
 		if strings.Contains(page.Body.String(), control) {
 			t.Errorf("the viewer is offered %s", control)
 		}

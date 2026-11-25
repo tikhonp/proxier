@@ -141,9 +141,13 @@ func (h *handler) lifeOf(ctx context.Context, v *routerView) error {
 		if len(what) == 0 {
 			what = r.Drift
 		}
-		v.Drift = &driftBand{Repair: !repair, Text: i18n.T(ctx, "routers.band.drift", i18n.Args{
-			"time": loc.Time(r.DriftCheckedAt), "what": strings.Join(what, "; "),
-		})}
+		driftText := i18n.T(ctx, "routers.drift") + ": " + strings.Join(what, "; ")
+		if !r.DriftCheckedAt.IsZero() {
+			driftText = i18n.T(ctx, "routers.band.drift", i18n.Args{
+				"time": loc.Time(r.DriftCheckedAt), "what": strings.Join(what, "; "),
+			})
+		}
+		v.Drift = &driftBand{Repair: !repair, Text: driftText}
 	}
 	if v.Band != nil {
 		if f, ok, err := h.Routers.LastFailure(ctx, r.ID); err != nil {
@@ -562,7 +566,11 @@ func Dashboard(ctx context.Context, d Deps, w access.Who) (*DashView, error) {
 			} else if ok {
 				step = f.Step
 			}
-			row.Kind, row.Word = "broken", i18n.T(ctx, "routers.dash.failed", i18n.Args{"step": step, "ago": loc.Ago(r.LastSyncAt)})
+			if step != "" {
+				row.Kind, row.Word = "broken", i18n.T(ctx, "routers.dash.failed", i18n.Args{"step": step, "ago": loc.Ago(r.LastSyncAt)})
+			} else {
+				row.Kind, row.Word = "broken", i18n.T(ctx, "routers.status.failed")+" · "+loc.Ago(r.LastSyncAt)
+			}
 			attention = append(attention, row)
 			continue
 		case watched:

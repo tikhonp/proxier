@@ -174,7 +174,7 @@ func TestRunningVersionIsShown(t *testing.T) {
 		}
 	}
 	body := l.Get("/settings/general").Body.String()
-	if !strings.Contains(body, `<span class="lbl">Version</span> <span class="v">main-abc1234</span>`) {
+	if !strings.Contains(body, `<dt>Version</dt><dd><span class="v">main-abc1234</span>`) {
 		t.Errorf("Settings › General lacks the version row:\n%s", body)
 	}
 }

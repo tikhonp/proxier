@@ -131,28 +131,30 @@ templ newServerPage(s ui.Shell, v newView) {
 							<p class="help">{ i18n.T(ctx, "servers.new.hostname.help") }</p>
 						}
 					</div>
-					<h2 class="grp">{ i18n.T(ctx, "servers.new.addresses") }</h2>
-					<div class="field">
-						<div id="addr-rows">
-							for i, a := range v.Addresses {
-								<div data-addr-entry>
-									<div class="inline" data-addr-row>
-										<input class="pc-inp" name="add_ip" value={ a.IP } placeholder="203.0.113.25" autocomplete="off" spellcheck="false" inputmode="decimal" aria-label={ i18n.T(ctx, "servers.new.addr.ip") } aria-invalid?={ v.Errs["addr_ip_" + strconv.Itoa(i)] != "" }/>
-										<input class="pc-inp" name="add_host" value={ a.Hostname } placeholder="alt.example.com" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label={ i18n.T(ctx, "servers.new.addr.hostname") } aria-invalid?={ v.Errs["addr_host_" + strconv.Itoa(i)] != "" }/>
-										<button type="button" class="pc-btn pc-sm pc-ghost" data-addr-remove>{ i18n.T(ctx, "servers.new.addr.remove") }</button>
+					<details class="srv-options" open?={ v.hasAddresses() }>
+						<summary>{ i18n.T(ctx, "servers.new.addresses") } <span class="sm subtle">· { i18n.T(ctx, "servers.new.optional") }</span></summary>
+						<div class="field">
+							<div id="addr-rows">
+								for i, a := range v.Addresses {
+									<div data-addr-entry>
+										<div class="inline" data-addr-row>
+											<input class="pc-inp" name="add_ip" value={ a.IP } placeholder="203.0.113.25" autocomplete="off" spellcheck="false" inputmode="decimal" aria-label={ i18n.T(ctx, "servers.new.addr.ip") } aria-invalid?={ v.Errs["addr_ip_" + strconv.Itoa(i)] != "" }/>
+											<input class="pc-inp" name="add_host" value={ a.Hostname } placeholder="alt.example.com" autocomplete="off" spellcheck="false" autocapitalize="none" aria-label={ i18n.T(ctx, "servers.new.addr.hostname") } aria-invalid?={ v.Errs["addr_host_" + strconv.Itoa(i)] != "" }/>
+											<button type="button" class="pc-btn pc-sm pc-ghost" data-addr-remove>{ i18n.T(ctx, "servers.new.addr.remove") }</button>
+										</div>
+										if err := v.Errs["addr_ip_" + strconv.Itoa(i)]; err != "" {
+											<p class="err" role="alert">{ err }</p>
+										}
+										if err := v.Errs["addr_host_" + strconv.Itoa(i)]; err != "" {
+											<p class="err" role="alert">{ err }</p>
+										}
 									</div>
-									if err := v.Errs["addr_ip_" + strconv.Itoa(i)]; err != "" {
-										<p class="err" role="alert">{ err }</p>
-									}
-									if err := v.Errs["addr_host_" + strconv.Itoa(i)]; err != "" {
-										<p class="err" role="alert">{ err }</p>
-									}
-								</div>
-							}
+								}
+							</div>
+							<button type="button" class="pc-btn pc-sm" data-addr-add>{ i18n.T(ctx, "servers.new.addr.add") }</button>
+							<p class="help">{ i18n.T(ctx, "servers.new.addresses.help") }</p>
 						</div>
-						<button type="button" class="pc-btn pc-sm" data-addr-add>{ i18n.T(ctx, "servers.new.addr.add") }</button>
-						<p class="help">{ i18n.T(ctx, "servers.new.addresses.help") }</p>
-					</div>
+					</details>
 					<h2 class="grp">{ i18n.T(ctx, "servers.new.template") }</h2>
 					<div class="field">
 						<label for="srv-tpl">{ i18n.T(ctx, "servers.new.template") }</label>
@@ -446,10 +448,8 @@ templ serverHead(v serverView, tab string) {
                 @ui.ActionButton(ui.Action{ID: "server.retire.skip_stack", Label: "servers.retire.skip_stack", Method: "POST", Href: serverHref(v.S.ID) + "/retire/retry?skip_stack=1", Confirm: &ui.Confirm{Strength: 2, Title: i18n.T(ctx, "servers.retire.skip_stack"), Body: i18n.T(ctx, "servers.retire.skip_stack.body")}})
 				@ui.ActionButton(ui.Action{ID: "server.retire.retry", Label: "servers.retire.retry", Method: "POST", Href: serverHref(v.S.ID) + "/retire/retry", Kind: ui.Primary, Key: "r"})
 			}
-			if v.S.State == "active" && !v.Retiring && tab != "health" {
-				@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Key: "r"})
-			}
 			if v.S.State == "active" && !v.Retiring {
+				@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Key: "r"})
 				@ui.ActionButton(ui.Action{ID: "server.redeploy", Label: "servers.act.redeploy", Method: "GET", Href: serverHref(v.S.ID) + "/redeploy", Kind: ui.Primary, Key: "d"})
 			}
 			if !v.Retiring && !v.Retired {
@@ -524,20 +524,21 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 				<a class="pc-btn pc-sm" href={ templ.SafeURL(v.Rollback.JobHref) }>{ i18n.T(ctx, "servers.provision.open_job") }</a>
 			}
 		}
+		if v.S.State == "active" && !v.Retiring && (v.S.Health == "degraded" || v.S.Health == "blocked" || v.S.Health == "down") {
+			@ui.Band(overviewBandKind(v.Kind)) {
+				@ui.Status(v.Kind, v.Word)
+				if v.Reason != "" {
+					<span>{ v.Reason }</span>
+				}
+				<span class="flex1"></span>
+				<a class="pc-btn pc-sm" href={ templ.SafeURL(serverHref(v.S.ID) + "/health") }>{ i18n.T(ctx, "servers.tab.health") } →</a>
+			}
+		}
 		if v.Job != nil {
 			@jobPanel(v.Job, i18n.T(ctx, "servers.provision.steps"))
 		}
 		if v.Change != nil {
 			@jobPanel(v.Change, i18n.T(ctx, "servers.change.steps"))
-		}
-		if len(v.Actions) > 0 {
-			@ui.Area(i18n.T(ctx, "servers.area.actions"), "") {
-				<div class="area-body actions-row">
-					for _, a := range v.Actions {
-						@ui.ActionButton(a)
-					}
-				</div>
-			}
 		}
 		@ui.Area(i18n.T(ctx, "servers.area.identity"), "") {
 			<dl class="kv area-body">
@@ -611,6 +612,15 @@ templ serverOverviewPage(s ui.Shell, v serverView) {
 					</div>
 				}
 				<div id="qr-slot"></div>
+			}
+		}
+		if len(v.Actions) > 0 {
+			@ui.Area(i18n.T(ctx, "servers.area.actions"), "") {
+				<div class="area-body actions-row">
+					for _, a := range v.Actions {
+						@ui.ActionButton(a)
+					}
+				</div>
 			}
 		}
 		@ui.Area(i18n.T(ctx, "servers.area.notes"), "") {
@@ -727,8 +737,7 @@ templ dashboardServers(v DashboardView) {
 			<span>{ i18n.T(ctx, "health.dash.foreign_body") }</span>
 		}
 	}
-	if len(v.Checklist) > 0 {
-		<div class="mx-group">{ i18n.T(ctx, "health.dash.setup") }</div>
+	if v.Total == 0 && len(v.Checklist) > 0 {
 		for _, c := range v.Checklist {
 			<a href={ templ.SafeURL(c.Href) } class="row dashsrv pc-row">
 				if c.Done {
@@ -740,44 +749,51 @@ templ dashboardServers(v DashboardView) {
 		}
 	}
 	if v.Total > 0 {
-		<div class="row dashsrv">
-			// A count of zero is noise: the area says which states there are, not which there aren't.
-			for _, st := range []string{"active", "provisioning", "failed"} {
-				if v.Counts[st] > 0 {
-					<span>
-						<a href={ templ.SafeURL("/servers") } class="bold">{ strconv.Itoa(v.Counts[st]) }</a>
-						<span class="subtle">{ i18n.T(ctx, "servers.state."+st) }</span>
-					</span>
-				}
-			}
-			<span class="flex1"></span>
-			<a href="/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "servers.dash.all") }</a>
-		</div>
-		if v.Counts["active"] > 0 {
+		if v.Counts["active"]+v.Counts["provisioning"]+v.Counts["failed"]+v.Counts["retiring"] > 0 {
 			<div class="row dashcnt">
+				// A count of zero is noise: show only lifecycle and health states that have servers.
+				if v.Counts["active"] > 0 {
+					<a href="/servers?state=active">
+						<span class="bold">{ strconv.Itoa(v.Counts["active"]) }</span>
+						<span class="subtle">{ i18n.T(ctx, "servers.state.active") }</span>
+					</a>
+				}
 				for _, st := range []string{"healthy", "degraded", "blocked", "down", "unknown", "paused"} {
 					if v.Health[st] > 0 {
-						<span>
+						<a href={ templ.SafeURL("/servers?state=active&health=" + st) }>
 							@ui.Status(healthKind(st), i18n.T(ctx, "servers.health."+st))
 							<span class="bold">{ strconv.Itoa(v.Health[st]) }</span>
-						</span>
+						</a>
+					}
+				}
+				for _, st := range []string{"provisioning", "failed", "retiring"} {
+					if v.Counts[st] > 0 {
+						<a href={ templ.SafeURL("/servers?state=" + st) }>
+							if st == "failed" {
+								@ui.Status("broken", i18n.T(ctx, "servers.state."+st))
+							} else {
+								@ui.Status("running", i18n.T(ctx, "servers.state."+st))
+							}
+							<span class="bold">{ strconv.Itoa(v.Counts[st]) }</span>
+						</a>
 					}
 				}
 			</div>
 		}
 		for _, r := range v.NotHealthy {
 			<a href={ templ.SafeURL(serverHref(r.ID)) } class="row dashsick pc-row">
-				@ui.Status(r.Kind, "")
+				@ui.Status(r.Kind, r.Word)
 				<span class="bold">{ r.Flag } { r.Name }</span>
-				<span>{ r.Reason }</span>
+				<span class="subtle">{ r.Reason }</span>
 				<span class="sm subtle">{ r.Note }</span>
 			</a>
 		}
 		for _, s := range v.Failed {
-			<a href={ templ.SafeURL(serverHref(s.ID)) } class="row dashfail pc-row">
+			<a href={ templ.SafeURL(serverHref(s.ID)) } class="row dashsick pc-row">
 				@ui.Status("broken", i18n.T(ctx, "servers.state.failed"))
-				<span class="bold">{ s.Name }</span>
+				<span class="bold">{ s.Flag } { s.Name }</span>
 				<span class="subtle">{ s.Reason }</span>
+				<span></span>
 			</a>
 		}
 		if len(v.Updates) > 0 {
@@ -806,6 +822,18 @@ templ dashboardServers(v DashboardView) {
 					<span class="subtle">{ r.Value }</span>
 				</a>
 			}
+		}
+		if len(v.Checklist) > 0 {
+			<details class="dash-setup">
+				<summary>{ i18n.T(ctx, "health.dash.setup") }</summary>
+				for _, c := range v.Checklist {
+					if !c.Done {
+						<a href={ templ.SafeURL(c.Href) } class="row dashsrv pc-row">
+							@ui.Status("off", c.Label)
+						</a>
+					}
+				}
+			</details>
 		}
 	}
 }

@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -39,7 +40,6 @@ templ healthPage(s ui.Shell, v healthView) {
 				}
 				<span class="flex1"></span>
 				<div class="actions">
-					@ui.ActionButton(ui.Action{ID: "health.run", Label: "health.run", Method: "POST", Href: serverHref(v.S.ID) + "/checks/run", Kind: ui.Primary, Key: "r"})
 					if v.Paused {
 						@ui.ActionButton(ui.Action{ID: "health.resume", Label: "health.resume", Method: "POST", Href: serverHref(v.S.ID) + "/resume", Key: "p"})
 					} else {
@@ -68,8 +68,13 @@ templ healthPage(s ui.Shell, v healthView) {
 			}
 		</section>
 		<div id="pause-slot"></div>
-		@aiArea(v.AI)
+		if v.AI.Enabled {
+			@aiArea(v.AI, true, s.Grant.Can(access.Settings, access.LevelManage))
+		}
 		@healthMatrix(v)
+		if !v.AI.Enabled {
+			@aiArea(v.AI, false, s.Grant.Can(access.Settings, access.LevelManage))
+		}
 		if len(v.Previous) > 0 {
 			@previousArea(v)
 		}

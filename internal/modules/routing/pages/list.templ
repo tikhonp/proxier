@@ -38,7 +38,7 @@ templ rlistPage(s ui.Shell, v listPageView) {
 						<p class="subtle area-body">{ i18n.T(ctx, "lists.targets.none", i18n.Args{"name": v.L.Name}) }</p>
 					}
 					for _, t := range v.Targets {
-						<div class="row">
+						<div class="row target">
 							if t.Href != "" {
 								<a href={ templ.SafeURL(t.Href) }>
 									@ui.Status(t.Kind, t.Name)

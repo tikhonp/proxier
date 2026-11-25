@@ -27,18 +27,18 @@ templ generalPage(s ui.Shell, pages []ui.SettingsPage, sec settings.Section, val
 				}
 			</div>
 		}
-		<div class="form">
-			<div class="ro">
-				<span class="lbl">{ i18n.T(ctx, "settings.base_url") }</span>
+		<dl class="kv gen-info">
+			<dt>{ i18n.T(ctx, "settings.base_url") }</dt>
+			<dd>
 				<span class="v">{ baseURL }</span>
 				<span class="sm muted">{ i18n.T(ctx, "settings.base_url.help") }</span>
-			</div>
-			<div class="ro">
-				<span class="lbl">{ i18n.T(ctx, "settings.version") }</span>
+			</dd>
+			<dt>{ i18n.T(ctx, "settings.version") }</dt>
+			<dd>
 				<span class="v">{ obs.AppVersion }</span>
 				<span class="sm muted">{ i18n.T(ctx, "settings.version.help") }</span>
-			</div>
-		</div>
+			</dd>
+		</dl>
 		// the instance's settings are Settings'; the language below is the member's own
 		if s.Grant.Can(access.Settings, access.LevelManage) {
 			@ui.SettingsForm(sec, vals, errs, "/settings/general")

@@ -228,30 +228,26 @@ templ routerRemovePage(s ui.Shell, v rtRemoveView) {
 
 // DashboardRouting is the dashboard's Routing area.
 templ DashboardRouting(v DashView) {
-	if v.InSync != "" {
-		<p class="area-body subtle">{ v.InSync }</p>
-	}
 	for _, r := range v.Routers {
 		<a href={ templ.SafeURL(routerHref(r.ID)) } class="row dashrtr pc-row">
 			<span class="bold">{ r.Name }</span>
 			@ui.Status(r.Kind, r.Word)
 		</a>
 	}
-	<h3 class="area-sub">{ i18n.T(ctx, "routers.dash.snapshots") }</h3>
-	if len(v.Snapshots) == 0 {
-		<p class="area-body sm subtle">{ i18n.T(ctx, "routers.dash.snapshots.none") }</p>
+	if len(v.Snapshots) > 0 {
+		<div class="area-sub">{ i18n.T(ctx, "routers.dash.snapshots") }</div>
+		for _, s := range v.Snapshots {
+			<a href={ templ.SafeURL(svcHref(s.ID)) } class="row dashrtr pc-row">
+				<span class="bold">{ s.Tag }</span>
+				<span class="sm gold">{ s.Pct }</span>
+				<span class="sm">{ i18n.T(ctx, "routers.dash.review") }</span>
+			</a>
+		}
 	}
-	for _, s := range v.Snapshots {
-		<a href={ templ.SafeURL(svcHref(s.ID)) } class="row dashrtr pc-row">
-			<span class="bold">{ s.Tag }</span>
-			<span class="sm gold">{ s.Pct }</span>
-			<span class="sm">{ i18n.T(ctx, "routers.dash.review") }</span>
-		</a>
-	}
-	<h3 class="area-sub">{ i18n.T(ctx, "routers.dash.refresh") }</h3>
-	<p class="area-body sm subtle">{ v.Digest }</p>
-	<div class="row dashsrv">
-		<span class="flex1"></span>
-		<a href={ templ.SafeURL(routersPath) } class="pc-btn pc-sm">{ i18n.T(ctx, "routers.dash.all") }</a>
+	<div class="foot">
+		<span>{ i18n.T(ctx, "routers.dash.refresh") }: { v.Digest }</span>
+		if len(v.Snapshots) == 0 {
+			<span> · { i18n.T(ctx, "routers.dash.snapshots") }: { i18n.T(ctx, "routers.dash.snapshots.none") }</span>
+		}
 	</div>
 }

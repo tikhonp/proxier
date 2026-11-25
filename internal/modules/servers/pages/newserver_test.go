@@ -328,6 +328,19 @@ func TestNewServerShowsRelevantOptions(t *testing.T) {
 		t.Fatal("record check should be disabled while verification is skipped")
 	}
 	form.Set("hostname", "vpn.proxier.test")
+	// Additional addresses start collapsed and open on populated values or errors.
+	body = page(t, h, "/servers/new")
+	if strings.Contains(body, `<details class="srv-options" open><summary>Additional addresses`) {
+		t.Fatal("empty additional addresses section should start collapsed")
+	}
+	rec = h.Login.Post("/servers", url.Values{
+		"ip": {f.IP}, "country": {h.Country}, "access": {"key"}, "ssh_user": {"proxier"},
+		"setup": {"full"}, "add_ip": {"not-an-ip"}, "add_host": {"alt.example.com"},
+		"template": {sid(h.TemplateID)}, "version": {"1"},
+	})
+	if rec.Code != 422 || !strings.Contains(rec.Body.String(), `<details class="srv-options" open><summary>Additional addresses`) {
+		t.Fatalf("additional address error should open section: %d", rec.Code)
+	}
 	rec = h.Login.Post("/servers/new/summary", form)
 	if rec.Code != 200 {
 		t.Fatalf("%d: %s", rec.Code, rec.Body)

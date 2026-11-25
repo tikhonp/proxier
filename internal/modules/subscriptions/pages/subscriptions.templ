@@ -150,16 +150,7 @@ templ subscriptionPage(s ui.Shell, v pageView) {
 			</div>
 			<div class="col-r">
 				@ui.Area(i18n.T(ctx, "subs.area.preview"), i18n.T(ctx, "subs.area.preview.note")) {
-					<form class="area-body inline-fields" hx-get={ subHref(v.S.ID) + "/preview" } hx-target="#preview-body" hx-swap="outerHTML" hx-trigger="change, submit">
-						<select class="pc-inp" name="format" aria-label={ i18n.T(ctx, "subs.preview.format") }>
-							for _, f := range v.Preview.Formats {
-								<option value={ f } selected?={ f == v.Preview.Format }>{ f }</option>
-							}
-						</select>
-						<button type="submit" class="pc-btn pc-sm" name="reveal" value="1" data-action="subs.preview.reveal">{ i18n.T(ctx, "subs.preview.reveal") }</button>
-						<button type="submit" class="pc-btn pc-sm pc-ghost" name="reveal" value="0">{ i18n.T(ctx, "subs.preview.hide") }</button>
-					</form>
-					@previewBody(v.Preview)
+					@subPreview(v.S.ID, v.Preview)
 				}
 				@ui.Area(i18n.T(ctx, "subs.area.links", i18n.Args{"n": v.Links}), "") {
 					if len(v.LinkRows) == 0 {
@@ -342,6 +333,27 @@ templ settingsArea(v pageView) {
 			</div>
 		</form>
 	}
+}
+
+// subPreview is the subscription's preview controls + output, swapped together
+// so Reveal turns cleanly into Hide and back.
+templ subPreview(subID int64, v previewView) {
+	<div id="sub-preview">
+		<form class="area-body inline-fields" hx-get={ subHref(subID) + "/preview" } hx-target="#sub-preview" hx-swap="outerHTML" hx-trigger="change, submit">
+			<select id="sub-preview-format" class="pc-inp" name="format" aria-label={ i18n.T(ctx, "subs.preview.format") }>
+				for _, f := range v.Formats {
+					<option value={ f } selected?={ f == v.Format }>{ f }</option>
+				}
+			</select>
+			if v.Revealed {
+				<input type="hidden" name="reveal" value="1"/>
+				<button id="sub-preview-toggle" type="submit" class="pc-btn pc-sm" name="hide" value="1">{ i18n.T(ctx, "subs.preview.hide") }</button>
+			} else {
+				<button id="sub-preview-toggle" type="submit" class="pc-btn pc-sm" name="reveal" value="1" data-action="subs.preview.reveal">{ i18n.T(ctx, "subs.preview.reveal") }</button>
+			}
+		</form>
+		@previewBody(v)
+	</div>
 }
 
 // previewBody is what a link gets now; the format select and Reveal swap it.

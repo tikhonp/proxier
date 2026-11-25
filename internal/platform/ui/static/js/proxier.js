@@ -3,6 +3,7 @@
 // already on the page: data-goto, data-row, data-key, data-action.
 (function () {
   'use strict';
+  document.documentElement.classList.add('js');
 
   var $ = function (sel, root) { return (root || document).querySelector(sel); };
   var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); };
@@ -121,10 +122,11 @@
   function actionItems() {
     var seen = {};
     return $$('[data-action]').map(function (el) {
+      if (el.disabled) return null;
       var id = el.getAttribute('data-action');
       if (seen[id]) return null;
       seen[id] = 1;
-      return { title: el.textContent.trim(), meta: el.getAttribute('data-key') || '', el: el, kind: 'action' };
+      return { title: el.getAttribute('data-action-label') || el.textContent.trim(), meta: el.getAttribute('data-key') || '', el: el, kind: 'action' };
     }).filter(Boolean);
   }
 
@@ -292,7 +294,7 @@
 
   document.addEventListener('input', function (e) {
     var t = e.target;
-    if (t.closest && t.closest('#main')) dirty = true;
+    if (shouldMarkDirty(t)) dirty = true;
     if (t.id === 'pal-input') {
       if (palMode === 'all' && t.value.charAt(0) === ':') { palMode = 'act'; t.value = t.value.slice(1); $('#pal-prompt').textContent = ':'; }
       refreshPalette();
@@ -306,9 +308,28 @@
   });
 
   // ---- bulk actions of the server list: only active servers can be taken ----
+  function bulkFormOf(el) {
+    if (!el || !el.getAttribute) return null;
+    var id = el.getAttribute('form');
+    if (id) return document.getElementById(id);
+    return el.closest ? el.closest('form[data-bulk]') : null;
+  }
+  function shouldMarkDirty(t) {
+    if (!t || !t.closest || !t.closest('#main') || t.closest('.filter-form')) return false;
+    var bf = bulkFormOf(t);
+    return !(bf && bf.hasAttribute('data-bulk'));
+  }
   function refreshBulk(form) {
     var boxes = Array.prototype.slice.call(document.querySelectorAll('input[name="server"][form="' + form.id + '"]'));
     var on = boxes.filter(function (b) { return b.checked; });
+    form.setAttribute('data-bulk-empty', on.length ? 'false' : 'true');
+    var cnt = form.querySelector('[data-bulk-count]');
+    if (cnt) cnt.textContent = String(on.length);
+    var allBox = document.querySelector('input[data-bulk-all][form="' + form.id + '"]') || form.querySelector('input[data-bulk-all]');
+    if (allBox) {
+      allBox.checked = boxes.length > 0 && on.length === boxes.length;
+      allBox.indeterminate = on.length > 0 && on.length < boxes.length;
+    }
     var reason = '';
     if (!on.length) reason = form.getAttribute('data-reason-none');
     else if (on.some(function (b) { return b.getAttribute('data-state') !== 'active'; })) reason = form.getAttribute('data-reason-state');
@@ -320,15 +341,31 @@
   document.addEventListener('change', function (e) {
     var t = e.target;
     if (!t || !t.getAttribute) return;
-    if (t.closest('#main')) dirty = true;
+    if (t.hasAttribute('data-auto-submit') && t.form) {
+      if (t.form.requestSubmit) t.form.requestSubmit();
+      else t.form.submit();
+      return;
+    }
+    if (shouldMarkDirty(t)) dirty = true;
     if (t.hasAttribute('data-bulk-all')) {
-      var f = t.closest('form[data-bulk]');
+      var f = bulkFormOf(t);
+      if (!f) return;
       Array.prototype.forEach.call(document.querySelectorAll('input[name="server"][form="' + f.id + '"]'), function (b) { b.checked = t.checked; });
       refreshBulk(f);
     } else if (t.name === 'server' && t.getAttribute('form')) {
       var form = document.getElementById(t.getAttribute('form'));
       if (form && form.hasAttribute('data-bulk')) refreshBulk(form);
     }
+  });
+  document.addEventListener('click', function (e) {
+    var clr = e.target && e.target.closest && e.target.closest('[data-bulk-clear]');
+    if (!clr) return;
+    var f = bulkFormOf(clr);
+    if (!f) return;
+    Array.prototype.forEach.call(document.querySelectorAll('input[name="server"][form="' + f.id + '"]'), function (b) { b.checked = false; });
+    refreshBulk(f);
+    var allBox = document.querySelector('input[data-bulk-all][form="' + f.id + '"]') || f.querySelector('input[data-bulk-all]');
+    if (allBox) allBox.focus();
   });
   document.addEventListener('DOMContentLoaded', function () {
     var f = document.querySelector('form[data-bulk]');
