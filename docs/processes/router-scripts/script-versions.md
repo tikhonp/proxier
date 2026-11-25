@@ -54,6 +54,8 @@ Rules:
 - **Limits.** The script's own limits (512 KiB, UTF-8 without NUL bytes, not empty: `422` with the editor's message; a body over 1 MiB is `413`). 600 requests per session and 60 per minute, as for templates.
 - **The prompt is a secret.** The token is shown once; reloading the answer to the form shows "Already copied" and opens nothing. A new hand-off makes a new session.
 
+Verified over HTTP against a running local instance: an agent session read `/context` and `/draft` with a `@secret` default masked as `MASKED-BY-PROXIER`, received `428` without `If-Match` and `412` on a stale ETag, saved with the current ETag while restoring the stored secret in the draft, ran `/draft/check` and `/docs/parameters`, and received `401` ("session ended") after revocation.
+
 ## Steps: versions
 
 1. The script page lists versions: number, published, notes, generations made from it, and which one is current.

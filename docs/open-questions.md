@@ -8,7 +8,7 @@ Check whether each supported app replaces its server list when a refresh returns
 
 ## External checks and throttling
 
-Confirm check-host.net's limits for automated use. Proxier currently caps requests at 6 nodes per check, one check per 30 minutes per server and 60 checks per hour.
+Confirm check-host.net's limits for automated use (`/about/api` publishes none). Proxier currently caps requests at 6 nodes per check, one check per 30 minutes per server and 60 checks per hour.
 
 Verify whether the proxy test's 256 KB object and `stalled` result detect throttling on the networks Proxier monitors. A result from one network does not establish reachability from another. See [server health](./processes/servers/server-health.md).
 

@@ -8,6 +8,8 @@ The external checker. It tells whether a server's port 443 is reachable over TCP
 2. **Start a check**: `GET https://check-host.net/check-tcp?host=<ip>:443&node=<node>&node=<node>…` answers `{"ok": 1, "request_id": "4f96e3c5kd18", "permanent_link": "…", "nodes": {"<node>": ["de", "Germany", "Nuremberg", "<ip>", "<asn>"], …}}`.
 3. **Results**: `GET https://check-host.net/check-result/<request_id>`, polled every 2 s until every node has answered or 30 s have passed. The answer maps each node to `null` while it works, to `[{"address": "1.1.1.1", "time": 0.019135}]` once connected (`time` in seconds), or to `[{"error": "Connection timed out"}]` / `[{"error": "Connection refused"}]`. Results stay available for the same request id.
 
+Re-checked on 2026-11-25, `/nodes/hosts` listed 60 nodes (`ru1` to `ru3` in Russia, still none in Finland), `check-tcp` and `check-result` matched the response shapes above, and `/about/api` documented the public endpoints without publishing numeric rate limits or quotas.
+
 ## Reaching it
 
 From home, check-host.net's own addresses get no answer. On 2026-11-01, `check-host.net` resolved to Cloudflare's `104.21.74.214` and `172.67.163.103`. TCP connected to both, and the TLS handshake hung after the Client Hello whatever the SNI. Cloudflare answered the same request on another of its addresses, `104.16.123.96`, so the block is on the addresses and not on the name.

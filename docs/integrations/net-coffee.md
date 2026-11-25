@@ -31,6 +31,8 @@ The IP reputation subscription option uses the Claude-observed exit and raw scor
 
 An anonymous request to [`/api/iprisk/8.8.8.8`](https://ip.net.coffee/api/iprisk/8.8.8.8) returned HTTP 200 with raw score 63. It required no API key or session. The response included public cache headers and permissive CORS. Those headers establish no reuse permission.
 
+Checked on 2026-11-25 over HTTP/1.1, `/api/iprisk/{ip}` returned HTTP 200 for IPv4 and IPv6 addresses, including CIDR-cached responses where `ip` named another address in `cidr` (`1.1.1.1` returned `1.1.1.2` in `1.1.1.0/24`) and IPv6 prefixes (`2606:4700:4700::1111` in `2606:4700:4700::0/48`; `2001:4860:4860::8888` in `2001:4860::/32`). Both frontend scripts (`claude-page.js?v=20260916a`, `gpt-page.js?v=20260916a`) kept the same country restriction list.
+
 The broader `/api/ip/lookup/{ip}` endpoint returned different VPN and abuse flags for the same IP. Proxier uses only `/api/iprisk/{ip}` to match the AI pages. It collects no browser fingerprint or session report.
 
-No published automated-use permission, quota or integration contract has been found. [robots.txt](https://ip.net.coffee/robots.txt) excludes `/api/` from crawling. Supported production use, classification accuracy for ordinary proxy exits and client behavior when score suffixes change remain [external checks](../open-questions.md#ai-ip-reputation).
+No published automated-use permission, quota or integration contract has been found (`sitemap-main.xml` lists no terms or API documentation page). [robots.txt](https://ip.net.coffee/robots.txt) excludes `/api/` from crawling. Supported production use, classification accuracy for ordinary proxy exits against its web pages and client behavior when score suffixes change remain [external checks](../open-questions.md#ai-ip-reputation).
