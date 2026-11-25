@@ -22,31 +22,39 @@ import (
 // servers that need a look (with their reason and since), servers with an
 // update available, the top three by disk and by traffic today, and the
 // first-run items that belong to servers.
-func (m *Module) Dashboard(ctx context.Context, _ access.Who) ([]ui.DashboardArea, error) {
+func (m *Module) Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardArea, error) {
 	loc := i18n.From(ctx)
-	counts, err := store.CountByState(ctx, m.deps.DB.R)
+	all, err := store.ListServers(ctx, m.deps.DB.R)
 	if err != nil {
 		return nil, err
 	}
-	v := pages.DashboardView{Counts: counts, Health: map[string]int{}}
-	for _, n := range counts {
-		v.Total += n
+	counts := map[string]int{}
+	for _, s := range all {
+		if s.Retiring() {
+			counts["retiring"]++
+		} else {
+			counts[s.State]++
+		}
 	}
-	token, err := m.deps.Settings.Get(ctx, cloudflare.TokenKey)
-	if err != nil {
-		return nil, err
-	}
-	pattern, err := m.deps.Settings.Get(ctx, conf.HostnamePatternKey)
-	if err != nil {
-		return nil, err
-	}
-	// A setup step shows until it is done. The first server shows while there
-	// is none, or while a setup step is missing.
-	if token == "" {
-		v.Checklist = append(v.Checklist, pages.DashCheck{Label: i18n.T(ctx, "health.dash.setup_cloudflare"), Href: "/settings/integrations/cloudflare"})
-	}
-	if pattern == "" {
-		v.Checklist = append(v.Checklist, pages.DashCheck{Label: i18n.T(ctx, "health.dash.setup_pattern"), Href: "/settings/servers"})
+	v := pages.DashboardView{Counts: counts, Health: map[string]int{}, Total: len(all)}
+	// A setup step shows until it is done. Settings links show only to members
+	// who manage Settings; the first server shows while there is none or while
+	// a setup step is missing.
+	if w.Grant.Can(access.Settings, access.LevelManage) {
+		token, err := m.deps.Settings.Get(ctx, cloudflare.TokenKey)
+		if err != nil {
+			return nil, err
+		}
+		pattern, err := m.deps.Settings.Get(ctx, conf.HostnamePatternKey)
+		if err != nil {
+			return nil, err
+		}
+		if token == "" {
+			v.Checklist = append(v.Checklist, pages.DashCheck{Label: i18n.T(ctx, "health.dash.setup_cloudflare"), Href: "/settings/integrations/cloudflare"})
+		}
+		if pattern == "" {
+			v.Checklist = append(v.Checklist, pages.DashCheck{Label: i18n.T(ctx, "health.dash.setup_pattern"), Href: "/settings/servers"})
+		}
 	}
 	if len(v.Checklist) > 0 || v.Total == 0 {
 		v.Checklist = append(v.Checklist, pages.DashCheck{Label: i18n.T(ctx, "health.dash.setup_server"), Href: "/servers/new", Done: v.Total > 0})
@@ -61,26 +69,37 @@ func (m *Module) Dashboard(ctx context.Context, _ access.Who) ([]ui.DashboardAre
 			v.HomeSince = loc.Ago(since.Time)
 		}
 	}
-	all, err := store.ListServers(ctx, m.deps.DB.R)
-	if err != nil {
-		return nil, err
-	}
 	sort.Slice(all, func(i, j int) bool { return all[i].Name < all[j].Name })
 	defaults := map[int64]int{}
 	var active []store.Server
 	for _, s := range all {
+		if s.Retiring() {
+			continue
+		}
 		switch s.State {
 		case "failed":
-			v.Failed = append(v.Failed, pages.DashRow{ID: s.ID, Name: s.Name,
-				Reason: i18n.T(ctx, "job.servers.provision.step."+s.FailedStep) + " · " + s.FailedError})
+			step := s.FailedStep
+			if k := "job.servers.provision.step." + s.FailedStep; loc.Has(k) {
+				step = i18n.T(ctx, k)
+			}
+			reason := s.FailedError
+			if step != "" && reason != "" {
+				reason = step + " · " + reason
+			} else if step != "" {
+				reason = step
+			}
+			v.Failed = append(v.Failed, pages.DashRow{
+				ID: s.ID, Name: s.Name, Flag: country.Flag(s.Country),
+				Kind: "broken", Word: i18n.T(ctx, "servers.state.failed"), Reason: reason,
+			})
 		case "active":
 			active = append(active, s)
 			v.Health[s.Health]++
 			if s.Health != "healthy" {
 				kind := map[string]string{"degraded": "look", "blocked": "blocked", "down": "broken", "unknown": "unknown", "paused": "paused"}[s.Health]
-				reason := i18n.T(ctx, "servers.health."+s.Health)
+				var reason string
 				if r, ok := health.ParseReason(s.HealthReason); ok {
-					reason += ": " + health.RenderReason(loc, r)
+					reason = health.RenderReason(loc, r)
 				}
 				row := pages.DashRow{ID: s.ID, Name: s.Name, Flag: country.Flag(s.Country), Kind: kind, Word: i18n.T(ctx, "servers.health."+s.Health), Reason: reason}
 				if !s.HealthSince.IsZero() {
@@ -106,10 +125,15 @@ func (m *Module) Dashboard(ctx context.Context, _ access.Who) ([]ui.DashboardAre
 		return nil, nil
 	}
 	// its stats and checklist are for who manages servers
-	return []ui.DashboardArea{{
+	area := ui.DashboardArea{
 		Area: access.Servers, Level: access.LevelManage, Order: 20, Title: i18n.T(ctx, "servers.dash.title"),
 		Body: pages.DashboardServers(v),
-	}}, nil
+	}
+	if v.Total > 0 {
+		area.ActionHref = "/servers"
+		area.ActionLabel = i18n.T(ctx, "servers.dash.all") + " →"
+	}
+	return []ui.DashboardArea{area}, nil
 }
 
 // dashTops ranks the active servers by disk use and by traffic today.

@@ -261,7 +261,7 @@ func (h *handler) preview(c *echo.Context) error {
 	if err != nil {
 		return err
 	}
-	reveal := c.QueryParam("reveal") == "1"
+	reveal := c.QueryParam("reveal") == "1" && c.QueryParam("hide") != "1"
 	v, err := h.previewView(c.Request().Context(), s, c.QueryParam("format"), reveal)
 	if err != nil {
 		return err
@@ -272,7 +272,7 @@ func (h *handler) preview(c *echo.Context) error {
 	if reveal {
 		c.Response().Header().Set("Cache-Control", "no-store")
 	}
-	return web.Render(c, http.StatusOK, previewBody(v))
+	return web.Render(c, http.StatusOK, subPreview(s.ID, v))
 }
 
 // ---------------------------------------------------------------- delete

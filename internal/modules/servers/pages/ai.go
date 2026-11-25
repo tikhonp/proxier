@@ -224,3 +224,10 @@ func (h *handler) healthAI(c *echo.Context, v *healthView) error {
 	}
 	return err
 }
+
+func aiAreaNote(ctx context.Context, show bool) string {
+	if !show {
+		return ""
+	}
+	return i18n.T(ctx, "ai.note")
+}

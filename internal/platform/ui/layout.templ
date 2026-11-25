@@ -80,7 +80,9 @@ templ Layout(s Shell) {
 				<div class="body">
 					<nav class="side pc-side" aria-label={ i18n.T(ctx, "ui.main_nav") }>
 						for _, g := range s.Nav {
-							<div class="side-group">{ i18n.T(ctx, g.Label) }</div>
+							if g.Label != "nav.group.overview" {
+								<div class="side-group">{ i18n.T(ctx, g.Label) }</div>
+							}
 							for _, it := range g.Items {
 								<a
 									href={ templ.SafeURL(it.Href) }

@@ -48,6 +48,18 @@ func (h *handler) registerServers(r web.Routes) {
 
 func serverHref(id int64) string { return "/servers/" + i64(id) }
 
+func overviewBandKind(statusKind string) string {
+	switch statusKind {
+	case "broken":
+		return "love"
+	case "blocked":
+		return "iris"
+	case "look":
+		return "gold"
+	}
+	return "pine"
+}
+
 // stateKind maps a server to the marker kind and the word of its status: the
 // health for an active server, the lifecycle state otherwise.
 func stateKind(ctx context.Context, s store.Server) (kind, word string) {

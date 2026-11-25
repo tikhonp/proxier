@@ -223,13 +223,9 @@ func TestLinkPartsAreSpaced(t *testing.T) {
 	// the spaces templ leaves between inline elements don't matter here
 	tight := func(s string) string { return strings.TrimSpace(regexp.MustCompile(`>\s+<`).ReplaceAllString(s, "><")) }
 	body := tight(page(t, h, href))
-	urlArea := regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="link-url"><code class="masked">(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><p class="sm subtle">The token is shown only here`)
+	urlArea := regexp.MustCompile(`<section class="area" aria-label="URL">.*?<div class="area-body stacked"><div class="urlfield" id="link-url"><code class="masked">(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Reveal</button><button [^>]*>Copy</button></span></div><div id="link-qr" class="qrslot"><button [^>]*>Show QR</button></div><p class="sm subtle">The token is shown only here.*?In the app: add subscription → scan QR\.</p></div>`)
 	if !urlArea.MatchString(body) {
-		t.Error("the URL area isn't the URL, its buttons together, then the note, stacked")
-	}
-	qrArea := regexp.MustCompile(`<section class="area" aria-label="QR code">.*?<div class="area-body stacked"><p class="sm subtle">In the app: add subscription → scan QR.</p><div id="link-qr" class="qrslot"><button [^>]*>Show QR</button></div></div>`)
-	if !qrArea.MatchString(body) {
-		t.Error("the QR area isn't the note, then Show QR in its slot, stacked")
+		t.Error("the URL area isn't the URL, its buttons together, Show QR in its slot, then the note, stacked")
 	}
 	revealed := tight(h.Login.Get(href+"/url", hx()).Body.String())
 	if !regexp.MustCompile(`^<div class="urlfield" id="link-url"><code>(?:[^<]|<wbr>)+</code><span class="url-btns"><button [^>]*>Hide</button><button [^>]*>Copy</button></span></div>$`).MatchString(revealed) {

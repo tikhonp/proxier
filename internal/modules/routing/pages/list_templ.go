@@ -196,7 +196,7 @@ func rlistPage(s ui.Shell, v listPageView) templ.Component {
 					}
 				}
 				for _, t := range v.Targets {
-					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"row\">")
+					templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "<div class=\"row target\">")
 					if templ_7745c5c3_Err != nil {
 						return templ_7745c5c3_Err
 					}

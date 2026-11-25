@@ -32,13 +32,13 @@ templ FilterBar(chips []Chip, form *FilterForm, clearHref string) {
 					<input type="hidden" name={ k } value={ v }/>
 				}
 				for _, s := range form.Selects {
-					<select name={ s.Name } class="pc-inp sel" aria-label={ s.Label }>
+					<select name={ s.Name } class="pc-inp sel" aria-label={ s.Label } data-auto-submit>
 						for _, o := range s.Options {
 							<option value={ o.Value } selected?={ o.Value == s.Value }>{ o.Label }</option>
 						}
 					</select>
 				}
-				<button type="submit" class="pc-btn pc-sm">{ form.Apply }</button>
+				<button type="submit" class="pc-btn pc-sm filter-apply">{ form.Apply }</button>
 			</form>
 		}
 		if clearHref != "" {

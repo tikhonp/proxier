@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"github.com/tikhonp/proxier/internal/platform/access"
 	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/ui"
 )
@@ -9,36 +10,48 @@ templ aiRankingPage(s ui.Shell, v aiView) {
 	@ui.Layout(s) {
 		<div class="titleblock">
 			<div class="head">
+				<nav class="crumbs" aria-label="Breadcrumb"><a href="/servers">{ i18n.T(ctx, "servers.title") }</a><span aria-hidden="true">/</span><span>{ i18n.T(ctx, "ai.ranking") }</span></nav>
 				<h1>{ i18n.T(ctx, "ai.ranking") }</h1>
 				<p class="subtle">{ i18n.T(ctx, "ai.note") }</p>
 			</div>
 		</div>
-		<div class="filters area-body">
-			<a href="/servers" class="pc-btn">{ i18n.T(ctx, "servers.title") }</a>
-			for _, c := range v.Chips {
-				<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ ui.BoolStr(c.On) }>{ c.Label }</a>
-			}
-		</div>
-		@aiArea(v)
+		if v.Enabled {
+			<div class="filters">
+				for _, c := range v.Chips {
+					<a href={ templ.SafeURL(c.Href) } class="pc-chip" aria-pressed={ ui.BoolStr(c.On) }>{ c.Label }</a>
+				}
+			</div>
+		}
+		@aiArea(v, false, s.Grant.Can(access.Settings, access.LevelManage))
 	}
 }
 
-templ aiArea(v aiView) {
+templ aiArea(v aiView, showNote, canSettings bool) {
 	<div id="ai-results" hx-get={ v.PollHref } hx-trigger={ aiPollTrigger(v) } hx-select="#ai-results" hx-target="#ai-results" hx-swap="outerHTML">
-		@ui.Area(i18n.T(ctx, "ai.title"), i18n.T(ctx, "ai.note")) {
-			<div class="area-body">
-				if !v.Enabled {
-					<p class="subtle">{ i18n.T(ctx, "ai.disabled") }</p>
-				} else if v.ServerID > 0 {
-					<div class="actions">
-						@ui.ActionButton(ui.Action{ID: "ai.run", Label: "ai.run", Method: "POST", Href: serverHref(v.ServerID) + "/ai/run"})
-						@ui.ActionButton(ui.Action{ID: "ai.ranking", Label: "ai.ranking", Method: "GET", Href: "/servers/ai"})
-					</div>
-				}
-				if v.PollHref != "" {
-					<p class="subtle" role="status">{ i18n.T(ctx, "ai.queued") }</p>
-				}
-			</div>
+		@ui.Area(i18n.T(ctx, "ai.title"), aiAreaNote(ctx, v.Enabled && showNote)) {
+			if !v.Enabled {
+				<div class="row dashsrv">
+					if canSettings {
+						<span class="subtle">{ i18n.T(ctx, "ai.disabled") }</span>
+						<span class="flex1"></span>
+						<a href="/settings/servers" class="pc-btn pc-sm">{ i18n.T(ctx, "nav.settings") } →</a>
+					} else {
+						<span class="subtle">{ i18n.T(ctx, "ai.disabled_view") }</span>
+					}
+				</div>
+			} else if v.ServerID > 0 || v.PollHref != "" {
+				<div class="area-body">
+					if v.ServerID > 0 {
+						<div class="actions">
+							@ui.ActionButton(ui.Action{ID: "ai.run", Label: "ai.run", Method: "POST", Href: serverHref(v.ServerID) + "/ai/run"})
+							@ui.ActionButton(ui.Action{ID: "ai.ranking", Label: "ai.ranking", Method: "GET", Href: "/servers/ai"})
+						</div>
+					}
+					if v.PollHref != "" {
+						<p class="subtle" role="status">{ i18n.T(ctx, "ai.queued") }</p>
+					}
+				</div>
+			}
 			if v.Enabled {
 				<div class="tbl">
 					<div class="colhead ai-row" aria-hidden="true">

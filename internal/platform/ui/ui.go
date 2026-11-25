@@ -114,11 +114,14 @@ type IntegrationRow struct {
 // DashboardArea is a module's block on the dashboard. Areas are sorted by
 // Order after the platform's own.
 type DashboardArea struct {
-	Area  access.Area  // shown to members who see it
-	Level access.Level // the level it needs when higher than the area's lowest
-	Order int
-	Title string          // already translated
-	Body  templ.Component // rendered inside the area
+	Area        access.Area  // shown to members who see it
+	Level       access.Level // the level it needs when higher than the area's lowest
+	Order       int
+	Title       string          // already translated
+	Note        string          // optional subtitle in the title band
+	ActionHref  string          // optional link on the right of the title band
+	ActionLabel string          // already translated
+	Body        templ.Component // rendered inside the area
 }
 
 // SubjectRef names a subject of an event or job and links to it.

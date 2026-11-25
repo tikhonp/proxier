@@ -84,6 +84,20 @@ type newView struct {
 	NoTemplates bool
 }
 
+func (v newView) hasAddresses() bool {
+	for _, a := range v.Addresses {
+		if strings.TrimSpace(a.IP) != "" || strings.TrimSpace(a.Hostname) != "" {
+			return true
+		}
+	}
+	for k := range v.Errs {
+		if strings.HasPrefix(k, "addr_") {
+			return true
+		}
+	}
+	return false
+}
+
 // formOf reads the new-server form. The country is the code the picker's
 // text names, or that text itself when it names none, so Create refuses it.
 func formOf(c *echo.Context) provision.Form {

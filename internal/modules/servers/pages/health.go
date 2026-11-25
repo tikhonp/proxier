@@ -240,8 +240,18 @@ func (h *handler) buildMatrix(ctx context.Context, s store.Server, now time.Time
 		_ = json.Unmarshal([]byte(r.Detail), &d)
 		kind := kindOf(r.OK, r.At, cfg.SelfEvery, r.Inconclusive)
 		detail := d.Error
+		cls := r.Class
+		if cls == "" && r.OK {
+			cls = "ok"
+		}
+		resWord := cls
+		if k := "health.self." + cls; loc.Has(k) {
+			resWord = i18n.T(ctx, k)
+		} else if r.OK {
+			resWord = i18n.T(ctx, "health.m.ok")
+		}
 		v.Matrix = append(v.Matrix, matrixRow{
-			Label: i18n.T(ctx, "health.m.self_check"), Kind: kind, Result: i18n.T(ctx, "health.self."+r.Class), Detail: detail, When: w, At: at,
+			Label: i18n.T(ctx, "health.m.self_check"), Kind: kind, Result: resWord, Detail: detail, When: w, At: at,
 			Strip: strip(selfHist, "", "", now, 48, 30*time.Minute), StripLabel: i18n.T(ctx, "health.m.strip"),
 		})
 		for _, ch := range d.Checks {
@@ -254,10 +264,12 @@ func (h *handler) buildMatrix(ctx context.Context, s store.Server, now time.Time
 	}
 
 	// The proxy test per endpoint.
-	group("health.m.proxy")
 	eps, err := store.Endpoints(ctx, q, s.ID)
 	if err != nil {
 		return err
+	}
+	if len(eps) > 0 {
+		group("health.m.proxy")
 	}
 	proxies, err := store.LatestResults(ctx, q, s.ID, "proxy")
 	if err != nil {

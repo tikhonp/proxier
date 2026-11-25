@@ -4301,21 +4301,6 @@ func routerActions(v routerView) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = actionRow(ui.Action{ID: "routers.edit_conn", Label: "routers.edit", Method: "GET", Href: routerHref(v.R.ID) + "/edit", Small: true}, i18n.T(ctx, "routers.edit.what")).Render(ctx, templ_7745c5c3_Buffer)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			if v.R.State == "active" {
-				templ_7745c5c3_Err = actionRow(ui.Action{ID: "routers.pause_row", Label: "routers.pause", Method: "POST", Href: routerHref(v.R.ID) + "/pause", Small: true}, i18n.T(ctx, "routers.pause.what")).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			} else if v.R.State == "paused" {
-				templ_7745c5c3_Err = actionRow(ui.Action{ID: "routers.resume_row", Label: "routers.resume", Method: "POST", Href: routerHref(v.R.ID) + "/resume", Small: true}, i18n.T(ctx, "routers.resume.what")).Render(ctx, templ_7745c5c3_Buffer)
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-			}
 			if v.R.State != "removing" {
 				templ_7745c5c3_Err = actionRow(ui.Action{ID: "routers.remove", Label: "routers.remove", Method: "GET", Href: routerHref(v.R.ID) + "/remove", Small: true, Kind: ui.Danger, Key: "x"}, i18n.T(ctx, "routers.remove.what")).Render(ctx, templ_7745c5c3_Buffer)
 				if templ_7745c5c3_Err != nil {

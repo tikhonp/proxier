@@ -248,8 +248,19 @@ func (h *handler) jobsPage(c *echo.Context) error {
 		{Label: i18n.T(ctx, "jobs.filter.hide_checks"), Href: f.href(func(g *jobFilter) { g.HideChecks = !g.HideChecks }), On: f.HideChecks},
 	}
 	typeOpts := []ui.FilterOption{{Value: "", Label: i18n.T(ctx, "jobs.filter.type_any")}}
-	for _, t := range h.Jobs.Types() {
-		typeOpts = append(typeOpts, ui.FilterOption{Value: t, Label: typeLabel(ctx, t)})
+	types := h.Jobs.Types()
+	labelCounts := map[string]int{}
+	for _, t := range types {
+		labelCounts[typeLabel(ctx, t)]++
+	}
+	for _, t := range types {
+		lbl := typeLabel(ctx, t)
+		if labelCounts[lbl] > 1 {
+			if mod, _, ok := strings.Cut(t, "."); ok {
+				lbl = tr(ctx, "nav.group."+mod, mod) + " · " + lbl
+			}
+		}
+		typeOpts = append(typeOpts, ui.FilterOption{Value: t, Label: lbl})
 	}
 	hidden := map[string]string{}
 	for k, vals := range f.query() {

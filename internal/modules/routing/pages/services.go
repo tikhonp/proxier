@@ -36,6 +36,8 @@ type listView struct {
 	Status   string
 	Band     string
 	Chips    []ui.Chip
+	Form     *ui.FilterForm
+	Clear    string
 	Rows     []svcRow
 	Empty    bool // no services at all
 	Info     string
@@ -114,15 +116,10 @@ func (h *handler) list(c *echo.Context) error {
 		}
 		return listPath + "?" + q.Encode()
 	}
-	query := func(source, list string) string { return queryState(source, list, state) }
-	for _, s := range sourceFilters {
-		label := i18n.T(ctx, "services.filter.all")
-		if s != "" {
-			label = s
-		}
-		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "services.filter.source", i18n.Args{"source": label}), Href: query(s, listParam), On: s == src})
-	}
-	// State chips: pressing the pressed one clears it.
+	// State chips: All + each state; pressing an active state clears it.
+	v.Chips = append(v.Chips, ui.Chip{
+		Label: i18n.T(ctx, "services.filter.all"), Href: queryState(src, listParam, ""), On: state == "",
+	})
 	for _, st := range stateFilters {
 		href := queryState(src, listParam, st)
 		if st == state {
@@ -132,34 +129,67 @@ func (h *handler) list(c *echo.Context) error {
 			Label: i18n.T(ctx, "refresh.filter.state", i18n.Args{"state": stateWord(ctx, st), "n": byState[st]}), Href: href, On: st == state,
 		})
 	}
-	// List chips: pressing the pressed one clears it.
+	// Source and List selects keep the filter bar to one line even with many lists.
+	srcOpts := make([]ui.FilterOption, 0, len(sourceFilters))
+	for _, s := range sourceFilters {
+		label := i18n.T(ctx, "services.filter.all")
+		if s != "" {
+			label = s
+		}
+		srcOpts = append(srcOpts, ui.FilterOption{
+			Value: s,
+			Label: i18n.T(ctx, "services.filter.source", i18n.Args{"source": label}),
+		})
+	}
 	rls, err := h.Lists.All(ctx, scope(ctx).Writable())
 	if err != nil {
 		return err
-	}
-	for _, l := range rls {
-		id := i64(l.ID)
-		href := query(src, id)
-		if listParam == id {
-			href = query(src, "")
-		}
-		v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "lists.filter.list", i18n.Args{"name": l.Name}), Href: href, On: listParam == id})
 	}
 	free, err := h.Services.List(ctx, scope(ctx), services.Filter{NoList: true})
 	if err != nil {
 		return err
 	}
-	href := query(src, "none")
-	if listParam == "none" {
-		href = query(src, "")
+	listOpts := []ui.FilterOption{{Value: "", Label: i18n.T(ctx, "services.col.lists") + ": " + i18n.T(ctx, "services.filter.all")}}
+	for _, l := range rls {
+		listOpts = append(listOpts, ui.FilterOption{
+			Value: i64(l.ID),
+			Label: i18n.T(ctx, "lists.filter.list", i18n.Args{"name": l.Name}),
+		})
 	}
-	v.Chips = append(v.Chips, ui.Chip{Label: i18n.T(ctx, "lists.filter.none", i18n.Args{"n": len(free)}), Href: href, On: listParam == "none"})
+	listOpts = append(listOpts, ui.FilterOption{
+		Value: "none",
+		Label: i18n.T(ctx, "lists.filter.none", i18n.Args{"n": len(free)}),
+	})
+	hidden := map[string]string{}
+	if state != "" {
+		hidden["state"] = state
+	}
+	v.Form = &ui.FilterForm{
+		Action: listPath,
+		Hidden: hidden,
+		Apply:  i18n.T(ctx, "jobs.filter.apply"),
+		Selects: []ui.FilterSelect{
+			{Name: "source", Label: i18n.T(ctx, "services.col.source"), Value: src, Options: srcOpts},
+			{Name: "list", Label: i18n.T(ctx, "services.col.lists"), Value: listParam, Options: listOpts},
+		},
+	}
+	if src != "" || listParam != "" || state != "" {
+		v.Clear = listPath
+	}
 	p := pageOf(c)
 	from, to := window(len(rows), p)
 	for _, r := range rows[from:to] {
+		sub := sourceWord(ctx, r.Item)
+		if r.Source == selector.Custom && r.Origin == "" {
+			sub = ""
+		}
+		dom := loc.Number(int64(r.Suffix))
+		if r.Exact > 0 {
+			dom = i18n.T(ctx, "services.col.domains_value", i18n.Args{"suffix": loc.Number(int64(r.Suffix)), "exact": loc.Number(int64(r.Exact))})
+		}
 		sr := svcRow{
-			ID: r.ID, Tag: r.Tag, Sub: sourceWord(ctx, r.Item), Source: string(r.Source),
-			Domains:   i18n.T(ctx, "services.col.domains_value", i18n.Args{"suffix": loc.Number(int64(r.Suffix)), "exact": loc.Number(int64(r.Exact))}),
+			ID: r.ID, Tag: r.Tag, Sub: sub, Source: string(r.Source),
+			Domains:   dom,
 			StateKind: stateKind(r.State), State: stateWord(ctx, r.State),
 			Lists: strings.Join(r.Lists, ", "), NoLists: len(r.Lists) == 0, Upstream: r.Source != selector.Custom,
 		}

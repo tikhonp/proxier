@@ -17,5 +17,13 @@ func (m *Module) Dashboard(ctx context.Context, w access.Who) ([]ui.DashboardAre
 	if err != nil || v == nil {
 		return nil, err
 	}
-	return []ui.DashboardArea{{Area: access.Routing, Order: 40, Title: i18n.T(ctx, "routers.dash.title"), Body: pages.DashboardRouting(*v)}}, nil
+	return []ui.DashboardArea{{
+		Area:        access.Routing,
+		Order:       40,
+		Title:       i18n.T(ctx, "routers.dash.title"),
+		Note:        v.InSync,
+		ActionHref:  "/routing/routers",
+		ActionLabel: i18n.T(ctx, "routers.dash.all"),
+		Body:        pages.DashboardRouting(*v),
+	}}, nil
 }

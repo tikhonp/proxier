@@ -9,7 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"context"
 	"github.com/tikhonp/proxier/internal/platform/events"
+	"github.com/tikhonp/proxier/internal/platform/i18n"
 	"github.com/tikhonp/proxier/internal/platform/jobs"
 	"github.com/tikhonp/proxier/internal/platform/sitetest"
 )
@@ -218,5 +220,29 @@ func TestJobsNameTheMemberWhoStartedThem(t *testing.T) {
 	list := l.Get("/jobs").Body.String()
 	if strings.Count(list, "alex") < 3 || strings.Contains(list, "member:1") || strings.Contains(list, "admin ·") {
 		t.Errorf("the list shows a stored actor:\n%s", list)
+	}
+}
+
+func TestJobsFilterDisambiguatesDuplicateTypeLabels(t *testing.T) {
+	s := sitetest.New(t, sitetest.Options{})
+	l := s.SignIn("")
+	noop := []jobs.Step{{Name: "run", Run: func(context.Context, *jobs.Run) error { return nil }}}
+	if err := s.App.Jobs.Register("servers", jobs.Type{Name: "servers.agent_expire", Queue: jobs.Maintenance, MaxAttempts: 1, Steps: noop}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.App.Jobs.Register("routing", jobs.Type{Name: "routing.agent_expire", Queue: jobs.Maintenance, MaxAttempts: 1, Steps: noop}); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.App.I18n.Add("test", i18n.Messages{
+		"job.servers.agent_expire": {EN: "Close expired agent sessions", RU: "Закрыть истёкшие сеансы агентов"},
+		"job.routing.agent_expire": {EN: "Close expired agent sessions", RU: "Закрыть истёкшие сеансы агентов"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+	body := l.Get("/jobs").Body.String()
+	for _, want := range []string{"Servers · Close expired agent sessions", "Routing · Close expired agent sessions"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("jobs type filter lacks %q", want)
+		}
 	}
 }
