@@ -32,7 +32,7 @@ jobs:
 
       - name: Generated templ files are up to date
         run: |
-          go run github.com/a-h/templ/cmd/templ@v0.3.1100 generate
+          go run github.com/a-h/templ/cmd/templ@v0.3.1118 generate
           git diff --exit-code -- '*_templ.go' || (echo "::error::run templ generate and commit the result" && exit 1)
 
       - name: gofmt
@@ -77,7 +77,7 @@ jobs:
           version: v2.15.0
 
       - name: govulncheck
-        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
 
   # Build only after validation of the commit that landed on main or was
   # tagged v*. PRs run pr.yaml and never build or publish images.

@@ -29,7 +29,7 @@ jobs:
 
       - name: Pull test image
         timeout-minutes: 10
-        run: docker pull golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea
+        run: docker pull golang:1.27.4-bookworm@sha256:ce59b41415e2524ae99926fe1f37ce48ba8c194dcbd2a56a65436cdcefa2bd34
 
       - name: Build and test in container
         run: |
@@ -42,10 +42,10 @@ jobs:
             --mount "type=bind,source=$GITHUB_WORKSPACE/source,target=/source,readonly" \
             --env PROXIER_TEST_PATIENCE=10 \
             --workdir /work --entrypoint /bin/bash \
-            golang:1.27.4-bookworm@sha256:4fa7c968ba93f1635670522dbb01a2c78150443e1385746924566079f36570ea -euo pipefail -s <<'CHECKS'
+            golang:1.27.4-bookworm@sha256:ce59b41415e2524ae99926fe1f37ce48ba8c194dcbd2a56a65436cdcefa2bd34 -euo pipefail -s <<'CHECKS'
           cp -R /source/. /work/
           go mod download
-          go run github.com/a-h/templ/cmd/templ@v0.3.1100 generate
+          go run github.com/a-h/templ/cmd/templ@v0.3.1118 generate
           git diff --exit-code -- '*_templ.go'
           out=$(gofmt -l .)
           if [ -n "$out" ]; then
@@ -87,5 +87,5 @@ jobs:
           cp -R /source/. /work/
           go mod download
           golangci-lint run
-          go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
+          go run golang.org/x/vuln/cmd/govulncheck@v1.10.0 ./...
           CHECKS

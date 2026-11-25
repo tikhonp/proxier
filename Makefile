@@ -1,6 +1,6 @@
 APP_VERSION := $(shell git rev-parse --short HEAD 2>/dev/null || echo dev)
-TEMPL_VERSION := v0.3.1100
-GOVULNCHECK_VERSION := v1.9.0
+TEMPL_VERSION := v0.3.1118
+GOVULNCHECK_VERSION := v1.10.0
 # The image make build-image tags; make build-image IMAGE=registry.example.com/me/proxier
 IMAGE ?= proxier
 
